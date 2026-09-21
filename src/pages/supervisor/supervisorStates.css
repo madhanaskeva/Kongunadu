@@ -1,0 +1,15 @@
+/* Hover, press and focus states carried over from the prototype (style-hover / style-active / style-focus). */
+.sv-f1:focus, .sv-f1:focus-within { border-color:var(--color-brand) !important;box-shadow:var(--focus-ring) !important; }
+.sv-h2:hover { background:var(--surface-muted) !important; }
+.sv-h3:hover { box-shadow:var(--shadow-md) !important; }
+.sv-a4:active { transform:translateY(1px) !important; }
+.sv-h5:hover { background:var(--color-brand-strong) !important; }
+.sv-h6:hover { background:var(--color-brand-tint) !important; }
+.sv-h7:hover { background:var(--color-brand-soft) !important; }
+.sv-h8:hover { background:var(--surface-muted) !important;border-color:var(--color-brand) !important; }
+.sv-h9:hover { background:var(--kr-red-100) !important; }
+.sv-h10:hover { background:var(--kr-green-800) !important; }
+.sv-h11:hover { background:#fff !important; }
+.sv-h12:hover { border-color:var(--color-brand) !important; }
+.sv-h13:hover { color:var(--text-brand) !important; }
+.sv-h14:hover { background:var(--kr-red-50) !important;border-color:var(--kr-red-600) !important; }

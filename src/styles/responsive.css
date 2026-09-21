@@ -1,0 +1,20 @@
+@media (max-width: 1024px) {
+  .tms-hide-tablet {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .tms-hide-mobile {
+    display: none !important;
+  }
+
+  .tms-grid-responsive {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tms-card-padding-sm {
+    padding: 16px !important;
+  }
+}
+

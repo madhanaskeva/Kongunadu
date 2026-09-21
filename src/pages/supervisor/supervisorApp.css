@@ -1,0 +1,36 @@
+/* Supervisor App frame: full screen on a phone, a centred phone-width column on larger screens. */
+.sv-app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background: #ffffff;
+}
+
+.sv-device {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.sv-device > div {
+  flex: 1;
+}
+
+@media (min-width: 560px) {
+  .sv-app {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(0, 104, 71, 0.18), transparent 45%),
+      radial-gradient(circle at 0% 100%, rgba(218, 37, 29, 0.12), transparent 45%),
+      linear-gradient(135deg, #eef6f2 0%, #f6f7f6 50%, #fbf1f0 100%);
+  }
+
+  .sv-device {
+    box-shadow: 0 0 0 1px rgba(0, 48, 33, 0.06), 0 24px 60px rgba(0, 48, 33, 0.12);
+  }
+}

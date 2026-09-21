@@ -1,0 +1,7 @@
+:root{
+--font-display:"Archivo",system-ui,sans-serif;--font-body:"Source Sans 3","Source Sans Pro",system-ui,sans-serif;--font-brand:"Archivo",system-ui,sans-serif;--stretch-brand:125%;--font-serif:"Spectral",Georgia,serif;--font-mono:ui-monospace,"SF Mono",Menlo,monospace;
+--text-xs:12px;--text-sm:14px;--text-base:16px;--text-md:18px;--text-lg:22px;--text-xl:28px;--text-2xl:36px;--text-3xl:48px;--text-4xl:64px;
+--leading-tight:1.05;--leading-snug:1.2;--leading-normal:1.5;--leading-relaxed:1.65;
+--tracking-display:-0.02em;--tracking-caps:0.14em;--tracking-wordmark:0.02em;
+--weight-regular:400;--weight-medium:500;--weight-semibold:600;--weight-bold:700;--weight-black:800;
+}
