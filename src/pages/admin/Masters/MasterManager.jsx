@@ -249,7 +249,7 @@ export const MasterManager = ({ type }) => {
       addLabel: 'Add location',
       searchPh: 'Search location',
       data: mdata('locations', tms.locations || []),
-      cols: ['Location', 'Branch', 'Address', 'Safe radius', 'Coordinates'],
+      cols: ['Location', 'Branch', 'Address', 'Safe radius', 'Gps Coordinates'],
       cells: l => [
         txtCell(l.name, true),
         txtCell(bn(l.branch)),

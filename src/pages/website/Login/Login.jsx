@@ -4,6 +4,7 @@ import { ShieldCheck, Smartphone } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import Button from '../../../components/common/Button';
 import FormInput from '../../../components/forms/FormInput';
+import { ForgotPasswordFlow } from '../../../components/auth';
 
 const ROLES = {
   admin: {
@@ -33,11 +34,14 @@ export const Login = () => {
   const [email, setEmail] = useState(ROLES[initialRole].email);
   const [password, setPassword] = useState('password');
   const [formError, setFormError] = useState('');
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const selectRole = (next) => {
     setRole(next);
     setEmail(ROLES[next].email);
     setFormError('');
+    setSuccessMessage('');
   };
 
   const handleSubmit = async (e) => {
@@ -120,117 +124,157 @@ export const Login = () => {
             alt="Kongunadu Road Lines"
             style={{ width: '240px', height: 'auto', alignSelf: 'flex-start' }}
           />
-          <div>
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: '34px',
-                color: 'var(--kr-green-900)',
+          {isForgotPassword ? (
+            <ForgotPasswordFlow
+              initialEmail={email}
+              role={role}
+              onBack={() => {
+                setIsForgotPassword(false);
+                setFormError('');
               }}
-            >
-              Welcome Back
-            </h2>
-            <p style={{ margin: '6px 0 0', fontSize: '15px', color: 'var(--text-muted)' }}>
-              Choose your role and sign in to continue.
-            </p>
-          </div>
-
-          {/* Role Selector */}
-          <div role="radiogroup" aria-label="Sign in as" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            {Object.entries(ROLES).map(([key, r]) => {
-              const active = role === key;
-              const Icon = r.icon;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => selectRole(key)}
+              onSuccess={({ email: resetEmail, newPassword }) => {
+                setEmail(resetEmail);
+                setPassword(newPassword);
+                setSuccessMessage('Password reset successfully! You can now sign in with your new password.');
+              }}
+            />
+          ) : (
+            <>
+              <div>
+                <h2
                   style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: '6px',
-                    padding: '14px 16px',
-                    borderRadius: 'var(--radius-lg)',
-                    border: `2px solid ${active ? 'var(--color-brand)' : 'var(--border-default)'}`,
-                    backgroundColor: active ? 'var(--color-brand-tint)' : '#ffffff',
-                    color: active ? 'var(--color-brand)' : 'var(--text-body)',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'border-color var(--dur-fast), background var(--dur-fast)',
+                    margin: 0,
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    fontSize: '34px',
+                    color: 'var(--kr-green-900)',
                   }}
                 >
-                  <Icon size={20} />
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px' }}>{r.label}</span>
-                  <small style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{r.hint}</small>
-                </button>
-              );
-            })}
-          </div>
+                  Welcome Back
+                </h2>
+                <p style={{ margin: '6px 0 0', fontSize: '15px', color: 'var(--text-muted)' }}>
+                  Choose your role and sign in to continue.
+                </p>
+              </div>
 
-          {formError && (
-            <div
-              style={{
-                padding: '12px 14px',
-                backgroundColor: 'var(--kr-red-50)',
-                border: '1px solid var(--kr-red-100)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--kr-red-800)',
-                fontSize: '13px',
-                fontWeight: 600,
-              }}
-            >
-              {formError}
-            </div>
+              {/* Role Selector */}
+              <div role="radiogroup" aria-label="Sign in as" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {Object.entries(ROLES).map(([key, r]) => {
+                  const active = role === key;
+                  const Icon = r.icon;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => selectRole(key)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        gap: '6px',
+                        padding: '14px 16px',
+                        borderRadius: 'var(--radius-lg)',
+                        border: `2px solid ${active ? 'var(--color-brand)' : 'var(--border-default)'}`,
+                        backgroundColor: active ? 'var(--color-brand-tint)' : '#ffffff',
+                        color: active ? 'var(--color-brand)' : 'var(--text-body)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'border-color var(--dur-fast), background var(--dur-fast)',
+                      }}
+                    >
+                      <Icon size={20} />
+                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px' }}>{r.label}</span>
+                      <small style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{r.hint}</small>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Success Notification after password reset */}
+              {successMessage && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    backgroundColor: 'var(--color-brand-tint, #edf8f3)',
+                    border: '1px solid rgba(0, 98, 63, 0.25)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--color-brand, #00623f)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  ✓ {successMessage}
+                </div>
+              )}
+
+              {formError && (
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    backgroundColor: 'var(--kr-red-50)',
+                    border: '1px solid var(--kr-red-100)',
+                    borderRadius: 'var(--radius-md)',
+                    color: 'var(--kr-red-800)',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                  }}
+                >
+                  {formError}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <FormInput
+                  label="Email Address"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={ROLES[role].email}
+                  required
+                />
+                <FormInput
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={loading}
+                  style={{ marginTop: '8px' }}
+                >
+                  {ROLES[role].button}
+                </Button>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(true);
+                  setFormError('');
+                  setSuccessMessage('');
+                }}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text-brand)',
+                  alignSelf: 'flex-start',
+                }}
+              >
+                Forgot password?
+              </button>
+            </>
           )}
-
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <FormInput
-              label="Email Address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={ROLES[role].email}
-              required
-            />
-            <FormInput
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={loading}
-              style={{ marginTop: '8px' }}
-            >
-              {ROLES[role].button}
-            </Button>
-          </form>
-
-          <button
-            type="button"
-            onClick={() => alert('Password reset link sent to your registered Head Office administrator email.')}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: 'var(--text-brand)',
-              alignSelf: 'flex-start',
-            }}
-          >
-            Forgot password?
-          </button>
         </div>
       </div>
     </div>
