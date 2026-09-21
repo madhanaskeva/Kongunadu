@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { getDashModules, buildCustomWidget, DEFAULT_PALETTE } from '../../../utils/dashboard-custom';
+import { RowActions } from '../../../components/common/RowActions';
 
 export const Dashboard = () => {
   const {
@@ -472,14 +473,28 @@ export const Dashboard = () => {
                             {h}
                           </th>
                         ))}
+                        <th
+                          style={{
+                            padding: '10px 14px',
+                            fontFamily: 'var(--font-display)',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            color: 'var(--text-muted)',
+                            whiteSpace: 'nowrap',
+                            textAlign: 'center',
+                          }}
+                        >
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {l.tRows && l.tRows.map((r, ri) => (
                         <tr
                           key={ri}
-                          onClick={() => openDashItem(r)}
-                          style={{ cursor: 'pointer', borderTop: '1px solid var(--border-default)' }}
+                          style={{ borderTop: '1px solid var(--border-default)' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
@@ -499,6 +514,13 @@ export const Dashboard = () => {
                               {c.v}
                             </td>
                           ))}
+                          <td style={{ padding: '8px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <RowActions
+                              onView={() => openDashItem(r)}
+                              viewLabel="View details"
+                              buttonAriaLabel="Actions"
+                            />
+                          </td>
                         </tr>
                       ))}
                     </tbody>

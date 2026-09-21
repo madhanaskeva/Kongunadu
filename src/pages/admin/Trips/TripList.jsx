@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Activity, ArrowDown, Building2, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Download, Ellipsis,
-  Eye, Flag, Play, Search, Tag, TriangleAlert, Truck,
+  Activity, ArrowDown, Building2, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Download,
+  Flag, Play, Search, Tag, TriangleAlert, Truck,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { RowActions } from '../../../components/common/RowActions';
 
 const filterLabel = { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' };
 const fieldWrap = { position: 'relative', display: 'flex', alignItems: 'center' };
@@ -123,16 +124,9 @@ export const TripList = () => {
   const [draftQ, setDraftQ] = useState(tf.q || '');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [activeActionId, setActiveActionId] = useState(null);
-
-  useEffect(() => {
-    const handleDocClick = () => setActiveActionId(null);
-    window.addEventListener('click', handleDocClick);
-    return () => window.removeEventListener('click', handleDocClick);
-  }, []);
 
   useEffect(() => { setDraftQ(tf.q || ''); }, [tf.q]);
-  useEffect(() => { setPage(1); setActiveActionId(null); }, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pageSize]);
+  useEffect(() => { setPage(1); }, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pageSize]);
 
   const pageCount = Math.max(1, Math.ceil(tripRows.length / pageSize));
   const curPage = Math.min(page, pageCount);
@@ -363,89 +357,12 @@ export const TripList = () => {
                       </span>
                     ) : '—'}
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', position: 'relative' }}>
-                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {activeActionId === t.id && (
-                        <div
-                          style={{
-                            position: 'absolute',
-                            right: '100%',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            marginRight: '8px',
-                            zIndex: 50,
-                            background: '#fff',
-                            border: '1px solid #d5dfda',
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
-                            padding: '4px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            whiteSpace: 'nowrap',
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveActionId(null);
-                              openTrip(t.id);
-                            }}
-                            title={`View details for ${t.number}`}
-                            aria-label={`View details for ${t.number}`}
-                            style={{
-                              all: 'unset',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '6px 10px',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              color: 'var(--kr-green-800)',
-                              background: 'var(--kr-green-100)',
-                              transition: 'background var(--dur-fast)',
-                            }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#d2ebd9'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'var(--kr-green-100)'}
-                          >
-                            <Eye size={15} />
-                            <span>View</span>
-                          </button>
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveActionId(prev => prev === t.id ? null : t.id);
-                        }}
-                        aria-label={`Actions for ${t.number}`}
-                        title="Actions"
-                        style={{
-                          all: 'unset',
-                          cursor: 'pointer',
-                          width: '32px',
-                          height: '32px',
-                          display: 'inline-grid',
-                          placeItems: 'center',
-                          borderRadius: '8px',
-                          color: activeActionId === t.id ? 'var(--kr-green-700)' : 'var(--kr-grey-700)',
-                          background: activeActionId === t.id ? 'var(--kr-green-100)' : 'transparent',
-                          transition: 'background var(--dur-fast), color var(--dur-fast)',
-                        }}
-                        onMouseEnter={e => {
-                          if (activeActionId !== t.id) e.currentTarget.style.background = 'var(--kr-green-100)';
-                        }}
-                        onMouseLeave={e => {
-                          if (activeActionId !== t.id) e.currentTarget.style.background = 'transparent';
-                        }}
-                      >
-                        <Ellipsis size={20} />
-                      </button>
-                    </div>
+                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                    <RowActions
+                      onView={() => openTrip(t.id)}
+                      viewLabel={`View trip ${t.number}`}
+                      buttonAriaLabel={`Actions for ${t.number}`}
+                    />
                   </td>
                 </tr>
               ))}

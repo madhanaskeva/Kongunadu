@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { UserCheck } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { RowActions } from '../../../components/common/RowActions';
 
 export const MasterManager = ({ type }) => {
   const {
@@ -636,7 +638,21 @@ export const MasterManager = ({ type }) => {
                     {c}
                   </th>
                 ))}
-                <th style={{ padding: '10px 14px' }}></th>
+                <th
+                  style={{
+                    padding: '10px 14px',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-muted)',
+                    whiteSpace: 'nowrap',
+                    textAlign: 'center',
+                  }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -669,27 +685,24 @@ export const MasterManager = ({ type }) => {
                         )}
                       </td>
                     ))}
-                    <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                      {isPendingDriver && (
-                        <button
-                          onClick={() => setDrawer({ isDriverReq: true, reqId: r.id, kicker: 'Pending driver', title: r.name })}
-                          style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: '#7A4300', padding: '6px 8px' }}
-                        >
-                          Review
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleEditRecord(r)}
-                        style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', padding: '6px 8px' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteRecord(r)}
-                        style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', padding: '6px 8px' }}
-                      >
-                        Delete
-                      </button>
+                    <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                      <RowActions
+                        actions={isPendingDriver ? [
+                          {
+                            key: 'review',
+                            icon: UserCheck,
+                            label: 'Review driver request',
+                            onClick: () => setDrawer({ isDriverReq: true, reqId: r.id, kicker: 'Pending driver', title: r.name }),
+                            colorHover: '#7A4300',
+                            bgHover: 'var(--color-hazard-soft)',
+                          },
+                        ] : []}
+                        onEdit={() => handleEditRecord(r)}
+                        onDelete={() => handleDeleteRecord(r)}
+                        editLabel={`Edit ${m.singular}`}
+                        deleteLabel={`Delete ${m.singular}`}
+                        buttonAriaLabel={`Actions for ${r.name || r.number}`}
+                      />
                     </td>
                   </tr>
                 );

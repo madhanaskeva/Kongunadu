@@ -1,8 +1,9 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { RowActions } from '../../../components/common/RowActions';
 
 export const UserList = () => {
-  const { T, userTab, setUserTab, setDrawer, setForm, setFormError } = useTMSAdmin();
+  const { T, userTab, setUserTab, setDrawer, setForm, setFormError, setConfirm, showToast } = useTMSAdmin();
   const tms = T();
 
   const users = tms.users || [];
@@ -32,7 +33,38 @@ export const UserList = () => {
     setFormError('');
   };
 
-  const userCols = ['Name', 'Email', 'Role', 'Branch scope', 'Status', 'Last active'];
+  const handleEditUser = (u) => {
+    setDrawer({
+      isForm: true,
+      kicker: 'Edit user',
+      title: u.name,
+      saveLabel: 'Save changes',
+      required: ['name', 'email'],
+      fields: [
+        ['name', 'Full name'],
+        ['email', 'Email'],
+        ['role', 'Role', ['Administrator', 'Owner (read-only)', 'Billing (read-only)']],
+        ['branch', 'Branch scope', [{ value: 'all', label: 'All branches' }, ...branchOptions]],
+      ],
+    });
+    setForm({ name: u.name, email: u.email, role: u.role, branch: u.branch });
+    setFormError('');
+  };
+
+  const handleDeleteUser = (u) => {
+    setConfirm({
+      title: 'Remove ' + u.name + '?',
+      body: `This user (${u.email}) will no longer be able to log in to the portal.`,
+      okLabel: 'Remove user',
+      danger: true,
+      onOk: () => {
+        setConfirm(null);
+        showToast('danger', 'User removed', u.name + ' has been removed.');
+      },
+    });
+  };
+
+  const userCols = ['Name', 'Email', 'Role', 'Branch scope', 'Status', 'Last active', 'Actions'];
   const permCols = ['Module', 'Administrator', 'Owner', 'Billing'];
 
   return (
@@ -104,6 +136,7 @@ export const UserList = () => {
                         textTransform: 'uppercase',
                         color: 'var(--text-muted)',
                         whiteSpace: 'nowrap',
+                        textAlign: c === 'Actions' ? 'center' : 'left',
                       }}
                     >
                       {c}
@@ -142,6 +175,15 @@ export const UserList = () => {
                       </td>
                       <td style={{ padding: '12px 14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {u.last}
+                      </td>
+                      <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                        <RowActions
+                          onEdit={() => handleEditUser(u)}
+                          onDelete={() => handleDeleteUser(u)}
+                          editLabel={`Edit ${u.name}`}
+                          deleteLabel={`Remove ${u.name}`}
+                          buttonAriaLabel={`Actions for ${u.name}`}
+                        />
                       </td>
                     </tr>
                   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { RowActions } from '../../../components/common/RowActions';
 
 export const DistanceVariation = () => {
   const { T, st, distQ, setDistQ, distReview, navTo } = useTMSAdmin();
@@ -85,7 +86,7 @@ export const DistanceVariation = () => {
     { label: 'Average variance', value: distAvg.toFixed(1) + '%', sub: 'Furthest source vs fixed KM', edge: 'var(--kr-grey-300)', color: 'var(--text-heading)' },
   ];
 
-  const distCols = ['Trip', 'Route', 'Fixed KM · Google Maps', 'GPS KM', 'Odometer KM', 'Variance'];
+  const distCols = ['Trip', 'Route', 'Fixed KM · Google Maps', 'GPS KM', 'Odometer KM', 'Variance', 'Actions'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -395,6 +396,7 @@ export const DistanceVariation = () => {
                       textTransform: 'uppercase',
                       color: 'var(--text-muted)',
                       whiteSpace: 'nowrap',
+                      textAlign: c === 'Actions' ? 'center' : 'left',
                     }}
                   >
                     {c}
@@ -406,9 +408,7 @@ export const DistanceVariation = () => {
               {distRows.map(r => (
                 <tr
                   key={r.id}
-                  onClick={() => r.hasTrip && navTo('trip', { selectedTrip: r.trip })}
                   style={{
-                    cursor: r.cursor,
                     borderTop: '1px solid var(--border-default)',
                   }}
                   className="tms-table-row"
@@ -443,6 +443,17 @@ export const DistanceVariation = () => {
                       </span>
                       <span style={{ fontWeight: 700, color: r.pctColor }}>{r.pctText}</span>
                     </span>
+                  </td>
+                  <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    {r.hasTrip ? (
+                      <RowActions
+                        onView={() => navTo('trip', { selectedTrip: r.trip })}
+                        viewLabel={`View trip ${r.number}`}
+                        buttonAriaLabel={`Actions for trip ${r.number}`}
+                      />
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>—</span>
+                    )}
                   </td>
                 </tr>
               ))}
