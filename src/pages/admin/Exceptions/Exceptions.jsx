@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Ellipsis, Eye } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 
 export const Exceptions = () => {
@@ -15,6 +16,18 @@ export const Exceptions = () => {
     excOverrides,
     width,
   } = useTMSAdmin();
+
+  const [activeActionId, setActiveActionId] = useState(null);
+
+  useEffect(() => {
+    const handleDocClick = () => setActiveActionId(null);
+    window.addEventListener('click', handleDocClick);
+    return () => window.removeEventListener('click', handleDocClick);
+  }, []);
+
+  useEffect(() => {
+    setActiveActionId(null);
+  }, [excType, excStatus]);
 
   const tms = T();
   const narrow = width < 900;
@@ -71,7 +84,7 @@ export const Exceptions = () => {
     { value: 'all', label: 'All' },
   ];
 
-  const excCols = ['Severity', 'Type', 'Vehicle / trip', 'Detail', 'Branch', 'Raised', 'Assignee'];
+  const excCols = ['Severity', 'Type', 'Vehicle / trip', 'Detail', 'Branch', 'Raised', 'Assignee', 'Actions'];
 
   const openException = (x) => {
     setExcSel(x.id);
@@ -148,7 +161,19 @@ export const Exceptions = () => {
             <thead>
               <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
                 {excCols.map((c, i) => (
-                  <th key={i} style={{ padding: '10px 14px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  <th
+                    key={i}
+                    style={{
+                      padding: '10px 14px',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-muted)',
+                      textAlign: c === 'Actions' ? 'center' : 'left',
+                    }}
+                  >
                     {c}
                   </th>
                 ))}
@@ -158,8 +183,7 @@ export const Exceptions = () => {
               {excRows.map((x) => (
                 <tr
                   key={x.id}
-                  onClick={() => openException(x)}
-                  style={{ cursor: 'pointer', borderTop: '1px solid var(--border-default)' }}
+                  style={{ borderTop: '1px solid var(--border-default)' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 >
@@ -194,6 +218,90 @@ export const Exceptions = () => {
                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{x.branchName}</td>
                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{x.raised}</td>
                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{x.assignee}</td>
+                  <td style={{ padding: '12px 14px', textAlign: 'center', position: 'relative' }}>
+                    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {activeActionId === x.id && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: '100%',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            marginRight: '8px',
+                            zIndex: 50,
+                            background: '#fff',
+                            border: '1px solid #d5dfda',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.12)',
+                            padding: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            whiteSpace: 'nowrap',
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveActionId(null);
+                              openException(x);
+                            }}
+                            title={`View details for ${x.type}`}
+                            aria-label={`View details for ${x.type}`}
+                            style={{
+                              all: 'unset',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: 'var(--kr-green-800)',
+                              background: 'var(--kr-green-100)',
+                              transition: 'background var(--dur-fast)',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#d2ebd9'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'var(--kr-green-100)'}
+                          >
+                            <Eye size={15} />
+                            <span>View</span>
+                          </button>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveActionId(prev => prev === x.id ? null : x.id);
+                        }}
+                        aria-label={`Actions for exception ${x.id}`}
+                        title="Actions"
+                        style={{
+                          all: 'unset',
+                          cursor: 'pointer',
+                          width: '32px',
+                          height: '32px',
+                          display: 'inline-grid',
+                          placeItems: 'center',
+                          borderRadius: '8px',
+                          color: activeActionId === x.id ? 'var(--kr-green-700)' : 'var(--kr-grey-700)',
+                          background: activeActionId === x.id ? 'var(--kr-green-100)' : 'transparent',
+                          transition: 'background var(--dur-fast), color var(--dur-fast)',
+                        }}
+                        onMouseEnter={e => {
+                          if (activeActionId !== x.id) e.currentTarget.style.background = 'var(--kr-green-100)';
+                        }}
+                        onMouseLeave={e => {
+                          if (activeActionId !== x.id) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <Ellipsis size={20} />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
