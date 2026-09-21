@@ -12,7 +12,7 @@ import './supervisorApp.css';
 export class SupervisorApp extends React.Component {
   state = {
     screen: 'approval', loginState: 'idle',
-    ob: { phone: '', otp: ['', '', '', ''], expected: '', shared: false, requestedAt: '' }, obStatus: 'idle', obReqId: '', obShowErr: false, obOtpErr: '',
+    ob: { name: '', phone: '', otp: ['', '', '', ''], expected: '', shared: false, requestedAt: '' }, obStatus: 'idle', obReqId: '', obShowErr: false, obOtpErr: '',
     reg: { name: '', password: '' }, regShowErr: false, regSaving: false, account: null, notifOpen: false, discardOpen: false, toast: null, saving: false,
     gpsGranted: true, unclosedFilter: 'all', forceEmpty: false,
     form: this.blankForm(),
@@ -36,6 +36,11 @@ export class SupervisorApp extends React.Component {
   DRV_KEY = 'kr-tms-driver-requests'; DRV_APPROVAL_KEY = 'kr-tms-driver-approvals';
   // Tank sizes Head Office sets in the Vehicle Master override the seed data.
   TANK_KEY = 'kr-tms-vehicle-tanks';
+  // Saved daily attendance, shared with the Admin Portal: { [branch]: { [YYYY-MM-DD]: { label, savedAt, entries } } }.
+  ATT_KEY = 'kr-tms-attendance';
+  readAttStore() { try { return JSON.parse(localStorage.getItem(this.ATT_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  loadAttSaved() { const mine = this.readAttStore()[this.BR] || {}; const days = Object.keys(mine); if (!days.length) return; this.setState(st => ({ attSaved: [...days.map(day => ({ day, ...mine[day] })), ...st.attSaved.filter(r => !mine[r.day])] })); }
+  writeAttDay(rec) { const store = this.readAttStore(), { day, ...rest } = rec; store[this.BR] = { ...(store[this.BR] || {}), [day]: rest }; try { localStorage.setItem(this.ATT_KEY, JSON.stringify(store)); } catch (e) { /* storage blocked: kept on this device only */ } }
   syncTanks() { let m; try { m = JSON.parse(localStorage.getItem(this.TANK_KEY) || '{}') || {}; } catch (e) { return; } const json = JSON.stringify(m); if (json === this._tankJson) return; this._tankJson = json; this.setState({ vehTanks: m }); }
   tankOf(vehicleId) { return Number(this.state.vehTanks[vehicleId] || (this.T().V[vehicleId] || {}).tank) || 0; }
   readDrvReqs() { try { return JSON.parse(localStorage.getItem(this.DRV_KEY) || '[]') || []; } catch (e) { return this.state.drvReqs; } }
@@ -73,17 +78,29 @@ export class SupervisorApp extends React.Component {
   }
   // Your own actions this session, kept as read items in the Notifications page.
   logActivity(n) { this.setState(st => ({ activity: [{ id: 'ACT' + Date.now() + '-' + st.activity.length, kind: 'activity', from: 'You · R. Senthil Kumar', sort: '2026-09-14 09:41:' + String(st.activity.length).padStart(2, '0'), ...n }, ...st.activity] })); }
+  // Re-render when Head Office deletes a record (T() reads the deleted list itself).
+  syncDeleted() { let j = '[]'; try { j = localStorage.getItem('kr-tms-deleted') || '[]'; } catch (e) { return; } if (j === this._delJson) return; const first = this._delJson === undefined; this._delJson = j; if (!first) this.forceUpdate(); }
   componentDidMount() {
-    this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster();
-    this._poll = setInterval(() => { this.syncApproval(); this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); }, 1000);
+    this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.loadAttSaved();
+    this._poll = setInterval(() => { this.syncApproval(); this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.syncDeleted(); }, 1000);
     this._onStorage = e => { if (e.key === this.REQ_KEY) this.syncApproval(); if (e.key === this.NOTICE_KEY) this.syncNotices(); if (e.key === this.DRV_KEY || e.key === this.DRV_APPROVAL_KEY) this.syncDriverReqs(); if (e.key === this.TANK_KEY) this.syncTanks(); if (e.key === this.MASTER_KEY) this.syncMaster(); };
     window.addEventListener('storage', this._onStorage);
     const mine = this.readReqs().find(r => r.imei === this.deviceImei() && r.status === 'Pending');
-    if (mine && this.state.screen === 'approval') this.setState({ obStatus: 'waiting', obReqId: mine.id, ob: { ...this.state.ob, phone: mine.phone, requestedAt: mine.requestedAt } });
+    if (mine && this.state.screen === 'approval') this.setState({ obStatus: 'waiting', obReqId: mine.id, ob: { ...this.state.ob, name: mine.name || '', phone: mine.phone, requestedAt: mine.requestedAt } });
   }
   componentWillUnmount() { clearInterval(this._poll); clearTimeout(this._tt); window.removeEventListener('storage', this._onStorage); }
   readReqs() { try { return JSON.parse(localStorage.getItem(this.REQ_KEY) || '[]') || []; } catch (e) { return []; } }
   writeReqs(list) { try { localStorage.setItem(this.REQ_KEY, JSON.stringify(list)); } catch (e) { /* storage blocked: the request stays local */ } }
+  // Keep the Supervisor Master row (created when Head Office approved this phone) in step with registration
+  updateSupervisorRecord(phoneDigits, patch) {
+    let m; try { m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {}; } catch (e) { return; }
+    const cur = m.supervisors || { added: [], edited: {} }, added = cur.added || [];
+    const same = r => String(r.phone || '').replace(/\D/g, '') === phoneDigits;
+    if (!added.some(same)) return;
+    m.supervisors = { ...cur, added: added.map(r => (same(r) ? { ...r, ...patch } : r)) };
+    try { localStorage.setItem(this.MASTER_KEY, JSON.stringify(m)); } catch (e) { return; }
+    this.syncMaster();
+  }
   patchReq(id, patch) { this.writeReqs(this.readReqs().map(r => r.id === id ? { ...r, ...patch } : r)); }
   deviceImei() {
     if (this._imei) return this._imei;
@@ -109,13 +126,17 @@ export class SupervisorApp extends React.Component {
   }
   // Seed data plus vehicles, drivers and loading locations Head Office added or edited in the Admin Portal masters.
   T() {
-    const base = (typeof window !== 'undefined' && window.TMS) || TMS, e = this.state && this.state.masterEdits;
-    if (!e || !Object.keys(e).length) return base;
-    if (this._t && this._tKey === this._masterJson) return this._t;
-    const merge = (route, seed) => { const x = e[route] || {}, ed = x.edited || {}; return [...seed.map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r), ...(x.added || [])]; };
+    const base = (typeof window !== 'undefined' && window.TMS) || TMS, e = (this.state && this.state.masterEdits) || {};
+    // Records Head Office deleted in the Admin Portal drop out of the supervisor's lists.
+    let delJson = '[]'; try { delJson = localStorage.getItem('kr-tms-deleted') || '[]'; } catch (err) { /* storage blocked */ }
+    if (!Object.keys(e).length && delJson === '[]') return base;
+    const key = this._masterJson + '|' + delJson;
+    if (this._t && this._tKey === key) return this._t;
+    let gone; try { gone = new Set(JSON.parse(delJson)); } catch (err) { gone = new Set(); }
+    const merge = (route, seed) => { const x = e[route] || {}, ed = x.edited || {}; return [...seed.map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r), ...(x.added || [])].filter(r => !gone.has(r.id)); };
     const by = a => Object.fromEntries(a.map(r => [r.id, r]));
     const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations);
-    this._t = { ...base, vehicles, V: by(vehicles), drivers, D: by(drivers), locations, L: by(locations) }; this._tKey = this._masterJson;
+    this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) } }; this._tKey = key;
     return this._t;
   }
   MASTER_KEY = 'kr-tms-master-edits';
@@ -403,7 +424,9 @@ export class SupervisorApp extends React.Component {
       : amDrv && !amVeh ? `Pick the vehicle for ${amDrv.name} to mark them present.`
       : `${amDriverOptions.length} of ${amDriverList.length} approved Chennai HO drivers not marked yet. Pick a vehicle, driver and vehicle status to mark the driver present.`;
     // Marked attendance tab · saved days, newest first
-    const TODAY_DAY = '2026-09-14';
+    const now = new Date(), p2 = n => String(n).padStart(2, '0');
+    const TODAY_DAY = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
+    const todayLabel = `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][now.getDay()]}, ${p2(now.getDate())} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][now.getMonth()]} ${now.getFullYear()}`;
     const todayEntries = Object.fromEntries(amDriverList.filter(d => s.att[d.id]).map(d => [d.id, [s.att[d.id], s.att[d.id] === 'P' ? (s.attVeh[d.id] || '') : '', s.att[d.id] === 'P' ? (s.attVehStatus[d.id] || '') : '']]));
     const savedToday = s.attSaved.find(r => r.day === TODAY_DAY);
     const attUnsaved = Object.keys(todayEntries).length > 0 && JSON.stringify(todayEntries) !== JSON.stringify(savedToday ? savedToday.entries : null);
@@ -480,13 +503,15 @@ export class SupervisorApp extends React.Component {
       ob, obPhoneText, 
       obEditable: s.obStatus === 'idle' || s.obStatus === 'rejected', obSending: s.obStatus === 'sending', obWaiting: s.obStatus === 'waiting', obRejected: s.obStatus === 'rejected',
       obRequestedAt: ob.requestedAt || '—', obPhoneErr: s.obShowErr && obDigits.length !== 10 ? 'Enter a 10-digit mobile number.' : undefined,
+      obNameErr: s.obShowErr && !ob.name.trim() ? 'Enter your full name.' : undefined,
+      setObName: e => { const v = e.target.value.slice(0, 60); this.setState(st => ({ ob: { ...st.ob, name: v } })); },
       setObPhone: e => { const v = e.target.value.replace(/[^\d ]/g, '').slice(0, 11); this.setState(st => ({ ob: { ...st.ob, phone: v } })); },
       requestApproval: () => {
-        if (obDigits.length !== 10) { this.setState({ obShowErr: true, railVariant: 'error' }); return; }
+        if (obDigits.length !== 10 || !ob.name.trim()) { this.setState({ obShowErr: true, railVariant: 'error' }); return; }
         this.setState({ obStatus: 'sending', obShowErr: false });
         setTimeout(() => {
           const imei = this.deviceImei(), requestedAt = this.nowText();
-          const req = { id: 'AR' + Date.now(), phone: obDigits, imei, device: 'Android phone', branch: 'Chennai HO', requestedAt, status: 'Pending', otp: '' };
+          const req = { id: 'AR' + Date.now(), name: ob.name.trim(), phone: obDigits, imei, device: 'Android phone', branchId: '', branch: '', requestedAt, status: 'Pending', otp: '' };
           this.writeReqs([req, ...this.readReqs().filter(r => !(r.imei === imei && r.status === 'Pending'))]);
           this.setState(st => ({ obStatus: 'waiting', obReqId: req.id, railVariant: '', ob: { ...st.ob, requestedAt } }));
           this.toast('success', 'Approval requested', 'Head Office has been notified. You will get an OTP once approved.');
@@ -514,7 +539,7 @@ export class SupervisorApp extends React.Component {
         const live = s.obReqId ? (this.readReqs().find(r => r.id === s.obReqId) || {}).otp : '';
         if (code !== (live || ob.expected)) { this.setState({ obOtpErr: 'That OTP does not match. Check the code Head Office shared.', railVariant: 'error' }); return; }
         if (s.obReqId) this.patchReq(s.obReqId, { status: 'Verified', verifiedAt: this.nowText() });
-        this.setState({ screen: 'register', history: [], obOtpErr: '', railVariant: '', regShowErr: false, reg: { name: '', password: '' } });
+        this.setState({ screen: 'register', history: [], obOtpErr: '', railVariant: '', regShowErr: false, reg: { name: ob.name || '', password: '' } });
         this.toast('success', 'OTP verified', 'Create your account to finish.');
       },
       reg: s.reg, regErr: s.regShowErr ? regBad : {}, regSaving: s.regSaving, regIdle: !s.regSaving,
@@ -526,6 +551,7 @@ export class SupervisorApp extends React.Component {
         setTimeout(() => {
           const account = { name: s.reg.name.trim(), phone: obDigits };
           if (s.obReqId) this.patchReq(s.obReqId, { status: 'Registered', name: account.name, registeredAt: this.nowText() });
+          this.updateSupervisorRecord(obDigits, { name: account.name, lastLogin: 'Just registered' });
           this.setState({ regSaving: false, account, screen: 'login', history: [], loginState: 'idle', railVariant: '', obStatus: 'idle', obReqId: '', reg: { name: '', password: '' } });
           this.toast('success', 'Registration complete', `Welcome, ${account.name}. Sign in with +91 ${obPhoneText}.`);
         }, 900);
@@ -708,7 +734,7 @@ export class SupervisorApp extends React.Component {
       setAmDriver: e => this.pickAm({ driver: e.target.value }),
       amStatusOptions, amStatusHint, setAmStatus: e => this.pickAm({ status: e.target.value }),
       removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; delete attVeh[id]; delete attVehStatus[id]; return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
-      saveAmEntry: () => { if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } this.setState(st => ({ attSaved: [{ day: TODAY_DAY, label: 'Sun, 14 Sep 2026', savedAt: '09:41', entries: todayEntries }, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for 14 September.`); this.logActivity({ title: 'Attendance saved · 14 Sep', body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); },
+      saveAmEntry: () => { if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); },
       markDriver: e => this.set(['att', e.currentTarget.dataset.id], e.currentTarget.dataset.v),
       saveAttendance: () => { this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for 14 September.`); this.logActivity({ title: 'Attendance saved · 14 Sep', body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.go('home'); },
       weekdays, monthCells, pickDay: e => { const d = Number(e.currentTarget.dataset.day); if (d && d <= 14) this.go('attendance'); },

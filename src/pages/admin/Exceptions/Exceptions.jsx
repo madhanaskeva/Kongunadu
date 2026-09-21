@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { RowActions } from '../../../components/common/RowActions';
 
 export const Exceptions = () => {
@@ -64,6 +65,7 @@ export const Exceptions = () => {
     (!excType || x.type === excType) &&
     (excStatus === 'all' || x.status === statusMap[excStatus])
   );
+  const excPg = usePagination(excRows, [excType, excStatus]);
 
   const excTabs = [
     { value: 'open', label: 'Open', count: exceptions.filter(x => x.status === 'Open').length },
@@ -168,7 +170,7 @@ export const Exceptions = () => {
               </tr>
             </thead>
             <tbody>
-              {excRows.map((x) => (
+              {excPg.rows.map((x) => (
                 <tr
                   key={x.id}
                   style={{ borderTop: '1px solid var(--border-default)' }}
@@ -219,6 +221,7 @@ export const Exceptions = () => {
           </table>
         </div>
 
+        {excRows.length > 0 && <Pagination {...excPg} noun="exceptions" />}
         {excRows.length === 0 && (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>

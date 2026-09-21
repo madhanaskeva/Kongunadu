@@ -23,7 +23,7 @@ export const DeviceApproval = ({ v }) => (
       <h2 style={{ margin: "6px 0 0", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "30px", letterSpacing: "-0.02em", lineHeight: "1.1", color: "var(--text-heading)" }}>
         Request approval
       </h2>
-      <p style={{ margin: "8px 0 24px", fontSize: "15px", color: "var(--text-muted)" }}>Enter your mobile number. Head Office approves this phone and shares a 4-digit OTP with you.</p>
+      <p style={{ margin: "8px 0 24px", fontSize: "15px", color: "var(--text-muted)" }}>Enter your name and mobile number. Head Office approves this phone, assigns your branch and shares a 4-digit OTP with you.</p>
       {v.obRejected ? (
         <>
           <div role="alert" style={{ padding: "12px 14px", marginBottom: "16px", background: "var(--kr-red-50)", border: "1px solid var(--kr-red-100)", borderRadius: "var(--radius-md)", color: "var(--kr-red-800)", fontSize: "14px", fontWeight: "600" }}>
@@ -34,6 +34,7 @@ export const DeviceApproval = ({ v }) => (
       {v.obEditable ? (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <Input label="Full name" placeholder="As on your ID" value={v.ob.name} onChange={v.setObName} error={v.obNameErr} autoComplete="name" />
             <Input label="Mobile number" placeholder="98410 22314" value={v.ob.phone} onChange={v.setObPhone} prefix="+91" inputMode="numeric" error={v.obPhoneErr} />
           </div>
         </>
@@ -47,6 +48,10 @@ export const DeviceApproval = ({ v }) => (
                 <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-heading)" }}>Waiting for Head Office approval</div>
                 <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>You move to OTP entry as soon as it is approved.</div>
               </div>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "10px 16px", borderTop: "1px solid var(--border-default)", fontSize: "14px" }}>
+              <span style={{ color: "var(--text-muted)" }}>Name</span>
+              <span style={{ fontWeight: "700", color: "var(--text-heading)" }}>{v.ob.name}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "10px 16px", borderTop: "1px solid var(--border-default)", fontSize: "14px" }}>
               <span style={{ color: "var(--text-muted)" }}>Mobile number</span>

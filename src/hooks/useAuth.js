@@ -1,5 +1,17 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { loginStart, loginSuccess, loginFailure, logout } from '../features/auth/authSlice';
+import { loginStart, loginSuccess, loginFailure, logout, updateUserProfile, SESSION_KEY } from '../features/auth/authSlice';
+import { readPortalUsers } from '../utils/moduleAccess';
+
+const PW_KEY = 'krl_custom_passwords';
+const readPasswords = () => {
+  try { return JSON.parse(localStorage.getItem(PW_KEY) || '{}') || {}; } catch (e) { return {}; }
+};
+const saveSession = user => {
+  try {
+    if (user) localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+};
 
 export const useAuth = () => {
   const dispatch = useDispatch();
@@ -28,6 +40,16 @@ export const useAuth = () => {
           }
         }
 
+        // Admin Portal: the email must belong to a user on Users & roles; their module access applies
+        let portalUser = null;
+        if (credentials.role !== 'supervisor') {
+          const email = credentials.email.toLowerCase().trim();
+          portalUser = readPortalUsers().find(u => String(u.email || '').toLowerCase() === email);
+          if (!portalUser) throw new Error('No portal user with this email. Ask an administrator to add you in Users & roles.');
+          if (portalUser.password && portalUser.password !== credentials.password) throw new Error('Incorrect email or password.');
+          if (/Suspended|Inactive|Disabled/i.test(portalUser.status || '')) throw new Error('This account is disabled. Contact an administrator.');
+        }
+
         const user =
           credentials.role === 'supervisor'
             ? {
@@ -38,12 +60,14 @@ export const useAuth = () => {
                 branch: 'Coimbatore',
               }
             : {
-                id: 'A01',
-                name: 'Head Office Admin',
-                email: credentials.email,
-                role: 'Administrator',
-                branch: 'All branches',
+                id: portalUser.id,
+                name: portalUser.name,
+                email: portalUser.email,
+                phone: portalUser.phone || '',
+                role: portalUser.role,
+                branch: portalUser.branch || 'All branches',
               };
+        saveSession(user);
         dispatch(loginSuccess(user));
         return { success: true };
       } else {
@@ -55,7 +79,38 @@ export const useAuth = () => {
     }
   };
 
+  const updateProfile = (updates) => {
+    const oldEmail = (auth.user?.email || '').toLowerCase().trim();
+    const newEmail = (updates.email || oldEmail).toLowerCase().trim();
+    // Keep a changed password attached to the new sign-in email
+    if (newEmail && newEmail !== oldEmail) {
+      const pw = readPasswords();
+      if (pw[oldEmail]) {
+        pw[newEmail] = pw[oldEmail];
+        delete pw[oldEmail];
+        try { localStorage.setItem(PW_KEY, JSON.stringify(pw)); } catch (e) {}
+      }
+    }
+    const next = { ...updates, email: newEmail || updates.email };
+    if (auth.user) saveSession({ ...auth.user, ...next });
+    dispatch(updateUserProfile(next));
+  };
+
+  // Mock check: a password set earlier (reset or change) must match; otherwise any non-empty value is accepted
+  const changePassword = (current, next) => {
+    const email = (auth.user?.email || '').toLowerCase().trim();
+    const pw = readPasswords();
+    if (!current) return { success: false, error: 'Enter your current password.' };
+    if (pw[email] && pw[email] !== current) return { success: false, error: 'Current password is incorrect.' };
+    pw[email] = next;
+    try { localStorage.setItem(PW_KEY, JSON.stringify(pw)); } catch (e) {
+      return { success: false, error: 'Could not save the new password.' };
+    }
+    return { success: true };
+  };
+
   const handleLogout = () => {
+    saveSession(null);
     dispatch(logout());
   };
 
@@ -66,6 +121,8 @@ export const useAuth = () => {
     error: auth.error,
     login,
     logout: handleLogout,
+    updateProfile,
+    changePassword,
   };
 };
 

@@ -1,6 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
-import { X } from 'lucide-react';
+import { Eye, EyeOff, X } from 'lucide-react';
+
+const PasswordField = ({ value, onChange, placeholder }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="new-password"
+        onChange={(e) => onChange(e.target.value)}
+        style={{ width: '100%', boxSizing: 'border-box', height: '40px', padding: '0 40px 0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontFamily: 'inherit' }}
+      />
+      <button
+        type="button"
+        onClick={() => setShow(!show)}
+        aria-label={show ? 'Hide password' : 'Show password'}
+        style={{ all: 'unset', cursor: 'pointer', position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'grid', color: 'var(--text-muted)' }}
+      >
+        {show ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  );
+};
 
 export const AdminDrawer = () => {
   const {
@@ -59,7 +83,7 @@ export const AdminDrawer = () => {
 
   const handleExcUnderReview = () => {
     const assignee = excAssignee || 'Head Office Admin';
-    setExcOverrides({ ...excOverrides, [exc.id]: { status: 'Under review', assignee } });
+    setExcOverrides(prev => ({ ...prev, [exc.id]: { ...(prev[exc.id] || {}), status: 'Under review', assignee } }));
     closeDrawer();
     showToast('info', 'Marked under review', `${exc.type} assigned to ${assignee}.`);
     pushNotice({
@@ -85,7 +109,7 @@ export const AdminDrawer = () => {
       return;
     }
     const assignee = excAssignee || 'Head Office Admin';
-    setExcOverrides({ ...excOverrides, [exc.id]: { status: 'Resolved', assignee } });
+    setExcOverrides(prev => ({ ...prev, [exc.id]: { ...(prev[exc.id] || {}), status: 'Resolved', assignee, note: excNote.trim(), resolvedAt: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) } }));
     closeDrawer();
     showToast('success', 'Exception resolved', `${exc.type} on ${excDetail.vehicleNumber} closed.`);
     pushNotice({
@@ -152,6 +176,14 @@ export const AdminDrawer = () => {
       const isNew = !form.id;
       const rec = normalizeRecord(drawer.masterKey, form, isNew);
       saveMaster(drawer.masterKey, rec, isNew);
+      // Portal users sign in with the password set here
+      if (drawer.masterKey === 'users' && rec.email && rec.password) {
+        try {
+          const pw = JSON.parse(localStorage.getItem('krl_custom_passwords') || '{}') || {};
+          pw[rec.email.toLowerCase().trim()] = rec.password;
+          localStorage.setItem('krl_custom_passwords', JSON.stringify(pw));
+        } catch (e) {}
+      }
       if (drawer.masterKey === 'vehicles' && rec.tank) {
         setVehTank(rec.id, rec.tank);
       }
@@ -668,6 +700,18 @@ export const AdminDrawer = () => {
                         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                         style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontFamily: 'inherit' }}
                       />
+                    </div>
+                  );
+                }
+
+                if (extra.type === 'password') {
+                  return (
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
+                        {label}
+                      </label>
+                      <PasswordField value={raw ?? ''} placeholder={hint || ''} onChange={v => setForm({ ...form, [key]: v })} />
+                      {extra.hint && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>}
                     </div>
                   );
                 }

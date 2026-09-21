@@ -13,6 +13,8 @@ export const Dashboard = () => {
     showToast,
     setSelectedTrip,
     setExcSel,
+    setExcAssignee,
+    setExcNote,
     setDrawer,
     deleted,
     excOverrides,
@@ -35,7 +37,7 @@ export const Dashboard = () => {
   const nonBiz = trips.filter(t => t.type === 'Non-Business');
   const longOpen = enroute.filter(t => t.hoursOpen > 24);
 
-  const distThr = 5;
+  const distThr = Number(st.variance) || 5;
   const distAll = (tms.distanceChecks || []).map(d => {
     const delta = km => km == null ? null : Math.round((km - d.fixedKm) / d.fixedKm * 1000) / 10;
     const g = delta(d.gpsKm), o = delta(d.odoKm);
@@ -162,6 +164,8 @@ export const Dashboard = () => {
       const x = exceptions.find(z => z.id === item.id);
       if (x) {
         setExcSel(x.id);
+        setExcAssignee(x.assignee === 'Unassigned' ? '' : x.assignee);
+        setExcNote('');
         setDrawer({ isException: true, kicker: 'Exception ' + x.id, title: x.type });
       }
     } else if (item.kind === 'trip' && item.id) {

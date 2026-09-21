@@ -5,11 +5,14 @@ import {
   Route, Settings, ShieldCheck, TrendingUp, TriangleAlert, Truck, User, Users, UsersRound,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
+import { useModuleAccess } from '../../hooks/useModuleAccess';
+import { moduleForPath } from '../../utils/moduleAccess';
 import './adminLayout.css';
 
 export const AdminSidebar = ({ onClose }) => {
   const { T, devReqs, drvReqs, approvals, excOverrides, distReview, deleted } = useTMSAdmin();
   const tms = T();
+  const { can } = useModuleAccess();
 
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id));
   const enrouteCount = trips.filter(t => t.status === 'Enroute').length;
@@ -77,7 +80,10 @@ export const AdminSidebar = ({ onClose }) => {
 
   return (
     <nav aria-label="Main" className="tms-sidebar">
-      {navGroups.map((g, gIdx) => (
+      {navGroups
+        .map(g => ({ ...g, items: g.items.filter(n => can(moduleForPath(n.path))) }))
+        .filter(g => g.items.length)
+        .map((g, gIdx) => (
         <section key={gIdx} className="tms-sidebar-group">
           {g.group && <div className="tms-sidebar-group-label">{g.group}</div>}
           {g.items.map((n) => {

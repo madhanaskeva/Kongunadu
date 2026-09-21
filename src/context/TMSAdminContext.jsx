@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TMS, formatPhone, formatImei } from '../utils';
 
@@ -22,6 +22,23 @@ export const TMSAdminProvider = ({ children }) => {
   const MASTER_KEY = 'kr-tms-master-edits';
   const NOTICE_KEY = 'kr-tms-supervisor-notices';
   const DASH_KEY = 'kr-tms-dash-layout-v2';
+  const DELETED_KEY = 'kr-tms-deleted';
+  const EXC_KEY = 'kr-tms-exception-overrides';
+  const DIST_KEY = 'kr-tms-distance-review';
+  const ST_KEY = 'kr-tms-settings';
+
+  // State that survives a reload: read once from localStorage, written on every change.
+  const usePersisted = (key, init) => {
+    const [val, setVal] = useState(() => {
+      try { const v = JSON.parse(localStorage.getItem(key) || 'null'); return v == null ? init : v; } catch (e) { return init; }
+    });
+    const set = (next) => setVal(prev => {
+      const v = typeof next === 'function' ? next(prev) : next;
+      try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) {}
+      return v;
+    });
+    return [val, set];
+  };
 
   const DASH_ALL = {
     cards: ['trips', 'enroute', 'exceptions', 'hiddenKm', 'nonBiz', 'attendance', 'longOpen', 'gpsNoFix', 'distance', 'diversions', 'radius', 'fleetRunning', 'driverApprovals', 'deviceApprovals'],
@@ -49,7 +66,7 @@ export const TMSAdminProvider = ({ children }) => {
   const [excSel, setExcSel] = useState('X02');
   const [excAssignee, setExcAssignee] = useState('');
   const [excNote, setExcNote] = useState('');
-  const [excOverrides, setExcOverrides] = useState({});
+  const [excOverrides, setExcOverrides] = usePersisted(EXC_KEY, {});
   const [fleetFilter, setFleetFilter] = useState('all');
   const [masterQ, setMasterQ] = useState('');
   const [attBranch, setAttBranch] = useState('');
@@ -57,19 +74,37 @@ export const TMSAdminProvider = ({ children }) => {
   const [range, setRange] = useState('30d');
   const [userTab, setUserTab] = useState('users');
   const [distQ, setDistQ] = useState('');
-  const [distReview, setDistReview] = useState({});
+  const [distReview, setDistReview] = usePersisted(DIST_KEY, {});
   const [drawer, setDrawer] = useState(null);
   const [form, setForm] = useState({});
   const [formError, setFormError] = useState('');
   const [confirm, setConfirm] = useState(null);
-  const [st, setSt] = useState({
+  const ST_DEFAULT = {
     variance: '5', radius: '100', longOpen: '8', idle: '15', gpsFail: '30',
     serial: 'monthly', reasons: 'Maintenance, Internal Movement, Empty Return, Driver Testing',
     session: '12', attReminder: true, excEmail: true
+  };
+  // Settings are edited live; Save settings / Reset write them to storage.
+  const [st, setSt] = useState(() => {
+    try { return { ...ST_DEFAULT, ...(JSON.parse(localStorage.getItem(ST_KEY) || '{}') || {}) }; } catch (e) { return ST_DEFAULT; }
   });
+  const saveSettings = (next = st) => {
+    setSt(next);
+    try { localStorage.setItem(ST_KEY, JSON.stringify(next)); } catch (e) {}
+  };
   const [approvals, setApprovals] = useState({});
   const [driverApprovalFilter, setDriverApprovalFilter] = useState('');
-  const [deleted, setDeleted] = useState([]);
+  // Records deleted from any list (trips, masters, customers…), kept across reloads.
+  const [deleted, setDeletedState] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(DELETED_KEY) || '[]') || []; } catch (e) { return []; }
+  });
+  const setDeleted = (next) => {
+    setDeletedState(prev => {
+      const list = typeof next === 'function' ? next(prev) : next;
+      try { localStorage.setItem(DELETED_KEY, JSON.stringify(list)); } catch (e) {}
+      return list;
+    });
+  };
   const [drvReqs, setDrvReqs] = useState([]);
   const [rejectReason, setRejectReason] = useState('');
   const [vehTanks, setVehTanks] = useState({});
@@ -92,7 +127,25 @@ export const TMSAdminProvider = ({ children }) => {
   const toastTimerRef = useRef(null);
 
   // Helper functions
-  const T = () => (typeof window !== 'undefined' && window.TMS) || TMS;
+  // Seed data with the admin's saved adds / edits (masterEdits) applied and deleted records removed,
+  // so every page, dropdown and lookup map sees the same records.
+  const tmsView = useMemo(() => {
+    const base = (typeof window !== 'undefined' && window.TMS) || TMS;
+    const gone = new Set(deleted);
+    const merge = (key) => {
+      const e = masterEdits[key] || {}, ed = e.edited || {};
+      return [...(e.added || []), ...(base[key] || []).map(r => (ed[r.id] ? { ...r, ...ed[r.id] } : r))].filter(r => !gone.has(r.id));
+    };
+    const by = a => Object.fromEntries(a.map(r => [r.id, r]));
+    const out = { ...base };
+    [['branches', 'B'], ['supervisors', 'S'], ['vehicles', 'V'], ['drivers', 'D'], ['clients', 'C'], ['customers', 'U'],
+     ['locations', 'L'], ['routes', 'R'], ['bunks', 'F'], ['trips', 'T'], ['users', null]].forEach(([key, map]) => {
+      out[key] = merge(key);
+      if (map) out[map] = { ...base[map], ...by(out[key]) };
+    });
+    return out;
+  }, [masterEdits, deleted]);
+  const T = () => tmsView;
 
   const fmtPhone = (d) => formatPhone(d);
   const fmtImei = (d) => formatImei(d);
@@ -158,19 +211,24 @@ export const TMSAdminProvider = ({ children }) => {
     });
   };
 
-  const saveMaster = (route, rec, isNew) => {
-    const all = masterEdits, cur = all[route] || { added: [], edited: {} }, added = cur.added || [];
-    const next = {
-      ...all,
-      [route]: isNew
-        ? { ...cur, added: [rec, ...added] }
-        : added.some(r => r.id === rec.id)
-        ? { ...cur, added: added.map(r => r.id === rec.id ? rec : r) }
-        : { ...cur, edited: { ...(cur.edited || {}), [rec.id]: rec } }
-    };
-    setMasterEdits(next);
-    try { localStorage.setItem(MASTER_KEY, JSON.stringify(next)); } catch (e) {}
+  // Save one or many records of a collection. items: [{ rec, isNew }]
+  const saveMasterMany = (route, items) => {
+    setMasterEdits(all => {
+      let cur = all[route] || { added: [], edited: {} };
+      items.forEach(({ rec, isNew }) => {
+        const added = cur.added || [];
+        cur = isNew
+          ? { ...cur, added: [rec, ...added] }
+          : added.some(r => r.id === rec.id)
+          ? { ...cur, added: added.map(r => r.id === rec.id ? { ...r, ...rec } : r) }
+          : { ...cur, edited: { ...(cur.edited || {}), [rec.id]: { ...((cur.edited || {})[rec.id] || {}), ...rec } } };
+      });
+      const next = { ...all, [route]: cur };
+      try { localStorage.setItem(MASTER_KEY, JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
   };
+  const saveMaster = (route, rec, isNew) => saveMasterMany(route, [{ rec, isNew }]);
 
   const setVehTank = (id, litres) => {
     const next = { ...vehTanks, [id]: litres };
@@ -181,7 +239,7 @@ export const TMSAdminProvider = ({ children }) => {
   const normalizeRecord = (route, formObj, isNew) => {
     const tms = T(), f = { ...formObj }, dg = x => String(x || '').replace(/\D/g, '');
     const num = k => { if (f[k] !== undefined && f[k] !== '') f[k] = Number(String(f[k]).replace(/[^\d.-]/g, '')) || 0; };
-    if (isNew) f.id = route.slice(0, 2).toUpperCase() + 'X' + Date.now();
+    if (isNew) f.id = route.slice(0, 2).toUpperCase() + 'X' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const dflt = (k, v) => { if (f[k] === undefined || f[k] === '' || f[k] === null) f[k] = v; };
     if (route === 'vehicles') {
       num('odometer'); num('tank');
@@ -196,7 +254,22 @@ export const TMSAdminProvider = ({ children }) => {
     if (route === 'branches' && isNew) { f.vehicles = 0; f.supervisors = 0; dflt('status', 'Active'); }
     if (route === 'supervisors') { f.phone = fmtPhone(dg(f.phone)); if (isNew) { f.lastLogin = 'Never'; dflt('status', 'Active'); } }
     if (route === 'clients' && isNew) { f.customers = 0; dflt('status', 'Active'); }
+    if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
     if (route === 'locations') { num('radius'); num('lat'); num('lng'); dflt('radius', 100); dflt('status', 'Active'); }
+    if (route === 'trips') {
+      num('startKm'); num('closeKm');
+      if (f.closeKm && f.startKm) f.odoKm = f.closeKm - f.startKm;
+      if (f.advance !== undefined) f.advance = String(f.advance).trim() ? '₹' + String(f.advance).replace(/[₹\s]/g, '') : null;
+      if (f.diesel !== undefined) f.diesel = String(f.diesel).trim() ? String(f.diesel).replace(/\s*L$/i, '') + ' L' : null;
+      if (f.type === 'Business') f.reason = '';
+      ['invoice', 'lr', 'closeKm'].forEach(k => { if (f[k] === '') f[k] = null; });
+    }
+    if (route === 'users') {
+      if (f.branch !== undefined) f.branch = f.branch === 'all' || !f.branch ? 'All branches' : ((tms.B[f.branch] || {}).name || f.branch);
+      if (f.email !== undefined) f.email = String(f.email).trim().toLowerCase();
+      // Admin sets the password, so the account is ready to sign in straight away
+      if (isNew) { dflt('role', 'Administrator'); f.status = 'Active'; f.last = 'Never'; }
+    }
     if (route === 'routes') { num('km'); num('hours'); f.name = `${(tms.L[f.from] || {}).name || '—'} → ${f.to || '—'}`; dflt('status', 'Active'); }
     return f;
   };
@@ -228,6 +301,15 @@ export const TMSAdminProvider = ({ children }) => {
     try { setMasterEdits(JSON.parse(localStorage.getItem(MASTER_KEY) || '{}') || {}); } catch (e) {}
     try { setVehTanks(JSON.parse(localStorage.getItem(TANK_KEY) || '{}') || {}); } catch (e) {}
 
+    // Supervisor App runs in another tab: pick up its join requests and master updates live
+    const handleStorage = (e) => {
+      const read = (fallback) => { try { return JSON.parse(e.newValue || 'null') || fallback; } catch (err) { return fallback; } };
+      if (e.key === REQ_KEY) setDevReqs(read([]));
+      if (e.key === DRV_KEY) setDrvReqs(read([]));
+      if (e.key === MASTER_KEY) setMasterEdits(read({}));
+    };
+    window.addEventListener('storage', handleStorage);
+
     let cfg = dashDefault();
     try {
       const saved = JSON.parse(localStorage.getItem(DASH_KEY) || 'null');
@@ -239,6 +321,7 @@ export const TMSAdminProvider = ({ children }) => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('storage', handleStorage);
       clearTimeout(toastTimerRef.current);
     };
   }, []);
@@ -313,7 +396,7 @@ export const TMSAdminProvider = ({ children }) => {
         form, setForm,
         formError, setFormError,
         confirm, setConfirm,
-        st, setSt,
+        st, setSt, saveSettings, ST_DEFAULT,
         approvals, setApprovals,
         driverApprovalFilter, setDriverApprovalFilter,
         deleted, setDeleted,
@@ -332,7 +415,7 @@ export const TMSAdminProvider = ({ children }) => {
         dashFormErr, setDashFormErr,
         rb, setRb,
         fmtPhone, fmtImei, stampNow,
-        pushNotice, decideDriver, saveMaster, setVehTank, normalizeRecord,
+        pushNotice, decideDriver, saveMaster, saveMasterMany, setVehTank, normalizeRecord,
         shrinkImage, readReqs, writeReqs, navTo,
       }}
     >

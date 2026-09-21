@@ -1,22 +1,17 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { ChevronDown, LogOut, Menu, Smartphone } from 'lucide-react';
+import { ChevronRight, Menu } from 'lucide-react';
 
 export const AdminHeader = ({ onOpenNav, narrow }) => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const [accountOpen, setAccountOpen] = useState(false);
+  const { pathname } = useLocation();
+  const { user } = useAuth();
+  const onProfile = pathname.startsWith('/admin/profile');
   const displayName = user?.name || 'Head Office Admin';
   const shortName = user?.role === 'Administrator' ? 'Admin' : displayName;
   const nameWords = shortName.split(' ').filter(Boolean);
   const initials = (nameWords.length > 1 ? nameWords[0][0] + nameWords[1][0] : shortName.slice(0, 2)).toUpperCase();
-
-  const handleLogout = () => {
-    setAccountOpen(false);
-    logout();
-    navigate('/');
-  };
 
   return (
     <>
@@ -43,10 +38,10 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
 
         <div style={{ position: 'relative', flex: 'none' }}>
           <button
-            onClick={() => setAccountOpen(!accountOpen)}
-            aria-expanded={accountOpen}
-            aria-label="Account"
-            className="tms-topbar-account"
+            onClick={() => navigate('/admin/profile')}
+            aria-label="My profile"
+            aria-current={onProfile ? 'page' : undefined}
+            className={`tms-topbar-account${onProfile ? ' is-active' : ''}`}
           >
             <span className="tms-topbar-avatar">{initials}</span>
             {!narrow && (
@@ -59,40 +54,10 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
                 </span>
               </span>
             )}
-            <ChevronDown size={18} color="var(--text-muted)" />
+            <ChevronRight size={18} color="var(--text-muted)" />
           </button>
-
-          {accountOpen && (
-            <div role="menu" className="tms-topbar-menu">
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border-default)' }}>
-                <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-heading)' }}>{displayName}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  {user?.role || 'Administrator'} · {user?.branch || 'All branches'}
-                </div>
-              </div>
-              <button
-                role="menuitem"
-                onClick={() => {
-                  setAccountOpen(false);
-                  navigate('/supervisor');
-                }}
-              >
-                <Smartphone size={16} /> Supervisor app
-              </button>
-              <button role="menuitem" onClick={handleLogout} style={{ color: 'var(--kr-red-700)' }}>
-                <LogOut size={16} /> Sign out
-              </button>
-            </div>
-          )}
         </div>
       </header>
-
-      {accountOpen && (
-        <div
-          onClick={() => setAccountOpen(false)}
-          style={{ position: 'fixed', inset: 0, zIndex: 25 }}
-        />
-      )}
     </>
   );
 };

@@ -1,9 +1,15 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
+import { CircleCheck, SearchCheck } from 'lucide-react';
 import { RowActions } from '../../../components/common/RowActions';
 
 export const DistanceVariation = () => {
-  const { T, st, distQ, setDistQ, distReview, navTo } = useTMSAdmin();
+  const { T, st, distQ, setDistQ, distReview, setDistReview, navTo, showToast } = useTMSAdmin();
+  const setReview = (r, status) => {
+    setDistReview(prev => ({ ...prev, [r.id]: status }));
+    showToast(status === 'Reviewed' ? 'success' : 'info', status === 'Reviewed' ? 'Marked reviewed' : 'Marked under review', `${r.vehicleNumber} · ${r.number || r.route || ''}`.trim());
+  };
   const tms = T();
 
   const distThr = Number(st.variance) || 5;
@@ -76,6 +82,7 @@ export const DistanceVariation = () => {
   const distRows = distAll
     .filter(d => !q || [d.vehicleNumber, d.number, d.route, d.branchName].join(' ').toLowerCase().includes(q))
     .sort((a, b) => b.pct - a.pct);
+  const distPg = usePagination(distRows, [distQ]);
   const distAlerts = distAll.filter(d => d.canClose).sort((a, b) => b.pct - a.pct);
   const distAvg = distAll.reduce((t, d) => t + d.pct, 0) / (distAll.length || 1);
 
@@ -365,7 +372,7 @@ export const DistanceVariation = () => {
             type="text"
             placeholder="Search vehicle, trip, route or branch"
             value={distQ}
-            onChange={setDistQ}
+            onChange={(e) => setDistQ(e.target.value)}
             style={{
               width: '320px',
               maxWidth: '100%',
@@ -405,7 +412,7 @@ export const DistanceVariation = () => {
               </tr>
             </thead>
             <tbody>
-              {distRows.map(r => (
+              {distPg.rows.map(r => (
                 <tr
                   key={r.id}
                   style={{
@@ -445,9 +452,13 @@ export const DistanceVariation = () => {
                     </span>
                   </td>
                   <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                    {r.hasTrip ? (
+                    {r.hasTrip || r.canClose ? (
                       <RowActions
-                        onView={() => navTo('trip', { selectedTrip: r.trip })}
+                        actions={[
+                          ...(r.review === 'Open' ? [{ key: 'review', icon: SearchCheck, label: 'Mark under review', onClick: () => setReview(r, 'Under review') }] : []),
+                          ...(r.canClose ? [{ key: 'done', icon: CircleCheck, label: 'Mark reviewed', onClick: () => setReview(r, 'Reviewed') }] : []),
+                        ]}
+                        onView={r.hasTrip ? () => navTo('trip', { selectedTrip: r.trip }) : undefined}
                         viewLabel={`View trip ${r.number}`}
                         buttonAriaLabel={`Actions for trip ${r.number}`}
                       />
@@ -461,6 +472,7 @@ export const DistanceVariation = () => {
           </table>
         </div>
 
+        {distRows.length > 0 && <Pagination {...distPg} noun="trips" />}
         {distRows.length === 0 && (
           <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
             No trips match this search.

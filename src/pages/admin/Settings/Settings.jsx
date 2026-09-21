@@ -17,6 +17,8 @@ export const Settings = () => {
     showToast,
     navTo,
     T,
+    saveSettings,
+    ST_DEFAULT,
   } = useTMSAdmin();
   const tms = T();
 
@@ -98,22 +100,12 @@ export const Settings = () => {
   };
 
   const handleSaveSettings = () => {
+    saveSettings(st);
     showToast('success', 'Settings saved', `Variance ${st.variance}%, radius ${st.radius} m, long open ${st.longOpen} h.`);
   };
 
   const handleResetSettings = () => {
-    setSt({
-      variance: '5',
-      radius: '100',
-      longOpen: '8',
-      idle: '15',
-      gpsFail: '30',
-      serial: 'monthly',
-      reasons: 'Maintenance, Internal Movement, Empty Return, Driver Testing',
-      session: '12',
-      attReminder: true,
-      excEmail: true,
-    });
+    saveSettings(ST_DEFAULT);
     showToast('info', 'Settings reset', 'Restored system thresholds to defaults.');
   };
 

@@ -1,13 +1,22 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+export const SESSION_KEY = 'krl_auth_user';
+
+const DEFAULT_USER = {
+  id: 'A01',
+  name: 'Head Office Admin',
+  email: 'admin@transport.example',
+  role: 'Administrator',
+  branch: 'All branches',
+};
+
+// Signed-in user survives a page refresh; falls back to the demo admin
+const savedUser = () => {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; }
+};
+
 const initialState = {
-  user: {
-    id: 'A01',
-    name: 'Head Office Admin',
-    email: 'admin@transport.example',
-    role: 'Administrator',
-    branch: 'All branches',
-  },
+  user: savedUser() || DEFAULT_USER,
   isAuthenticated: true,
   loading: false,
   error: null,

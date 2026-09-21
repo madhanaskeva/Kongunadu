@@ -1,6 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { useModuleAccess } from '../../../hooks/useModuleAccess';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
 
 export const TripDetail = () => {
   const { id } = useParams();
@@ -18,10 +20,13 @@ export const TripDetail = () => {
     showToast,
     navTo,
   } = useTMSAdmin();
+  const { can } = useModuleAccess();
 
   const tms = T();
+  const gpsPg = usePagination(tms.gpsLog || []);
   const currentTripId = id || selectedTrip || 'T07';
-  const rawTrip = (tms.trips || []).find(t => t.id === currentTripId) || (tms.trips || [])[0];
+  // A trip opened by URL must exist (deleted trips stay gone); otherwise fall back to the first trip.
+  const rawTrip = (tms.trips || []).find(t => t.id === currentTripId) || (id ? null : (tms.trips || [])[0]);
 
   if (!rawTrip) return <div style={{ padding: '24px' }}>Trip not found</div>;
 
@@ -50,6 +55,8 @@ export const TripDetail = () => {
     setDrawer({
       isForm: true,
       isTripEdit: true,
+      isMaster: true,
+      masterKey: 'trips',
       kicker: 'Edit trip record',
       title: rawTrip.number,
       saveLabel: 'Save changes',
@@ -66,6 +73,7 @@ export const TripDetail = () => {
       ],
     });
     setForm({
+      id: rawTrip.id,
       invoice: rawTrip.invoice || '',
       lr: rawTrip.lr || '',
       startKm: rawTrip.startKm,
@@ -157,37 +165,41 @@ export const TripDetail = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            onClick={editTrip}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              height: '32px',
-              padding: '0 12px',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-strong)',
-              fontSize: '13px',
-              fontWeight: 700,
-              color: 'var(--color-brand)',
-            }}
-          >
-            Edit record
-          </button>
-          <button
-            onClick={askDeleteTrip}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              height: '32px',
-              padding: '0 12px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '13px',
-              fontWeight: 700,
-              color: 'var(--kr-red-700)',
-            }}
-          >
-            Delete
-          </button>
+          {can('trips', 'edit') && (
+            <button
+              onClick={editTrip}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                height: '32px',
+                padding: '0 12px',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-strong)',
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--color-brand)',
+              }}
+            >
+              Edit record
+            </button>
+          )}
+          {can('trips', 'delete') && (
+            <button
+              onClick={askDeleteTrip}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                height: '32px',
+                padding: '0 12px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '13px',
+                fontWeight: 700,
+                color: 'var(--kr-red-700)',
+              }}
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -345,7 +357,7 @@ export const TripDetail = () => {
                 </tr>
               </thead>
               <tbody>
-                {gpsLogs.map((g, i) => (
+                {gpsPg.rows.map((g, i) => (
                   <tr key={i} style={{ borderTop: '1px solid var(--border-default)' }}>
                     <td style={{ padding: '10px 18px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{g.t}</td>
                     <td style={{ padding: '10px 12px', color: 'var(--text-heading)' }}>{g.ev}</td>
@@ -356,6 +368,7 @@ export const TripDetail = () => {
               </tbody>
             </table>
           </div>
+          {gpsLogs.length > 0 && <Pagination {...gpsPg} noun="GPS events" />}
         </section>
       </div>
     </div>

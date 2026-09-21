@@ -1,53 +1,77 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Eye, EyeOff, KeyRound } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { useModuleAccess } from '../../../hooks/useModuleAccess';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { RowActions } from '../../../components/common/RowActions';
+import { ModuleAccess, MODULE_TOTAL, accessCount, userAccess } from './ModuleAccess';
 
 export const UserList = () => {
-  const { T, userTab, setUserTab, setDrawer, setForm, setFormError, setConfirm, showToast } = useTMSAdmin();
+  const { T, userTab, setUserTab, setDrawer, setForm, setFormError, setConfirm, showToast, setDeleted } = useTMSAdmin();
   const tms = T();
+  const { can } = useModuleAccess();
 
   const users = tms.users || [];
-  const permissions = tms.permissions || [];
+  const usersPg = usePagination(users);
   const branchOptions = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
 
   const userTabs = [
     { value: 'users', label: `Users (${users.length})` },
-    { value: 'roles', label: 'Roles & permissions' },
+    { value: 'roles', label: 'Module access' },
   ];
 
-  const handleInviteUser = () => {
+  const [shownPw, setShownPw] = useState({});
+
+  const userFields = [
+    ['name', 'Full name'],
+    ['email', 'Email', null, 'name@transport.example'],
+    ['password', 'Password', null, 'At least 8 characters', { type: 'password', hint: 'The user signs in with this email and password.' }],
+    ['role', 'Role', ['Administrator', 'Owner (read-only)', 'Billing (read-only)']],
+    ['branch', 'Branch scope', [{ value: 'all', label: 'All branches' }, ...branchOptions]],
+  ];
+
+  const validateUser = (f, selfId) => {
+    const email = String(f.email || '').trim().toLowerCase();
+    return {
+      email: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+        ? 'Enter a valid email address.'
+        : users.some(x => x.id !== selfId && String(x.email || '').toLowerCase() === email)
+        ? 'A user with this email already exists.'
+        : undefined,
+      password: String(f.password || '').length < 8 ? 'Use at least 8 characters.' : undefined,
+    };
+  };
+
+  const handleAddUser = () => {
     setDrawer({
       isForm: true,
-      kicker: 'Invite user',
+      isMaster: true,
+      masterKey: 'users',
+      kicker: 'Add user',
       title: 'New portal user',
-      saveLabel: 'Send invite',
-      required: ['name', 'email'],
-      fields: [
-        ['name', 'Full name'],
-        ['email', 'Email'],
-        ['role', 'Role', ['Administrator', 'Owner (read-only)', 'Billing (read-only)']],
-        ['branch', 'Branch scope', [{ value: 'all', label: 'All branches' }, ...branchOptions]],
-      ],
+      saveLabel: 'Create user',
+      required: ['name', 'email', 'password'],
+      fields: userFields,
+      validate: f => validateUser(f, null),
     });
-    setForm({});
+    setForm({ role: 'Administrator', branch: 'all' });
     setFormError('');
   };
 
   const handleEditUser = (u) => {
     setDrawer({
       isForm: true,
+      isMaster: true,
+      masterKey: 'users',
       kicker: 'Edit user',
       title: u.name,
       saveLabel: 'Save changes',
-      required: ['name', 'email'],
-      fields: [
-        ['name', 'Full name'],
-        ['email', 'Email'],
-        ['role', 'Role', ['Administrator', 'Owner (read-only)', 'Billing (read-only)']],
-        ['branch', 'Branch scope', [{ value: 'all', label: 'All branches' }, ...branchOptions]],
-      ],
+      required: ['name', 'email', 'password'],
+      fields: userFields,
+      validate: f => validateUser(f, u.id),
     });
-    setForm({ name: u.name, email: u.email, role: u.role, branch: u.branch });
+    const scope = (tms.branches || []).find(b => b.name === u.branch || b.id === u.branch);
+    setForm({ id: u.id, name: u.name, email: u.email, password: u.password || '', role: u.role, branch: scope ? scope.id : 'all' });
     setFormError('');
   };
 
@@ -58,14 +82,19 @@ export const UserList = () => {
       okLabel: 'Remove user',
       danger: true,
       onOk: () => {
-        setConfirm(null);
+        setDeleted(prev => [...prev, u.id]);
         showToast('danger', 'User removed', u.name + ' has been removed.');
       },
     });
   };
 
-  const userCols = ['Name', 'Email', 'Role', 'Branch scope', 'Status', 'Last active', 'Actions'];
-  const permCols = ['Module', 'Administrator', 'Owner', 'Billing'];
+  const [accessUserId, setAccessUserId] = useState(users[0] ? users[0].id : null);
+  const manageAccess = u => {
+    setAccessUserId(u.id);
+    setUserTab('roles');
+  };
+
+  const userCols = ['Name', 'Email', 'Password', 'Role', 'Branch scope', 'Module access', 'Status', 'Last active', 'Actions'];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -100,24 +129,26 @@ export const UserList = () => {
             <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
               <strong style={{ color: 'var(--text-heading)' }}>{users.length}</strong> users
             </span>
-            <button
-              onClick={handleInviteUser}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '0 14px',
-                height: '32px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-brand)',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 700,
-              }}
-            >
-              Invite user
-            </button>
+            {can('users', 'add') && (
+              <button
+                onClick={handleAddUser}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  padding: '0 14px',
+                  height: '32px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-brand)',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}
+              >
+                Add user
+              </button>
+            )}
           </div>
 
           <div style={{ overflowX: 'auto' }}>
@@ -145,7 +176,7 @@ export const UserList = () => {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u, idx) => {
+                {usersPg.rows.map((u, idx) => {
                   const isActive = u.status === 'Active';
                   return (
                     <tr key={u.id || idx} style={{ borderTop: '1px solid var(--border-default)' }}>
@@ -153,8 +184,34 @@ export const UserList = () => {
                         {u.name}
                       </td>
                       <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>{u.email}</td>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                        {u.password ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontFamily: shownPw[u.id] ? 'var(--font-mono)' : 'inherit', letterSpacing: shownPw[u.id] ? 0 : '0.15em', color: 'var(--text-heading)' }}>
+                              {shownPw[u.id] ? u.password : '••••••••'}
+                            </span>
+                            <button
+                              onClick={() => setShownPw({ ...shownPw, [u.id]: !shownPw[u.id] })}
+                              aria-label={shownPw[u.id] ? `Hide password for ${u.name}` : `Show password for ${u.name}`}
+                              style={{ all: 'unset', cursor: 'pointer', display: 'grid', color: 'var(--text-muted)' }}
+                            >
+                              {shownPw[u.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>Not set</span>
+                        )}
+                      </td>
                       <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{u.role}</td>
                       <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{u.branch}</td>
+                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
+                        <button
+                          onClick={() => manageAccess(u)}
+                          style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
+                        >
+                          {accessCount(userAccess(u))} of {MODULE_TOTAL} modules
+                        </button>
+                      </td>
                       <td style={{ padding: '12px 14px' }}>
                         <span
                           style={{
@@ -178,8 +235,9 @@ export const UserList = () => {
                       </td>
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                         <RowActions
-                          onEdit={() => handleEditUser(u)}
-                          onDelete={() => handleDeleteUser(u)}
+                          actions={[{ key: 'access', icon: KeyRound, label: 'Manage module access', onClick: () => manageAccess(u) }]}
+                          onEdit={can('users', 'edit') ? () => handleEditUser(u) : undefined}
+                          onDelete={can('users', 'delete') ? () => handleDeleteUser(u) : undefined}
                           editLabel={`Edit ${u.name}`}
                           deleteLabel={`Remove ${u.name}`}
                           buttonAriaLabel={`Actions for ${u.name}`}
@@ -191,66 +249,13 @@ export const UserList = () => {
               </tbody>
             </table>
           </div>
+          <Pagination {...usersPg} noun="users" />
         </div>
       )}
 
-      {/* Roles & Permissions Tab View */}
+      {/* Module Access Tab View */}
       {userTab === 'roles' && (
-        <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-default)', fontSize: '14px', color: 'var(--text-body)' }}>
-            Only the Administrator can modify master data or edit and delete trip records. Supervisors are scoped to their branch.
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '720px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                  {permCols.map((c, i) => (
-                    <th
-                      key={i}
-                      style={{
-                        padding: '10px 14px',
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                        color: 'var(--text-muted)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {permissions.map((p, idx) => (
-                  <tr key={idx} style={{ borderTop: '1px solid var(--border-default)' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-heading)' }}>
-                      {p.module}
-                    </td>
-                    {['admin', 'owner', 'billing'].map((k, ki) => {
-                      const v = p[k] || '—';
-                      const isNo = v === 'No';
-                      return (
-                        <td
-                          key={ki}
-                          style={{
-                            padding: '12px 14px',
-                            color: isNo ? 'var(--text-muted)' : 'var(--text-heading)',
-                            fontWeight: isNo ? 400 : 600,
-                          }}
-                        >
-                          {v}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ModuleAccess users={users} selectedId={accessUserId} onSelect={setAccessUserId} showToast={showToast} />
       )}
     </div>
   );

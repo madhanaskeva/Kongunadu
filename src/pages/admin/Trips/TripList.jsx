@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Activity, ArrowDown, Building2, ChevronDown, ChevronLeft, ChevronRight, CircleCheck, Download,
+  Activity, ArrowDown, Building2, ChevronDown, CircleCheck, Download,
   Flag, Play, Search, Tag, TriangleAlert, Truck,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { RowActions } from '../../../components/common/RowActions';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
+import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 
 const filterLabel = { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' };
 const fieldWrap = { position: 'relative', display: 'flex', alignItems: 'center' };
@@ -39,23 +42,6 @@ const FilterSelect = ({ label, icon: Icon, value, onChange, allLabel, options, w
   </div>
 );
 
-const pageBtn = (active, disabled) => ({
-  all: 'unset',
-  cursor: disabled ? 'default' : 'pointer',
-  boxSizing: 'border-box',
-  minWidth: '36px',
-  height: '36px',
-  padding: '0 8px',
-  display: 'grid',
-  placeItems: 'center',
-  borderRadius: '8px',
-  fontSize: '14px',
-  fontWeight: 700,
-  border: `1px solid ${active ? 'var(--kr-green-700)' : '#d5dfda'}`,
-  background: active ? 'var(--kr-green-700)' : '#fff',
-  color: active ? '#fff' : disabled ? 'var(--kr-grey-300)' : 'var(--text-heading)',
-});
-
 export const TripList = () => {
   const {
     T,
@@ -66,6 +52,7 @@ export const TripList = () => {
     deleted,
     showToast,
   } = useTMSAdmin();
+  const { can } = useModuleAccess();
 
   const tms = T();
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id)).map(t => {
@@ -122,17 +109,10 @@ export const TripList = () => {
   const tripEnrouteCount = tripRows.filter(t => t.status === 'Enroute').length;
 
   const [draftQ, setDraftQ] = useState(tf.q || '');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
 
   useEffect(() => { setDraftQ(tf.q || ''); }, [tf.q]);
-  useEffect(() => { setPage(1); }, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pageSize]);
+  const tripPg = usePagination(tripRows, [tf.branch, tf.status, tf.type, tf.flag, tf.q]);
 
-  const pageCount = Math.max(1, Math.ceil(tripRows.length / pageSize));
-  const curPage = Math.min(page, pageCount);
-  const pageRows = tripRows.slice((curPage - 1) * pageSize, curPage * pageSize);
-  const firstShown = tripRows.length ? (curPage - 1) * pageSize + 1 : 0;
-  const lastShown = Math.min(curPage * pageSize, tripRows.length);
 
   const clearTf = () => {
     setDraftQ('');
@@ -141,7 +121,16 @@ export const TripList = () => {
   const runSearch = () => setTf({ ...tf, q: draftQ.trim() });
 
   const exportTrips = () => {
-    showToast('success', 'Export started', `${tripRows.length} trips · Excel will download shortly.`);
+    if (!tripRows.length) { showToast('warning', 'Nothing to export', 'No trips match the current filters.'); return; }
+    const cols = [
+      ['Trip number', t => t.number], ['Branch', t => t.branchName], ['Vehicle', t => t.vehicleNumber], ['Driver', t => t.driverName],
+      ['Client', t => t.clientName], ['Unloading', t => t.unloading], ['Type', t => t.typeLabel], ['Opened', t => t.opened],
+      ['Closed', t => t.closed], ['Start KM', t => t.startKm], ['Closing KM', t => t.closeKm], ['Invoice', t => t.invoice],
+      ['LR', t => t.lr], ['Status', t => t.badge], ['Flags', t => (t.flags || []).join(', ')],
+    ];
+    const name = `Trips_${fileDate()}.xlsx`;
+    downloadXlsx(name, [{ name: 'Trips', columns: cols.map(c => c[0]), rows: tripRows.map(t => cols.map(c => { const v = c[1](t); return v == null ? '' : v; })) }]);
+    showToast('success', 'Excel downloaded', `${name} · ${tripRows.length} trips`);
   };
 
   const openTrip = (id) => {
@@ -253,27 +242,29 @@ export const TripList = () => {
             <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
               <strong style={{ color: 'var(--text-heading)' }}>{tripRows.length}</strong> trips · {tripEnrouteCount} enroute
             </span>
-            <button
-              onClick={exportTrips}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                height: '38px',
-                padding: '0 16px',
-                boxSizing: 'border-box',
-                borderRadius: '10px',
-                color: 'var(--kr-green-800)',
-                border: '1px solid var(--kr-green-700)',
-                fontSize: '14px',
-                fontWeight: 700,
-              }}
-            >
-              <Download size={17} />
-              Export Excel
-            </button>
+            {can('trips', 'export') && (
+              <button
+                onClick={exportTrips}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  boxSizing: 'border-box',
+                  borderRadius: '10px',
+                  color: 'var(--kr-green-800)',
+                  border: '1px solid var(--kr-green-700)',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                }}
+              >
+                <Download size={17} />
+                Export Excel
+              </button>
+            )}
           </div>
         </div>
 
@@ -306,7 +297,7 @@ export const TripList = () => {
               </tr>
             </thead>
             <tbody>
-              {pageRows.map((t) => (
+              {tripPg.rows.map((t) => (
                 <tr
                   key={t.id}
                   style={{ borderTop: '1px solid #edf1ef' }}
@@ -388,33 +379,7 @@ export const TripList = () => {
         )}
 
         {/* Pagination */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '14px 20px', borderTop: '1px solid #e3e9e6', fontSize: '13px', color: 'var(--text-muted)' }}>
-          <span>Showing {firstShown} to {lastShown} of {tripRows.length} trips</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button disabled={curPage === 1} onClick={() => setPage(curPage - 1)} aria-label="Previous page" style={pageBtn(false, curPage === 1)}>
-              <ChevronLeft size={18} />
-            </button>
-            {Array.from({ length: pageCount }, (_, i) => i + 1).map(n => (
-              <button key={n} onClick={() => setPage(n)} aria-current={n === curPage ? 'page' : undefined} style={pageBtn(n === curPage, false)}>
-                {n}
-              </button>
-            ))}
-            <button disabled={curPage === pageCount} onClick={() => setPage(curPage + 1)} aria-label="Next page" style={pageBtn(false, curPage === pageCount)}>
-              <ChevronRight size={18} />
-            </button>
-            <div style={{ ...fieldWrap, marginLeft: '12px' }}>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                aria-label="Rows per page"
-                style={{ ...fieldStyle, width: '110px', height: '36px', padding: '0 30px 0 12px', fontWeight: 600 }}
-              >
-                {[10, 25, 50].map(n => <option key={n} value={n}>{n} / page</option>)}
-              </select>
-              <ChevronDown size={16} style={iconRight} />
-            </div>
-          </div>
-        </div>
+        <Pagination {...tripPg} noun="trips" />
       </div>
     </div>
   );

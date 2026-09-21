@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { CalendarDays, ChevronRight } from 'lucide-react';
 import { useTMSAdmin, TMSAdminProvider } from '../../context/TMSAdminContext';
 import AdminSidebar from './AdminSidebar';
@@ -7,6 +7,8 @@ import AdminHeader from './AdminHeader';
 import AdminDrawer from './AdminDrawer';
 import { AdminConfirmDialog, AdminToast } from './AdminConfirmDialog';
 import { getPageMeta } from './pageMeta';
+import { useModuleAccess } from '../../hooks/useModuleAccess';
+import { moduleForPath } from '../../utils/moduleAccess';
 import './adminLayout.css';
 
 const AdminLayoutContent = () => {
@@ -21,6 +23,9 @@ const AdminLayoutContent = () => {
   } = useTMSAdmin();
 
   const location = useLocation();
+  const { can, firstPath } = useModuleAccess();
+  const pageModule = moduleForPath(location.pathname);
+  const blocked = pageModule && !can(pageModule);
   const meta = getPageMeta(location.pathname);
   const now = new Date();
   const todayLabel = now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -164,7 +169,11 @@ const AdminLayoutContent = () => {
             )}
           </div>
         ) : (
-          <div style={{ padding: narrow ? '16px' : '20px 28px 28px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, boxSizing: 'border-box' }}>
+          <div
+            key={location.pathname}
+            className="tms-page-enter"
+            style={{ padding: narrow ? '16px' : '20px 28px 28px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, boxSizing: 'border-box' }}
+          >
             <div className="tms-pagehead">
               <div style={{ minWidth: 0 }}>
                 <div className="tms-pagehead-crumb">
@@ -183,7 +192,18 @@ const AdminLayoutContent = () => {
                 </span>
               </div>
             </div>
-            <Outlet />
+            {!blocked ? (
+              <Outlet />
+            ) : firstPath ? (
+              <Navigate to={firstPath} replace />
+            ) : (
+              <div style={{ padding: '48px 24px', textAlign: 'center', background: '#fff', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-lg)' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>No modules assigned</div>
+                <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
+                  Your account has no module access yet. Ask an administrator to grant access in Users &amp; roles.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </main>

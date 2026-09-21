@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserCheck } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { useModuleAccess } from '../../../hooks/useModuleAccess';
+import { downloadXlsx, readSheet } from '../../../utils/spreadsheet';
 import { RowActions } from '../../../components/common/RowActions';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
 
 export const MasterManager = ({ type }) => {
   const {
@@ -25,17 +29,25 @@ export const MasterManager = ({ type }) => {
     vehTanks,
     setVehTank,
     saveMaster,
+    saveMasterMany,
+    normalizeRecord,
   } = useTMSAdmin();
 
   const [masterQ, setMasterQ] = useState('');
+  const navigate = useNavigate();
+  const { can } = useModuleAccess();
+  const canAdd = can(type, 'add');
+  const canEdit = can(type, 'edit');
+  const canDelete = can(type, 'delete');
   const tms = T();
   const bn = id => (tms.B[id] || {}).name || '—';
 
   // Master definitions matching HTML prototype
+  // tms lists already include saved adds and edits (see TMSAdminContext); this only overlays
+  // edits on rows built outside them, like drivers requested from the Supervisor App.
   const mdata = (routeKey, seed) => {
-    const e = masterEdits[routeKey] || {};
-    const ed = e.edited || {};
-    return [...(e.added || []), ...seed.map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r)];
+    const ed = (masterEdits[routeKey] || {}).edited || {};
+    return seed.filter(r => !deleted.includes(r.id)).map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r);
   };
 
   const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
@@ -225,10 +237,14 @@ export const MasterManager = ({ type }) => {
       plural: 'clients',
       addLabel: 'Add client',
       searchPh: 'Search client or GST',
-      data: mdata('clients', tms.clients || []),
+      data: mdata('clients', tms.clients || []).map(c => ({
+        ...c,
+        customers: mdata('customers', tms.customers || []).filter(u => u.client === c.id && !deleted.includes(u.id)).length,
+      })),
+      rowLink: c => `/admin/masters/clients/${c.id}`,
       cols: ['Client', 'GSTIN', 'Branch', 'Customers', 'Contact'],
       cells: c => [
-        txtCell(c.name, true),
+        { ...txtCell(c.name, true), color: 'var(--text-brand)' },
         txtCell(c.gst),
         txtCell(bn(c.branch)),
         txtCell(c.customers),
@@ -323,10 +339,13 @@ export const MasterManager = ({ type }) => {
     (!mq || Object.values(r).join(' ').toLowerCase().includes(mq)) &&
     (type !== 'drivers' || !driverApprovalFilter || (approvals[r.id] || r.approval || 'Approved') === driverApprovalFilter)
   );
+  const rowsPg = usePagination(rows, [type, masterQ, driverApprovalFilter]);
 
   const handleNewRecord = () => {
     setDrawer({
       isForm: true,
+      isMaster: true,
+      masterKey: type,
       kicker: 'New ' + m.singular,
       title: m.addLabel,
       saveLabel: 'Create ' + m.singular,
@@ -341,6 +360,8 @@ export const MasterManager = ({ type }) => {
   const handleEditRecord = (rec) => {
     setDrawer({
       isForm: true,
+      isMaster: true,
+      masterKey: type,
       kicker: 'Edit ' + m.singular,
       title: rec.name || rec.number,
       saveLabel: 'Save changes',
@@ -350,6 +371,59 @@ export const MasterManager = ({ type }) => {
     });
     setForm({ ...rec, phone: rec.phone ? String(rec.phone).replace(/\D/g, '').slice(-10) : '' });
     setFormError('');
+  };
+
+  // Import from Excel / CSV: first row holds the headings (field label or key), one record per row.
+  // A row whose first field matches an existing record updates it; otherwise it is added.
+  const importRef = useRef(null);
+  const importFields = () => m.fields.filter(f => f[2] !== 'section' && f[2] !== 'upload' && f[2] !== 'textarea');
+  const squash = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const downloadTemplate = () => {
+    const fs = importFields();
+    downloadXlsx(`${m.plural}_import_template.xlsx`, [{ name: m.title, columns: fs.map(f => f[1]), rows: [] }]);
+    showToast('info', 'Template downloaded', `Fill one ${m.singular} per row, then use Import from Excel.`);
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    let rows;
+    try { rows = await readSheet(file); } catch (err) {
+      showToast('warning', 'Could not read file', 'Upload an .xlsx or .csv file with headings in the first row.');
+      return;
+    }
+    const fs = importFields();
+    const cols = (rows[0] || []).map(h => fs.find(f => squash(f[1]) === squash(h) || squash(f[0]) === squash(h)));
+    if (!cols.some(Boolean)) {
+      showToast('warning', 'No matching headings', `Use the headings: ${fs.map(f => f[1]).join(', ')}.`);
+      return;
+    }
+    const required = fs.slice(0, 2).map(f => f[0]), key = required[0];
+    const optionValue = (f, v) => {
+      if (!Array.isArray(f[2])) return v;
+      const o = f[2].find(x => typeof x === 'string' ? squash(x) === squash(v) : squash(x.label) === squash(v) || squash(x.value) === squash(v));
+      return o == null ? v : typeof o === 'string' ? o : o.value;
+    };
+    const items = [];
+    let skipped = 0;
+    rows.slice(1).forEach(r => {
+      const f = {};
+      cols.forEach((c, i) => { if (c && r[i] !== undefined && r[i] !== '') f[c[0]] = optionValue(c, r[i]); });
+      if (required.some(k => !String(f[k] || '').trim())) { skipped++; return; }
+      const existing = m.data.find(x => squash(x[key]) === squash(f[key]));
+      const isNew = !existing;
+      items.push({ rec: normalizeRecord(type, isNew ? f : { ...f, id: existing.id }, isNew), isNew });
+    });
+    if (!items.length) {
+      showToast('warning', 'Nothing imported', `No rows had ${fs.slice(0, 2).map(f => f[1]).join(' and ')} filled in.`);
+      return;
+    }
+    saveMasterMany(type, items);
+    items.forEach(({ rec }) => { if (type === 'vehicles' && rec.tank) setVehTank(rec.id, rec.tank); });
+    const added = items.filter(x => x.isNew).length;
+    showToast('success', 'Import complete', `${added} added · ${items.length - added} updated${skipped ? ` · ${skipped} skipped (missing ${fs.slice(0, 2).map(f => f[1]).join(' or ')})` : ''}.`);
   };
 
   const handleDeleteRecord = (rec) => {
@@ -383,9 +457,11 @@ export const MasterManager = ({ type }) => {
         <section
           aria-label="Driver approval queue"
           style={{
-            background: 'var(--color-hazard-soft)',
+            background: 'var(--color-brand-soft)',
+            border: '1px solid rgba(0,98,63,.22)',
+            borderLeft: '4px solid var(--color-brand)',
             borderRadius: 'var(--radius-lg)',
-            color: '#7A4300',
+            color: 'var(--kr-green-800)',
             overflow: 'hidden',
           }}
         >
@@ -407,8 +483,8 @@ export const MasterManager = ({ type }) => {
                 gap: '14px',
                 flexWrap: 'wrap',
                 padding: '12px 18px',
-                borderTop: '1px solid rgba(122,67,0,.18)',
-                background: 'rgba(255,255,255,.6)',
+                borderTop: '1px solid rgba(0,98,63,.16)',
+                background: 'var(--color-brand-tint)',
               }}
             >
               <span
@@ -418,8 +494,8 @@ export const MasterManager = ({ type }) => {
                   height: '40px',
                   borderRadius: '50%',
                   background: '#fff',
-                  border: '2px solid var(--color-hazard)',
-                  color: '#7A4300',
+                  border: '2px solid var(--color-brand)',
+                  color: 'var(--color-brand)',
                   display: 'grid',
                   placeItems: 'center',
                   fontFamily: 'var(--font-display)',
@@ -432,7 +508,7 @@ export const MasterManager = ({ type }) => {
               <div style={{ flex: 1, minWidth: '240px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-heading)' }}>{q.name}</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#fff', color: '#7A4300' }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#fff', color: 'var(--color-brand)', border: '1px solid rgba(0,98,63,.25)' }}>
                     {q.tag}
                   </span>
                   {q.hasDocs && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>· {q.docs}</span>}
@@ -456,35 +532,41 @@ export const MasterManager = ({ type }) => {
                 >
                   Review
                 </button>
-                <button
-                  onClick={q.approve}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-brand)',
-                    color: '#fff',
-                    fontSize: '13px',
-                    fontWeight: 700,
-                  }}
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={q.reject}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--kr-red-700)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                  }}
-                >
-                  Reject
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={q.approve}
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '6px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--color-brand)',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Approve
+                  </button>
+                )}
+                {canEdit && (
+                  <button
+                    onClick={q.reject}
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '6px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--kr-red-600)',
+                      background: 'var(--kr-red-50)',
+                      color: 'var(--kr-red-700)',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Reject
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -576,43 +658,70 @@ export const MasterManager = ({ type }) => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => showToast('info', 'Import from Excel', 'Upload the existing sheet; columns are mapped on the next step.')}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '0 14px',
-                height: '32px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-strong)',
-                background: '#fff',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--text-heading)',
-              }}
-            >
-              Import from Excel
-            </button>
-            <button
-              onClick={handleNewRecord}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '0 14px',
-                height: '32px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-brand)',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 700,
-              }}
-            >
-              {m.addLabel}
-            </button>
+            {canAdd && (
+              <button
+                onClick={downloadTemplate}
+                title="Download an empty sheet with the right headings"
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  padding: '0 14px',
+                  height: '32px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-strong)',
+                  background: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text-heading)',
+                }}
+              >
+                Template
+              </button>
+            )}
+            {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv" onChange={handleImportFile} style={{ display: 'none' }} />}
+            {canAdd && (
+              <button
+                onClick={() => importRef.current && importRef.current.click()}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  padding: '0 14px',
+                  height: '32px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-strong)',
+                  background: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text-heading)',
+                }}
+              >
+                Import from Excel
+              </button>
+            )}
+            {canAdd && (
+              <button
+                onClick={handleNewRecord}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  padding: '0 14px',
+                  height: '32px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-brand)',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}
+              >
+                {m.addLabel}
+              </button>
+            )}
           </div>
         </div>
 
@@ -656,11 +765,16 @@ export const MasterManager = ({ type }) => {
               </tr>
             </thead>
             <tbody>
-              {rows.map(r => {
+              {rowsPg.rows.map(r => {
                 const cells = m.cells(r);
                 const isPendingDriver = type === 'drivers' && (approvals[r.id] || r.approval) === 'Pending approval';
                 return (
-                  <tr key={r.id} style={{ borderTop: '1px solid var(--border-default)' }}>
+                  <tr
+                    key={r.id}
+                    className={m.rowLink ? 'tms-row-link' : undefined}
+                    onClick={m.rowLink ? () => navigate(m.rowLink(r)) : undefined}
+                    style={{ borderTop: '1px solid var(--border-default)', cursor: m.rowLink ? 'pointer' : undefined }}
+                  >
                     {cells.map((c, ci) => (
                       <td key={ci} style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: c.color, fontWeight: c.weight }}>
                         {c.badge ? (
@@ -685,7 +799,7 @@ export const MasterManager = ({ type }) => {
                         )}
                       </td>
                     ))}
-                    <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                       <RowActions
                         actions={isPendingDriver ? [
                           {
@@ -697,8 +811,10 @@ export const MasterManager = ({ type }) => {
                             bgHover: 'var(--color-hazard-soft)',
                           },
                         ] : []}
-                        onEdit={() => handleEditRecord(r)}
-                        onDelete={() => handleDeleteRecord(r)}
+                        onView={m.rowLink ? () => navigate(m.rowLink(r)) : undefined}
+                        viewLabel={`Open ${m.singular} profile`}
+                        onEdit={canEdit ? () => handleEditRecord(r) : undefined}
+                        onDelete={canDelete ? () => handleDeleteRecord(r) : undefined}
                         editLabel={`Edit ${m.singular}`}
                         deleteLabel={`Delete ${m.singular}`}
                         buttonAriaLabel={`Actions for ${r.name || r.number}`}
@@ -711,6 +827,7 @@ export const MasterManager = ({ type }) => {
           </table>
         </div>
 
+        {rows.length > 0 && <Pagination {...rowsPg} noun={m.plural} />}
         {rows.length === 0 && (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
@@ -719,22 +836,24 @@ export const MasterManager = ({ type }) => {
             <p style={{ margin: '6px 0 16px', color: 'var(--text-muted)', fontSize: '14px' }}>
               Nothing matches &ldquo;{masterQ}&rdquo;. Add the record or clear the search.
             </p>
-            <button
-              onClick={handleNewRecord}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '0 20px',
-                height: '40px',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-brand)',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 700,
-              }}
-            >
-              {m.addLabel}
-            </button>
+            {canAdd && (
+              <button
+                onClick={handleNewRecord}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  padding: '0 20px',
+                  height: '40px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-brand)',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                }}
+              >
+                {m.addLabel}
+              </button>
+            )}
           </div>
         )}
       </div>

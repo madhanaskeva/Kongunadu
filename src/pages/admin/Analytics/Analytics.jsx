@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { useModuleAccess } from '../../../hooks/useModuleAccess';
 
 export const Analytics = () => {
   const { anTab, setAnTab, range, setRange, navTo, drvReqs, approvals, T } = useTMSAdmin();
+  const { can } = useModuleAccess();
   const tms = T();
 
   const pendingDrivers = [
@@ -202,25 +204,27 @@ export const Analytics = () => {
             );
           })}
         </div>
-        <button
-          onClick={() => navTo('reports')}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            padding: '0 16px',
-            height: '34px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border-strong)',
-            background: '#fff',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: 'var(--text-heading)',
-          }}
-        >
-          Export this view
-        </button>
+        {can('analytics', 'export') && (
+          <button
+            onClick={() => navTo('reports')}
+            style={{
+              all: 'unset',
+              cursor: 'pointer',
+              padding: '0 16px',
+              height: '34px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-strong)',
+              background: '#fff',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: 'var(--text-heading)',
+            }}
+          >
+            Export this view
+          </button>
+        )}
       </div>
 
       {/* 4 KPIs */}

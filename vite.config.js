@@ -13,6 +13,10 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    // Pre-transform the app on startup so the first page load doesn't wait on disk reads.
+    warmup: {
+      clientFiles: ['./src/main.jsx'],
+    },
   },
 });
 

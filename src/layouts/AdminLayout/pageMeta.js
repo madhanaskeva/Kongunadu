@@ -9,6 +9,7 @@ const PAGE_META = [
   ['/admin/masters/supervisors', 'Masters', 'Supervisor Master'],
   ['/admin/masters/vehicles', 'Masters', 'Vehicle Master'],
   ['/admin/masters/drivers', 'Masters', 'Driver Master'],
+  ['/admin/masters/clients/', 'Client Master', 'Client profile', 'Client details and the customers it delivers to'],
   ['/admin/masters/clients', 'Masters', 'Client Master'],
   ['/admin/masters/locations', 'Masters', 'Loading Location Master'],
   ['/admin/masters/routes', 'Masters', 'Route Master'],
@@ -17,6 +18,7 @@ const PAGE_META = [
   ['/admin/device-approvals', 'System', 'Device approvals'],
   ['/admin/users', 'System', 'Users & roles'],
   ['/admin/settings', 'System', 'Settings'],
+  ['/admin/profile', 'Account', 'My profile', 'Your account details, sign-in email and password'],
 ];
 
 export const getPageMeta = (pathname) => {

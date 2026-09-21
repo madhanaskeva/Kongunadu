@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Modal } from '../../../components/common/Modal';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
 
 export const DeviceApprovals = () => {
   const {
@@ -12,6 +14,8 @@ export const DeviceApprovals = () => {
     fmtPhone,
     fmtImei,
     stampNow,
+    T,
+    saveMaster,
   } = useTMSAdmin();
 
   const devCounts = {
@@ -44,6 +48,7 @@ export const DeviceApprovals = () => {
       ? ['Verified', 'Registered'].includes(r.status)
       : r.status === devFilter
   );
+  const devPg = usePagination(devShown, [devFilter]);
 
   const statusTone = {
     Pending: ['var(--kr-saffron-100)', '#7A4300'],
@@ -55,14 +60,71 @@ export const DeviceApprovals = () => {
 
   const newOtp = () => String(1000 + Math.floor(Math.random() * 9000));
 
-  const approveDevice = (id) => {
+  // Approved phone → supervisor record (matched by mobile number, so re-approving a phone never duplicates)
+  const findSupervisor = (r) => {
+    const digits = String(r.phone || '').replace(/\D/g, '');
+    return (T().supervisors || []).find(sv => String(sv.phone || '').replace(/\D/g, '') === digits);
+  };
+
+  const addToSupervisorMaster = (r, branch) => {
+    const digits = String(r.phone || '').replace(/\D/g, '');
+    const existing = findSupervisor(r);
+    if (existing) {
+      saveMaster('supervisors', { ...existing, branch, status: 'Active', deviceImei: r.imei }, false);
+      return existing.name;
+    }
+    const name = (r.name || '').trim() || `Supervisor ${fmtPhone(digits)}`;
+    saveMaster('supervisors', {
+      id: 'SU' + r.id,
+      name,
+      phone: fmtPhone(digits),
+      branch,
+      clients: '',
+      clientIds: [],
+      status: 'Active',
+      lastLogin: 'Never',
+      deviceImei: r.imei,
+      joinedVia: 'App request',
+    }, true);
+    return name;
+  };
+
+  // Approve dialog: Head Office assigns the supervisor's branch before the OTP is issued
+  const [approving, setApproving] = useState(null);
+  const [approveBranch, setApproveBranch] = useState('');
+  const [approveErr, setApproveErr] = useState('');
+  const branchOpts = (T().branches || []).filter(b => b.status === 'Active');
+
+  const openApprove = (r) => {
+    const existing = findSupervisor(r);
+    setApproving(r);
+    setApproveBranch(r.branchId || (existing && existing.branch) || '');
+    setApproveErr('');
+  };
+
+  const confirmApprove = () => {
+    if (!approveBranch) {
+      setApproveErr('Choose the branch this supervisor works at.');
+      return;
+    }
+    approveDevice(approving.id, approveBranch);
+    setApproving(null);
+  };
+
+  const approveDevice = (id, branchId) => {
     const otp = newOtp();
     const list = readReqs();
     const r = list.find(x => x.id === id);
-    const updated = list.map(x => (x.id === id ? { ...x, status: 'Approved', otp, decidedAt: stampNow() } : x));
+    const branchName = (T().B[branchId] || {}).name || '';
+    const updated = list.map(x => (x.id === id ? { ...x, status: 'Approved', otp, branchId, branch: branchName, decidedAt: stampNow() } : x));
     writeReqs(updated);
     setDevFilter('all');
-    showToast('success', `Approved · OTP ${otp}`, `Share this code with +91 ${fmtPhone(r && r.phone)}.`);
+    const added = r ? addToSupervisorMaster(r, branchId) : null;
+    showToast(
+      'success',
+      `Approved · OTP ${otp}`,
+      `Share this code with +91 ${fmtPhone(r && r.phone)}.${added ? ` ${added} is now a ${branchName} supervisor.` : ''}`
+    );
   };
 
   const rejectDevice = (id) => {
@@ -173,7 +235,7 @@ export const DeviceApprovals = () => {
               </tr>
             </thead>
             <tbody>
-              {devShown.map(r => {
+              {devPg.rows.map(r => {
                 const [bg, fg] = statusTone[r.status] || ['var(--kr-grey-100)', 'var(--kr-grey-700)'];
                 const isPending = r.status === 'Pending';
                 const isApproved = r.status === 'Approved';
@@ -203,7 +265,7 @@ export const DeviceApprovals = () => {
                     </td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-body)', lineHeight: 1.35 }}>
                       {r.device || 'Android phone'}
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{r.branch || '—'}</div>
+                      <div style={{ fontSize: '12px', color: r.branch ? 'var(--text-muted)' : '#7A4300' }}>{r.branch || 'Branch assigned on approval'}</div>
                     </td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>{r.requestedAt}</td>
                     <td style={{ padding: '12px 14px' }}>
@@ -238,7 +300,7 @@ export const DeviceApprovals = () => {
                       {isPending && (
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button
-                            onClick={() => approveDevice(r.id)}
+                            onClick={() => openApprove(r)}
                             style={{
                               all: 'unset',
                               cursor: 'pointer',
@@ -300,6 +362,7 @@ export const DeviceApprovals = () => {
           </table>
         </div>
 
+        {devShown.length > 0 && <Pagination {...devPg} noun="requests" />}
         {devShown.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
@@ -311,6 +374,64 @@ export const DeviceApprovals = () => {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={!!approving}
+        onClose={() => setApproving(null)}
+        subtitle="Approve supervisor"
+        title={approving ? approving.name || `+91 ${fmtPhone(approving.phone)}` : ''}
+        maxWidth="460px"
+        footer={
+          <>
+            <button
+              onClick={() => setApproving(null)}
+              style={{ all: 'unset', cursor: 'pointer', height: '38px', padding: '0 16px', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: 600, color: 'var(--text-heading)' }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmApprove}
+              style={{ all: 'unset', cursor: 'pointer', height: '38px', padding: '0 18px', display: 'inline-flex', alignItems: 'center', borderRadius: 'var(--radius-md)', background: 'var(--color-brand)', color: '#fff', fontSize: '14px', fontWeight: 700 }}
+            >
+              Approve &amp; share OTP
+            </button>
+          </>
+        }
+      >
+        {approving && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ borderRadius: 'var(--radius-md)', background: 'var(--surface-muted)', padding: '4px 14px' }}>
+              {[
+                ['Name', approving.name || 'Not given'],
+                ['Mobile number', `+91 ${fmtPhone(approving.phone)}`],
+                ['Device IMEI', fmtImei(approving.imei)],
+                ['Requested', approving.requestedAt],
+              ].map(([k, v], i) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderTop: i ? '1px solid var(--border-default)' : 'none', fontSize: '14px' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>{k}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--text-heading)', fontFamily: k === 'Device IMEI' ? 'var(--font-mono)' : 'inherit' }}>{v}</span>
+                </div>
+              ))}
+            </div>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>Assign branch</span>
+              <select
+                value={approveBranch}
+                onChange={e => { setApproveBranch(e.target.value); setApproveErr(''); }}
+                style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: `1px solid ${approveErr ? 'var(--kr-red-600)' : 'var(--border-strong)'}`, fontSize: '14px', background: '#fff' }}
+              >
+                <option value="">Select branch</option>
+                {branchOpts.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              {approveErr ? (
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--kr-red-700)' }}>{approveErr}</span>
+              ) : (
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>The supervisor is added to Supervisor Master under this branch and only sees its trips.</span>
+              )}
+            </label>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

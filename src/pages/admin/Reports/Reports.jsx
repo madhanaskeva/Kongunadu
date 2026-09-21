@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { TMSReports } from '../../../utils';
+import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
 
 export const Reports = () => {
   const { T, rb, setRb, showToast, navTo } = useTMSAdmin();
+  const { can } = useModuleAccess();
   const tms = T();
   const R = (typeof window !== 'undefined' && window.TMSReports) || TMSReports;
 
@@ -305,6 +309,7 @@ export const Reports = () => {
   const res = rb.result;
   const numCol = sh && sh.cols ? sh.cols.find(f => f.kind === 'num' && f.unit === 'km') : null;
   const rowCount = res ? res.rows.length : 0;
+  const resPg = usePagination(res ? res.rows : [], [res]);
   const rbStatus = !res
     ? ''
     : onReport
@@ -326,6 +331,35 @@ export const Reports = () => {
     ['Diesel report', 'Fuel filled, litres consumed and mileage (km/l) per vehicle and driver.', 'Yesterday 21:00', '186'],
     ['Vehicle report', 'Registration, type, branch, status, documents due and total km per vehicle.', 'Today 06:00', '722'],
   ].map(([name, desc, last, rows]) => ({ name, desc, last, rows }));
+
+  // What each ready-made report exports: report type, optional row filter and columns (default: all).
+  const readySpec = {
+    'Daily trip register': ['trip'],
+    'Billing-ready trips': ['trip', r => r.status === 'Closed' && r.type === 'Business'],
+    'Non-business movements': ['trip', r => r.type === 'Non-Business', ['number', 'date', 'vehicle', 'driver', 'branch', 'from', 'reason', 'distance', 'status']],
+    'Exception report': ['exception'],
+    'Hidden kilometre audit': ['exception', r => /hidden/i.test(r.etype)],
+    'Driver attendance': ['attendance'],
+    'Vehicle utilisation': ['vehicle', null, ['vehicle', 'vtype', 'branch', 'status', 'trips', 'distance']],
+    'GPS health': ['gps'],
+    'Branch report': ['trip', null, ['branch', 'number', 'date', 'vehicle', 'distance', 'status', 'flags']],
+    'Distance report': ['trip', null, ['number', 'vehicle', 'startKm', 'closeKm', 'fixedKm', 'gpsKm', 'odoKm', 'variance']],
+    'Diesel report': ['trip', null, ['number', 'vehicle', 'driver', 'branch', 'distance', 'diesel']],
+    'Vehicle report': ['vehicle'],
+  };
+
+  const exportReady = (r) => {
+    const [type, keep, keys] = readySpec[r.name] || ['trip'];
+    const fields = keys ? keys.map(k => R.field(type, k)).filter(Boolean) : R.TYPES[type].fields;
+    const rows = R.dataset(type, tms).filter(x => !keep || keep(x));
+    const name = `${r.name.replace(/[^A-Za-z0-9]+/g, '_')}_${fileDate()}.xlsx`;
+    downloadXlsx(name, [{
+      name: r.name,
+      columns: fields.map(f => f.label + (f.unit ? ' (' + f.unit + ')' : '')),
+      rows: rows.map(x => fields.map(f => (x[f.key] == null ? '' : x[f.key]))),
+    }]);
+    showToast('success', 'Excel downloaded', `${name} · ${rows.length} rows`);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -737,24 +771,26 @@ export const Reports = () => {
                     <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
                       Report Results
                     </span>
-                    <button
-                      onClick={handleExport}
-                      style={{
-                        all: 'unset',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        height: '32px',
-                        padding: '0 14px',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--color-brand)',
-                        color: '#fff',
-                        fontSize: '13px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      Download .xlsx
-                    </button>
+                    {can('reports', 'export') && (
+                      <button
+                        onClick={handleExport}
+                        style={{
+                          all: 'unset',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          height: '32px',
+                          padding: '0 14px',
+                          borderRadius: 'var(--radius-md)',
+                          background: 'var(--color-brand)',
+                          color: '#fff',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        Download .xlsx
+                      </button>
+                    )}
                   </div>
 
                   {res.rows.length === 0 || sh.cols.length === 0 ? (
@@ -787,7 +823,7 @@ export const Reports = () => {
                           </tr>
                         </thead>
                         <tbody>
-                          {res.rows.map((r, ri) => (
+                          {resPg.rows.map((r, ri) => (
                             <tr key={ri} style={{ borderTop: '1px solid var(--border-default)' }}>
                               {sh.cols.map((f, ci) => (
                                 <td
@@ -810,6 +846,7 @@ export const Reports = () => {
                           ))}
                         </tbody>
                       </table>
+                      <Pagination {...resPg} noun="rows" style={{ padding: '10px 12px' }} />
                     </div>
                   )}
 
@@ -876,7 +913,7 @@ export const Reports = () => {
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
-                    onClick={() => showToast('success', 'Export started', `${r.name} · Excel will download shortly.`)}
+                    onClick={() => exportReady(r)}
                     style={{
                       all: 'unset',
                       cursor: 'pointer',
