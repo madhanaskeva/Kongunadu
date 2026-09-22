@@ -104,7 +104,7 @@ export const mockData = {
     { id: 'X10', type: 'Idle vehicles', severity: 'Medium', vehicle: 'V04', branch: 'B01', trip: null, detail: 'Vehicle parked at Ambattur yard with no open trip or driver for 52 h. Idle limit is 24 h.', raised: '14 Sep 2026 08:00', status: 'Open', assignee: 'Unassigned' },
   ],
   users: [
-    { id: 'A01', name: 'Head Office Admin', email: 'admin@transport.example', role: 'Administrator', branch: 'All branches', status: 'Active', last: 'Today 07:55' },
+    { id: 'A01', name: 'Head Office Admin', email: 'admin@gmail.com', role: 'Administrator', branch: 'All branches', status: 'Active', last: 'Today 07:55' },
     { id: 'A02', name: 'Company Owner', email: 'owner@transport.example', role: 'Owner (read-only)', branch: 'All branches', status: 'Active', last: 'Yesterday 19:12' },
     { id: 'A05', name: 'Billing Desk', email: 'billing@transport.example', role: 'Billing (read-only)', branch: 'All branches', status: 'Invited', last: '—' },
   ],

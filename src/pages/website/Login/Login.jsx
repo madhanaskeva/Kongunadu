@@ -9,8 +9,9 @@ export const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login, loading } = useAuth();
-  const [email, setEmail] = useState(searchParams.get('role') === 'supervisor' ? 'supervisor@transport.example' : 'admin@transport.example');
-  const [password, setPassword] = useState('password');
+  const asSupervisor = searchParams.get('role') === 'supervisor';
+  const [email, setEmail] = useState(asSupervisor ? 'supervisor@transport.example' : 'admin@gmail.com');
+  const [password, setPassword] = useState(asSupervisor ? 'password' : 'admin@123');
   const [formError, setFormError] = useState('');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');

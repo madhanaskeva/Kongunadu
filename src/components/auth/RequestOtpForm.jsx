@@ -109,7 +109,7 @@ export const RequestOtpForm = ({
             setEmail(e.target.value);
             setLocalError('');
           }}
-          placeholder="e.g. admin@transport.example"
+          placeholder="e.g. admin@gmail.com"
           icon={Mail}
           required
           autoFocus

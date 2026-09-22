@@ -177,7 +177,7 @@ const gpsLog=[
  {t:'11:25',ev:'Position update',km:212,speed:58}
 ];
 const users=[
- {id:'A01',name:'Head Office Admin',email:'admin@transport.example',role:'Administrator',branch:'All branches',status:'Active',last:'Today 07:55'},
+ {id:'A01',name:'Head Office Admin',email:'admin@gmail.com',password:'admin@123',role:'Administrator',branch:'All branches',status:'Active',last:'Today 07:55'},
  {id:'A02',name:'Company Owner',email:'owner@transport.example',role:'Owner (read-only)',branch:'All branches',status:'Active',last:'Yesterday 19:12'},
  {id:'A05',name:'Billing Desk',email:'billing@transport.example',role:'Billing (read-only)',branch:'All branches',status:'Invited',last:'\u2014'}
 ];

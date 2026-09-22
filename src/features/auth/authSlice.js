@@ -5,7 +5,7 @@ export const SESSION_KEY = 'krl_auth_user';
 const DEFAULT_USER = {
   id: 'A01',
   name: 'Head Office Admin',
-  email: 'admin@transport.example',
+  email: 'admin@gmail.com',
   role: 'Administrator',
   branch: 'All branches',
 };
