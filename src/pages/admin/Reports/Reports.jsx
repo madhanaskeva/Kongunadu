@@ -772,8 +772,9 @@ export const Reports = () => {
                       Report Results
                     </span>
                     {can('reports', 'export') && (
+                      // Shown for now without the export; wire onClick={handleExport} back to enable it.
                       <button
-                        onClick={handleExport}
+                        type="button"
                         style={{
                           all: 'unset',
                           cursor: 'pointer',

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Activity, ArrowDown, Building2, ChevronDown, CircleCheck, Download,
+  ArrowDown, Building2, ChevronDown, CircleCheck, Download,
   Flag, Play, Search, Tag, TriangleAlert, Truck,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
@@ -101,7 +101,6 @@ export const TripList = () => {
   const statusPool = trips.filter(t => tripMatch(t, true));
 
   const branchOptions = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
-  const statusOptions = [{ value: 'Enroute', label: 'Enroute' }, { value: 'Closed', label: 'Closed' }];
   const typeOptions = [{ value: 'Business', label: 'Business' }, { value: 'Non-Business', label: 'Non-Business' }];
   const flagOptions = [{ value: 'flagged', label: 'Flagged only' }, { value: 'clean', label: 'No flags' }];
 
@@ -169,7 +168,6 @@ export const TripList = () => {
       {/* Filters Bar */}
       <div className="tms-card" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end', padding: '18px 20px' }}>
         <FilterSelect label="Branch" icon={Building2} width="190px" value={tf.branch} allLabel="All branches" options={branchOptions} onChange={(v) => setTf({ ...tf, branch: v })} />
-        <FilterSelect label="Status" icon={Activity} width="170px" value={tf.status} allLabel="All statuses" options={statusOptions} onChange={(v) => setTf({ ...tf, status: v })} />
         <FilterSelect label="Type" icon={Tag} width="160px" value={tf.type} allLabel="All types" options={typeOptions} onChange={(v) => setTf({ ...tf, type: v })} />
         <FilterSelect label="Flags" icon={Flag} width="160px" value={tf.flag} allLabel="Any" options={flagOptions} onChange={(v) => setTf({ ...tf, flag: v })} />
 
