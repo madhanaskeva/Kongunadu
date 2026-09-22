@@ -52,6 +52,8 @@ export const MasterManager = ({ type }) => {
   };
 
   const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+  const clientList = mdata('clients', tms.clients || []);
+  const clientOpts = clientList.map(c => ({ value: c.id, label: c.name }));
 
   const statusBadge = (v) => ({
     v: v || '—',
@@ -122,7 +124,7 @@ export const MasterManager = ({ type }) => {
         ['phone', 'Mobile number', null, '90031 55012', { clean: 'phone', prefix: '+91' }],
         ['email', 'Sign-in email', null, 'name@transport.example'],
         ['branch', 'Branch', branchOpts],
-        ['clients', 'Clients handled', null, 'Comma separated'],
+        ['clients', 'Clients handled', 'checkbox-select', 'Select clients handled', { options: clientOpts }],
         ['status', 'Status', ['Active', 'Suspended']],
       ],
     },
@@ -354,7 +356,7 @@ export const MasterManager = ({ type }) => {
       fields: m.fields,
       validate: m.validate ? f => m.validate(f, true) : null,
     });
-    setForm({});
+    setForm(type === 'supervisors' ? { clients: [] } : {});
     setFormError('');
   };
 
@@ -370,7 +372,21 @@ export const MasterManager = ({ type }) => {
       fields: m.fields,
       validate: m.validate ? f => m.validate(f, false) : null,
     });
-    setForm({ ...rec, phone: rec.phone ? String(rec.phone).replace(/\D/g, '').slice(-10) : '' });
+    let initialClients = rec.clientIds || [];
+    if ((!initialClients || !initialClients.length) && rec.clients) {
+      if (Array.isArray(rec.clients)) {
+        initialClients = rec.clients;
+      } else if (typeof rec.clients === 'string') {
+        const names = rec.clients.split(',').map(s => s.trim().toLowerCase());
+        initialClients = (tms.clients || []).filter(c => names.includes(c.name.toLowerCase())).map(c => c.id);
+        if (!initialClients.length) initialClients = rec.clients.split(',').map(s => s.trim());
+      }
+    }
+    setForm({
+      ...rec,
+      ...(type === 'supervisors' ? { clients: initialClients } : {}),
+      phone: rec.phone ? String(rec.phone).replace(/\D/g, '').slice(-10) : '',
+    });
     setFormError('');
   };
 
@@ -380,11 +396,6 @@ export const MasterManager = ({ type }) => {
   const importFields = () => m.fields.filter(f => f[2] !== 'section' && f[2] !== 'upload' && f[2] !== 'textarea');
   const squash = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  const downloadTemplate = () => {
-    const fs = importFields();
-    downloadXlsx(`${m.plural}_import_template.xlsx`, [{ name: m.title, columns: fs.map(f => f[1]), rows: [] }]);
-    showToast('info', 'Template downloaded', `Fill one ${m.singular} per row, then use Import from Excel.`);
-  };
 
   const handleImportFile = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -659,28 +670,6 @@ export const MasterManager = ({ type }) => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {canAdd && (
-              <button
-                onClick={downloadTemplate}
-                title="Download an empty sheet with the right headings"
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  padding: '0 14px',
-                  height: '32px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-strong)',
-                  background: '#fff',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text-heading)',
-                }}
-              >
-                Template
-              </button>
-            )}
             {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv" onChange={handleImportFile} style={{ display: 'none' }} />}
             {canAdd && (
               <button
