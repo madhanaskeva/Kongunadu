@@ -241,8 +241,9 @@ export const TripList = () => {
               <strong style={{ color: 'var(--text-heading)' }}>{tripRows.length}</strong> trips · {tripEnrouteCount} enroute
             </span>
             {can('trips', 'export') && (
+              // Shown for now without the export; wire onClick={exportTrips} back to enable it.
               <button
-                onClick={exportTrips}
+                type="button"
                 style={{
                   all: 'unset',
                   cursor: 'pointer',

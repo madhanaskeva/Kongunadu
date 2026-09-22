@@ -913,8 +913,9 @@ export const Reports = () => {
                   Last run {r.last} · {r.rows} rows
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
+                  {/* Shown for now without the export; wire onClick={() => exportReady(r)} back to enable it. */}
                   <button
-                    onClick={() => exportReady(r)}
+                    type="button"
                     style={{
                       all: 'unset',
                       cursor: 'pointer',

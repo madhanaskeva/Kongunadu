@@ -672,8 +672,9 @@ export const MasterManager = ({ type }) => {
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv" onChange={handleImportFile} style={{ display: 'none' }} />}
             {canAdd && (
+              // Shown for now without the import; wire onClick={() => importRef.current && importRef.current.click()} back to enable it.
               <button
-                onClick={() => importRef.current && importRef.current.click()}
+                type="button"
                 style={{
                   all: 'unset',
                   cursor: 'pointer',
@@ -761,9 +762,7 @@ export const MasterManager = ({ type }) => {
                 return (
                   <tr
                     key={r.id}
-                    className={m.rowLink ? 'tms-row-link' : undefined}
-                    onClick={m.rowLink ? () => navigate(m.rowLink(r)) : undefined}
-                    style={{ borderTop: '1px solid var(--border-default)', cursor: m.rowLink ? 'pointer' : undefined }}
+                    style={{ borderTop: '1px solid var(--border-default)' }}
                   >
                     {cells.map((c, ci) => (
                       <td key={ci} style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: c.color, fontWeight: c.weight }}>

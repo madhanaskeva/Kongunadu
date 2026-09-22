@@ -185,8 +185,9 @@ export const Dashboard = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
         <div></div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Shown for now without the export; wire onClick={() => navTo('reports')} back to enable it. */}
           <button
-            onClick={() => navTo('reports')}
+            type="button"
             style={{ all: 'unset', cursor: 'pointer', padding: '0 14px', height: '32px', display: 'inline-flex', alignItems: 'center', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontSize: '13px', fontWeight: 700, color: 'var(--color-brand)' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--color-brand-tint)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}

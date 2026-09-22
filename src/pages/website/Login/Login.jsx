@@ -79,10 +79,10 @@ export const Login = () => {
               textTransform: 'uppercase',
             }}
           >
-            Fueling a better tomorrow
+            Connecting industry. Delivering reliability.
           </div>
           <p style={{ margin: '8px 0 0', fontSize: '15px', opacity: 0.9, maxWidth: '440px', lineHeight: 1.6 }}>
-            700+ trucks, 300–400 trips a day, every one validated against fixed route, GPS and odometer distance.
+            Reliable bulk transportation solutions supporting India's energy and industrial supply chains.
           </p>
         </div>
       </div>

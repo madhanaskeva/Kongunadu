@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import Button from './Button';
 import NotificationCard from './NotificationCard';
@@ -11,8 +12,12 @@ import { useTMSAdmin } from '../../context/TMSAdminContext';
  *   isOpen: boolean
  *   onClose: function
  */
+// How many of the newest notifications the popup shows; "View all" opens the full page.
+const PREVIEW_COUNT = 4;
+
 export const AdminNotificationsModal = ({ isOpen, onClose }) => {
   const { adminNotifications, markAdminNotifsRead } = useTMSAdmin();
+  const navigate = useNavigate();
 
   const handleClose = () => {
     if (markAdminNotifsRead) {
@@ -22,6 +27,13 @@ export const AdminNotificationsModal = ({ isOpen, onClose }) => {
   };
 
   const list = adminNotifications && adminNotifications.length > 0 ? adminNotifications : [];
+  const shown = list.slice(0, PREVIEW_COUNT);
+
+  // Close without marking read, so the full page still highlights what is new.
+  const viewAll = () => {
+    onClose();
+    navigate('/admin/notifications');
+  };
 
   return (
     <Modal
@@ -56,7 +68,7 @@ export const AdminNotificationsModal = ({ isOpen, onClose }) => {
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {list.map((item) => (
+        {shown.map((item) => (
           <NotificationCard
             key={item.id}
             title={item.title}
@@ -78,6 +90,14 @@ export const AdminNotificationsModal = ({ isOpen, onClose }) => {
             No notifications yet
           </div>
         )}
+
+        <Button
+          variant="outline"
+          onClick={viewAll}
+          style={{ alignSelf: 'center', fontWeight: 700, borderRadius: '8px', padding: '0 20px' }}
+        >
+          {list.length > PREVIEW_COUNT ? `View all (${list.length})` : 'View all'}
+        </Button>
       </div>
     </Modal>
   );

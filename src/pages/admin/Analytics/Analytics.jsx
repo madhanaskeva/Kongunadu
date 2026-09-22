@@ -1,10 +1,8 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
-import { useModuleAccess } from '../../../hooks/useModuleAccess';
 
 export const Analytics = () => {
-  const { anTab, setAnTab, range, setRange, navTo, drvReqs, approvals, T } = useTMSAdmin();
-  const { can } = useModuleAccess();
+  const { anTab, setAnTab, range, setRange, drvReqs, approvals, T } = useTMSAdmin();
   const tms = T();
 
   const pendingDrivers = [
@@ -172,7 +170,7 @@ export const Analytics = () => {
         </div>
       </div>
 
-      {/* Date Range & Export */}
+      {/* Date Range */}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {ranges.map(r => {
@@ -204,27 +202,6 @@ export const Analytics = () => {
             );
           })}
         </div>
-        {can('analytics', 'export') && (
-          <button
-            onClick={() => navTo('reports')}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              padding: '0 16px',
-              height: '34px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-strong)',
-              background: '#fff',
-              fontSize: '13px',
-              fontWeight: 700,
-              color: 'var(--text-heading)',
-            }}
-          >
-            Export this view
-          </button>
-        )}
       </div>
 
       {/* 4 KPIs */}

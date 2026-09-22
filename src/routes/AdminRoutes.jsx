@@ -24,6 +24,7 @@ import UserList from '../pages/admin/Users/UserList';
 import Settings from '../pages/admin/Settings/Settings';
 import DeviceApprovals from '../pages/admin/DeviceApprovals/DeviceApprovals';
 import Profile from '../pages/admin/Profile/Profile';
+import Notifications from '../pages/admin/Notifications/Notifications';
 
 export const AdminRoutes = (
   <Route path="admin" element={<AdminLayout />}>
@@ -49,6 +50,7 @@ export const AdminRoutes = (
     <Route path="settings" element={<Settings />} />
     <Route path="device-approvals" element={<DeviceApprovals />} />
     <Route path="profile" element={<Profile />} />
+    <Route path="notifications" element={<Notifications />} />
   </Route>
 );
 

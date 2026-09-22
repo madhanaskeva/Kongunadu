@@ -18,6 +18,7 @@ const PAGE_META = [
   ['/admin/device-approvals', 'System', 'Device approvals'],
   ['/admin/users', 'System', 'Users & roles'],
   ['/admin/settings', 'System', 'Settings'],
+  ['/admin/notifications', 'Account', 'Notifications', 'Every message and update sent to Head Office'],
   ['/admin/profile', 'Account', 'My profile', 'Your account details, sign-in email and password'],
 ];
 
