@@ -6,8 +6,8 @@ export const VehicleIdleStatus = ({ v }) => (
     <div style={{ flex: "1", display: "flex", flexDirection: "column" }}>
       <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>14 September · 09:41</div>
-          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Mark each Chennai HO vehicle that is standing idle and say why. Vehicles on a trip are running and cannot be marked.</div>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>{v.todayDM} · {v.nowHM}</div>
+          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Mark each {v.branchName} vehicle that is standing idle and say why. Vehicles on a trip are running and cannot be marked.</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "8px" }}>
           <div style={{ padding: "12px", background: "var(--color-hazard-soft)", borderRadius: "var(--radius-md)" }}>

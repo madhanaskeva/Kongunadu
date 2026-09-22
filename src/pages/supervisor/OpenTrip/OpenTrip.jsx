@@ -15,7 +15,7 @@ export const OpenTrip = ({ v }) => (
           </div>
           <div style={{ padding: "12px", background: "var(--surface-muted)", borderRadius: "var(--radius-md)" }}>
             <div style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)" }}>Branch</div>
-            <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-heading)", marginTop: "4px" }}>Chennai HO</div>
+            <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-heading)", marginTop: "4px" }}>{v.branchName}</div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>From your login</div>
           </div>
         </div>
@@ -146,9 +146,9 @@ export const OpenTrip = ({ v }) => (
                         </span>
                       </div>
                       <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", color: "var(--text-heading)" }}>13.0827° N, 80.2707° E</div>
-                      <div style={{ fontSize: "13px", color: "var(--text-body)", marginTop: "-6px" }}>Accuracy 8 m · taken at 09:41 from where you are standing.</div>
+                      <div style={{ fontSize: "13px", color: "var(--text-body)", marginTop: "-6px" }}>Accuracy 8 m · taken at {v.nowHM} from where you are standing.</div>
                       <Input label="Location name" placeholder="e.g. Oragadam Plant Gate 3" value={v.newLoc.name} onChange={v.setNewLocName} error={v.newLocErr} />
-                      <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Saved to Chennai HO with a 100 m safe radius. Head Office can correct it later.</div>
+                      <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Saved to {v.branchName} with a 100 m safe radius. Head Office can correct it later.</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                         <Button size="md" onClick={v.saveNewLoc}>Use this point</Button>
                         <Button variant="ghost" size="md" onClick={v.cancelNewLoc}>Cancel</Button>

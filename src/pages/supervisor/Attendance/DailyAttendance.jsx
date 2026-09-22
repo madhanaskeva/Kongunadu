@@ -7,7 +7,7 @@ export const DailyAttendance = ({ v }) => (
       <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
-            <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>14 September</div>
+            <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>{v.todayDM}</div>
             <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>{v.attendanceMarked} of {v.attendanceTotal} drivers marked</div>
           </div>
           {v.showAttMonth ? (

@@ -4,7 +4,7 @@ export const MonthlyAttendance = ({ v }) => (
   <>
     <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "16px", gap: "16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>September 2026</div>
+        <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>{v.monthLabel}</div>
         <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>11 of 14 days complete</span>
       </div>
       <div style={{ padding: "12px 14px", background: "var(--color-hazard-soft)", borderRadius: "var(--radius-md)", fontSize: "14px", color: "#7A4300" }}>

@@ -24,7 +24,7 @@ export const CloseTripList = ({ v }) => (
         <>
           <div style={{ padding: "40px 20px", textAlign: "center", border: "2px dashed var(--border-default)", borderRadius: "var(--radius-lg)" }}>
             <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", color: "var(--text-heading)" }}>No trips to close</div>
-            <p style={{ margin: "8px 0 16px", fontSize: "14px", color: "var(--text-muted)" }}>Every trip for Chennai HO is closed. Open a trip after the next loading.</p>
+            <p style={{ margin: "8px 0 16px", fontSize: "14px", color: "var(--text-muted)" }}>Every trip for {v.branchName} is closed. Open a trip after the next loading.</p>
             <Button variant="secondary" onClick={v.goOpen}>Open trip</Button>
           </div>
         </>

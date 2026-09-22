@@ -120,7 +120,7 @@ export const CloseTrip = ({ v }) => (
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <Select label="From" placeholder="Select point" options={v.pointOptions} value={v.cf.legDraft.from} onChange={v.setLegFrom} />
-                  <Select label="To" placeholder="Select point" options={v.pointOptions} value={v.cf.legDraft.to} onChange={v.setLegTo} />
+                  <Select label="To" placeholder="Select point" options={v.toPointOptions} value={v.cf.legDraft.to} onChange={v.setLegTo} />
                 </div>
                 {v.legErr.route ? (
                   <>

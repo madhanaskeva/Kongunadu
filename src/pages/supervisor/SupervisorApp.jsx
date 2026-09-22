@@ -11,7 +11,7 @@ import './supervisorApp.css';
 // through localStorage on the same origin, polled once a second.
 export class SupervisorApp extends React.Component {
   state = {
-    screen: 'approval', loginState: 'idle',
+    screen: 'approval', loginState: 'idle', loginPhone: null, loginPassword: null, loginErr: '', supId: '', branchId: '',
     ob: { name: '', phone: '', otp: ['', '', '', ''], expected: '', shared: false, requestedAt: '' }, obStatus: 'idle', obReqId: '', obShowErr: false, obOtpErr: '',
     reg: { name: '', password: '' }, regShowErr: false, regSaving: false, account: null, notifOpen: false, discardOpen: false, toast: null, saving: false,
     gpsGranted: true, unclosedFilter: 'all', forceEmpty: false,
@@ -29,7 +29,13 @@ export class SupervisorApp extends React.Component {
     am: { vehicle: '', driver: '', status: '' },
     idle: this.seedIdle(), idleFilter: 'all', showIdleErrors: false
   };
-  BR = 'B01'; SUP = 'S01';
+  // The signed-in supervisor and their branch, set at login from the Supervisor Master.
+  get SUP() { return (this.state && this.state.supId) || 'S01'; }
+  get BR() { return (this.state && this.state.branchId) || 'B01'; }
+  me() { const T = this.T(), sup = T.S[this.SUP] || {}; return { name: sup.name || 'Supervisor', branch: (T.B[this.BR] || {}).name || 'Branch' }; }
+  // Seeded supervisors have no password of their own yet; they use the demo password until they register.
+  DEMO_PASSWORD = 'password';
+  findSupervisorByPhone(digits) { return (this.T().supervisors || []).find(r => String(r.phone || '').replace(/\D/g, '') === digits); }
   // Device approval is shared with the Admin Portal through localStorage (same origin), polled once a second.
   REQ_KEY = 'kr-tms-device-approvals'; IMEI_KEY = 'kr-tms-device-imei'; NOTICE_KEY = 'kr-tms-supervisor-notices';
   // New-driver requests go to the Admin Portal the same way; its approve/reject decisions come back on the same keys.
@@ -92,7 +98,7 @@ export class SupervisorApp extends React.Component {
     if (fresh.length && !['approval', 'otp', 'register', 'login'].includes(this.state.screen)) this.toast(fresh[0].priority === 'Urgent' ? 'warning' : 'info', fresh[0].kind === 'message' ? 'New message from Head Office' : 'Update from Head Office', fresh[0].title);
   }
   // Your own actions this session, kept as read items in the Notifications page.
-  logActivity(n) { this.setState(st => ({ activity: [{ id: 'ACT' + Date.now() + '-' + st.activity.length, kind: 'activity', from: 'You · R. Senthil Kumar', sort: '2026-09-14 09:41:' + String(st.activity.length).padStart(2, '0'), ...n }, ...st.activity] })); }
+  logActivity(n) { this.setState(st => ({ activity: [{ id: 'ACT' + Date.now() + '-' + st.activity.length, kind: 'activity', from: 'You · ' + this.me().name, sort: this.sortStamp(), ...n }, ...st.activity] })); }
   // Re-render when Head Office deletes a record (T() reads the deleted list itself).
   syncDeleted() { let j = '[]'; try { j = localStorage.getItem('kr-tms-deleted') || '[]'; } catch (e) { return; } if (j === this._delJson) return; const first = this._delJson === undefined; this._delJson = j; if (!first) this.forceUpdate(); }
   componentDidMount() {
@@ -111,8 +117,14 @@ export class SupervisorApp extends React.Component {
     let m; try { m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {}; } catch (e) { return; }
     const cur = m.supervisors || { added: [], edited: {} }, added = cur.added || [];
     const same = r => String(r.phone || '').replace(/\D/g, '') === phoneDigits;
-    if (!added.some(same)) return;
-    m.supervisors = { ...cur, added: added.map(r => (same(r) ? { ...r, ...patch } : r)) };
+    if (added.some(same)) m.supervisors = { ...cur, added: added.map(r => (same(r) ? { ...r, ...patch } : r)) };
+    else {
+      // A seeded supervisor: keep the change as an edit on top of the seed row.
+      const seed = (this.T().supervisors || []).find(same);
+      if (!seed) return;
+      const edited = cur.edited || {};
+      m.supervisors = { ...cur, added, edited: { ...edited, [seed.id]: { ...(edited[seed.id] || {}), ...patch } } };
+    }
     try { localStorage.setItem(this.MASTER_KEY, JSON.stringify(m)); } catch (e) { return; }
     this.syncMaster();
   }
@@ -129,6 +141,10 @@ export class SupervisorApp extends React.Component {
     return this._imei;
   }
   nowText() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+  // '22 Sep 2026 14:05', the format trips are stored with and the Admin Portal reads.
+  stampText() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getDate()} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()]} ${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+  // '2026-09-22 14:05:09', used to sort notifications.
+  sortStamp() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
   syncApproval() {
     const s = this.state;
     if (s.screen !== 'approval' || s.obStatus !== 'waiting' || !s.obReqId) return;
@@ -166,7 +182,7 @@ export class SupervisorApp extends React.Component {
   active() { return this.allTrips().filter(t => t.branch === this.BR && t.status === 'Enroute' && !this.state.closedIds.includes(t.id)); }
   // Badge colours per status label → [background, text, edge], from the --st-* palette in <helmet>.
   statusTone(label) {
-    const k = { 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent' }[label] || 'neutral';
+    const k = { 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent' }[label] || 'neutral';
     return [`var(--st-${k}-bg)`, `var(--st-${k}-fg)`, `var(--st-${k}-edge)`];
   }
   decorate(t) {
@@ -191,7 +207,16 @@ export class SupervisorApp extends React.Component {
     const titles = { home: 'Kongunadu Road Lines', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance', attMonth: 'Monthly attendance', reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
     // Open trip options
     const activeVeh = new Set(this.active().map(t => t.vehicle)), activeDrv = new Set(this.active().map(t => t.driver));
-    const sup = T.S[this.SUP] || {};
+    const sup = T.S[this.SUP] || {}, me = this.me();
+    // Live date for everything the screens show and the records sent to Head Office.
+    const TD = new Date(), pd = n => String(n).padStart(2, '0');
+    const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const todayIso = `${TD.getFullYear()}-${pd(TD.getMonth() + 1)}-${pd(TD.getDate())}`;
+    const todayDM = `${TD.getDate()} ${MONTH_FULL[TD.getMonth()]}`, todayShort = `${TD.getDate()} ${MONTH_FULL[TD.getMonth()].slice(0, 3)}`;
+    const todayLong = `${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][TD.getDay()]}, ${todayDM} ${TD.getFullYear()}`;
+    const isoDaysAgo = n => { const d = new Date(TD); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${pd(d.getMonth() + 1)}-${pd(d.getDate())}`; };
+    const loginPhone = s.loginPhone ?? (s.account ? s.account.phone.slice(0, 5) + ' ' + s.account.phone.slice(5) : '98410 22314');
+    const loginPassword = s.loginPassword ?? (s.account ? '' : this.DEMO_PASSWORD);
     const myClients = T.clients.filter(c => {
       const idMatch = (sup.clientIds || []).includes(c.id);
       const nameMatch = (sup.clientIds || []).includes(c.name) ||
@@ -288,10 +313,10 @@ export class SupervisorApp extends React.Component {
     });
     const openErrorCount = Object.values(err).filter(Boolean).length;
     const nextSerial = v => String(this.allTrips().filter(t => t.vehicle === v.id).reduce((m, t) => Math.max(m, Number(String(t.number || '').split('/')[2]) || 0), 0) + 1).padStart(3, '0');
-    const tripNum = v => `${v.number.replace(/\s/g, '')}/09/${nextSerial(v)}`;
+    const tripNum = v => `${v.number.replace(/\s/g, '')}/${pd(TD.getMonth() + 1)}/${nextSerial(v)}`;
     const sampleVeh = availVeh[0] || branchVeh[0];
-    const tripNumberPreview = veh ? tripNum(veh) : sampleVeh ? tripNum(sampleVeh) : 'TN28BC1180/09/009';
-    const tripNumberNote = veh ? `${veh.number} · September · serial ${nextSerial(veh)}` : 'Example · VEH NO / MM / SNO, branch wise';
+    const tripNumberPreview = veh ? tripNum(veh) : sampleVeh ? tripNum(sampleVeh) : `TN28BC1180/${pd(TD.getMonth() + 1)}/009`;
+    const tripNumberNote = veh ? `${veh.number} · ${MONTH_FULL[TD.getMonth()]} · serial ${nextSerial(veh)}` : 'Example · VEH NO / MM / SNO, branch wise';
     const reviewRows = !veh ? [] : (needsLoad
       ? [['Trip number', tripNumberPreview], ['Trip type', 'Business'], ['Client', (T.C[f.client] || {}).name], ['Vehicle number', veh.number], ['Vehicle type', veh.type], ['Loading location', (this.loc(f.loading) || {}).name], ['Unloading', pickedCust.map(u => u.name).join(', ')], ['Start KM', startKmVal ? Number(startKmVal).toLocaleString('en-IN') + ' km' : ''], ['Driver', drvSel ? drvSel.name + (drvSel.approval === 'Approved' ? '' : ' · pending approval') : ''], ['Remarks', f.remarks]]
       : [['Trip number', tripNumberPreview], ['Trip type', 'Non-Business'], ['From', f.from], ['To', f.to], ['KM', f.km ? Number(f.km).toLocaleString('en-IN') + ' km' : ''], ['Purpose', f.reason], ['Vehicle number', veh.number], ['Driver', drvSel ? drvSel.name : '']]
@@ -336,8 +361,8 @@ export class SupervisorApp extends React.Component {
     const histFiltered = histList.filter(t => (!hf.vehicle || t.vehicle === hf.vehicle) && (!hf.from || t.closedDay >= hf.from) && (!hf.to || t.closedDay <= hf.to));
     const hfHasRange = !!(hf.from || hf.to), hfAnyFilter = hfHasRange || !!hf.vehicle;
     const hfRangeLabel = hf.from && hf.to ? (hf.from === hf.to ? prettyDay(hf.from) : `${prettyDay(hf.from)} – ${prettyDay(hf.to)}`) : hf.from ? `From ${prettyDay(hf.from)}` : hf.to ? `Up to ${prettyDay(hf.to)}` : '';
-    const TODAY = '2026-09-14';
-    const hfPresets = [['Today', TODAY, TODAY], ['Last 7 days', '2026-09-08', TODAY], ['This month', '2026-09-01', TODAY]].map(([label, from, to]) => { const on = s.hfDraft.from === from && s.hfDraft.to === to; return { label, from, to, border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; });
+    const TODAY = todayIso;
+    const hfPresets = [['Today', TODAY, TODAY], ['Last 7 days', isoDaysAgo(6), TODAY], ['This month', todayIso.slice(0, 8) + '01', TODAY]].map(([label, from, to]) => { const on = s.hfDraft.from === from && s.hfDraft.to === to; return { label, from, to, border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; });
     const histShown = s.forceEmptyHist ? [] : histFiltered;
     const histSel = closedTrips.find(t => t.id === s.histSel) || closedTrips[0];
     let hist = { number: '', openRows: [], closeRows: [] };
@@ -437,15 +462,16 @@ export class SupervisorApp extends React.Component {
     const amVehicleOptions = amFreeVeh.map(v => ({ value: v.id, label: `${v.number} · ${v.type}` }));
     const amDriverOptions = amDriverList.filter(d => !s.att[d.id] || d.id === am.driver).map(d => ({ value: d.id, label: `${d.name} · ${d.type}${d.status === 'Inactive' ? ' · inactive' : ''}` }));
     const amMappedDrv = amVeh && amVeh.driver ? this.drv(amVeh.driver) : null;
-    const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : amUsedVeh.size ? `${amFreeVeh.length} of ${branchVeh.length} Chennai HO vehicles free. ${amUsedVeh.size} already marked today are hidden.` : `${branchVeh.length} Chennai HO vehicles from the admin vehicle master.`;
+    const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : amUsedVeh.size ? `${amFreeVeh.length} of ${branchVeh.length} ${me.branch} vehicles free. ${amUsedVeh.size} already marked today are hidden.` : `${branchVeh.length} ${me.branch} vehicles from the admin vehicle master.`;
     // Vehicle status: Idle or Maintenance; a vehicle that is on a trip can also be recorded as On trip
-    const amStatusOptions = [...(amVeh && amVeh.status === 'Running' ? ['On trip'] : []), 'Idle', 'Maintenance'].map(x => ({ value: x, label: x }));
-    const amStatusHint = amVeh && amDrv ? `Choose the status of ${amVeh.number} to add ${amDrv.name} to today’s attendance.` : 'Idle or under maintenance. The driver is added once vehicle, driver and status are chosen.';
+    // Same vehicle statuses as the Admin Portal Vehicle Master.
+    const amStatusOptions = ['Idle', 'Running', 'Maintenance', 'Inactive'].map(x => ({ value: x, label: x }));
+    const amStatusHint = amVeh && amDrv ? `Choose the status of ${amVeh.number} to add ${amDrv.name} to today’s attendance.` : 'Idle, running, under maintenance or inactive. The driver is added once vehicle, driver and status are chosen.';
     const vehStatusOf = id => s.attVehStatus[id] || ((T.V[s.attVeh[id]] || {}).status === 'Running' ? 'On trip' : 'Not set');
     const amDriverHint = amVeh && !amDrv ? `Pick the driver for ${amVeh.number}${amMappedDrv ? ` (mapped: ${amMappedDrv.name})` : ''}, then the vehicle status.`
       : amVeh && amDrv ? `${amDrv.name} will be marked present on ${amVeh.number} once you choose the vehicle status.`
       : amDrv && !amVeh ? `Pick the vehicle for ${amDrv.name} to mark them present.`
-      : `${amDriverOptions.length} of ${amDriverList.length} approved Chennai HO drivers not marked yet. Pick a vehicle, driver and vehicle status to mark the driver present.`;
+      : `${amDriverOptions.length} of ${amDriverList.length} approved ${me.branch} drivers not marked yet. Pick a vehicle, driver and vehicle status to mark the driver present.`;
     // Marked attendance tab · saved days, newest first
     const now = new Date(), p2 = n => String(n).padStart(2, '0');
     const TODAY_DAY = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
@@ -459,7 +485,7 @@ export class SupervisorApp extends React.Component {
       const rows = amDriverList.map(d => { const [st = '', veh = ''] = r.entries[d.id] || []; return { name: d.name, vehicle: veh ? (T.V[veh] || {}).number : st === 'P' ? 'No vehicle' : '—', badge: st === 'P' ? 'Present' : st === 'A' ? 'Absent' : 'Not marked', badgeBg: this.statusTone(st === 'P' ? 'Present' : st === 'A' ? 'Absent' : 'Not marked')[0], badgeFg: this.statusTone(st === 'P' ? 'Present' : st === 'A' ? 'Absent' : 'Not marked')[1] }; });
       const present = rows.filter(x => x.badge === 'Present').length, absent = rows.filter(x => x.badge === 'Absent').length, unmarked = rows.length - present - absent;
       const open = openDay === r.day, isToday = r.day === TODAY_DAY;
-      return { day: r.day, label: r.label, isToday, savedLine: `Saved at ${r.savedAt} by R. Senthil Kumar`, present, absent, unmarked: unmarked || false, rows, open, expanded: open ? 'true' : 'false', rot: open ? '180deg' : '0deg', edge: unmarked ? 'var(--color-hazard)' : 'var(--color-brand)' };
+      return { day: r.day, label: r.label, isToday, savedLine: `Saved at ${r.savedAt} by ${me.name}`, present, absent, unmarked: unmarked || false, rows, open, expanded: open ? 'true' : 'false', rot: open ? '180deg' : '0deg', edge: unmarked ? 'var(--color-hazard)' : 'var(--color-brand)' };
     });
     const amRows = amDriverList.filter(d => s.att[d.id]).map((d, i) => { const v = s.att[d.id], vn = (T.V[s.attVeh[d.id]] || {}).number;
       const vs = vehStatusOf(d.id), [vsBg, vsFg] = this.statusTone(vs);
@@ -475,7 +501,7 @@ export class SupervisorApp extends React.Component {
         sub: running ? `${v.type} · ${trip.number}` : `${v.type} · ${v.route}`,
         reason: r.reason || '', note: r.note || '', isOther: r.reason === 'Other',
         reasonErr: s.showIdleErrors && on && !r.reason, noteErr: s.showIdleErrors && on && r.reason === 'Other' && !r.note ? 'Required when the reason is Other.' : undefined,
-        sinceText: r.since ? `Idle since ${r.since} · ${r.hours} h` + (over ? ' · over the 24 h idle limit' : '') : 'Idle from 09:41 once saved',
+        sinceText: r.since ? `Idle since ${r.since} · ${r.hours} h` + (over ? ' · over the 24 h idle limit' : '') : `Idle from ${pd(TD.getHours())}:${pd(TD.getMinutes())} once saved`,
         sinceColor: over ? '#7A4300' : 'var(--text-muted)',
         edge: running ? 'var(--st-enroute-edge)' : on ? 'var(--st-long-edge)' : 'var(--border-default)', bg: running ? 'var(--surface-muted)' : '#fff',
         tLabel: on ? 'Idle' : 'Mark idle', tBorder: on ? 'var(--color-hazard)' : 'var(--border-strong)', tBg: on ? 'var(--color-hazard)' : '#fff', tFg: on ? 'var(--kr-steel-900)' : 'var(--text-heading)',
@@ -501,9 +527,9 @@ export class SupervisorApp extends React.Component {
     const noticeAt = sort => { const [d, hm = ''] = String(sort || '').split(' '); const [y, m, dd] = d.split('-'); return m ? `${Number(dd)} ${MON[Number(m) - 1]} ${hm.slice(0, 5)}` : ''; };
     const noticeAtLong = sort => { const [d, hm = ''] = String(sort || '').split(' '); const [y, m, dd] = d.split('-'); return m ? `${Number(dd)} ${MON[Number(m) - 1]} ${y}, ${hm.slice(0, 5)}` : ''; };
     const alertItems = [
-      ...activeD.filter(t => t.hoursOpen > 24).map(t => ({ id: `al-long-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: '2026-09-14 09:30', title: `Long open trip · ${t.vehicleNumber}`, body: `${t.number} has been open ${t.hoursOpen} h against an expected ${t.expectedHours} h. Close it once unloading is done, or Head Office is alerted.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Open for', `${t.hoursOpen} h · expected ${t.expectedHours} h`]], link: { trip: t.id }, linkLabel: 'View trip' })),
-      ...(attendanceMarked < attendanceTotal ? [{ id: 'al-att-0914', kind: 'alert', from: 'TMS alerts', sort: '2026-09-14 09:00', title: 'Attendance pending for today', body: `${attendanceTotal - attendanceMarked} of ${attendanceTotal} drivers are not marked for 14 September. Missing attendance is reported to Head Office after 48 hours.`, rows: [['Marked', attDrivers.filter(d => s.att[d.id]).map(d => d.name).join(', ') || 'None yet'], ['Not marked', attDrivers.filter(d => !s.att[d.id]).map(d => d.name).join(', ')], ['Date', '14 Sep 2026']], link: { screen: 'attMark' }, linkLabel: 'Mark attendance' }] : []),
-      ...(idleMissing ? [{ id: 'al-idle-0914', kind: 'alert', from: 'TMS alerts', sort: '2026-09-14 08:30', title: 'Idle reason missing', body: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle has' : 'vehicles have'} no reason recorded. Head Office uses the reason to plan loads and maintenance.`, rows: idleRows.filter(v => v.missingReason).map(v => [v.number, v.sinceText]), link: { screen: 'idle' }, linkLabel: 'Record idle reasons' }] : [])
+      ...activeD.filter(t => t.hoursOpen > 24).map(t => ({ id: `al-long-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:30', title: `Long open trip · ${t.vehicleNumber}`, body: `${t.number} has been open ${t.hoursOpen} h against an expected ${t.expectedHours} h. Close it once unloading is done, or Head Office is alerted.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Open for', `${t.hoursOpen} h · expected ${t.expectedHours} h`]], link: { trip: t.id }, linkLabel: 'View trip' })),
+      ...(attendanceMarked < attendanceTotal ? [{ id: 'al-att-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:00', title: 'Attendance pending for today', body: `${attendanceTotal - attendanceMarked} of ${attendanceTotal} drivers are not marked for ${todayDM}. Missing attendance is reported to Head Office after 48 hours.`, rows: [['Marked', attDrivers.filter(d => s.att[d.id]).map(d => d.name).join(', ') || 'None yet'], ['Not marked', attDrivers.filter(d => !s.att[d.id]).map(d => d.name).join(', ')], ['Date', prettyDay(todayIso)]], link: { screen: 'attMark' }, linkLabel: 'Mark attendance' }] : []),
+      ...(idleMissing ? [{ id: 'al-idle-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 08:30', title: 'Idle reason missing', body: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle has' : 'vehicles have'} no reason recorded. Head Office uses the reason to plan loads and maintenance.`, rows: idleRows.filter(v => v.missingReason).map(v => [v.number, v.sinceText]), link: { screen: 'idle' }, linkLabel: 'Record idle reasons' }] : [])
     ];
     const notifAll = [...(T.supervisorNotices || []).filter(n => n.branch === this.BR || n.branch === 'all'), ...s.adminNotices, ...alertItems, ...s.activity]
       .map(n => { const k = NK[n.kind] || NK.message, unread = n.kind !== 'activity' && !s.notifRead.includes(n.id);
@@ -579,15 +605,35 @@ export class SupervisorApp extends React.Component {
         setTimeout(() => {
           const account = { name: s.reg.name.trim(), phone: obDigits };
           if (s.obReqId) this.patchReq(s.obReqId, { status: 'Registered', name: account.name, registeredAt: this.nowText() });
-          this.updateSupervisorRecord(obDigits, { name: account.name, lastLogin: 'Just registered' });
-          this.setState({ regSaving: false, account, screen: 'login', history: [], loginState: 'idle', railVariant: '', obStatus: 'idle', obReqId: '', reg: { name: '', password: '' } });
+          this.updateSupervisorRecord(obDigits, { name: account.name, password: s.reg.password, lastLogin: 'Just registered' });
+          this.setState({ regSaving: false, account, screen: 'login', history: [], loginState: 'idle', loginPhone: null, loginPassword: null, loginErr: '', railVariant: '', obStatus: 'idle', obReqId: '', reg: { name: '', password: '' } });
           this.toast('success', 'Registration complete', `Welcome, ${account.name}. Sign in with +91 ${obPhoneText}.`);
         }, 900);
       },
-      loginPhone: s.account ? s.account.phone.slice(0, 5) + ' ' + s.account.phone.slice(5) : '98410 22314', loginPassword: s.account ? '' : 'password', title: titles[s.screen] || '', showBack: s.screen !== 'home',
-      loginError: s.loginState === 'error', loginLoading: s.loginState === 'loading', loginIdle: s.loginState !== 'loading',
-      doLogin: () => { this.setState({ loginState: 'loading' }); setTimeout(() => this.setState({ loginState: 'idle', screen: 'home', history: [] }), 1100); },
-      loginFail: () => this.setState({ loginState: 'error' }),
+      supName: me.name, branchName: me.branch, todayLong, todayDM, monthLabel: `${MONTH_FULL[TD.getMonth()]} ${TD.getFullYear()}`, nowHM: `${pd(TD.getHours())}:${pd(TD.getMinutes())}`, loginPhone, loginPassword,
+      setLoginPhone: e => { const d = e.target.value.replace(/\D/g, '').slice(0, 10); this.setState({ loginPhone: d.length > 5 ? d.slice(0, 5) + ' ' + d.slice(5) : d, loginErr: '' }); },
+      setLoginPassword: e => this.setState({ loginPassword: e.target.value, loginErr: '' }),
+      title: titles[s.screen] || '', showBack: s.screen !== 'home',
+      loginError: !!s.loginErr, loginErrText: s.loginErr, loginLoading: s.loginState === 'loading', loginIdle: s.loginState !== 'loading',
+      doLogin: () => {
+        const phone = loginPhone.replace(/\D/g, '');
+        if (phone.length !== 10) { this.setState({ loginErr: 'Enter your 10 digit mobile number.' }); return; }
+        if (!loginPassword) { this.setState({ loginErr: 'Enter your password.' }); return; }
+        this.setState({ loginState: 'loading', loginErr: '' });
+        setTimeout(() => {
+          const sup = this.findSupervisorByPhone(phone);
+          const err = !sup ? 'This mobile number is not a registered supervisor. Request device approval first.'
+            : sup.status === 'Inactive' ? 'This supervisor account is inactive. Contact Head Office.'
+            : loginPassword !== (sup.password || this.DEMO_PASSWORD) ? 'Incorrect mobile number or password.' : '';
+          if (err) { this.setState({ loginState: 'idle', loginErr: err }); return; }
+          this.updateSupervisorRecord(phone, { lastLogin: this.nowText() });
+          // Branch-scoped data was loaded for the previous branch; reload it for this supervisor's branch.
+          this._drvJson = undefined; this._noticeJson = undefined;
+          this.setState({ loginState: 'idle', loginErr: '', loginPassword: null, supId: sup.id, branchId: sup.branch || 'B01', screen: 'home', history: [], activity: [] },
+            () => { this.syncDriverReqs(); this.syncNotices(); this.loadAttSaved(); });
+        }, 900);
+      },
+      loginFail: () => this.toast('info', 'Forgot password', 'Ask Head Office to reset your password, then sign in again.'),
       gpsLabel: gpsState[0], gpsColor: gpsState[1],
       bigBtn: { height: 56, fontSize: 17 }, selNarrow: { width: 170 }, toastStyle: { width: '100%' },
       activeCount: activeD.length, tripWord: activeD.length === 1 ? 'trip' : 'trips', unclosedHint: activeD.some(t => t.hoursOpen > 24) ? 'One trip has been open more than 24 h.' : 'Trips waiting to be closed.', unclosedCountColor: activeD.some(t => t.hoursOpen > 24) ? 'var(--kr-saffron-600)' : 'var(--color-brand)',
@@ -615,8 +661,8 @@ export class SupervisorApp extends React.Component {
       },
       // open trip
       form: { ...f, startKm: startKmVal, driver: driverVal }, clientOptions, vehicleOptions, locationOptions, remarksCount: (f.remarks || '').length,
-      clientHint: !needsLoad ? 'Non-business movement has no client, so this list is empty.' : f.client ? `${clientCust.length} predefined ${clientCust.length === 1 ? 'customer' : 'customers'} · ${mappedVeh.length} Chennai HO ${mappedVeh.length === 1 ? 'vehicle' : 'vehicles'} mapped to this client.` : `${myClients.length} clients are mapped to you. One vehicle can run for several clients.`,
-      vehicleHint: veh && (s.idle[veh.id] || {}).on ? `Marked idle${s.idle[veh.id].reason ? ': ' + s.idle[veh.id].reason : ''}. Opening this trip clears the idle record.` : (f.client ? `${availVeh.length} of ${mappedVeh.length} vehicles mapped to ${(T.C[f.client] || {}).name} are idle.` : `${availVeh.length} of ${branchVeh.length} Chennai HO vehicles available.`) + (onTripVeh.length ? ` ${onTripVeh.map(v => v.number).join(', ')} ${onTripVeh.length === 1 ? 'has an unclosed trip' : 'have unclosed trips'}.` : '') + (busyVeh.length ? ` Hidden: ${busyVeh.join(', ')}.` : ''),
+      clientHint: !needsLoad ? 'Non-business movement has no client, so this list is empty.' : f.client ? `${clientCust.length} predefined ${clientCust.length === 1 ? 'customer' : 'customers'} · ${mappedVeh.length} ${me.branch} ${mappedVeh.length === 1 ? 'vehicle' : 'vehicles'} mapped to this client.` : `${myClients.length} clients are mapped to you. One vehicle can run for several clients.`,
+      vehicleHint: veh && (s.idle[veh.id] || {}).on ? `Marked idle${s.idle[veh.id].reason ? ': ' + s.idle[veh.id].reason : ''}. Opening this trip clears the idle record.` : (f.client ? `${availVeh.length} of ${mappedVeh.length} vehicles mapped to ${(T.C[f.client] || {}).name} are idle.` : `${availVeh.length} of ${branchVeh.length} ${me.branch} vehicles available.`) + (onTripVeh.length ? ` ${onTripVeh.map(v => v.number).join(', ')} ${onTripVeh.length === 1 ? 'has an unclosed trip' : 'have unclosed trips'}.` : '') + (busyVeh.length ? ` Hidden: ${busyVeh.join(', ')}.` : ''),
       loadingHint: 'Predefined points are geofenced to 100 m. Add a new point from where you are standing if it is missing.',
       dc, driverErrText, pickList, pickSub, pickEmpty: !pickList.length, drvPickOpen: s.drvPickOpen, customerOptions, hasCustomers: customerOptions.length > 0, noCustomers: !customerOptions.length,
       unloadCountLabel: !needsLoad ? 'Not needed' : !f.client ? 'Predefined per client' : unloadMode === 'single' ? `${clientCust.length} available` : picked.length ? `${picked.length} of ${clientCust.length} selected` : `Tick one or more · ${clientCust.length} available`,
@@ -648,7 +694,7 @@ export class SupervisorApp extends React.Component {
       tripNumberColor: veh ? 'var(--text-heading)' : 'var(--text-muted)',
       reviewNote: needsLoad ? 'Vehicle is idle with no active trip and is mapped to this client, the driver is free, loading and unloading points are geofenced, and start KM matches the last closing reading.' : 'Vehicle is idle with no active trip and the driver is free. No billing; GPS tracks the movement against the km entered.',
       isNonBusiness: f.type === 'Non-Business', isBusiness: f.type !== 'Non-Business',
-      nbVehicleHint: veh ? `${veh.type} · last closing KM ${lastKm(veh).toLocaleString('en-IN')}.` : `${availVeh.length} of ${branchVeh.length} Chennai HO vehicles from the admin vehicle master are free.`,
+      nbVehicleHint: veh ? `${veh.type} · last closing KM ${lastKm(veh).toLocaleString('en-IN')}.` : `${availVeh.length} of ${branchVeh.length} ${me.branch} vehicles from the admin vehicle master are free.`,
       setFrom: e => this.set(['form', 'from'], e.target.value), setTo: e => this.set(['form', 'to'], e.target.value), setKm: e => this.set(['form', 'km'], e.target.value.replace(/[^\d.]/g, '')),
       typeHint: f.type === 'Business' ? 'Billable movement. Invoice details are captured when the trip closes.' : f.type === 'Non-Business' ? 'No billing. Record where the vehicle is going and why.' : 'Every vehicle movement is recorded, billable or not.',
       reasonOptions: ['Maintenance', 'Internal Movement', 'Empty Return', 'Driver Testing'].map(x => ({ value: x, label: x })),
@@ -659,7 +705,7 @@ export class SupervisorApp extends React.Component {
         this.setState({ saving: true });
         setTimeout(() => {
           const num = tripNumberPreview.replace(/\s/g, '');
-          const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: driverVal, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: '14 Sep 2026 09:41', supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [] };
+          const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: driverVal, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: this.stampText(), supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [] };
           try {
             const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
             const cur = m.trips || { added: [], edited: {} };
@@ -671,7 +717,7 @@ export class SupervisorApp extends React.Component {
           this.setState(st => ({ saving: false, screen: 'openDone', localTrips: [...st.localTrips, t], newTrip: t, form: this.blankForm(), showErrors: false, idle: { ...st.idle, [f.vehicle]: { on: false, reason: '', note: '' } } }));
           this.toast('success', 'Trip saved', num + ' is enroute. GPS monitoring started.');
           this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', 'Enroute']], link: { trip: t.id }, linkLabel: 'View trip' });
-          this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by R. Senthil Kumar (Chennai HO).`, time: 'Just now' });
+          this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by ${me.name} (${me.branch}).`, time: 'Just now' });
         }, 1200);
       },
       newTripNumber: (s.newTrip || {}).number || tripNumberPreview, newTripVehicle: s.newTrip ? T.V[s.newTrip.vehicle].number : '',
@@ -681,13 +727,13 @@ export class SupervisorApp extends React.Component {
       cf: { ...cf, legDraft: ld }, setCf: this.bind('cf', ['invoice', 'lr', 'qtyLoad', 'qtyUnload']), cerr,
       closeHasErrors: Object.values(cerr).some(Boolean), closeManualException: (selTrip.flags || []).includes('GPS weak') || (selTrip.flags || []).includes('GPS failed'),
       // odometer readings
-      pointOptions, legErr, legBox: { border: cerr.legs ? 'var(--status-danger)' : 'var(--border-default)' },
+      pointOptions, toPointOptions: pointOptions.filter(o => o.value !== (cf.legDraft || {}).from), legErr, legBox: { border: cerr.legs ? 'var(--status-danger)' : 'var(--border-default)' },
       legCards: legs.map((l, i) => ({ i, title: `Reading ${i + 1}`, route: `${l.from} → ${l.to}`, reading: `${km(l.reading)} km`, km: `+${km(l.reading - legPrev(i))} km`, url: (l.photo && l.photo.url) || '', noPhoto: !(l.photo && l.photo.url), bg: legEditing && cf.legEdit === i ? 'var(--color-brand-tint)' : '#fff' })),
       legSummary: legs.length ? { close: km(closeNum) + ' km', dist: `Trip distance ${km(closeNum - startNum)} km from start ${km(startNum)}` } : false,
       legEditorOpen, legAddShown: !legEditorOpen, legCanCancel: legs.length > 0, legEditorTitle: legEditing ? `Edit reading ${cf.legEdit + 1}` : `Reading ${legs.length + 1}`, legSaveLabel: legEditing ? 'Save changes' : 'Add reading',
       legPrevText: km(ldPrev), legReadingHint: ld.reading && !legBad.reading ? `+${km(ldNum - ldPrev)} km on this leg.` : `Previous reading ${km(ldPrev)} km${di === 0 ? ' (start KM)' : ''}.`,
       legPhotoEmpty: !ld.photo, legPhotoSet: !!ld.photo, legPhoto: ld.photo || {}, legPhotoBorder: legErr.photo ? 'var(--status-danger)' : 'var(--border-strong)',
-      setLegFrom: e => this.patchCf({ legDraft: { ...ld, from: e.target.value } }), setLegTo: e => this.patchCf({ legDraft: { ...ld, to: e.target.value } }),
+      setLegFrom: e => { const from = e.target.value; this.patchCf({ legDraft: { ...ld, from, to: ld.to === from ? '' : ld.to } }); }, setLegTo: e => this.patchCf({ legDraft: { ...ld, to: e.target.value } }),
       setLegReading: e => this.patchCf({ legDraft: { ...ld, reading: e.target.value.replace(/\D/g, '').slice(0, 9) } }),
       pickLegPhoto: e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return; if (!/^image\//.test(file.type)) { this.toast('warning', 'Not an image', 'Take a photo of the odometer.'); return; }
         const kb = file.size / 1024, size = kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(kb)) + ' KB';
@@ -724,7 +770,7 @@ export class SupervisorApp extends React.Component {
       closeReviewNote: flagged ? `The odometer distance is outside 5% of the ${km(fixed)} km fixed route, so Head Office reviews it after you close.` : fixed ? `Odometer distance is within 5% of the ${km(fixed)} km fixed route.` : 'Non-business movement. No fixed route to check against.',
       submitClose: () => { if (Object.values(closeBad).some(Boolean)) { this.setState({ showCloseErrors: true, railVariant: 'errors' }); return; } this.go('closeReview', { railVariant: '' }); },
       confirmClose: () => {
-        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: '14 Sep 2026 09:41' };
+        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: this.stampText() };
         try {
           const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
           const cur = m.trips || { added: [], edited: {} };
@@ -770,13 +816,13 @@ export class SupervisorApp extends React.Component {
           this.toast(flagged ? 'warning' : 'success', flagged ? 'Closed with flag' : 'Trip closed', flagged ? `Variance ${pct}% sent to admin exceptions.` : `${selD.vehicleNumber} is available again.`);
         }
         this.logActivity({ title: `Trip closed · ${selD.number}`, body: flagged ? `Closed with a ${pct}% distance variance. It was sent to Head Office exceptions for review.` : `${selD.vehicleNumber} is available again. Distance is within the 5% limit.`, rows: [['Trip', selD.number], ['Vehicle', selD.vehicleNumber], ['Invoice', cf.invoice], ['Closing odometer', km(closeNum) + ' km'], ['Diesel', `${km(dieselLitres)} L · ${fills.length} ${fills.length === 1 ? 'bunk' : 'bunks'} · ${money0(dieselTotal)}`], ['Total expense', money0(Number(cf.totalExpense))], ['Variance', fixed ? pct + '%' : 'Not applicable']], link: { trip: selTrip.id }, linkLabel: 'View closed trip' });
-        this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${selD.number} closed by R. Senthil Kumar. ${flagged ? `Variance ${pct}% flagged.` : 'Successfully reached destination.'}`, time: 'Just now' });
+        this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${selD.number} closed by ${me.name}. ${flagged ? `Variance ${pct}% flagged.` : 'Successfully reached destination.'}`, time: 'Just now' });
       },
       verify,
       // trip history
       histList: histShown, histCount: histShown.length, histWord: histShown.length === 1 ? 'trip' : 'trips', histEmpty: !histShown.length, hist,
       histHomeHint: `${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}. Filter by vehicle or date.`,
-      histCountLine: hfAnyFilter && !s.forceEmptyHist ? `${histShown.length} of ${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}` : `${histShown.length} closed ${histShown.length === 1 ? 'trip' : 'trips'} · Chennai HO`,
+      histCountLine: hfAnyFilter && !s.forceEmptyHist ? `${histShown.length} of ${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}` : `${histShown.length} closed ${histShown.length === 1 ? 'trip' : 'trips'} · ${me.branch}`,
       histEmptyTitle: hfAnyFilter && !s.forceEmptyHist ? 'No trips match these filters' : 'No closed trips yet',
       histEmptyText: hfAnyFilter && !s.forceEmptyHist ? `Nothing closed${hf.vehicle ? ' for ' + (T.V[hf.vehicle] || {}).number : ''}${hfHasRange ? ' in ' + hfRangeLabel : ''}. Try another vehicle or date range.` : 'Trips you close appear here with the full closing details, newest first.',
       hfVehicleOptions, hfVehicleValue: hf.vehicle || '__all', hfHasRange, hfAnyFilter, hfNoFilter: !hfAnyFilter, hfRangeLabel, hfPresets, hfMaxDay: TODAY,
@@ -813,7 +859,7 @@ export class SupervisorApp extends React.Component {
       setIdleFilter: e => this.setState({ idleFilter: e.currentTarget.dataset.f }),
       toggleIdle: e => { const id = e.currentTarget.dataset.id; this.setState(st => ({ idle: { ...st.idle, [id]: (st.idle[id] || {}).on ? { on: false, reason: '', note: '' } : { on: true, reason: '', note: '' } } })); },
       idleHasErrors: s.showIdleErrors && idleMissing > 0, idleErrorText: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle needs' : 'vehicles need'} a reason before saving.`,
-      saveIdle: () => { if (idleMissing) { this.setState({ showIdleErrors: true, railVariant: 'errors' }); return; } this.setState(st => ({ showIdleErrors: false, idle: Object.fromEntries(Object.entries(st.idle).map(([id, r]) => [id, r.on && !r.since ? { ...r, since: '14 Sep 09:41', hours: 0 } : r])) })); this.toast('success', 'Idle status saved', `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`); this.logActivity({ title: 'Vehicle idle status saved', body: `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`, rows: idleRows.filter(v => v.on).map(v => [v.number, v.reason + (v.note ? ' · ' + v.note : '')]), link: { screen: 'idle' }, linkLabel: 'Open idle status' }); this.pushAdminNotif({ title: 'Maintenance Alert', body: `Vehicle idle status updated: ${idleStats.idle} vehicles marked idle.`, time: 'Just now' }); this.go('home'); },
+      saveIdle: () => { if (idleMissing) { this.setState({ showIdleErrors: true, railVariant: 'errors' }); return; } this.setState(st => ({ showIdleErrors: false, idle: Object.fromEntries(Object.entries(st.idle).map(([id, r]) => [id, r.on && !r.since ? { ...r, since: this.nowText(), hours: 0 } : r])) })); this.toast('success', 'Idle status saved', `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`); this.logActivity({ title: 'Vehicle idle status saved', body: `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`, rows: idleRows.filter(v => v.on).map(v => [v.number, v.reason + (v.note ? ' · ' + v.note : '')]), link: { screen: 'idle' }, linkLabel: 'Open idle status' }); this.pushAdminNotif({ title: 'Maintenance Alert', body: `Vehicle idle status updated: ${idleStats.idle} vehicles marked idle.`, time: 'Just now' }); this.go('home'); },
       am, amVehicleOptions, amDriverOptions, amVehicleHint, amDriverHint, amRows, amRowCount: amRows.length, amRowsEmpty: !amRows.length,
       showAttMonth: SHOW_ATT_MONTH,
       attTabs: [['mark', 'Mark new attendance'], ['marked', 'Marked attendance']].filter(([id]) => !HIDDEN_ATT_TABS.includes(id)).map(([id, label]) => { const on = s.attTab === id; return { id, label, selected: on ? 'true' : 'false', color: on ? 'var(--text-brand)' : 'var(--text-muted)', bar: on ? 'var(--color-brand)' : 'transparent' }; }),
@@ -826,12 +872,12 @@ export class SupervisorApp extends React.Component {
       setAmDriver: e => this.pickAm({ driver: e.target.value }),
       amStatusOptions, amStatusHint, setAmStatus: e => this.pickAm({ status: e.target.value }),
       removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; delete attVeh[id]; delete attVehStatus[id]; return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
-      saveAmEntry: () => { if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance saved for ${attendanceMarked} drivers by Chennai HO supervisor.`, time: 'Just now' }); },
+      saveAmEntry: () => { if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance saved for ${attendanceMarked} drivers by ${me.name} (${me.branch}).`, time: 'Just now' }); },
       markDriver: e => this.set(['att', e.currentTarget.dataset.id], e.currentTarget.dataset.v),
-      saveAttendance: () => { this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for 14 September.`); this.logActivity({ title: 'Attendance saved · 14 Sep', body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance marked for ${attendanceMarked} drivers for 14 September.`, time: 'Just now' }); this.go('home'); },
-      weekdays, monthCells, pickDay: e => { const d = Number(e.currentTarget.dataset.day); if (d && d <= 14) this.go('attendance'); },
+      saveAttendance: () => { this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayDM}.`); this.logActivity({ title: `Attendance saved · ${todayShort}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance marked for ${attendanceMarked} drivers for ${todayDM}.`, time: 'Just now' }); this.go('home'); },
+      weekdays, monthCells, pickDay: e => { const d = Number(e.currentTarget.dataset.day); if (d && d <= TD.getDate()) this.go('attendance'); },
       // driver request
-      reqSent: (() => { const r = s.drvReqs.find(x => x.id === s.reqSentId) || { status: 'Pending', name: rf.name }; const t = { Pending: ['Pending approval', 'var(--color-hazard-soft)', '#7A4300', 'Waiting for Head Office. This updates here as soon as they decide.'], Approved: ['Approved', 'var(--kr-green-100)', 'var(--kr-green-800)', `${r.name} is in the Chennai HO driver list and can be assigned to trips.`], Rejected: ['Rejected', 'var(--kr-red-100)', 'var(--kr-red-800)', `Head Office rejected the request${r.reason ? ': ' + r.reason : '.'}`] }[r.status] || []; return { label: t[0], bg: t[1], fg: t[2], note: t[3], when: r.decidedAt ? 'Decided ' + r.decidedAt : r.requestedAt ? 'Sent ' + r.requestedAt : 'Sent just now' }; })(),
+      reqSent: (() => { const r = s.drvReqs.find(x => x.id === s.reqSentId) || { status: 'Pending', name: rf.name }; const t = { Pending: ['Pending approval', 'var(--color-hazard-soft)', '#7A4300', 'Waiting for Head Office. This updates here as soon as they decide.'], Approved: ['Approved', 'var(--kr-green-100)', 'var(--kr-green-800)', `${r.name} is in the ${me.branch} driver list and can be assigned to trips.`], Rejected: ['Rejected', 'var(--kr-red-100)', 'var(--kr-red-800)', `Head Office rejected the request${r.reason ? ': ' + r.reason : '.'}`] }[r.status] || []; return { label: t[0], bg: t[1], fg: t[2], note: t[3], when: r.decidedAt ? 'Decided ' + r.decidedAt : r.requestedAt ? 'Sent ' + r.requestedAt : 'Sent just now' }; })(),
       rf, setRf: this.bind('rf', ['name', 'holder']), rerr, uploads, reqFromOpen: s.reqFromOpen,
       reqHasErrors: reqErrorCount > 0, reqErrorCount, reqErrorWord: reqErrorCount === 1 ? 'field' : 'fields', refCount: (rf.reference || '').length,
       reqIntro: s.reqFromOpen && veh ? `For ${veh.number}. The trip can open with this driver now; the driver stays Pending approval until Head Office clears the request.` : 'New drivers need Head Office approval before they join the driver master. The request goes to Head Office.',
@@ -858,7 +904,7 @@ export class SupervisorApp extends React.Component {
         }
         this.setState(st => ({ drvReqs: [req, ...st.drvReqs.filter(r => r.id !== id)], reqSentId: id }));
         this.logActivity({ title: `Driver request sent · ${name}`, body: `${name} was sent to Head Office for approval${vehNo ? ` and assigned to the trip being opened on ${vehNo}` : ''}.`, rows: [['Driver', name], ['Licence', rf.licence], ['Mobile', '+91 ' + rf.phone], ['Documents', 'Licence and Aadhaar images attached'], ['Bank', `${rf.holder.trim()} · A/c ••••${acct.slice(-4)} · ${rf.ifsc}`], ['Family contact', '+91 ' + rf.family], ...(rf.reference.trim() ? [['Reference', rf.reference.trim()]] : []), ['Status', 'Pending approval']] });
-        this.pushAdminNotif({ title: 'Driver Request', body: `${name} requested as driver for Chennai HO${vehNo ? ` (${vehNo})` : ''}.`, time: 'Just now' });
+        this.pushAdminNotif({ title: 'Driver Request', body: `${name} requested as driver for ${me.branch}${vehNo ? ` (${vehNo})` : ''}.`, time: 'Just now' });
         if (!s.reqFromOpen) { this.go('reqDone'); return; }
         this.setState(st => { const h = [...st.history]; const prev = h.pop() || 'open'; return { form: { ...st.form, driver: id, driverOk: true }, screen: prev, history: h, reqFromOpen: false, showReqErrors: false, railVariant: '' }; });
         this.toast('warning', 'Sent for approval', `${name} is set as the driver. Head Office must approve the driver record.`);

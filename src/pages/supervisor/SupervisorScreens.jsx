@@ -62,7 +62,7 @@ export const SupervisorScreens = ({ v }) => (
               <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", letterSpacing: "-0.01em", color: "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {v.title}
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.04em", textTransform: "uppercase" }}>Chennai HO · R. Senthil Kumar</div>
+              <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.04em", textTransform: "uppercase" }}>{v.branchName} · {v.supName}</div>
             </div>
             <span title="GPS status" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: v.gpsColor }}>
               <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: v.gpsColor, animation: "tmsPulse 1.6s ease-in-out infinite" }} />
@@ -210,7 +210,7 @@ export const SupervisorScreens = ({ v }) => (
                           <div style={{ padding: "28px 20px", textAlign: "center" }}>
                             <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "17px", color: "var(--text-heading)" }}>No free drivers right now</div>
                             <p style={{ margin: "6px 0 0", fontSize: "14px", color: "var(--text-muted)" }}>
-                              Every Chennai HO driver is on a trip, absent or inactive. Request a new driver below.
+                              Every {v.branchName} driver is on a trip, absent or inactive. Request a new driver below.
                             </p>
                           </div>
                         </>

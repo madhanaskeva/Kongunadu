@@ -15,13 +15,13 @@ export const Login = ({ v }) => (
       {v.loginError ? (
         <>
           <div role="alert" style={{ display: "flex", gap: "10px", padding: "12px 14px", marginBottom: "16px", background: "var(--kr-red-50)", border: "1px solid var(--kr-red-100)", borderRadius: "var(--radius-md)", color: "var(--kr-red-800)", fontSize: "14px", fontWeight: "600" }}>
-            Incorrect mobile number or password. 2 attempts left before a 15 minute lock.
+            {v.loginErrText}
           </div>
         </>
       ) : null}
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        <Input label="Mobile number" value={v.loginPhone} prefix="+91" inputMode="numeric" />
-        <Input label="Password" type="password" value={v.loginPassword} />
+        <Input label="Mobile number" value={v.loginPhone} onChange={v.setLoginPhone} prefix="+91" inputMode="numeric" autoComplete="tel" />
+        <Input label="Password" type="password" value={v.loginPassword} onChange={v.setLoginPassword} autoComplete="current-password" />
       </div>
       <div style={{ marginTop: "28px", display: "flex", flexDirection: "column", gap: "12px" }}>
         {v.loginLoading ? (
