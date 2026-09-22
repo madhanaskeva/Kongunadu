@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
+import './tripDetail.css';
 
 export const TripDetail = () => {
   const { id } = useParams();
@@ -324,8 +325,8 @@ export const TripDetail = () => {
         </div>
       )}
 
-      {/* Grid 1: Triple Distance Verification & Trip Record */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+      {/* Summary: distance check beside the status lifecycle */}
+      <div className="td-summary-grid">
         <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px' }}>
           <h2 style={{ margin: '0 0 14px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
             Triple distance verification
@@ -376,41 +377,6 @@ export const TripDetail = () => {
             Fallback: {rawTrip.gpsKm == null ? 'GPS missing, odometer used for distance.' : 'both sources present, odometer merged with GPS.'}
           </div>
         </section>
-
-        <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <h2 style={{ margin: 0, padding: '14px 18px', borderBottom: '1px solid var(--border-default)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-            Trip record
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-            {tripRecords.map(([k, val, styleObj], i) => (
-              <div
-                key={i}
-                style={{
-                  padding: '10px 18px',
-                  borderBottom: '1px solid var(--border-default)',
-                  minWidth: 0,
-                  background: styleObj?.bg || 'transparent',
-                }}
-              >
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{k}</div>
-                <div
-                  style={{
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    color: styleObj?.color || 'var(--text-heading)',
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  {val || '—'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* Grid 2: Status Lifecycle & GPS Log */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
         <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px' }}>
           <h2 style={{ margin: '0 0 14px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
             Status lifecycle
@@ -445,39 +411,70 @@ export const TripDetail = () => {
             ))}
           </div>
         </section>
-
-        <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', gap: '8px', flexWrap: 'wrap' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-              GPS log
-            </h2>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Stored separately for route replay</span>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ background: 'var(--surface-muted)', textAlign: 'left' }}>
-                  <th style={{ padding: '8px 18px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Time</th>
-                  <th style={{ padding: '8px 12px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Event</th>
-                  <th style={{ padding: '8px 12px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', textAlign: 'right' }}>KM</th>
-                  <th style={{ padding: '8px 18px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', textAlign: 'right' }}>Speed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gpsPg.rows.map((g, i) => (
-                  <tr key={i} style={{ borderTop: '1px solid var(--border-default)' }}>
-                    <td style={{ padding: '10px 18px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{g.t}</td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-heading)' }}>{g.ev}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>{g.km}</td>
-                    <td style={{ padding: '10px 18px', textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{g.speed} km/h</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {gpsLogs.length > 0 && <Pagination {...gpsPg} noun="GPS events" />}
-        </section>
       </div>
+
+      {/* Full-width trip record: 4 columns on desktop, 2 on tablet, 1 on mobile */}
+      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        <h2 style={{ margin: 0, padding: '14px 18px', borderBottom: '1px solid var(--border-default)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+          Trip record
+        </h2>
+        <div className="td-record-grid">
+          {tripRecords.map(([k, val, styleObj], i) => (
+            <div
+              key={i}
+              style={{
+                padding: '10px 18px',
+                minWidth: 0,
+                background: styleObj?.bg || '#fff',
+              }}
+            >
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{k}</div>
+              <div
+                style={{
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  color: styleObj?.color || 'var(--text-heading)',
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {val || '—'}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', gap: '8px', flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+            GPS log
+          </h2>
+          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Stored separately for route replay</span>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+            <thead>
+              <tr style={{ background: 'var(--surface-muted)', textAlign: 'left' }}>
+                <th style={{ padding: '8px 18px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Time</th>
+                <th style={{ padding: '8px 12px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Event</th>
+                <th style={{ padding: '8px 12px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', textAlign: 'right' }}>KM</th>
+                <th style={{ padding: '8px 18px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', textAlign: 'right' }}>Speed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gpsPg.rows.map((g, i) => (
+                <tr key={i} style={{ borderTop: '1px solid var(--border-default)' }}>
+                  <td style={{ padding: '10px 18px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{g.t}</td>
+                  <td style={{ padding: '10px 12px', color: 'var(--text-heading)' }}>{g.ev}</td>
+                  <td style={{ padding: '10px 12px', textAlign: 'right' }}>{g.km}</td>
+                  <td style={{ padding: '10px 18px', textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{g.speed} km/h</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {gpsLogs.length > 0 && <Pagination {...gpsPg} noun="GPS events" />}
+      </section>
     </div>
   );
 };

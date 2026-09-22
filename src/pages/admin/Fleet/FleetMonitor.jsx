@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { MapPin } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import FleetTrackModal from './FleetTrackModal';
 
 export const FleetMonitor = () => {
   const { T, fleetFilter, setFleetFilter, navTo, deleted } = useTMSAdmin();
   const tms = T();
+  const [trackId, setTrackId] = useState(null);
 
   const ff = fleetFilter;
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id));
@@ -263,6 +266,12 @@ export const FleetMonitor = () => {
           {fleetCards.map(v => (
             <div
               key={v.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Track ${v.number} on the map`}
+              onClick={() => setTrackId(v.id)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTrackId(v.id); } }}
+              className="tms-fleet-card"
               style={{
                 background: '#fff',
                 border: '1px solid var(--border-default)',
@@ -271,6 +280,8 @@ export const FleetMonitor = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px',
+                cursor: 'pointer',
+                transition: 'border-color var(--dur-fast), box-shadow var(--dur-fast)',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
@@ -332,10 +343,28 @@ export const FleetMonitor = () => {
                   {v.radiusAlert}
                 </div>
               )}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-brand)', marginTop: 'auto' }}>
+                <MapPin size={13} /> Track on map
+              </div>
             </div>
           ))}
+          <style>{`.tms-fleet-card:hover, .tms-fleet-card:focus-visible { border-color: var(--color-brand) !important; box-shadow: 0 6px 18px rgba(0, 60, 40, 0.10); outline: none; }`}</style>
         </div>
       )}
+
+      {trackId && (() => {
+        const v = fleetAll.find(x => x.id === trackId);
+        const trip = trips.find(t => t.vehicle === trackId && t.status !== 'Closed');
+        return (
+          <FleetTrackModal
+            vehicle={v}
+            trip={trip}
+            tms={tms}
+            onClose={() => setTrackId(null)}
+            onOpenTrip={id => { setTrackId(null); navTo('trip', { selectedTrip: id }); }}
+          />
+        );
+      })()}
 
       {/* DIVERSIONS VIEW */}
       {fleetShowDiversion && (

@@ -5,6 +5,7 @@ import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
+import { matchesSearch } from '../../../utils/search';
 
 // Seed rows merged with admin additions/edits (same rule as MasterManager)
 const mergeEdits = (edits, seed) => {
@@ -87,9 +88,8 @@ export const ClientProfile = () => {
 
   const client = mergeEdits(masterEdits.clients, tms.clients || []).find(c => c.id === id);
   const customers = mergeEdits(masterEdits.customers, tms.customers || []).filter(u => u.client === id && !deleted.includes(u.id));
-  const qq = q.trim().toLowerCase();
   const routeName = rid => (tms.R[rid] || {}).name || rid || '—';
-  const rows = customers.filter(u => !qq || [u.name, u.city, routeName(u.route), u.billing, u.status].join(' ').toLowerCase().includes(qq));
+  const rows = customers.filter(u => matchesSearch(q, u.name, u.city, routeName(u.route), u.billing, u.status));
   const pg = usePagination(rows, [id, q]);
 
   if (!client || deleted.includes(id)) {

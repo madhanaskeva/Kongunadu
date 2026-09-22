@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
-import { ChevronRight, Menu, Bell } from 'lucide-react';
+import { ChevronRight, Menu, Bell, Megaphone } from 'lucide-react';
 import SendNoticeModal from '../../components/common/SendNoticeModal';
 import AdminNotificationsModal from '../../components/common/AdminNotificationsModal';
 
@@ -52,8 +52,10 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
           type="button"
           onClick={() => setSendNoticeOpen(true)}
           className="tms-topbar-send-notice-btn"
+          aria-label="Send notice"
         >
-          Send notice
+          <Megaphone size={17} />
+          <span className="tms-topbar-send-notice-label">Send notice</span>
         </button>
 
         {/* Notifications icon button */}

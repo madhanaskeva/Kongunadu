@@ -8,6 +8,7 @@ import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
+import { matchesSearch } from '../../../utils/search';
 
 const filterLabel = { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' };
 const fieldWrap = { position: 'relative', display: 'flex', alignItems: 'center' };
@@ -89,13 +90,12 @@ export const TripList = () => {
     };
   });
 
-  const q = (tf.q || '').toLowerCase();
   const tripMatch = (t, ignoreStatus) =>
     (!tf.branch || t.branch === tf.branch) &&
     (ignoreStatus || !tf.status || t.status === tf.status) &&
     (!tf.type || t.type === tf.type) &&
     (!tf.flag || (tf.flag === 'flagged' ? t.hasFlags : !t.hasFlags)) &&
-    (!q || [t.number, t.vehicleNumber, t.driverName, t.clientName, t.unloading].join(' ').toLowerCase().includes(q));
+    matchesSearch(tf.q, t.number, t.vehicleNumber, t.driverName, t.clientName, t.unloading);
 
   const tripRows = trips.filter(t => tripMatch(t, false));
   const statusPool = trips.filter(t => tripMatch(t, true));
