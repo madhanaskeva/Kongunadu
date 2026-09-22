@@ -137,16 +137,21 @@
   pointer-events: none;
 }
 
+.tms-topbar-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .tms-topbar-account {
   all: unset;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 6px 4px 12px;
-  margin-left: 4px;
-  border-left: 1px solid #e3e9e6;
-  border-radius: 0 10px 10px 0;
+  padding: 4px 8px 4px 12px;
+  border-radius: 8px;
   transition: background 0.15s ease;
 }
 
@@ -537,5 +542,88 @@
 @media (max-width: 900px) {
   .tms-access {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Admin drawer (exception, driver request and form dialogs): the body scrolls as a whole, so detail
+   boxes with overflow: hidden must not shrink and clip their rows on short screens */
+.tms-drawer-body > * {
+  flex-shrink: 0;
+}
+
+.tms-drawer {
+  max-height: calc(100dvh - 32px) !important;
+}
+
+@media (max-width: 600px), (max-height: 700px) {
+  .tms-drawer-body {
+    padding: 16px 18px !important;
+    gap: 12px !important;
+  }
+
+  .tms-drawer-footer {
+    padding: 12px 18px !important;
+  }
+}
+
+/* Phones: tab rows wrap instead of hiding tabs off the edge; the Trips search box gets a full row */
+@media (max-width: 600px) {
+  .tms-tabrow {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .tms-tabrow > button {
+    white-space: nowrap;
+  }
+
+  .tms-trip-search {
+    flex-wrap: wrap;
+    min-width: 0 !important;
+    flex-basis: 100% !important;
+  }
+
+  .tms-trip-search > div {
+    flex-basis: 100% !important;
+  }
+
+  .tms-trip-search > button {
+    flex: 1 !important;
+    text-align: center !important;
+  }
+}
+
+/* Small phones (320–400px): tighter top bar so the avatar stays on screen */
+@media (max-width: 400px) {
+  .tms-topbar {
+    padding-right: 6px;
+  }
+
+  .tms-topbar-brand img {
+    width: 100px;
+  }
+
+  .tms-topbar-actions {
+    gap: 4px;
+  }
+
+  .tms-topbar-account {
+    padding: 4px 2px;
+  }
+
+  .tms-topbar-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+
+  .tms-topbar-send-notice-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .tms-topbar-icon {
+    width: 38px;
+    height: 38px;
   }
 }

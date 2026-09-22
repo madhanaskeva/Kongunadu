@@ -69,7 +69,7 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
       <div className="tms-topbar-scene" aria-hidden="true" />
 
       {/* Topbar Action Items & Profile */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 'none' }}>
+      <div className="tms-topbar-actions">
         {/* Send notice button */}
         <button
           type="button"
@@ -105,16 +105,6 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
             aria-expanded={dropdownOpen}
             aria-current={onProfile ? 'page' : undefined}
             className={`tms-topbar-account${onProfile || dropdownOpen ? ' is-active' : ''}`}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '4px 8px 4px 12px',
-              borderRadius: '8px',
-              transition: 'background 0.15s ease',
-            }}
           >
             <span className="tms-topbar-avatar">{initials}</span>
             {!narrow && (

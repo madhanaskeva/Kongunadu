@@ -118,7 +118,7 @@ export const Exceptions = () => {
       {/* Exceptions Table Card */}
       <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
         {/* Status Tabs */}
-        <div style={{ padding: '0 18px', borderBottom: '1px solid var(--border-default)', display: 'flex', gap: '8px', overflowX: 'auto' }}>
+        <div className="tms-tabrow" style={{ padding: '0 18px', borderBottom: '1px solid var(--border-default)', display: 'flex', gap: '8px', overflowX: 'auto' }}>
           {excTabs.map((t) => {
             const on = excStatus === t.value;
             return (

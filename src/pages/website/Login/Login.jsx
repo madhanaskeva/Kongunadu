@@ -53,22 +53,31 @@ export const Login = () => {
         }
         @media (max-width: 900px) {
           .krl-login { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
-          .krl-login-image { height: auto; aspect-ratio: 4 / 3; background-position: center 20%; }
+          /* Portrait photo: keep the logo and the truck in view, smaller caption on the road below the truck */
+          .krl-login-image { width: 100%; height: auto; aspect-ratio: 4 / 5; max-height: 75vh; background-position: center 56%; }
+          .krl-login-caption { left: 16px !important; right: 16px !important; bottom: 14px !important; }
+          .krl-login-caption > div { font-size: 10px !important; letter-spacing: 0.16em !important; }
+          .krl-login-caption > p { font-size: 12.5px !important; line-height: 1.45 !important; margin-top: 4px !important; }
           .krl-login-form { padding: 24px 16px 48px; }
           .krl-login-card { padding: 36px 20px 28px; }
+        }
+        @media (min-width: 601px) and (max-width: 900px) {
+          /* Tablets: the height cap makes the box wider than 4:5, so crop higher to keep the logo */
+          .krl-login-image { background-position: center 30%; }
         }
       `}</style>
 
       {/* Image Column */}
       <div className="krl-login-image">
         <div
+          className="krl-login-shade"
           style={{
             position: 'absolute',
             inset: 0,
             background: 'linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)',
           }}
         />
-        <div style={{ position: 'absolute', left: '40px', right: '40px', bottom: '36px', color: '#ffffff' }}>
+        <div className="krl-login-caption" style={{ position: 'absolute', left: '40px', right: '40px', bottom: '36px', color: '#ffffff' }}>
           <div
             style={{
               fontFamily: 'var(--font-display)',

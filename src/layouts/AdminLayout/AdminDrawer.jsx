@@ -240,6 +240,7 @@ export const AdminDrawer = () => {
       }}
     >
       <aside
+        className="tms-drawer"
         role="dialog"
         aria-modal="true"
         aria-label={drawer.title}
@@ -315,6 +316,7 @@ export const AdminDrawer = () => {
 
         {/* Drawer Body */}
         <div
+          className="tms-drawer-body"
           style={{
             flex: 1,
             minHeight: 0,
@@ -765,9 +767,11 @@ export const AdminDrawer = () => {
 
         {/* Drawer Footer Actions */}
         <div
+          className="tms-drawer-footer"
           style={{
             display: 'flex',
             justifyContent: 'flex-end',
+            flexWrap: 'wrap',
             gap: '12px',
             padding: '16px 24px',
             borderTop: '1px solid var(--border-default)',

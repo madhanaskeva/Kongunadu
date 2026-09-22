@@ -86,13 +86,14 @@ export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) 
       title={`${v.number} · ${trip ? trip.number : v.status}`}
       maxWidth="1080px"
       bodyStyle={{ padding: 0 }}
+      footerStyle={{ flexWrap: 'wrap' }}
       footer={
         <>
           <a
             href={openUrl(target)}
             target="_blank"
             rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', marginRight: 'auto' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', marginRight: 'auto', whiteSpace: 'nowrap' }}
           >
             <ExternalLink size={14} /> Open in Google Maps
           </a>
@@ -102,7 +103,7 @@ export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) 
               onClick={() => onOpenTrip(trip.id)}
               style={{
                 all: 'unset', cursor: 'pointer', padding: '0 16px', height: '36px', display: 'inline-flex', alignItems: 'center',
-                borderRadius: 'var(--radius-md)', background: 'var(--color-brand)', color: '#fff', fontSize: '13px', fontWeight: 700,
+                borderRadius: 'var(--radius-md)', background: 'var(--color-brand)', color: '#fff', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap',
               }}
             >
               View trip details
@@ -111,9 +112,16 @@ export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) 
         </>
       }
     >
-      <div style={{ display: 'flex', flexWrap: 'wrap', minHeight: '480px' }}>
+      <style>{`
+        @media (max-width: 600px) {
+          .tms-track { min-height: 0 !important; }
+          .tms-track-map { min-height: 260px !important; flex-basis: 100% !important; }
+          .tms-track-panel { border-left: 0 !important; border-top: 1px solid var(--border-default); padding: 16px !important; }
+        }
+      `}</style>
+      <div className="tms-track" style={{ display: 'flex', flexWrap: 'wrap', minHeight: '480px' }}>
         {/* Map */}
-        <div style={{ flex: '1 1 560px', minHeight: '420px', position: 'relative', background: 'var(--surface-muted)' }}>
+        <div className="tms-track-map" style={{ flex: '1 1 560px', minHeight: '420px', position: 'relative', background: 'var(--surface-muted)' }}>
           <iframe
             title={`Map for ${v.number}`}
             src={embedUrl(target)}
@@ -125,7 +133,7 @@ export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) 
         </div>
 
         {/* Trip panel */}
-        <div style={{ flex: '1 1 300px', maxWidth: '100%', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '1px solid var(--border-default)', boxSizing: 'border-box' }}>
+        <div className="tms-track-panel" style={{ flex: '1 1 300px', maxWidth: '100%', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '1px solid var(--border-default)', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: v.gpsColor }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: v.gpsColor }} />

@@ -148,7 +148,7 @@ export const Analytics = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* 6 Category Tabs */}
       <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '4px 18px', overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="tms-tabrow" style={{ display: 'flex', gap: '8px' }}>
           {anTabs.map(t => (
             <button
               key={t.value}

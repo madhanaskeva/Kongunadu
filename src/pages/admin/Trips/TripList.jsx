@@ -173,6 +173,7 @@ export const TripList = () => {
 
         <form
           onSubmit={(e) => { e.preventDefault(); runSearch(); }}
+          className="tms-trip-search"
           style={{ flex: 1, minWidth: '260px', display: 'flex', gap: '10px', alignItems: 'center' }}
         >
           <div style={{ ...fieldWrap, flex: 1 }}>
@@ -205,7 +206,7 @@ export const TripList = () => {
       <div className="tms-card" style={{ overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 20px', borderBottom: '1px solid #e3e9e6', gap: '12px', flexWrap: 'wrap' }}>
           {/* Status Tabs */}
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div className="tms-tabrow" style={{ display: 'flex', gap: '4px' }}>
             {[
               { id: '', label: 'All', count: statusPool.length },
               { id: 'Enroute', label: 'Enroute', count: statusPool.filter(t => t.status === 'Enroute').length },
