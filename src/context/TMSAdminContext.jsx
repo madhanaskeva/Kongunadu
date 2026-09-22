@@ -342,12 +342,13 @@ export const TMSAdminProvider = ({ children }) => {
     if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
     if (route === 'locations') { num('radius'); num('lat'); num('lng'); dflt('radius', 100); dflt('status', 'Active'); }
     if (route === 'trips') {
-      num('startKm'); num('closeKm');
-      if (f.closeKm && f.startKm) f.odoKm = f.closeKm - f.startKm;
+      num('startKm'); num('closeKm'); num('rate');
+      if (f.closeKm && f.startKm && f.closeKm >= f.startKm) f.odoKm = f.closeKm - f.startKm;
       if (f.advance !== undefined) f.advance = String(f.advance).trim() ? '₹' + String(f.advance).replace(/[₹\s]/g, '') : null;
       if (f.diesel !== undefined) f.diesel = String(f.diesel).trim() ? String(f.diesel).replace(/\s*L$/i, '') + ' L' : null;
+      if (f.totalExpense !== undefined) f.totalExpense = String(f.totalExpense).trim() ? '₹' + String(f.totalExpense).replace(/[₹\s]/g, '') : null;
       if (f.type === 'Business') f.reason = '';
-      ['invoice', 'lr', 'closeKm'].forEach(k => { if (f[k] === '') f[k] = null; });
+      ['invoice', 'lr', 'closeKm', 'bunk', 'remarks', 'closeRemarks'].forEach(k => { if (f[k] === '') f[k] = null; });
     }
     if (route === 'users') {
       if (f.branch !== undefined) f.branch = f.branch === 'all' || !f.branch ? 'All branches' : ((tms.B[f.branch] || {}).name || f.branch);
@@ -406,6 +407,11 @@ export const TMSAdminProvider = ({ children }) => {
     };
     window.addEventListener('kr-tms-admin-notifications-changed', handleCustomNotif);
 
+    const handleMasterCustom = () => {
+      try { setMasterEdits(JSON.parse(localStorage.getItem(MASTER_KEY) || '{}') || {}); } catch (e) {}
+    };
+    window.addEventListener('tms-master-change', handleMasterCustom);
+
     const notifPoll = setInterval(handleCustomNotif, 1500);
 
     let cfg = dashDefault();
@@ -421,6 +427,7 @@ export const TMSAdminProvider = ({ children }) => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('kr-tms-admin-notifications-changed', handleCustomNotif);
+      window.removeEventListener('tms-master-change', handleMasterCustom);
       clearInterval(notifPoll);
       clearTimeout(toastTimerRef.current);
     };

@@ -150,8 +150,8 @@ export class SupervisorApp extends React.Component {
     let gone; try { gone = new Set(JSON.parse(delJson)); } catch (err) { gone = new Set(); }
     const merge = (route, seed) => { const x = e[route] || {}, ed = x.edited || {}; return [...seed.map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r), ...(x.added || [])].filter(r => !gone.has(r.id)); };
     const by = a => Object.fromEntries(a.map(r => [r.id, r]));
-    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations);
-    this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) } }; this._tKey = key;
+    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations), trips = merge('trips', base.trips);
+    this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) }, trips, T: { ...base.T, ...by(trips) } }; this._tKey = key;
     return this._t;
   }
   MASTER_KEY = 'kr-tms-master-edits';
@@ -303,7 +303,8 @@ export class SupervisorApp extends React.Component {
         advance: cd ? (cd.advance ? money(cd.advance) : '—') : (t.advance || '—'),
         bunk: (cd ? cd.bunk : t.bunk) || '—', rate, litres,
         qtyLoad: (cd ? cd.qtyLoad : t.qtyLoad) || '—', qtyUnload: (cd ? cd.qtyUnload : t.qtyUnload) || '—',
-        totalExpense: cd && cd.totalExpense ? money(cd.totalExpense) : '—', closeRemarks: (cd && cd.remarks) || '—',
+        totalExpense: cd && cd.totalExpense ? money(cd.totalExpense) : t.totalExpense ? (String(t.totalExpense).startsWith('₹') ? t.totalExpense : money(t.totalExpense)) : '—',
+        closeRemarks: (cd && cd.remarks) || t.closeRemarks || '—',
         thisSession: !!cd };
     };
     // '12 Sep 2026 19:45' → '2026-09-12' so it compares with <input type="date"> values
@@ -647,7 +648,25 @@ export class SupervisorApp extends React.Component {
       reviewOpen: () => { const bad = Object.values(openBad).some(Boolean); if (bad) { this.setState({ showErrors: true, railVariant: 'errors' }); return; } this.go('openReview'); },
       askDiscard: () => this.setState({ discardOpen: true }), cancelDiscard: () => this.setState({ discardOpen: false }), confirmDiscard: () => this.setState({ discardOpen: false, screen: 'home', history: [], form: this.blankForm(), showErrors: false }),
       discardOpen: s.discardOpen, reviewRows, saving: s.saving, notSaving: !s.saving,
-      confirmOpen: () => { this.setState({ saving: true }); setTimeout(() => { const num = tripNumberPreview.replace(/\s/g, ''); const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: driverVal, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: '14 Sep 2026 09:41', supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [] }; this.setState(st => ({ saving: false, screen: 'openDone', localTrips: [...st.localTrips, t], newTrip: t, form: this.blankForm(), showErrors: false, idle: { ...st.idle, [f.vehicle]: { on: false, reason: '', note: '' } } })); this.toast('success', 'Trip saved', num + ' is enroute. GPS monitoring started.'); this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', 'Enroute']], link: { trip: t.id }, linkLabel: 'View trip' }); this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by R. Senthil Kumar (Chennai HO).`, time: 'Just now' }); }, 1200); },
+      confirmOpen: () => {
+        this.setState({ saving: true });
+        setTimeout(() => {
+          const num = tripNumberPreview.replace(/\s/g, '');
+          const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: driverVal, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: '14 Sep 2026 09:41', supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [] };
+          try {
+            const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
+            const cur = m.trips || { added: [], edited: {} };
+            m.trips = { ...cur, added: [t, ...(cur.added || [])] };
+            localStorage.setItem(this.MASTER_KEY, JSON.stringify(m));
+            window.dispatchEvent(new Event('storage'));
+            window.dispatchEvent(new CustomEvent('tms-master-change', { detail: { key: 'trips' } }));
+          } catch (e) {}
+          this.setState(st => ({ saving: false, screen: 'openDone', localTrips: [...st.localTrips, t], newTrip: t, form: this.blankForm(), showErrors: false, idle: { ...st.idle, [f.vehicle]: { on: false, reason: '', note: '' } } }));
+          this.toast('success', 'Trip saved', num + ' is enroute. GPS monitoring started.');
+          this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', 'Enroute']], link: { trip: t.id }, linkLabel: 'View trip' });
+          this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by R. Senthil Kumar (Chennai HO).`, time: 'Just now' });
+        }, 1200);
+      },
       newTripNumber: (s.newTrip || {}).number || tripNumberPreview, newTripVehicle: s.newTrip ? T.V[s.newTrip.vehicle].number : '',
       // close
       activeTrips: activeD, noActive: !activeD.length, pickClose: e => this.go('close', { selected: e.currentTarget.dataset.id, showCloseErrors: false, cf: this.blankClose() }),
@@ -699,7 +718,53 @@ export class SupervisorApp extends React.Component {
       submitClose: () => { if (Object.values(closeBad).some(Boolean)) { this.setState({ showCloseErrors: true, railVariant: 'errors' }); return; } this.go('closeReview', { railVariant: '' }); },
       confirmClose: () => {
         const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: '14 Sep 2026 09:41' };
-        this.setState(st => ({ closedIds: [...st.closedIds, selTrip.id], closedData: { ...st.closedData, [selTrip.id]: rec } })); const resume = s.resumeOpen && s.resumeOpen.trip === selTrip.id; if (resume) { this.setState(st => ({ screen: 'open', history: ['home'], resumeOpen: null, railVariant: '', showErrors: false, form: { ...st.form, vehicle: s.resumeOpen.vehicle, startKm: '', driver: '', driverOk: false } })); this.toast(flagged ? 'warning' : 'success', 'Trip closed · back to Open Trip', `${selD.vehicleNumber} is free now. Finish opening the new trip.${flagged ? ` Variance ${pct}% sent to admin exceptions.` : ''}`); } else { this.go('closeDone'); this.toast(flagged ? 'warning' : 'success', flagged ? 'Closed with flag' : 'Trip closed', flagged ? `Variance ${pct}% sent to admin exceptions.` : `${selD.vehicleNumber} is available again.`); } this.logActivity({ title: `Trip closed · ${selD.number}`, body: flagged ? `Closed with a ${pct}% distance variance. It was sent to Head Office exceptions for review.` : `${selD.vehicleNumber} is available again. Distance is within the 5% limit.`, rows: [['Trip', selD.number], ['Vehicle', selD.vehicleNumber], ['Invoice', cf.invoice], ['Closing odometer', km(closeNum) + ' km'], ['Diesel', `${km(dieselLitres)} L · ${fills.length} ${fills.length === 1 ? 'bunk' : 'bunks'} · ${money0(dieselTotal)}`], ['Total expense', money0(Number(cf.totalExpense))], ['Variance', fixed ? pct + '%' : 'Not applicable']], link: { trip: selTrip.id }, linkLabel: 'View closed trip' }); this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${selD.number} closed by R. Senthil Kumar. ${flagged ? `Variance ${pct}% flagged.` : 'Successfully reached destination.'}`, time: 'Just now' }); },
+        try {
+          const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
+          const cur = m.trips || { added: [], edited: {} };
+          const closeNumVal = Number(rec.closeKm) || 0;
+          const startNumVal = Number(selTrip.startKm) || 0;
+          const odoDist = closeNumVal > startNumVal ? closeNumVal - startNumVal : (selTrip.odoKm || 0);
+          const tripPatch = {
+            status: 'Closed',
+            closeKm: closeNumVal || selTrip.closeKm,
+            odoKm: odoDist,
+            invoice: rec.invoice || selTrip.invoice,
+            lr: rec.lr || selTrip.lr,
+            bunk: rec.bunk || selTrip.bunk,
+            rate: Number(rec.rate) || selTrip.rate,
+            diesel: rec.litres ? `${rec.litres} L` : selTrip.diesel,
+            dieselLitres: Number(rec.litres) || selTrip.dieselLitres,
+            dieselTotal: dieselTotal || selTrip.dieselTotal,
+            totalExpense: rec.totalExpense ? `₹${Number(rec.totalExpense).toLocaleString('en-IN')}` : selTrip.totalExpense,
+            closeRemarks: rec.remarks || selTrip.closeRemarks,
+            qtyLoad: rec.qtyLoad || selTrip.qtyLoad,
+            qtyUnload: rec.qtyUnload || selTrip.qtyUnload,
+            closed: rec.closedAt,
+            flags: flagged ? [...(selTrip.flags || []).filter(f => !f.startsWith('Variance')), `Variance ${pct}%`] : (selTrip.flags || []),
+          };
+          const isAdded = (cur.added || []).some(x => x.id === selTrip.id);
+          if (isAdded) {
+            cur.added = cur.added.map(x => (x.id === selTrip.id ? { ...x, ...tripPatch } : x));
+          } else {
+            cur.edited = { ...(cur.edited || {}), [selTrip.id]: { ...(cur.edited?.[selTrip.id] || {}), ...tripPatch } };
+          }
+          m.trips = cur;
+          localStorage.setItem(this.MASTER_KEY, JSON.stringify(m));
+          window.dispatchEvent(new Event('storage'));
+          window.dispatchEvent(new CustomEvent('tms-master-change', { detail: { key: 'trips' } }));
+        } catch (e) {}
+        this.setState(st => ({ closedIds: [...st.closedIds, selTrip.id], closedData: { ...st.closedData, [selTrip.id]: rec } }));
+        const resume = s.resumeOpen && s.resumeOpen.trip === selTrip.id;
+        if (resume) {
+          this.setState(st => ({ screen: 'open', history: ['home'], resumeOpen: null, railVariant: '', showErrors: false, form: { ...st.form, vehicle: s.resumeOpen.vehicle, startKm: '', driver: '', driverOk: false } }));
+          this.toast(flagged ? 'warning' : 'success', 'Trip closed · back to Open Trip', `${selD.vehicleNumber} is free now. Finish opening the new trip.${flagged ? ` Variance ${pct}% sent to admin exceptions.` : ''}`);
+        } else {
+          this.go('closeDone');
+          this.toast(flagged ? 'warning' : 'success', flagged ? 'Closed with flag' : 'Trip closed', flagged ? `Variance ${pct}% sent to admin exceptions.` : `${selD.vehicleNumber} is available again.`);
+        }
+        this.logActivity({ title: `Trip closed · ${selD.number}`, body: flagged ? `Closed with a ${pct}% distance variance. It was sent to Head Office exceptions for review.` : `${selD.vehicleNumber} is available again. Distance is within the 5% limit.`, rows: [['Trip', selD.number], ['Vehicle', selD.vehicleNumber], ['Invoice', cf.invoice], ['Closing odometer', km(closeNum) + ' km'], ['Diesel', `${km(dieselLitres)} L · ${fills.length} ${fills.length === 1 ? 'bunk' : 'bunks'} · ${money0(dieselTotal)}`], ['Total expense', money0(Number(cf.totalExpense))], ['Variance', fixed ? pct + '%' : 'Not applicable']], link: { trip: selTrip.id }, linkLabel: 'View closed trip' });
+        this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${selD.number} closed by R. Senthil Kumar. ${flagged ? `Variance ${pct}% flagged.` : 'Successfully reached destination.'}`, time: 'Just now' });
+      },
       verify,
       // trip history
       histList: histShown, histCount: histShown.length, histWord: histShown.length === 1 ? 'trip' : 'trips', histEmpty: !histShown.length, hist,

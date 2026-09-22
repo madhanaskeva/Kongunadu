@@ -36,18 +36,44 @@ export const TripDetail = () => {
   const b = tms.B[rawTrip.branch];
   const s = tms.S[rawTrip.supervisor];
 
+  const isClosed = rawTrip.status === 'Closed';
+
+  const fmtKm = n => (n != null && n !== '' ? Number(n).toLocaleString('en-IN') + ' km' : null);
+  const fmtMoney = n => {
+    if (!n && n !== 0) return null;
+    const str = String(n).trim();
+    if (str.startsWith('₹')) return str;
+    const num = Number(str.replace(/[^\d.]/g, ''));
+    return isNaN(num) ? str : '₹' + num.toLocaleString('en-IN');
+  };
+
+  const computedOdo =
+    rawTrip.odoKm != null
+      ? rawTrip.odoKm
+      : rawTrip.closeKm != null && rawTrip.startKm != null && rawTrip.closeKm >= rawTrip.startKm
+      ? rawTrip.closeKm - rawTrip.startKm
+      : null;
+
   const dist = [
     ['Fixed route', 'Billing reference', rawTrip.fixedKm, 'var(--kr-green-100)'],
     ['GPS', 'Actual movement', rawTrip.gpsKm, 'var(--color-brand)'],
-    ['Odometer', 'Vehicle reading', rawTrip.odoKm, 'var(--kr-green-800)']
+    ['Odometer', 'Vehicle reading', computedOdo, 'var(--kr-green-800)'],
   ];
   const maxKm = Math.max(1, ...dist.map(x => x[2] || 0));
+  const actualKm = Math.max(computedOdo || 0, rawTrip.gpsKm || 0);
   const pct = rawTrip.fixedKm
-    ? Math.round((Math.abs(Math.max(rawTrip.odoKm || 0, rawTrip.gpsKm || 0) - rawTrip.fixedKm) / rawTrip.fixedKm) * 1000) / 10
+    ? Math.round((Math.abs(actualKm - rawTrip.fixedKm) / rawTrip.fixedKm) * 1000) / 10
     : 0;
   const flagged = rawTrip.fixedKm && pct > Number(st.variance || 5);
 
-  const badge = rawTrip.status === 'Closed' ? ((rawTrip.flags || []).length ? 'Closed · flagged' : 'Closed') : (rawTrip.hoursOpen > 24 ? 'Long open' : rawTrip.stage || 'Enroute');
+  const badge =
+    rawTrip.status === 'Closed'
+      ? (rawTrip.flags || []).length
+        ? 'Closed · flagged'
+        : 'Closed'
+      : rawTrip.hoursOpen > 24
+      ? 'Long open'
+      : rawTrip.stage || 'Enroute';
   const badgeBg = rawTrip.status === 'Closed' ? 'var(--st-closed-bg)' : 'var(--st-enroute-bg)';
   const badgeFg = rawTrip.status === 'Closed' ? 'var(--st-closed-fg)' : 'var(--st-enroute-fg)';
 
@@ -66,8 +92,15 @@ export const TripDetail = () => {
         ['lr', 'LR number'],
         ['startKm', 'Start KM'],
         ['closeKm', 'Closing odometer'],
-        ['advance', 'Advance given'],
-        ['diesel', 'Diesel given'],
+        ['advance', 'Advance given (₹)'],
+        ['bunk', 'Bunk name'],
+        ['rate', 'Diesel rate (₹/L)'],
+        ['diesel', 'Diesel quantity (L)'],
+        ['totalExpense', 'Total expense (₹)'],
+        ['qtyLoad', 'Loading qty'],
+        ['qtyUnload', 'Unloading qty'],
+        ['remarks', 'Open remarks'],
+        ['closeRemarks', 'Close remarks'],
         ['type', 'Trip type', ['Business', 'Non-Business']],
         ['reason', 'Non-business reason', ['Maintenance', 'Internal Movement', 'Empty Return', 'Driver Testing']],
       ],
@@ -78,8 +111,15 @@ export const TripDetail = () => {
       lr: rawTrip.lr || '',
       startKm: rawTrip.startKm,
       closeKm: rawTrip.closeKm || '',
-      advance: (rawTrip.advance || '').replace('₹', ''),
-      diesel: (rawTrip.diesel || '').replace(' L', ''),
+      advance: (rawTrip.advance || '').replace(/[₹\s]/g, ''),
+      bunk: rawTrip.bunk || '',
+      rate: rawTrip.rate || '',
+      diesel: (rawTrip.diesel || '').replace(/\s*L$/i, '').trim(),
+      totalExpense: (rawTrip.totalExpense || '').replace(/[₹\s]/g, ''),
+      qtyLoad: rawTrip.qtyLoad || '',
+      qtyUnload: rawTrip.qtyUnload || '',
+      remarks: rawTrip.remarks || '',
+      closeRemarks: rawTrip.closeRemarks || '',
       type: rawTrip.type,
       reason: rawTrip.reason || '',
     });
@@ -99,23 +139,75 @@ export const TripDetail = () => {
     });
   };
 
+  const tripDist = computedOdo != null ? computedOdo : null;
+
+  const dieselLitres =
+    rawTrip.dieselLitres != null
+      ? Number(rawTrip.dieselLitres)
+      : rawTrip.diesel
+      ? Number(String(rawTrip.diesel).replace(/[^\d.]/g, ''))
+      : null;
+
+  const dieselRate = rawTrip.rate ? Number(rawTrip.rate) : null;
+  const dieselAmount =
+    rawTrip.dieselTotal != null
+      ? Number(rawTrip.dieselTotal)
+      : dieselRate && dieselLitres
+      ? Math.round(dieselRate * dieselLitres)
+      : null;
+
   const tripRecords = [
-    ['Branch', (b || {}).name],
-    ['Supervisor', (s || {}).name],
-    ['Client', (c || {}).name],
-    ['Customer(s)', rawTrip.unloading],
-    ['Vehicle', (v || {}).number],
-    ['Driver', (d || {}).name],
-    ['Loading location', (tms.L[rawTrip.loading] || {}).name],
+    ['Branch', (b || {}).name || rawTrip.branchName || '—'],
+    ['Supervisor', (s || {}).name || rawTrip.supervisorName || '—'],
+    ['Client', (c || {}).name || rawTrip.clientName || '—'],
+    [
+      'Customer(s)',
+      rawTrip.unloading ||
+        (Array.isArray(rawTrip.customers)
+          ? rawTrip.customers.map(id => (tms.U[id] || {}).name).filter(Boolean).join(', ')
+          : '—'),
+    ],
+    ['Vehicle', (v || {}).number || rawTrip.vehicleNumber || rawTrip.vehicle || '—'],
+    ['Vehicle type', (v || {}).type || rawTrip.vehicleType || '—'],
+    ['Driver', (d || {}).name || rawTrip.driverName || '—'],
     ['Trip type', rawTrip.type + (rawTrip.reason ? ' · ' + rawTrip.reason : '')],
-    ['Start KM', rawTrip.startKm ? rawTrip.startKm.toLocaleString('en-IN') : '—'],
-    ['Closing KM', rawTrip.closeKm ? rawTrip.closeKm.toLocaleString('en-IN') : 'Pending'],
-    ['Loading invoice', rawTrip.invoice || 'Pending'],
+    ['Loading location', (tms.L[rawTrip.loading] || {}).name || rawTrip.loading || '—'],
+    ['Opened at', rawTrip.opened || '—'],
+    ['Start KM', rawTrip.startKm != null ? fmtKm(rawTrip.startKm) : '—'],
+    ['Closing KM', rawTrip.closeKm != null ? fmtKm(rawTrip.closeKm) : isClosed ? '—' : 'Pending'],
+    ['Trip distance', tripDist != null ? fmtKm(tripDist) : isClosed ? '—' : 'Pending'],
+    [
+      'Variance vs fixed',
+      !rawTrip.fixedKm ? 'Not applicable' : isClosed ? `${pct}%` : 'Pending verification at close',
+      flagged ? { bg: 'var(--color-hazard-soft)', color: '#7A4300' } : null,
+    ],
+    ['Loading invoice', rawTrip.invoice || (isClosed ? '—' : 'Pending')],
     ['LR number', rawTrip.lr || '—'],
-    ['Advance given', rawTrip.advance || 'Pending'],
-    ['Diesel given', rawTrip.diesel || 'Pending'],
-    ['Loading qty', rawTrip.qtyLoad],
-    ['Unloading qty', rawTrip.qtyUnload || 'Pending'],
+    ['Advance given', fmtMoney(rawTrip.advance) || (isClosed ? '—' : 'Pending')],
+    ['Bunk name', rawTrip.bunk || (isClosed ? '—' : 'Pending')],
+    ['Diesel rate', dieselRate ? '₹' + dieselRate.toFixed(2) + '/L' : isClosed ? '—' : 'Pending'],
+    [
+      'Diesel quantity',
+      dieselLitres
+        ? dieselLitres.toLocaleString('en-IN') + ' L'
+        : rawTrip.diesel || (isClosed ? '—' : 'Pending'),
+    ],
+    ['Diesel amount', dieselAmount ? fmtMoney(dieselAmount) : isClosed ? '—' : 'Pending'],
+    ['Total expense', fmtMoney(rawTrip.totalExpense) || (isClosed ? '—' : 'Pending')],
+    ['Loading qty', rawTrip.qtyLoad || '—'],
+    ['Unloading qty', rawTrip.qtyUnload || (isClosed ? '—' : 'Pending')],
+    ['Open remarks', rawTrip.remarks || '—'],
+    ['Close remarks', rawTrip.closeRemarks || (isClosed ? '—' : 'Pending')],
+    ['Closed at', rawTrip.closed || (isClosed ? '—' : 'Pending')],
+    [
+      'Verification status',
+      rawTrip.status === 'Closed'
+        ? flagged
+          ? 'Variance flagged'
+          : 'Within threshold'
+        : rawTrip.status || 'Enroute',
+      flagged ? { bg: 'var(--color-hazard-soft)', color: '#7A4300' } : null,
+    ],
   ];
 
   const lifecycle = [
@@ -290,10 +382,25 @@ export const TripDetail = () => {
             Trip record
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-            {tripRecords.map(([k, val], i) => (
-              <div key={i} style={{ padding: '10px 18px', borderBottom: '1px solid var(--border-default)', minWidth: 0 }}>
+            {tripRecords.map(([k, val, styleObj], i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '10px 18px',
+                  borderBottom: '1px solid var(--border-default)',
+                  minWidth: 0,
+                  background: styleObj?.bg || 'transparent',
+                }}
+              >
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{k}</div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-heading)', overflowWrap: 'anywhere' }}>
+                <div
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: styleObj?.color || 'var(--text-heading)',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
                   {val || '—'}
                 </div>
               </div>

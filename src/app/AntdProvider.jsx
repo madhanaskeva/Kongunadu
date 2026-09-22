@@ -43,7 +43,7 @@ const TMS_THEME = {
 
     /* ── Typography ── */
     fontFamily:
-      '"Source Sans 3", "Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      '"Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontFamilyCode:
       'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
     fontSize: 14,
@@ -86,7 +86,7 @@ const TMS_THEME = {
       controlHeightSM: 32,
       controlHeightLG: 48,
       fontFamily:
-        '"Archivo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        '"Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       paddingInline: 16,
       paddingInlineSM: 10,
       paddingInlineLG: 24,
