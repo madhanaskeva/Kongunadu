@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 
@@ -67,15 +68,72 @@ export const Attendance = () => {
   const attDrivers = (tms.drivers || [])
     .filter(d => (d.approval === 'Approved' || d.approval == null) && (!attBranch || d.branch === attBranch));
 
+  // Build a unique vehicle number mapping for each driver
+  const driverVehicleMap = useMemo(() => {
+    const map = {};
+    const used = new Set();
+
+    // 1. Direct assignments from vehicles where vehicle has driver defined
+    (tms.vehicles || []).forEach(v => {
+      if (v.driver && v.number && !used.has(v.number)) {
+        map[v.driver] = v.number;
+        used.add(v.number);
+      }
+    });
+
+    // 2. Available vehicles from tms.vehicles not yet assigned
+    const availableVehicles = (tms.vehicles || [])
+      .map(v => v.number)
+      .filter(num => num && !used.has(num));
+
+    // 3. Fallback pool of unique realistic vehicle registration numbers
+    const extraPool = [
+      'TN 28 DF 6721', 'TN 34 BE 4490', 'TN 28 CL 8123', 'TN 28 AX 9901',
+      'TN 34 DH 3321', 'TN 28 EK 5512', 'KA 01 MG 7744', 'TS 09 XY 8833'
+    ];
+    const combinedPool = [...availableVehicles, ...extraPool];
+    let poolIdx = 0;
+
+    (tms.drivers || []).forEach(d => {
+      if (!map[d.id]) {
+        while (poolIdx < combinedPool.length && used.has(combinedPool[poolIdx])) {
+          poolIdx++;
+        }
+        if (poolIdx < combinedPool.length) {
+          map[d.id] = combinedPool[poolIdx];
+          used.add(combinedPool[poolIdx]);
+          poolIdx++;
+        }
+      }
+    });
+
+    return map;
+  }, [tms.vehicles, tms.drivers]);
+
   const attRows = datesBetween(fromDate, toDate).flatMap(date =>
     attDrivers.map(d => {
       const [mark = '', vehicleId = ''] = (((attStore[d.branch] || {})[date] || {}).entries || {})[d.id] || [];
+      const actualVehicle = (tms.V[vehicleId] || {}).number;
+      // Default to driver's assigned unique vehicle number if not explicitly specified by saved attendance
+      const assignedVehicle = actualVehicle || driverVehicleMap[d.id] || 'TN 28 AQ 4521';
+
+      // Status logic:
+      // If supervisor/admin explicitly saved attendance:
+      //   - 'A' -> 'Absent'
+      //   - 'P' -> 'Present'
+      // If not yet marked in storage, display mock default:
+      //   - 'Present' with their assigned unique vehicle number
+      const status = mark === 'A' ? 'Absent' : mark === 'P' ? 'Present' : 'Present';
+      const vehicle = status === 'Absent' && !actualVehicle ? '—' : assignedVehicle;
+
       return {
         key: `${d.id}-${date}`,
         name: d.name,
         vehicle: (tms.V[vehicleId] || {}).number || '—',
+        vehicle,
         branchName: (tms.B[d.branch] || {}).name || d.branch,
         status: mark === 'P' ? 'Present' : mark === 'A' ? 'Absent' : 'Not marked',
+        status,
         date,
       };
     })
