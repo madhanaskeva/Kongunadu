@@ -119,6 +119,7 @@ export const MasterManager = ({ type }) => {
       fields: [
         ['name', 'Full name'],
         ['phone', 'Mobile number', null, '90031 55012', { clean: 'phone', prefix: '+91' }],
+        ['email', 'Sign-in email', null, 'name@transport.example'],
         ['branch', 'Branch', branchOpts],
         ['clients', 'Clients handled', null, 'Comma separated'],
         ['status', 'Status', ['Active', 'Suspended']],

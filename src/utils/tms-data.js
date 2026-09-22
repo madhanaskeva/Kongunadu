@@ -8,7 +8,7 @@ const branches=[
  {id:'B06',code:'VZG',name:'Visakhapatnam',state:'Andhra Pradesh',vehicles:38,supervisors:2,status:'Inactive'}
 ];
 const supervisors=[
- {id:'S01',name:'R. Senthil Kumar',phone:'98410 22314',branch:'B01',clients:'INOX Air Products, Linde India',clientIds:['C01','C02'],status:'Active',lastLogin:'Today 06:12'},
+ {id:'S01',name:'R. Senthil Kumar',email:'supervisor@transport.example',phone:'98410 22314',branch:'B01',clients:'INOX Air Products, Linde India',clientIds:['C01','C02'],status:'Active',lastLogin:'Today 06:12'},
  {id:'S02',name:'M. Arunachalam',phone:'98430 11908',branch:'B02',clients:'Air Liquide India',clientIds:['C03'],status:'Active',lastLogin:'Today 05:48'},
  {id:'S03',name:'K. Vijayalakshmi',phone:'99400 87621',branch:'B01',clients:'Linde India, Suguna Foods',clientIds:['C02','C05'],status:'Active',lastLogin:'Yesterday 21:30'},
  {id:'S04',name:'P. Ramesh Babu',phone:'90000 45512',branch:'B03',clients:'Bharat Petroleum',clientIds:['C04'],status:'Active',lastLogin:'Today 07:02'},

@@ -1,6 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { loginStart, loginSuccess, loginFailure, logout, updateUserProfile, SESSION_KEY } from '../features/auth/authSlice';
-import { readPortalUsers } from '../utils/moduleAccess';
+import { readPortalUsers, readSupervisors } from '../utils/moduleAccess';
 
 const PW_KEY = 'krl_custom_passwords';
 const readPasswords = () => {
@@ -40,36 +40,37 @@ export const useAuth = () => {
           }
         }
 
-        // Admin Portal: the email must belong to a user on Users & roles; their module access applies
-        let portalUser = null;
-        if (credentials.role !== 'supervisor') {
-          const email = credentials.email.toLowerCase().trim();
-          portalUser = readPortalUsers().find(u => String(u.email || '').toLowerCase() === email);
-          if (!portalUser) throw new Error('No portal user with this email. Ask an administrator to add you in Users & roles.');
-          if (portalUser.password && portalUser.password !== credentials.password) throw new Error('Incorrect email or password.');
-          if (/Suspended|Inactive|Disabled/i.test(portalUser.status || '')) throw new Error('This account is disabled. Contact an administrator.');
-        }
+        // The account decides the destination: a user on Users & roles opens the Admin Portal,
+        // a supervisor from Masters › Supervisors opens the Supervisor app
+        const email = credentials.email.toLowerCase().trim();
+        const byEmail = u => String(u.email || '').toLowerCase().trim() === email;
+        const portalUser = readPortalUsers().find(byEmail);
+        const supervisor = portalUser ? null : readSupervisors().find(byEmail);
+        const account = portalUser || supervisor;
+        if (!account) throw new Error('No account with this email. Ask an administrator to add you.');
+        if (account.password && account.password !== credentials.password) throw new Error('Incorrect email or password.');
+        if (/Suspended|Inactive|Disabled/i.test(account.status || '')) throw new Error('This account is disabled. Contact an administrator.');
 
-        const user =
-          credentials.role === 'supervisor'
-            ? {
-                id: 'S01',
-                name: 'Branch Supervisor',
-                email: credentials.email,
-                role: 'Supervisor',
-                branch: 'Coimbatore',
-              }
-            : {
-                id: portalUser.id,
-                name: portalUser.name,
-                email: portalUser.email,
-                phone: portalUser.phone || '',
-                role: portalUser.role,
-                branch: portalUser.branch || 'All branches',
-              };
+        const user = supervisor
+          ? {
+              id: supervisor.id,
+              name: supervisor.name,
+              email: supervisor.email,
+              phone: supervisor.phone || '',
+              role: 'Supervisor',
+              branch: supervisor.branch,
+            }
+          : {
+              id: portalUser.id,
+              name: portalUser.name,
+              email: portalUser.email,
+              phone: portalUser.phone || '',
+              role: portalUser.role,
+              branch: portalUser.branch || 'All branches',
+            };
         saveSession(user);
         dispatch(loginSuccess(user));
-        return { success: true };
+        return { success: true, redirect: supervisor ? '/supervisor' : '/admin/dashboard' };
       } else {
         throw new Error('Invalid email or password');
       }

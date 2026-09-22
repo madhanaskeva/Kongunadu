@@ -1,6 +1,6 @@
 // Per-user module access for the Admin Portal: which sidebar modules a portal user can open
 // and which actions (add / edit / delete / export) they get inside each one.
-import { users as seedUsers } from './tms-data';
+import { users as seedUsers, supervisors as seedSupervisors } from './tms-data';
 
 export const ACTIONS = [
   ['view', 'View'],
@@ -101,10 +101,13 @@ export const firstAllowedPath = access => {
   return hit ? hit[3] : null;
 };
 
-// Portal users as the Users page shows them: seed list + saved adds/edits − deleted
-export const readPortalUsers = () => {
-  const e = readJson(MASTER_KEY, {}).users || {};
+// Master records as the admin pages show them: seed list + saved adds/edits − deleted
+const readMaster = (route, seed) => {
+  const e = readJson(MASTER_KEY, {})[route] || {};
   const ed = e.edited || {};
   const gone = new Set(readJson(DELETED_KEY, []));
-  return [...(e.added || []), ...seedUsers.map(u => (ed[u.id] ? { ...u, ...ed[u.id] } : u))].filter(u => !gone.has(u.id));
+  return [...(e.added || []), ...seed.map(u => (ed[u.id] ? { ...u, ...ed[u.id] } : u))].filter(u => !gone.has(u.id));
 };
+
+export const readPortalUsers = () => readMaster('users', seedUsers);
+export const readSupervisors = () => readMaster('supervisors', seedSupervisors);
