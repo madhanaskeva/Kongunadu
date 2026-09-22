@@ -26,6 +26,39 @@ export const TMSAdminProvider = ({ children }) => {
   const EXC_KEY = 'kr-tms-exception-overrides';
   const DIST_KEY = 'kr-tms-distance-review';
   const ST_KEY = 'kr-tms-settings';
+  const ADMIN_NOTIF_KEY = 'kr-tms-admin-notifications';
+  const ADMIN_NOTIF_READ_KEY = 'kr-tms-admin-notifications-read';
+
+  const SEED_ADMIN_NOTIFICATIONS = [
+    {
+      id: 'seed-notif-1',
+      title: 'Driver Request',
+      body: 'Mani requested for diesel allowance for trip #4029.',
+      time: 'Just now',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'seed-notif-2',
+      title: 'Maintenance Alert',
+      body: 'TN 38 AA 1234 is due for its regular service.',
+      time: '2 hrs ago',
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'seed-notif-3',
+      title: 'Trip Update',
+      body: 'Trip #4028 has successfully reached destination.',
+      time: '4 hrs ago',
+      createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'seed-notif-4',
+      title: 'System Notice',
+      body: 'Scheduled maintenance this weekend.',
+      time: '1 day ago',
+      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
 
   // State that survives a reload: read once from localStorage, written on every change.
   const usePersisted = (key, init) => {
@@ -112,6 +145,58 @@ export const TMSAdminProvider = ({ children }) => {
   const [devReqs, setDevReqs] = useState([]);
   const [devFilter, setDevFilter] = useState('all');
   const [adminNotifOpen, setAdminNotifOpen] = useState(false);
+  const [sendNoticeOpen, setSendNoticeOpen] = useState(false);
+
+  const [adminNotifications, setAdminNotifications] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(ADMIN_NOTIF_KEY) || 'null');
+      if (saved && Array.isArray(saved) && saved.length > 0) return saved;
+      localStorage.setItem(ADMIN_NOTIF_KEY, JSON.stringify(SEED_ADMIN_NOTIFICATIONS));
+      return SEED_ADMIN_NOTIFICATIONS;
+    } catch (e) {
+      return SEED_ADMIN_NOTIFICATIONS;
+    }
+  });
+
+  const [adminNotifRead, setAdminNotifRead] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(ADMIN_NOTIF_READ_KEY) || '[]') || [];
+    } catch (e) {
+      return [];
+    }
+  });
+
+  const markAdminNotifsRead = () => {
+    const allIds = adminNotifications.map((n) => n.id);
+    setAdminNotifRead(allIds);
+    try {
+      localStorage.setItem(ADMIN_NOTIF_READ_KEY, JSON.stringify(allIds));
+    } catch (e) {}
+  };
+
+  const pushAdminNotification = (item) => {
+    const newItem = {
+      id: 'AN' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      time: item.time || 'Just now',
+      createdAt: new Date().toISOString(),
+      ...item,
+    };
+    setAdminNotifications((prev) => {
+      const next = [newItem, ...prev.filter((x) => x.id !== newItem.id)].slice(0, 50);
+      try {
+        localStorage.setItem(ADMIN_NOTIF_KEY, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+    try {
+      window.dispatchEvent(new Event('kr-tms-admin-notifications-changed'));
+    } catch (e) {}
+  };
+
+  const unreadAdminNotifCount = useMemo(() => {
+    const readSet = new Set(adminNotifRead);
+    return adminNotifications.filter((n) => !readSet.has(n.id)).length;
+  }, [adminNotifications, adminNotifRead]);
 
   // Dashboard layout state
   const [dashTab, setDashTab] = useState('cards');
@@ -257,12 +342,13 @@ export const TMSAdminProvider = ({ children }) => {
     if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
     if (route === 'locations') { num('radius'); num('lat'); num('lng'); dflt('radius', 100); dflt('status', 'Active'); }
     if (route === 'trips') {
-      num('startKm'); num('closeKm');
-      if (f.closeKm && f.startKm) f.odoKm = f.closeKm - f.startKm;
+      num('startKm'); num('closeKm'); num('rate');
+      if (f.closeKm && f.startKm && f.closeKm >= f.startKm) f.odoKm = f.closeKm - f.startKm;
       if (f.advance !== undefined) f.advance = String(f.advance).trim() ? '₹' + String(f.advance).replace(/[₹\s]/g, '') : null;
       if (f.diesel !== undefined) f.diesel = String(f.diesel).trim() ? String(f.diesel).replace(/\s*L$/i, '') + ' L' : null;
+      if (f.totalExpense !== undefined) f.totalExpense = String(f.totalExpense).trim() ? '₹' + String(f.totalExpense).replace(/[₹\s]/g, '') : null;
       if (f.type === 'Business') f.reason = '';
-      ['invoice', 'lr', 'closeKm'].forEach(k => { if (f[k] === '') f[k] = null; });
+      ['invoice', 'lr', 'closeKm', 'bunk', 'remarks', 'closeRemarks'].forEach(k => { if (f[k] === '') f[k] = null; });
     }
     if (route === 'users') {
       if (f.branch !== undefined) f.branch = f.branch === 'all' || !f.branch ? 'All branches' : ((tms.B[f.branch] || {}).name || f.branch);
@@ -307,8 +393,26 @@ export const TMSAdminProvider = ({ children }) => {
       if (e.key === REQ_KEY) setDevReqs(read([]));
       if (e.key === DRV_KEY) setDrvReqs(read([]));
       if (e.key === MASTER_KEY) setMasterEdits(read({}));
+      if (e.key === ADMIN_NOTIF_KEY) setAdminNotifications(read(SEED_ADMIN_NOTIFICATIONS));
     };
     window.addEventListener('storage', handleStorage);
+
+    const handleCustomNotif = () => {
+      try {
+        const list = JSON.parse(localStorage.getItem(ADMIN_NOTIF_KEY) || 'null');
+        if (list && Array.isArray(list)) {
+          setAdminNotifications(list);
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('kr-tms-admin-notifications-changed', handleCustomNotif);
+
+    const handleMasterCustom = () => {
+      try { setMasterEdits(JSON.parse(localStorage.getItem(MASTER_KEY) || '{}') || {}); } catch (e) {}
+    };
+    window.addEventListener('tms-master-change', handleMasterCustom);
+
+    const notifPoll = setInterval(handleCustomNotif, 1500);
 
     let cfg = dashDefault();
     try {
@@ -322,6 +426,9 @@ export const TMSAdminProvider = ({ children }) => {
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('kr-tms-admin-notifications-changed', handleCustomNotif);
+      window.removeEventListener('tms-master-change', handleMasterCustom);
+      clearInterval(notifPoll);
       clearTimeout(toastTimerRef.current);
     };
   }, []);
@@ -407,6 +514,12 @@ export const TMSAdminProvider = ({ children }) => {
         devReqs, setDevReqs,
         devFilter, setDevFilter,
         adminNotifOpen, setAdminNotifOpen,
+        sendNoticeOpen, setSendNoticeOpen,
+        adminNotifications, setAdminNotifications,
+        adminNotifRead,
+        unreadAdminNotifCount,
+        markAdminNotifsRead,
+        pushAdminNotification,
         dashTab, setDashTab,
         dashCfg: dashCfg || dashDefault(),
         saveDash,
