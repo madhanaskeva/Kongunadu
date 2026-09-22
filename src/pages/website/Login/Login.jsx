@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
 import Button from '../../../components/common/Button';
 import FormInput from '../../../components/forms/FormInput';
@@ -7,11 +7,9 @@ import { ForgotPasswordFlow } from '../../../components/auth';
 
 export const Login = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { login, loading } = useAuth();
-  const asSupervisor = searchParams.get('role') === 'supervisor';
-  const [email, setEmail] = useState(asSupervisor ? 'supervisor@transport.example' : 'admin@gmail.com');
-  const [password, setPassword] = useState(asSupervisor ? 'password' : 'admin@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [formError, setFormError] = useState('');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -168,7 +166,8 @@ export const Login = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@transport.example"
+                  placeholder="Enter your email"
+                  autoComplete="off"
                   required
                 />
                 <FormInput
@@ -177,6 +176,7 @@ export const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete="new-password"
                   required
                 />
                 <Button
