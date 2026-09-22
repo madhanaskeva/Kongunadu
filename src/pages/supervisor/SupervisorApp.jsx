@@ -727,13 +727,13 @@ export class SupervisorApp extends React.Component {
       cf: { ...cf, legDraft: ld }, setCf: this.bind('cf', ['invoice', 'lr', 'qtyLoad', 'qtyUnload']), cerr,
       closeHasErrors: Object.values(cerr).some(Boolean), closeManualException: (selTrip.flags || []).includes('GPS weak') || (selTrip.flags || []).includes('GPS failed'),
       // odometer readings
-      pointOptions, toPointOptions: pointOptions.filter(o => o.value !== (cf.legDraft || {}).from), legErr, legBox: { border: cerr.legs ? 'var(--status-danger)' : 'var(--border-default)' },
+      pointOptions, legErr, legBox: { border: cerr.legs ? 'var(--status-danger)' : 'var(--border-default)' },
       legCards: legs.map((l, i) => ({ i, title: `Reading ${i + 1}`, route: `${l.from} → ${l.to}`, reading: `${km(l.reading)} km`, km: `+${km(l.reading - legPrev(i))} km`, url: (l.photo && l.photo.url) || '', noPhoto: !(l.photo && l.photo.url), bg: legEditing && cf.legEdit === i ? 'var(--color-brand-tint)' : '#fff' })),
       legSummary: legs.length ? { close: km(closeNum) + ' km', dist: `Trip distance ${km(closeNum - startNum)} km from start ${km(startNum)}` } : false,
       legEditorOpen, legAddShown: !legEditorOpen, legCanCancel: legs.length > 0, legEditorTitle: legEditing ? `Edit reading ${cf.legEdit + 1}` : `Reading ${legs.length + 1}`, legSaveLabel: legEditing ? 'Save changes' : 'Add reading',
       legPrevText: km(ldPrev), legReadingHint: ld.reading && !legBad.reading ? `+${km(ldNum - ldPrev)} km on this leg.` : `Previous reading ${km(ldPrev)} km${di === 0 ? ' (start KM)' : ''}.`,
       legPhotoEmpty: !ld.photo, legPhotoSet: !!ld.photo, legPhoto: ld.photo || {}, legPhotoBorder: legErr.photo ? 'var(--status-danger)' : 'var(--border-strong)',
-      setLegFrom: e => { const from = e.target.value; this.patchCf({ legDraft: { ...ld, from, to: ld.to === from ? '' : ld.to } }); }, setLegTo: e => this.patchCf({ legDraft: { ...ld, to: e.target.value } }),
+      setLegFrom: e => this.patchCf({ legDraft: { ...ld, from: e.target.value } }), setLegTo: e => this.patchCf({ legDraft: { ...ld, to: e.target.value } }),
       setLegReading: e => this.patchCf({ legDraft: { ...ld, reading: e.target.value.replace(/\D/g, '').slice(0, 9) } }),
       pickLegPhoto: e => { const file = e.target.files && e.target.files[0]; e.target.value = ''; if (!file) return; if (!/^image\//.test(file.type)) { this.toast('warning', 'Not an image', 'Take a photo of the odometer.'); return; }
         const kb = file.size / 1024, size = kb >= 1024 ? (kb / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(kb)) + ' KB';
