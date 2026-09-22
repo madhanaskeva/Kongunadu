@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { Eye, EyeOff, X } from 'lucide-react';
+import { FormCheckboxSelect } from '../../components/forms';
 
 const PasswordField = ({ value, onChange, placeholder }) => {
   const [show, setShow] = useState(false);
@@ -547,9 +548,35 @@ export const AdminDrawer = () => {
                 const isUpload = opts === 'upload';
                 const isArea = opts === 'textarea';
                 const isChecks = opts === 'checks';
+                const isCheckboxSelect = opts === 'checkbox-select' || (key === 'clients' && extra && extra.options);
                 const isSelect = Array.isArray(opts);
                 const raw = form[key];
                 const file = isUpload && raw && typeof raw === 'object' ? raw : null;
+
+                if (isCheckboxSelect) {
+                  const options = extra.options || (Array.isArray(opts) ? opts : []);
+                  return (
+                    <div key={idx}>
+                      <FormCheckboxSelect
+                        label={label}
+                        name={key}
+                        value={raw}
+                        options={options}
+                        placeholder={hint && typeof hint === 'string' ? hint : `Select ${label.toLowerCase()}`}
+                        onChange={(e) => {
+                          const val = e && e.target ? e.target.value : e;
+                          const str = e && e.target && e.target.string ? e.target.string : (Array.isArray(val) ? val.join(', ') : String(val || ''));
+                          setForm(prev => ({
+                            ...prev,
+                            [key]: val,
+                            [`${key}Names`]: str,
+                            clientIds: val,
+                          }));
+                        }}
+                      />
+                    </div>
+                  );
+                }
 
                 if (isSection) {
                   return (

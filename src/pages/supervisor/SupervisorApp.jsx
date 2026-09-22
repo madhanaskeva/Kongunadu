@@ -150,8 +150,8 @@ export class SupervisorApp extends React.Component {
     let gone; try { gone = new Set(JSON.parse(delJson)); } catch (err) { gone = new Set(); }
     const merge = (route, seed) => { const x = e[route] || {}, ed = x.edited || {}; return [...seed.map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r), ...(x.added || [])].filter(r => !gone.has(r.id)); };
     const by = a => Object.fromEntries(a.map(r => [r.id, r]));
-    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations), trips = merge('trips', base.trips);
-    this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) }, trips, T: { ...base.T, ...by(trips) } }; this._tKey = key;
+    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations), trips = merge('trips', base.trips), clients = merge('clients', base.clients || []), supervisors = merge('supervisors', base.supervisors || []), customers = merge('customers', base.customers || []), bunks = merge('bunks', base.bunks || []);
+    this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) }, trips, T: { ...base.T, ...by(trips) }, clients, C: { ...base.C, ...by(clients) }, supervisors, S: { ...base.S, ...by(supervisors) }, customers, U: { ...base.U, ...by(customers) }, bunks, F: { ...base.F, ...by(bunks) } }; this._tKey = key;
     return this._t;
   }
   MASTER_KEY = 'kr-tms-master-edits';
@@ -192,7 +192,14 @@ export class SupervisorApp extends React.Component {
     // Open trip options
     const activeVeh = new Set(this.active().map(t => t.vehicle)), activeDrv = new Set(this.active().map(t => t.driver));
     const sup = T.S[this.SUP] || {};
-    const myClients = T.clients.filter(c => (sup.clientIds || []).includes(c.id));
+    const myClients = T.clients.filter(c => {
+      const idMatch = (sup.clientIds || []).includes(c.id);
+      const nameMatch = (sup.clientIds || []).includes(c.name) ||
+        (typeof sup.clients === 'string' && sup.clients.toLowerCase().includes(c.name.toLowerCase())) ||
+        (Array.isArray(sup.clients) && (sup.clients.includes(c.name) || sup.clients.includes(c.id)));
+      const branchMatch = c.branch === this.BR;
+      return idMatch || nameMatch || branchMatch;
+    });
     const clientOptions = myClients.map(c => ({ value: c.id, label: c.name + (c.status === 'Active' ? '' : ' · ' + c.status) }));
     const branchVeh = T.vehicles.filter(v => v.branch === this.BR);
     const forClient = (v, c) => !(v.clients || []).length || v.clients.includes(c);

@@ -337,7 +337,35 @@ export const TMSAdminProvider = ({ children }) => {
       if (isNew) { f.approval = 'Approved'; dflt('status', 'Active'); dflt('type', 'Regular'); f.present = 0; f.absent = 0; f.util = '—'; }
     }
     if (route === 'branches' && isNew) { f.vehicles = 0; f.supervisors = 0; dflt('status', 'Active'); }
-    if (route === 'supervisors') { f.phone = fmtPhone(dg(f.phone)); if (isNew) { f.lastLogin = 'Never'; dflt('status', 'Active'); } }
+    if (route === 'supervisors') {
+      f.phone = fmtPhone(dg(f.phone));
+      if (isNew) { f.lastLogin = 'Never'; dflt('status', 'Active'); }
+      const allClients = tms.clients || [];
+      if (Array.isArray(f.clients)) {
+        const ids = [];
+        const names = [];
+        f.clients.forEach(val => {
+          const match = allClients.find(c => c.id === val || c.name.toLowerCase() === String(val).toLowerCase());
+          if (match) {
+            ids.push(match.id);
+            names.push(match.name);
+          } else if (val) {
+            ids.push(val);
+            names.push(val);
+          }
+        });
+        f.clientIds = ids;
+        f.clients = names.join(', ');
+      } else if (typeof f.clients === 'string' && f.clients.trim()) {
+        const names = f.clients.split(',').map(s => s.trim()).filter(Boolean);
+        const ids = names.map(n => {
+          const match = allClients.find(c => c.name.toLowerCase() === n.toLowerCase() || c.id === n);
+          return match ? match.id : n;
+        });
+        f.clientIds = ids;
+        f.clients = names.join(', ');
+      }
+    }
     if (route === 'clients' && isNew) { f.customers = 0; dflt('status', 'Active'); }
     if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
     if (route === 'locations') { num('radius'); num('lat'); num('lng'); dflt('radius', 100); dflt('status', 'Active'); }
