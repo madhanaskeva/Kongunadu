@@ -1,48 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ShieldCheck, Smartphone } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import Button from '../../../components/common/Button';
 import FormInput from '../../../components/forms/FormInput';
 import { ForgotPasswordFlow } from '../../../components/auth';
 
-const ROLES = {
-  admin: {
-    label: 'Admin',
-    hint: 'Web portal · Head Office',
-    icon: ShieldCheck,
-    email: 'admin@transport.example',
-    redirect: '/admin/dashboard',
-    button: 'Login to Admin Portal',
-  },
-  supervisor: {
-    label: 'Supervisor',
-    hint: 'Supervisor app · Branch',
-    icon: Smartphone,
-    email: 'supervisor@transport.example',
-    redirect: '/supervisor',
-    button: 'Login to Supervisor App',
-  },
-};
-
 export const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login, loading } = useAuth();
-  const initialRole = searchParams.get('role') === 'supervisor' ? 'supervisor' : 'admin';
-  const [role, setRole] = useState(initialRole);
-  const [email, setEmail] = useState(ROLES[initialRole].email);
+  const [email, setEmail] = useState(searchParams.get('role') === 'supervisor' ? 'supervisor@transport.example' : 'admin@transport.example');
   const [password, setPassword] = useState('password');
   const [formError, setFormError] = useState('');
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-
-  const selectRole = (next) => {
-    setRole(next);
-    setEmail(ROLES[next].email);
-    setFormError('');
-    setSuccessMessage('');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,9 +22,9 @@ export const Login = () => {
       setFormError('Please enter both email and password.');
       return;
     }
-    const res = await login({ email, password, role });
+    const res = await login({ email, password });
     if (res.success) {
-      navigate(ROLES[role].redirect);
+      navigate(res.redirect);
     } else {
       setFormError(res.error || 'Incorrect email or password.');
     }
@@ -127,7 +98,6 @@ export const Login = () => {
           {isForgotPassword ? (
             <ForgotPasswordFlow
               initialEmail={email}
-              role={role}
               onBack={() => {
                 setIsForgotPassword(false);
                 setFormError('');
@@ -153,43 +123,8 @@ export const Login = () => {
                   Welcome Back
                 </h2>
                 <p style={{ margin: '6px 0 0', fontSize: '15px', color: 'var(--text-muted)' }}>
-                  Choose your role and sign in to continue.
+                  Sign in with your account to continue.
                 </p>
-              </div>
-
-              {/* Role Selector */}
-              <div role="radiogroup" aria-label="Sign in as" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {Object.entries(ROLES).map(([key, r]) => {
-                  const active = role === key;
-                  const Icon = r.icon;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      role="radio"
-                      aria-checked={active}
-                      onClick={() => selectRole(key)}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        gap: '6px',
-                        padding: '14px 16px',
-                        borderRadius: 'var(--radius-lg)',
-                        border: `2px solid ${active ? 'var(--color-brand)' : 'var(--border-default)'}`,
-                        backgroundColor: active ? 'var(--color-brand-tint)' : '#ffffff',
-                        color: active ? 'var(--color-brand)' : 'var(--text-body)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'border-color var(--dur-fast), background var(--dur-fast)',
-                      }}
-                    >
-                      <Icon size={20} />
-                      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px' }}>{r.label}</span>
-                      <small style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{r.hint}</small>
-                    </button>
-                  );
-                })}
               </div>
 
               {/* Success Notification after password reset */}
@@ -232,7 +167,7 @@ export const Login = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={ROLES[role].email}
+                  placeholder="you@transport.example"
                   required
                 />
                 <FormInput
@@ -251,7 +186,7 @@ export const Login = () => {
                   loading={loading}
                   style={{ marginTop: '8px' }}
                 >
-                  {ROLES[role].button}
+                  Sign in
                 </Button>
               </form>
 

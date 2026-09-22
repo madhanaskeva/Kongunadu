@@ -228,6 +228,22 @@ export const TMSAdminProvider = ({ children }) => {
       out[key] = merge(key);
       if (map) out[map] = { ...base[map], ...by(out[key]) };
     });
+    // Distance comparison is derived from closed trips so every row links to a real trip.
+    out.distanceChecks = out.trips
+      .filter(t => t.status === 'Closed' && Number(t.fixedKm) > 0)
+      .map(t => ({
+        id: t.id,
+        trip: t.id,
+        number: t.number,
+        vehicle: t.vehicle,
+        branch: t.branch,
+        route: ((out.L[t.loading] || {}).name || t.loading || '—') + ' → ' + (t.unloading || '—'),
+        fixedKm: Number(t.fixedKm),
+        gpsKm: t.gpsKm ?? null,
+        odoKm: t.odoKm ?? null,
+        closed: t.closed,
+        review: t.distReview || null,
+      }));
     return out;
   }, [masterEdits, deleted]);
   const T = () => tmsView;

@@ -444,6 +444,18 @@
   }
 }
 
+/* Phones: "Send notice" collapses to its icon so the top bar fits */
+@media (max-width: 600px) {
+  .tms-topbar-send-notice-btn {
+    width: 38px;
+    padding: 0;
+  }
+
+  .tms-topbar-send-notice-label {
+    display: none;
+  }
+}
+
 /* Page enter animation — replays on every route change (wrapper is keyed by pathname).
    fill-mode "backwards" so no transform lingers afterwards (keeps position:fixed modals working). */
 @keyframes tms-page-in {

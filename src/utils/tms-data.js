@@ -8,7 +8,7 @@ const branches=[
  {id:'B06',code:'VZG',name:'Visakhapatnam',state:'Andhra Pradesh',vehicles:38,supervisors:2,status:'Inactive'}
 ];
 const supervisors=[
- {id:'S01',name:'R. Senthil Kumar',phone:'98410 22314',branch:'B01',clients:'INOX Air Products, Linde India',clientIds:['C01','C02'],status:'Active',lastLogin:'Today 06:12'},
+ {id:'S01',name:'R. Senthil Kumar',email:'supervisor@transport.example',phone:'98410 22314',branch:'B01',clients:'INOX Air Products, Linde India',clientIds:['C01','C02'],status:'Active',lastLogin:'Today 06:12'},
  {id:'S02',name:'M. Arunachalam',phone:'98430 11908',branch:'B02',clients:'Air Liquide India',clientIds:['C03'],status:'Active',lastLogin:'Today 05:48'},
  {id:'S03',name:'K. Vijayalakshmi',phone:'99400 87621',branch:'B01',clients:'Linde India, Suguna Foods',clientIds:['C02','C05'],status:'Active',lastLogin:'Yesterday 21:30'},
  {id:'S04',name:'P. Ramesh Babu',phone:'90000 45512',branch:'B03',clients:'Bharat Petroleum',clientIds:['C04'],status:'Active',lastLogin:'Today 07:02'},
@@ -191,19 +191,6 @@ const permissions=[
  {module:'Analytics & reports',admin:'Full + export',supervisor:'Own branch',owner:'Full',billing:'Billing only'},
  {module:'Users & roles',admin:'Full',supervisor:'No',owner:'No',billing:'No'}
 ];
-const distanceChecks=[
- {id:'DV01',trip:'T07',number:'TN28BC1180/09/008',vehicle:'V02',branch:'B01',route:'Ambattur \u2192 Vijayawada',fixedKm:452,gpsKm:474,odoKm:510,closed:'11 Sep 2026 14:20',review:'Under review'},
- {id:'DV02',trip:'T08',number:'TN28BD2209/09/011',vehicle:'V08',branch:'B01',route:'Ambattur \u2192 Chennai city',fixedKm:200,gpsKm:208,odoKm:220,closed:'13 Sep 2026 15:35',review:'Reviewed'},
- {id:'DV03',trip:'T06',number:'TN28AQ4521/09/013',vehicle:'V01',branch:'B01',route:'Sriperumbudur \u2192 Bengaluru \u2192 Coimbatore',fixedKm:798,gpsKm:804,odoKm:810,closed:'12 Sep 2026 19:45',review:null},
- {id:'DV04',trip:null,number:'TN28BC1180/09/006',vehicle:'V02',branch:'B01',route:'Ambattur \u2192 Madurai',fixedKm:470,gpsKm:489,odoKm:531,closed:'08 Sep 2026 18:40',review:'Open'},
- {id:'DV05',trip:null,number:'KA01AJ9087/09/029',vehicle:'V07',branch:'B04',route:'Bommasandra \u2192 Sriperumbudur',fixedKm:312,gpsKm:341,odoKm:346,closed:'12 Sep 2026 22:15',review:'Open'},
- {id:'DV06',trip:null,number:'TN34CV0921/09/020',vehicle:'V03',branch:'B02',route:'Namakkal \u2192 Bengaluru',fixedKm:262,gpsKm:279,odoKm:284,closed:'12 Sep 2026 08:50',review:'Under review'},
- {id:'DV07',trip:null,number:'TS09UB3344/09/008',vehicle:'V05',branch:'B03',route:'Jeedimetla \u2192 Mumbai',fixedKm:712,gpsKm:728,odoKm:741,closed:'12 Sep 2026 16:30',review:null},
- {id:'DV08',trip:null,number:'TN34CQ5566/09/004',vehicle:'V06',branch:'B02',route:'Namakkal \u2192 Kochi',fixedKm:378,gpsKm:381,odoKm:384,closed:'10 Sep 2026 21:05',review:null},
- {id:'DV09',trip:null,number:'MH04GH6612/09/016',vehicle:'V09',branch:'B05',route:'Bhiwandi \u2192 Pune',fixedKm:148,gpsKm:151,odoKm:150,closed:'13 Sep 2026 12:40',review:null},
- {id:'DV10',trip:null,number:'TN28AQ4521/09/012',vehicle:'V01',branch:'B01',route:'Sriperumbudur \u2192 Hyderabad',fixedKm:628,gpsKm:646,odoKm:657,closed:'10 Sep 2026 23:55',review:null},
- {id:'DV11',trip:null,number:'TN28AR7712/09/004',vehicle:'V04',branch:'B01',route:'Ambattur \u2192 Madurai',fixedKm:470,gpsKm:null,odoKm:486,closed:'09 Sep 2026 20:10',review:null}
-];
 const radiusAlerts=[
  {id:'RA01',kind:'vehicle',ref:'V04',location:'L02',left:'11:05',awayM:320},
  {id:'RA02',kind:'supervisor',ref:'S01',location:'L01',left:'11:05',awayM:180},
@@ -252,7 +239,6 @@ export const TMS = {
   gpsLog,
   users,
   permissions,
-  distanceChecks,
   radiusAlerts,
   supervisorNotices,
   B,
@@ -286,7 +272,6 @@ export {
   gpsLog,
   users,
   permissions,
-  distanceChecks,
   radiusAlerts,
   supervisorNotices,
 };

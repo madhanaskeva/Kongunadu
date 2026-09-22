@@ -206,7 +206,7 @@ export const Dashboard = () => {
 
       {/* DASHBOARD CARDS */}
       {dashCards.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(170px, calc((100% - 120px) / 6)), 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(140px, calc((100% - 120px) / 6)), 1fr))', gap: 'clamp(12px, 2vw, 24px)' }}>
           {dashCards.map((k, i) => (
             <button
               key={k.uid || i}

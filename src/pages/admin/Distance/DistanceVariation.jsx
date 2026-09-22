@@ -3,6 +3,7 @@ import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { CircleCheck, SearchCheck } from 'lucide-react';
 import { RowActions } from '../../../components/common/RowActions';
+import { matchesSearch } from '../../../utils/search';
 
 export const DistanceVariation = () => {
   const { T, st, distQ, setDistQ, distReview, setDistReview, navTo, showToast } = useTMSAdmin();
@@ -78,9 +79,8 @@ export const DistanceVariation = () => {
   });
 
   const distFlagged = distAll.filter(d => d.flagged).length;
-  const q = (distQ || '').trim().toLowerCase();
   const distRows = distAll
-    .filter(d => !q || [d.vehicleNumber, d.number, d.route, d.branchName].join(' ').toLowerCase().includes(q))
+    .filter(d => matchesSearch(distQ, d.vehicleNumber, d.number, d.route, d.branchName))
     .sort((a, b) => b.pct - a.pct);
   const distPg = usePagination(distRows, [distQ]);
   const distAlerts = distAll.filter(d => d.canClose).sort((a, b) => b.pct - a.pct);

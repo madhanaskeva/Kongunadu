@@ -6,6 +6,7 @@ import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { downloadXlsx, readSheet } from '../../../utils/spreadsheet';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
+import { matchesSearch } from '../../../utils/search';
 
 export const MasterManager = ({ type }) => {
   const {
@@ -121,6 +122,7 @@ export const MasterManager = ({ type }) => {
       fields: [
         ['name', 'Full name'],
         ['phone', 'Mobile number', null, '90031 55012', { clean: 'phone', prefix: '+91' }],
+        ['email', 'Sign-in email', null, 'name@transport.example'],
         ['branch', 'Branch', branchOpts],
         ['clients', 'Clients handled', 'checkbox-select', 'Select clients handled', { options: clientOpts }],
         ['status', 'Status', ['Active', 'Suspended']],
@@ -315,7 +317,6 @@ export const MasterManager = ({ type }) => {
   const m = mastersConfig[type] || mastersConfig.branches;
 
   // Filter & Queue Logic
-  const mq = masterQ.trim().toLowerCase();
   const queueSrc = [
     ...drvReqs.filter(r => r.status === 'Pending').map(r => ({ ...r, req: true })),
     ...(tms.drivers || []).filter(d => (approvals[d.id] || d.approval) === 'Pending approval').map(d => ({ ...d, req: false })),
@@ -338,7 +339,7 @@ export const MasterManager = ({ type }) => {
 
   const rows = m.data.filter(r =>
     !deleted.includes(r.id) &&
-    (!mq || Object.values(r).join(' ').toLowerCase().includes(mq)) &&
+    matchesSearch(masterQ, Object.values(r), (tms.B[r.branch] || {}).name) &&
     (type !== 'drivers' || !driverApprovalFilter || (approvals[r.id] || r.approval || 'Approved') === driverApprovalFilter)
   );
   const rowsPg = usePagination(rows, [type, masterQ, driverApprovalFilter]);

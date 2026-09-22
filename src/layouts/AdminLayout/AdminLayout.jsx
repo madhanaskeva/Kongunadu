@@ -10,6 +10,7 @@ import { getPageMeta } from './pageMeta';
 import { useModuleAccess } from '../../hooks/useModuleAccess';
 import { moduleForPath } from '../../utils/moduleAccess';
 import './adminLayout.css';
+import { matchesSearch } from '../../utils/search';
 
 const AdminLayoutContent = () => {
   const {
@@ -44,7 +45,7 @@ const AdminLayoutContent = () => {
   const searchResults = searching
     ? [
         ...trips
-          .filter(t => [t.number, (tms.V[t.vehicle] || {}).number, (tms.D[t.driver] || {}).name].join(' ').toLowerCase().includes(gq))
+          .filter(t => matchesSearch(gq, t.number, (tms.V[t.vehicle] || {}).number, (tms.D[t.driver] || {}).name))
           .map(t => ({
             kind: 'Trip',
             title: t.number,
@@ -53,7 +54,7 @@ const AdminLayoutContent = () => {
             id: t.id,
           })),
         ...vehicles
-          .filter(v => v.number.toLowerCase().includes(gq))
+          .filter(v => matchesSearch(gq, v.number))
           .map(v => ({
             kind: 'Vehicle',
             title: v.number,
@@ -62,7 +63,7 @@ const AdminLayoutContent = () => {
             id: v.id,
           })),
         ...drivers
-          .filter(d => d.name.toLowerCase().includes(gq))
+          .filter(d => matchesSearch(gq, d.name))
           .map(d => ({
             kind: 'Driver',
             title: d.name,
@@ -71,7 +72,7 @@ const AdminLayoutContent = () => {
             id: d.id,
           })),
         ...clients
-          .filter(c => c.name.toLowerCase().includes(gq))
+          .filter(c => matchesSearch(gq, c.name))
           .map(c => ({
             kind: 'Client',
             title: c.name,

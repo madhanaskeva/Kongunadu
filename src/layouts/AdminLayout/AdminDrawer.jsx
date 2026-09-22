@@ -789,8 +789,9 @@ export const AdminDrawer = () => {
           >
             Cancel
           </button>
-          {drawer.isException && (
+          {drawer.isException && exc.status !== 'Resolved' && (
             <>
+              {exc.status === 'Open' && (
               <button
                 onClick={handleExcUnderReview}
                 style={{
@@ -808,6 +809,7 @@ export const AdminDrawer = () => {
               >
                 Mark under review
               </button>
+              )}
               <button
                 onClick={handleExcResolve}
                 style={{

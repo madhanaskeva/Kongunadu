@@ -202,7 +202,7 @@ export const Exceptions = () => {
                     <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-heading)' }}>{x.vehicleNumber}</span>
                     <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>{x.tripNumber}</span>
                   </td>
-                  <td style={{ padding: '12px 14px', maxWidth: '340px', color: 'var(--text-body)' }}>
+                  <td style={{ padding: '12px 14px', minWidth: '240px', maxWidth: '340px', color: 'var(--text-body)' }}>
                     {x.detail}
                   </td>
                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{x.branchName}</td>
