@@ -85,6 +85,58 @@
   background: var(--color-brand-tint);
 }
 
+.tms-topbar-send-notice-btn {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
+  height: 38px;
+  background: var(--kr-green-700, #005a36);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 48, 33, 0.08);
+  transition: background 0.15s ease, transform 0.1s ease;
+  white-space: nowrap;
+}
+
+.tms-topbar-send-notice-btn:hover {
+  background: var(--kr-green-800, #00462a);
+}
+
+.tms-topbar-send-notice-btn:active {
+  transform: scale(0.98);
+}
+
+.tms-topbar-notif-btn {
+  position: relative;
+}
+
+.tms-topbar-notif-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  background: var(--kr-red-600, #d32f2f);
+  color: #ffffff;
+  border-radius: 10px;
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 15px;
+  text-align: center;
+  border: 1.5px solid #ffffff;
+  pointer-events: none;
+}
+
 .tms-topbar-account {
   all: unset;
   cursor: pointer;

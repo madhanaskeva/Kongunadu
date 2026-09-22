@@ -69,7 +69,7 @@ export const TripDetail = () => {
         ['advance', 'Advance given'],
         ['diesel', 'Diesel given'],
         ['type', 'Trip type', ['Business', 'Non-Business']],
-        ['reason', 'Non-business reason', ['', 'Maintenance', 'Internal Movement', 'Empty Return', 'Driver Testing']],
+        ['reason', 'Non-business reason', ['Maintenance', 'Internal Movement', 'Empty Return', 'Driver Testing']],
       ],
     });
     setForm({

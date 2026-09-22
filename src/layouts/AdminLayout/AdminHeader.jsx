@@ -1,12 +1,23 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { ChevronRight, Menu } from 'lucide-react';
+import { useTMSAdmin } from '../../context/TMSAdminContext';
+import { ChevronRight, Menu, Bell } from 'lucide-react';
+import SendNoticeModal from '../../components/common/SendNoticeModal';
+import AdminNotificationsModal from '../../components/common/AdminNotificationsModal';
 
 export const AdminHeader = ({ onOpenNav, narrow }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const {
+    adminNotifOpen,
+    setAdminNotifOpen,
+    sendNoticeOpen,
+    setSendNoticeOpen,
+    unreadAdminNotifCount,
+  } = useTMSAdmin();
+
   const onProfile = pathname.startsWith('/admin/profile');
   const displayName = user?.name || 'Head Office Admin';
   const shortName = user?.role === 'Administrator' ? 'Admin' : displayName;
@@ -36,6 +47,30 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
 
         <div className="tms-topbar-scene" aria-hidden="true" />
 
+        {/* Send notice button */}
+        <button
+          type="button"
+          onClick={() => setSendNoticeOpen(true)}
+          className="tms-topbar-send-notice-btn"
+        >
+          Send notice
+        </button>
+
+        {/* Notifications icon button */}
+        <button
+          type="button"
+          onClick={() => setAdminNotifOpen(true)}
+          className="tms-topbar-icon tms-topbar-notif-btn"
+          aria-label={`Notifications${unreadAdminNotifCount > 0 ? `, ${unreadAdminNotifCount} unread` : ''}`}
+        >
+          <Bell size={20} />
+          {unreadAdminNotifCount > 0 && (
+            <span className="tms-topbar-notif-badge">
+              {unreadAdminNotifCount > 99 ? '99+' : unreadAdminNotifCount}
+            </span>
+          )}
+        </button>
+
         <div style={{ position: 'relative', flex: 'none' }}>
           <button
             onClick={() => navigate('/admin/profile')}
@@ -58,6 +93,17 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
           </button>
         </div>
       </header>
+
+      {/* Popups */}
+      <SendNoticeModal
+        isOpen={sendNoticeOpen}
+        onClose={() => setSendNoticeOpen(false)}
+      />
+
+      <AdminNotificationsModal
+        isOpen={adminNotifOpen}
+        onClose={() => setAdminNotifOpen(false)}
+      />
     </>
   );
 };

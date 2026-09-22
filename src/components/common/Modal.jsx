@@ -23,6 +23,8 @@ export const Modal = ({
   children,
   maxWidth = '540px',
   footer,
+  footerStyle = {},
+  bodyStyle = {},
 }) => {
   return (
     <AntModal
@@ -130,6 +132,7 @@ export const Modal = ({
           padding: '24px',
           overflowY: 'auto',
           flex: 1,
+          ...bodyStyle,
         }}
       >
         {children}
@@ -146,6 +149,7 @@ export const Modal = ({
             alignItems: 'center',
             justifyContent: 'flex-end',
             gap: '12px',
+            ...footerStyle,
           }}
         >
           {footer}
