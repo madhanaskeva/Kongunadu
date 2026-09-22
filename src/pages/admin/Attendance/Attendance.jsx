@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
@@ -128,8 +129,10 @@ export const Attendance = () => {
       return {
         key: `${d.id}-${date}`,
         name: d.name,
+        vehicle: (tms.V[vehicleId] || {}).number || '—',
         vehicle,
         branchName: (tms.B[d.branch] || {}).name || d.branch,
+        status: mark === 'P' ? 'Present' : mark === 'A' ? 'Absent' : 'Not marked',
         status,
         date,
       };
