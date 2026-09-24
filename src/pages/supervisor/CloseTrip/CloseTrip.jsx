@@ -127,7 +127,7 @@ export const CloseTrip = ({ v }) => (
                     <div style={{ marginTop: "-4px", fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>{v.legErr.route}</div>
                   </>
                 ) : null}
-                <Input label="Odometer at To point" placeholder={v.legPrevText} value={v.cf.legDraft.reading} onChange={v.setLegReading} inputMode="numeric" suffix="km" error={v.legErr.reading} hint={v.legReadingHint} />
+                <Input label="Odometer End KM" placeholder={v.legPrevText} value={v.cf.legDraft.reading} onChange={v.setLegReading} inputMode="numeric" suffix="km" error={v.legErr.reading} hint={v.legReadingHint} />
                 <div>
                   <div style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>Odometer photo</div>
                   {v.legPhotoEmpty ? (
