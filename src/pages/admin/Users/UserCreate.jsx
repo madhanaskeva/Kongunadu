@@ -36,7 +36,7 @@ export const UserCreate = () => {
           label="Role"
           value={formData.role}
           onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          options={['Administrator', 'Owner (read-only)', 'Billing (read-only)']}
+          options={['Administrator', 'Verification Team', 'Owner (read-only)', 'Billing (read-only)']}
         />
         <FormSelect
           label="Branch Scope"

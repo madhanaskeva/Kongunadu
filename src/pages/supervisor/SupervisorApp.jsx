@@ -1,6 +1,7 @@
 import React from 'react';
 import SupervisorScreens from './SupervisorScreens';
 import { TMS, formatPhone } from '../../utils';
+import { isPendingClose, pendingCloseDetail, ENROUTE_LABEL } from '../../utils/tripStatus';
 import './supervisorStates.css';
 import './supervisorApp.css';
 
@@ -92,7 +93,11 @@ export class SupervisorApp extends React.Component {
     const json = JSON.stringify(list);
     if (json === this._noticeJson) return;
     const first = this._noticeJson === undefined; this._noticeJson = json;
-    const mine = list.filter(n => n.branch === this.BR || n.branch === 'all');
+    // A notice addressed to named supervisors (`to`) reaches only them;
+    // everything else is branch-wide as before.
+    const mine = list.filter(n => (Array.isArray(n.to) && n.to.length)
+      ? n.to.includes(this.SUP)
+      : (n.branch === this.BR || n.branch === 'all'));
     const fresh = first ? [] : mine.filter(n => !this.state.adminNotices.some(o => o.id === n.id));
     this.setState({ adminNotices: mine });
     if (fresh.length && !['approval', 'otp', 'register', 'login'].includes(this.state.screen)) this.toast(fresh[0].priority === 'Urgent' ? 'warning' : 'info', fresh[0].kind === 'message' ? 'New message from Head Office' : 'Update from Head Office', fresh[0].title);
@@ -182,7 +187,7 @@ export class SupervisorApp extends React.Component {
   active() { return this.allTrips().filter(t => t.branch === this.BR && t.status === 'Enroute' && !this.state.closedIds.includes(t.id)); }
   // Badge colours per status label → [background, text, edge], from the --st-* palette in <helmet>.
   statusTone(label) {
-    const k = { 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent' }[label] || 'neutral';
+    const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent' }[label] || 'neutral';
     return [`var(--st-${k}-bg)`, `var(--st-${k}-fg)`, `var(--st-${k}-edge)`];
   }
   decorate(t) {
@@ -541,7 +546,8 @@ export class SupervisorApp extends React.Component {
     const noticeAt = sort => { const [d, hm = ''] = String(sort || '').split(' '); const [y, m, dd] = d.split('-'); return m ? `${Number(dd)} ${MON[Number(m) - 1]} ${hm.slice(0, 5)}` : ''; };
     const noticeAtLong = sort => { const [d, hm = ''] = String(sort || '').split(' '); const [y, m, dd] = d.split('-'); return m ? `${Number(dd)} ${MON[Number(m) - 1]} ${y}, ${hm.slice(0, 5)}` : ''; };
     const alertItems = [
-      ...activeD.filter(t => t.hoursOpen > 24).map(t => ({ id: `al-long-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:30', title: `Long open trip · ${t.vehicleNumber}`, body: `${t.number} has been open ${t.hoursOpen} h against an expected ${t.expectedHours} h. Close it once unloading is done, or Head Office is alerted.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Open for', `${t.hoursOpen} h · expected ${t.expectedHours} h`]], link: { trip: t.id }, linkLabel: 'View trip' })),
+      ...activeD.filter(t => isPendingClose(t)).map(t => ({ id: `al-pendclose-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:45', title: `Trip completed · not closed · ${t.vehicleNumber}`, body: `${t.number} has reached the customer but is still open — ${pendingCloseDetail(t)}. File the closing entry so Head Office can bill the trip.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Why', pendingCloseDetail(t)]], link: { trip: t.id }, linkLabel: 'Close trip' })),
+      ...activeD.filter(t => t.hoursOpen > 24 && !isPendingClose(t)).map(t => ({ id: `al-long-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:30', title: `Long open trip · ${t.vehicleNumber}`, body: `${t.number} has been open ${t.hoursOpen} h against an expected ${t.expectedHours} h. Close it once unloading is done, or Head Office is alerted.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Open for', `${t.hoursOpen} h · expected ${t.expectedHours} h`]], link: { trip: t.id }, linkLabel: 'View trip' })),
       ...(attendanceMarked < attendanceTotal ? [{ id: 'al-att-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:00', title: 'Attendance pending for today', body: `${attendanceTotal - attendanceMarked} of ${attendanceTotal} drivers are not marked for ${todayDM}. Missing attendance is reported to Head Office after 48 hours.`, rows: [['Marked', attDrivers.filter(d => s.att[d.id]).map(d => d.name).join(', ') || 'None yet'], ['Not marked', attDrivers.filter(d => !s.att[d.id]).map(d => d.name).join(', ')], ['Date', prettyDay(todayIso)]], link: { screen: 'attMark' }, linkLabel: 'Mark attendance' }] : []),
       ...(idleMissing ? [{ id: 'al-idle-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 08:30', title: 'Idle reason missing', body: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle has' : 'vehicles have'} no reason recorded. Head Office uses the reason to plan loads and maintenance.`, rows: idleRows.filter(v => v.missingReason).map(v => [v.number, v.sinceText]), link: { screen: 'idle' }, linkLabel: 'Record idle reasons' }] : [])
     ];
@@ -730,7 +736,7 @@ export class SupervisorApp extends React.Component {
           } catch (e) {}
           this.setState(st => ({ saving: false, screen: 'openDone', localTrips: [...st.localTrips, t], newTrip: t, form: this.blankForm(), showErrors: false, idle: { ...st.idle, [f.vehicle]: { on: false, reason: '', note: '' } } }));
           this.toast('success', 'Trip saved', num + ' is enroute. GPS monitoring started.');
-          this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', 'Enroute']], link: { trip: t.id }, linkLabel: 'View trip' });
+          this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', ENROUTE_LABEL]], link: { trip: t.id }, linkLabel: 'View trip' });
           this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by ${me.name} (${me.branch}).`, time: 'Just now' });
         }, 1200);
       },

@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
   ArrowDown, Building2, ChevronDown, CircleCheck, Download,
-  Flag, Play, Search, Tag, TriangleAlert, Truck,
+  Flag, ClockAlert, Play, Search, Tag, TriangleAlert, Truck, X,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { RowActions } from '../../../components/common/RowActions';
+import { MultiSelect } from '../../../components/common/MultiSelect';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
+import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
+
+// Tab id for the exception filter — not a trip status, so it is matched separately.
+const PENDING_TAB = 'pending';
 
 const filterLabel = { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' };
 const fieldWrap = { position: 'relative', display: 'flex', alignItems: 'center' };
@@ -43,6 +48,13 @@ const FilterSelect = ({ label, icon: Icon, value, onChange, allLabel, options, w
   </div>
 );
 
+const FilterMultiSelect = ({ label, noun, width, ...rest }) => (
+  <div style={{ width, flex: 'none' }}>
+    <label style={filterLabel} id={`${noun}-filter-label`}>{label}</label>
+    <MultiSelect noun={noun} labelledBy={`${noun}-filter-label`} {...rest} />
+  </div>
+);
+
 export const TripList = () => {
   const {
     T,
@@ -60,9 +72,14 @@ export const TripList = () => {
     const v = tms.V[t.vehicle], d = tms.D[t.driver], c = tms.C[t.client], b = tms.B[t.branch], s = tms.S[t.supervisor];
     const long = t.status === 'Enroute' && t.hoursOpen > 24;
     const gpsBad = (t.flags || []).some(f => /GPS/.test(f));
-    const badge = t.status === 'Closed' ? ((t.flags || []).length ? 'Closed · flagged' : 'Closed') : long ? 'Long open' : gpsBad ? 'GPS issue' : t.stage || 'Enroute';
+    // A trip that has arrived but was never closed is the most actionable state,
+    // so it outranks the long-open and GPS badges.
+    const pendingClose = isPendingClose(t);
+    const badge = t.status === 'Closed' ? ((t.flags || []).length ? 'Closed · flagged' : 'Closed')
+      : pendingClose ? PENDING_CLOSE_LABEL
+      : long ? 'Long open' : gpsBad ? 'GPS issue' : t.stage || ENROUTE_LABEL;
     const badgeColors = {
-      'Enroute': ['var(--st-enroute-bg)', 'var(--st-enroute-fg)'],
+      [ENROUTE_LABEL]: ['var(--st-enroute-bg)', 'var(--st-enroute-fg)'],
       'Closed': ['var(--st-closed-bg)', 'var(--st-closed-fg)'],
       'Closed · flagged': ['var(--st-flagged-bg)', 'var(--st-flagged-fg)'],
       'Long open': ['var(--st-long-bg)', 'var(--st-long-fg)'],
@@ -70,6 +87,7 @@ export const TripList = () => {
       'Loading': ['var(--st-loading-bg)', 'var(--st-loading-fg)'],
       'Unloading': ['var(--st-unloading-bg)', 'var(--st-unloading-fg)'],
       'Delayed': ['var(--st-delayed-bg)', 'var(--st-delayed-fg)'],
+      [PENDING_CLOSE_LABEL]: ['var(--st-pending-bg)', 'var(--st-pending-fg)'],
     };
     const [badgeBg, badgeFg] = badgeColors[badge] || ['var(--kr-grey-100)', 'var(--kr-grey-700)'];
     const flags = t.flags || [];
@@ -87,13 +105,22 @@ export const TripList = () => {
       flagText: flags.join(', ') || '—',
       flagColor: flags.length ? badgeFg : 'var(--text-muted)',
       hasFlags: flags.length > 0,
+      pendingClose,
+      pendingCloseDetail: pendingClose ? pendingCloseDetail(t) : '',
     };
   });
 
+  const statusMatch = (t) =>
+    !tf.status || (tf.status === PENDING_TAB ? t.pendingClose : t.status === tf.status);
+
+  // No vehicle ticked means every vehicle, so an empty list is not a filter.
+  const pickedVehicles = tf.vehicles || [];
+
   const tripMatch = (t, ignoreStatus) =>
     (!tf.branch || t.branch === tf.branch) &&
-    (ignoreStatus || !tf.status || t.status === tf.status) &&
+    (ignoreStatus || statusMatch(t)) &&
     (!tf.type || t.type === tf.type) &&
+    (!pickedVehicles.length || pickedVehicles.includes(t.vehicle)) &&
     (!tf.flag || (tf.flag === 'flagged' ? t.hasFlags : !t.hasFlags)) &&
     matchesSearch(tf.q, t.number, t.vehicleNumber, t.driverName, t.clientName, t.unloading);
 
@@ -104,18 +131,34 @@ export const TripList = () => {
   const typeOptions = [{ value: 'Business', label: 'Business' }, { value: 'Non-Business', label: 'Non-Business' }];
   const flagOptions = [{ value: 'flagged', label: 'Flagged only' }, { value: 'clean', label: 'No flags' }];
 
+  // Vehicles narrow to the branch already chosen, and each carries its trip count
+  // so the list says how much picking it would actually show.
+  const vehicleOptions = (tms.vehicles || [])
+    .filter(veh => !tf.branch || veh.branch === tf.branch)
+    .map(veh => ({
+      value: veh.id,
+      label: veh.number,
+      sub: [veh.type, (tms.B[veh.branch] || {}).name].filter(Boolean).join(' · '),
+      count: trips.filter(t => t.vehicle === veh.id).length,
+    }));
+
+  const setVehicles = (ids) => setTf({ ...tf, vehicles: ids });
+
   const tripCols = ['Trip number', 'Branch', 'Vehicle', 'Driver', 'Client · unloading', 'Type', 'Opened', 'Status', 'Flags', 'Actions'];
   const tripEnrouteCount = tripRows.filter(t => t.status === 'Enroute').length;
 
   const [draftQ, setDraftQ] = useState(tf.q || '');
+  // Only the first few ticked vehicles get a chip; the rest stay behind a "+n more".
+  const [allChips, setAllChips] = useState(false);
+  const CHIP_CAP = 5;
 
   useEffect(() => { setDraftQ(tf.q || ''); }, [tf.q]);
-  const tripPg = usePagination(tripRows, [tf.branch, tf.status, tf.type, tf.flag, tf.q]);
+  const tripPg = usePagination(tripRows, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
 
 
   const clearTf = () => {
     setDraftQ('');
-    setTf({ branch: '', status: '', type: '', flag: '', q: '' });
+    setTf({ branch: '', status: '', type: '', flag: '', q: '', vehicles: [] });
   };
   const runSearch = () => setTf({ ...tf, q: draftQ.trim() });
 
@@ -126,6 +169,7 @@ export const TripList = () => {
       ['Client', t => t.clientName], ['Unloading', t => t.unloading], ['Type', t => t.typeLabel], ['Opened', t => t.opened],
       ['Closed', t => t.closed], ['Start KM', t => t.startKm], ['Closing KM', t => t.closeKm], ['Invoice', t => t.invoice],
       ['LR', t => t.lr], ['Status', t => t.badge], ['Flags', t => (t.flags || []).join(', ')],
+      ['Pending closure', t => (t.pendingClose ? t.pendingCloseDetail : '')],
     ];
     const name = `Trips_${fileDate()}.xlsx`;
     downloadXlsx(name, [{ name: 'Trips', columns: cols.map(c => c[0]), rows: tripRows.map(t => cols.map(c => { const v = c[1](t); return v == null ? '' : v; })) }]);
@@ -137,11 +181,15 @@ export const TripList = () => {
     navTo('trip', { selectedTrip: id });
   };
 
+  const pendingCloseCount = trips.filter(t => t.pendingClose).length;
+
+  // Each card is a shortcut into the filter it counts.
   const kpis = [
-    { label: 'Total Trips', value: trips.length, note: 'All recorded trips', icon: Truck, bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-edge)' },
-    { label: 'Enroute', value: trips.filter(t => t.status === 'Enroute').length, note: 'Active trips on road', icon: Play, bg: 'var(--kr-green-100)', fg: 'var(--kr-green-700)' },
-    { label: 'Closed', value: trips.filter(t => t.status === 'Closed').length, note: 'Completed trips', icon: CircleCheck, bg: 'var(--kr-green-100)', fg: 'var(--kr-green-600)' },
-    { label: 'Exceptions', value: trips.filter(t => t.hasFlags).length, note: 'Needs attention', icon: TriangleAlert, bg: 'var(--kr-red-100)', fg: 'var(--kr-red-600)' },
+    { label: 'Total Trips', value: trips.length, note: 'All recorded trips', icon: Truck, bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-edge)', apply: { status: '', flag: '' }, on: !tf.status && !tf.flag },
+    { label: ENROUTE_LABEL, value: trips.filter(t => t.status === 'Enroute').length, note: 'Active trips on road', icon: Play, bg: 'var(--kr-green-100)', fg: 'var(--kr-green-700)', apply: { status: 'Enroute', flag: '' }, on: tf.status === 'Enroute' },
+    { label: 'Closed', value: trips.filter(t => t.status === 'Closed').length, note: 'Completed trips', icon: CircleCheck, bg: 'var(--kr-green-100)', fg: 'var(--kr-green-600)', apply: { status: 'Closed', flag: '' }, on: tf.status === 'Closed' },
+    { label: 'Pending closure', value: pendingCloseCount, note: 'Completed · not closed', icon: ClockAlert, bg: 'var(--st-pending-bg)', fg: 'var(--st-pending-edge)', apply: { status: PENDING_TAB, flag: '' }, on: tf.status === PENDING_TAB },
+    { label: 'Exceptions', value: trips.filter(t => t.hasFlags).length, note: 'Flagged trips', icon: TriangleAlert, bg: 'var(--kr-red-100)', fg: 'var(--kr-red-600)', apply: { status: '', flag: 'flagged' }, on: tf.flag === 'flagged' },
   ];
 
   return (
@@ -151,7 +199,19 @@ export const TripList = () => {
         {kpis.map(k => {
           const Icon = k.icon;
           return (
-            <div key={k.label} className="tms-card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 20px' }}>
+            <button
+              key={k.label}
+              type="button"
+              onClick={() => setTf({ ...tf, ...k.apply })}
+              aria-pressed={k.on}
+              className="tms-card"
+              style={{
+                font: 'inherit', textAlign: 'left', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
+                display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 20px',
+                borderColor: k.on ? k.fg : undefined,
+                boxShadow: k.on ? `inset 0 0 0 1px ${k.fg}, 0 1px 3px rgba(0, 48, 33, 0.05)` : undefined,
+              }}
+            >
               <span style={{ flex: 'none', width: '54px', height: '54px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: k.bg, color: k.fg }}>
                 <Icon size={26} strokeWidth={2.2} />
               </span>
@@ -160,14 +220,38 @@ export const TripList = () => {
                 <div style={{ marginTop: '2px', fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800, color: 'var(--kr-grey-900)' }}>{k.value}</div>
               </div>
               <div style={{ alignSelf: 'flex-end', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'right' }}>{k.note}</div>
-            </div>
+            </button>
           );
         })}
       </div>
 
       {/* Filters Bar */}
       <div className="tms-card" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end', padding: '18px 20px' }}>
-        <FilterSelect label="Branch" icon={Building2} width="190px" value={tf.branch} allLabel="All branches" options={branchOptions} onChange={(v) => setTf({ ...tf, branch: v })} />
+        <FilterSelect
+          label="Branch"
+          icon={Building2}
+          width="190px"
+          value={tf.branch}
+          allLabel="All branches"
+          options={branchOptions}
+          // Switching branch drops any ticked vehicle that branch does not own,
+          // otherwise the table would silently come back empty.
+          onChange={(v) => setTf({
+            ...tf,
+            branch: v,
+            vehicles: pickedVehicles.filter(id => !v || (tms.V[id] || {}).branch === v),
+          })}
+        />
+        <FilterMultiSelect
+          label="Vehicle"
+          icon={Truck}
+          noun="vehicle"
+          width="210px"
+          allLabel="All vehicles"
+          options={vehicleOptions}
+          value={pickedVehicles}
+          onChange={setVehicles}
+        />
         <FilterSelect label="Type" icon={Tag} width="160px" value={tf.type} allLabel="All types" options={typeOptions} onChange={(v) => setTf({ ...tf, type: v })} />
         <FilterSelect label="Flags" icon={Flag} width="160px" value={tf.flag} allLabel="Any" options={flagOptions} onChange={(v) => setTf({ ...tf, flag: v })} />
 
@@ -200,6 +284,102 @@ export const TripList = () => {
             Clear
           </button>
         </form>
+
+        {/* Ticked vehicles stay visible, so a narrow result is never a mystery.
+            Everything ticked is the same as nothing ticked, so that case just says so. */}
+        {pickedVehicles.length > 0 && (() => {
+          const everyOne = pickedVehicles.length === vehicleOptions.length;
+          const chips = everyOne ? [] : allChips ? pickedVehicles : pickedVehicles.slice(0, CHIP_CAP);
+          const hidden = pickedVehicles.length - chips.length;
+          return (
+            <div
+              style={{
+                flexBasis: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flexWrap: 'wrap',
+                marginTop: '2px',
+                paddingTop: '14px',
+                borderTop: '1px solid #edf1ef',
+              }}
+            >
+              <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--kr-grey-700)', marginRight: '2px' }}>
+                {everyOne
+                  ? `All ${vehicleOptions.length} vehicles`
+                  : `${pickedVehicles.length} of ${vehicleOptions.length} vehicles`}
+              </span>
+              {chips.map(id => (
+                <span
+                  key={id}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    height: '26px',
+                    padding: '0 4px 0 9px',
+                    borderRadius: '999px',
+                    background: 'var(--kr-green-100)',
+                    color: 'var(--kr-green-800)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {(tms.V[id] || {}).number || id}
+                  <button
+                    type="button"
+                    onClick={() => setVehicles(pickedVehicles.filter(x => x !== id))}
+                    aria-label={`Remove ${(tms.V[id] || {}).number || id} from the filter`}
+                    style={{ all: 'unset', cursor: 'pointer', display: 'grid', placeItems: 'center', width: '18px', height: '18px', borderRadius: '50%' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,74,49,.15)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <X size={12} strokeWidth={2.5} />
+                  </button>
+                </span>
+              ))}
+              {hidden > 0 && !everyOne && (
+                <button
+                  type="button"
+                  onClick={() => setAllChips(true)}
+                  style={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    height: '26px',
+                    boxSizing: 'border-box',
+                    padding: '0 10px',
+                    borderRadius: '999px',
+                    border: '1px dashed #c3d5cc',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: 'var(--kr-grey-700)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  +{hidden} more
+                </button>
+              )}
+              {allChips && !everyOne && pickedVehicles.length > CHIP_CAP && (
+                <button
+                  type="button"
+                  onClick={() => setAllChips(false)}
+                  style={{ all: 'unset', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--kr-grey-700)' }}
+                >
+                  Show less
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => { setVehicles([]); setAllChips(false); }}
+                style={{ all: 'unset', cursor: 'pointer', marginLeft: '2px', fontSize: '12.5px', fontWeight: 700, color: 'var(--text-brand)' }}
+              >
+                Clear
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Table Container */}
@@ -209,10 +389,13 @@ export const TripList = () => {
           <div className="tms-tabrow" style={{ display: 'flex', gap: '4px' }}>
             {[
               { id: '', label: 'All', count: statusPool.length },
-              { id: 'Enroute', label: 'Enroute', count: statusPool.filter(t => t.status === 'Enroute').length },
+              { id: 'Enroute', label: ENROUTE_LABEL, count: statusPool.filter(t => t.status === 'Enroute').length },
               { id: 'Closed', label: 'Closed', count: statusPool.filter(t => t.status === 'Closed').length },
+              { id: PENDING_TAB, label: PENDING_CLOSE_LABEL, count: statusPool.filter(t => t.pendingClose).length, accent: 'var(--st-pending-fg)', icon: ClockAlert },
             ].map(tab => {
               const on = (tf.status || '') === tab.id;
+              const accent = tab.accent || 'var(--kr-green-700)';
+              const TabIcon = tab.icon;
               return (
                 <button
                   key={tab.id}
@@ -223,15 +406,17 @@ export const TripList = () => {
                     padding: '16px 22px 13px',
                     fontSize: '15px',
                     fontWeight: 700,
-                    borderBottom: `3px solid ${on ? 'var(--kr-green-700)' : 'transparent'}`,
-                    color: on ? 'var(--kr-green-700)' : 'var(--text-heading)',
+                    whiteSpace: 'nowrap',
+                    borderBottom: `3px solid ${on ? accent : 'transparent'}`,
+                    color: on ? accent : 'var(--text-heading)',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
                   }}
                 >
+                  {TabIcon && <TabIcon size={16} style={{ color: on ? accent : 'var(--st-pending-edge)' }} />}
                   {tab.label}
-                  <span style={{ fontSize: '13px', fontWeight: on ? 700 : 500, color: on ? 'var(--kr-green-700)' : 'var(--text-muted)' }}>({tab.count})</span>
+                  <span style={{ fontSize: '13px', fontWeight: on ? 700 : 500, color: on ? accent : 'var(--text-muted)' }}>({tab.count})</span>
                 </button>
               );
             })}
@@ -239,7 +424,10 @@ export const TripList = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '10px 0', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              <strong style={{ color: 'var(--text-heading)' }}>{tripRows.length}</strong> trips · {tripEnrouteCount} enroute
+              <strong style={{ color: 'var(--text-heading)' }}>{tripRows.length}</strong> trips · {tripEnrouteCount} {ENROUTE_LABEL_LOWER}
+              {pendingCloseCount > 0 && (
+                <> · <strong style={{ color: 'var(--st-pending-fg)' }}>{pendingCloseCount}</strong> pending closure</>
+              )}
             </span>
             {can('trips', 'export') && (
               // Shown for now without the export; wire onClick={exportTrips} back to enable it.
@@ -346,7 +534,13 @@ export const TripList = () => {
                         <Flag size={13} fill="currentColor" style={{ flex: 'none', marginTop: '2px' }} />
                         {t.flagText}
                       </span>
-                    ) : '—'}
+                    ) : t.pendingClose ? null : '—'}
+                    {t.pendingClose && (
+                      <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: t.hasFlags ? '4px' : 0, lineHeight: 1.4, color: 'var(--st-pending-fg)' }}>
+                        <ClockAlert size={13} style={{ flex: 'none', marginTop: '2px' }} />
+                        {t.pendingCloseDetail}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'center' }}>
                     <RowActions

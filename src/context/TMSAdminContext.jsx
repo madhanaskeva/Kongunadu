@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TMS, formatPhone, formatImei } from '../utils';
+import { isPendingClose, pendingCloseDetail } from '../utils/tripStatus';
 
 const TMSAdminContext = createContext(null);
 
@@ -25,6 +26,8 @@ export const TMSAdminProvider = ({ children }) => {
   const DELETED_KEY = 'kr-tms-deleted';
   const EXC_KEY = 'kr-tms-exception-overrides';
   const DIST_KEY = 'kr-tms-distance-review';
+  const VERIFY_KEY = 'kr-tms-trip-verification';
+  const DEDUCT_KEY = 'kr-tms-driver-deductions';
   const ST_KEY = 'kr-tms-settings';
   const ADMIN_NOTIF_KEY = 'kr-tms-admin-notifications';
   const ADMIN_NOTIF_READ_KEY = 'kr-tms-admin-notifications-read';
@@ -93,13 +96,19 @@ export const TMSAdminProvider = ({ children }) => {
   const [toast, setToast] = useState(null);
   const [globalQ, setGlobalQ] = useState('');
   const [selectedTrip, setSelectedTrip] = useState('T07');
-  const [tf, setTf] = useState({ branch: '', status: '', type: '', flag: '', q: '' });
+  // `vehicles` holds the ids ticked in the Trips vehicle filter — empty means every vehicle.
+  const [tf, setTf] = useState({ branch: '', status: '', type: '', flag: '', q: '', vehicles: [] });
   const [excType, setExcType] = useState('');
   const [excStatus, setExcStatus] = useState('open');
   const [excSel, setExcSel] = useState('X02');
-  const [excAssignee, setExcAssignee] = useState('');
+  // Supervisor ids ticked in the exception drawer — the alert goes to each of them.
+  const [excAssignees, setExcAssignees] = useState([]);
   const [excNote, setExcNote] = useState('');
   const [excOverrides, setExcOverrides] = usePersisted(EXC_KEY, {});
+  // Verification & approval records, keyed by trip id. See utils/tripVerification.js.
+  const [tripVerify, setTripVerify] = usePersisted(VERIFY_KEY, {});
+  // Salary deductions raised against drivers when an excess is not explained away.
+  const [deductions, setDeductions] = usePersisted(DEDUCT_KEY, []);
   const [fleetFilter, setFleetFilter] = useState('all');
   const [masterQ, setMasterQ] = useState('');
   const [attBranch, setAttBranch] = useState('');
@@ -208,6 +217,32 @@ export const TMSAdminProvider = ({ children }) => {
     } catch (e) {}
   };
 
+  // Adds only the items whose `key` is not already in the list, so system-generated
+  // alerts (pending closures, etc.) are raised once and survive reloads.
+  const pushAdminNotificationsOnce = (items) => {
+    if (!items || !items.length) return;
+    setAdminNotifications((prev) => {
+      const seen = new Set(prev.map((n) => n.key).filter(Boolean));
+      const fresh = items
+        .filter((i) => i.key && !seen.has(i.key))
+        .map((i) => ({
+          id: 'AN-' + i.key,
+          time: i.time || 'Just now',
+          createdAt: new Date().toISOString(),
+          ...i,
+        }));
+      if (!fresh.length) return prev;
+      const next = [...fresh, ...prev].slice(0, 50);
+      try {
+        localStorage.setItem(ADMIN_NOTIF_KEY, JSON.stringify(next));
+      } catch (e) {}
+      try {
+        window.dispatchEvent(new Event('kr-tms-admin-notifications-changed'));
+      } catch (e) {}
+      return next;
+    });
+  };
+
   const unreadAdminNotifCount = useMemo(() => {
     const readSet = new Set(adminNotifRead);
     return adminNotifications.filter((n) => !readSet.has(n.id)).length;
@@ -263,6 +298,22 @@ export const TMSAdminProvider = ({ children }) => {
     return out;
   }, [editsObj, deleted]);
   const T = () => tmsView;
+
+  // Trips that reached the customer but were never closed. Head Office is told once
+  // per trip; the supervisor app raises the matching alert on its own side.
+  useEffect(() => {
+    const gone = new Set(deleted);
+    const pending = (tmsView.trips || []).filter(t => !gone.has(t.id) && isPendingClose(t));
+    pushAdminNotificationsOnce(pending.map(t => {
+      const veh = (tmsView.V[t.vehicle] || {}).number || '—';
+      const sup = (tmsView.S[t.supervisor] || {}).name || 'the supervisor';
+      return {
+        key: 'pending-close-' + t.id,
+        title: 'Trip pending closure',
+        body: `${t.number} (${veh}) has completed but is not closed — ${pendingCloseDetail(t)}. Ask ${sup} to file the closing entry.`,
+      };
+    }));
+  }, [tmsView, deleted]);
 
   const fmtPhone = (d) => formatPhone(d);
   const fmtImei = (d) => formatImei(d);
@@ -630,9 +681,11 @@ export const TMSAdminProvider = ({ children }) => {
         excType, setExcType,
         excStatus, setExcStatus,
         excSel, setExcSel,
-        excAssignee, setExcAssignee,
+        excAssignees, setExcAssignees,
         excNote, setExcNote,
         excOverrides, setExcOverrides,
+        tripVerify, setTripVerify,
+        deductions, setDeductions,
         fleetFilter, setFleetFilter,
         masterQ, setMasterQ,
         attBranch, setAttBranch,
@@ -662,6 +715,7 @@ export const TMSAdminProvider = ({ children }) => {
         unreadAdminNotifCount,
         markAdminNotifsRead,
         pushAdminNotification,
+        pushAdminNotificationsOnce,
         dashTab, setDashTab,
         dashCfg: dashCfg || dashDefault(),
         saveDash,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import { getDashModules, buildCustomWidget, DEFAULT_PALETTE } from '../../../utils/dashboard-custom';
 import { RowActions } from '../../../components/common/RowActions';
 
@@ -13,7 +14,7 @@ export const Dashboard = () => {
     showToast,
     setSelectedTrip,
     setExcSel,
-    setExcAssignee,
+    setExcAssignees,
     setExcNote,
     setDrawer,
     deleted,
@@ -72,12 +73,12 @@ export const Dashboard = () => {
   const dashCatalog = {
     cards: [
       { id: 'trips', label: 'Trips today', value: 312, sub: '+18 vs yesterday · 300–400 target', subColor: 'var(--kr-green-700)', edge: 'var(--color-brand)', route: 'trips' },
-      { id: 'enroute', label: 'Enroute now', value: enroute.length * 47, sub: enroute.filter(t => t.hoursOpen > 24).length + ' open over 24 h', subColor: '#7A4300', edge: 'var(--color-brand)', route: 'trips' },
+      { id: 'enroute', label: `${ENROUTE_LABEL} now`, value: enroute.length * 47, sub: enroute.filter(t => t.hoursOpen > 24).length + ' open over 24 h', subColor: '#7A4300', edge: 'var(--color-brand)', route: 'trips' },
       { id: 'exceptions', label: 'Open exceptions', value: openExc.length, sub: openExc.filter(x => x.severity === 'High').length + ' high severity', subColor: 'var(--kr-red-700)', edge: 'var(--kr-red-600)', route: 'exceptions' },
       { id: 'hiddenKm', label: 'Hidden km · month', value: '412', sub: '6 unaccounted distance alerts', subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'exceptions' },
       { id: 'nonBiz', label: 'Non-business', value: Math.round((nonBiz.length / (trips.length || 1)) * 100) + '%', sub: 'of movements · all recorded', subColor: 'var(--text-muted)', edge: 'var(--kr-green-100)', route: 'analytics' },
       { id: 'attendance', label: 'Attendance', value: '86%', sub: '3 branches incomplete today', subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'attendance' },
-      { id: 'longOpen', label: 'Long open trips', value: longOpen.length, sub: 'Enroute for more than 24 h', subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'trips' },
+      { id: 'longOpen', label: 'Long open trips', value: longOpen.length, sub: `${ENROUTE_LABEL} for more than 24 h`, subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'trips' },
       { id: 'gpsNoFix', label: 'GPS · no fix', value: gpsFail, sub: gpsWeak + ' weak signal · ' + gpsOk + ' tracking', subColor: 'var(--kr-red-700)', edge: 'var(--kr-red-600)', route: 'fleet' },
       { id: 'distance', label: 'Distance over ' + distThr + '%', value: distFlagged, sub: distOpenCount + ' open for review', subColor: 'var(--kr-red-700)', edge: 'var(--kr-red-600)', route: 'distance' },
       { id: 'diversions', label: 'Route diversions', value: 2, sub: '1 off route now', subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'fleet' },
@@ -96,7 +97,7 @@ export const Dashboard = () => {
     ],
     lists: [
       { id: 'openExceptions', title: 'Open exceptions', desc: 'Newest open exceptions with branch', linkLabel: 'All exceptions →', route: 'exceptions', items: openExc.slice(0, 5).map(x => ({ kind: 'exc', id: x.id, dot: x.severity === 'High' ? 'var(--kr-red-600)' : x.severity === 'Medium' ? 'var(--kr-saffron-500)' : 'var(--kr-grey-500)', title: x.type + ' · ' + ((tms.V[x.vehicle] || {}).number || '—'), detail: x.detail, meta: (tms.B[x.branch] || {}).name })) },
-      { id: 'longOpenTrips', title: 'Long open trips', desc: 'Enroute for more than 24 hours', linkLabel: 'Over 24 h', route: 'trips', items: longOpen.map(t => ({ kind: 'trip', id: t.id, dot: 'var(--kr-saffron-500)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.B[t.branch] || {}).name || ''}`, meta: t.hoursOpen + ' h', metaColor: 'var(--kr-saffron-600)' })) },
+      { id: 'longOpenTrips', title: 'Long open trips', desc: `${ENROUTE_LABEL} for more than 24 hours`, linkLabel: 'Over 24 h', route: 'trips', items: longOpen.map(t => ({ kind: 'trip', id: t.id, dot: 'var(--kr-saffron-500)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.B[t.branch] || {}).name || ''}`, meta: t.hoursOpen + ' h', metaColor: 'var(--kr-saffron-600)' })) },
       { id: 'distAlerts', title: 'Distance variance alerts', desc: 'Flagged trips waiting for review', linkLabel: 'Distance variation →', route: 'distance', items: distAlerts.slice(0, 5).map(d => ({ kind: d.trip ? 'trip' : 'route', id: d.trip, route: 'distance', dot: 'var(--kr-red-600)', title: `${(tms.V[d.vehicle] || {}).number || d.number} · ${d.pctText}`, detail: (d.route || 'Corridor'), meta: d.review, metaColor: 'var(--kr-red-800)' })) },
       { id: 'driverQueue', title: 'Driver approvals', desc: 'New and pending drivers to approve', linkLabel: 'Driver master →', route: 'drivers', items: pendingDrivers.slice(0, 5).map(q => ({ kind: 'drv', id: q.id, dot: 'var(--kr-saffron-500)', title: q.name, detail: `${(tms.B[q.branch] || {}).name} · ${q.licence}`, meta: 'Review', metaColor: 'var(--text-brand)' })) },
       { id: 'deviceRequests', title: 'Device approvals', desc: 'Supervisor phones asking to register', linkLabel: 'Device approvals →', route: 'deviceApprovals', items: devPending.slice(0, 5).map(r => ({ kind: 'route', route: 'deviceApprovals', id: r.id, dot: 'var(--kr-saffron-500)', title: '+91 ' + r.phone, detail: `IMEI ${r.imei} · ${r.device || 'Android phone'}`, meta: r.requestedAt || 'Pending' })) },
@@ -164,7 +165,7 @@ export const Dashboard = () => {
       const x = exceptions.find(z => z.id === item.id);
       if (x) {
         setExcSel(x.id);
-        setExcAssignee(x.assignee === 'Unassigned' ? '' : x.assignee);
+        setExcAssignees(x.assigneeIds || []);
         setExcNote('');
         setDrawer({ isException: true, kicker: 'Exception ' + x.id, title: x.type });
       }

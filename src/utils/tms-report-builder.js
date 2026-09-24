@@ -11,6 +11,8 @@
  * A parsed clause is plain JSON ({ field, op, value, label }) so a backend can later
  * receive the same structure and run it as a database query instead of run().
  */
+import { ENROUTE_LABEL } from './tripStatus';
+
 // "Today" in the prototype data set; the portal header shows the same date.
 var NOW = new Date(2026, 8, 14, 11, 32).getTime();
   var DAY = 86400000;
@@ -134,7 +136,7 @@ var NOW = new Date(2026, 8, 14, 11, 32).getTime();
     if (t.status === 'Closed') return flags.length ? 'Closed · flagged' : 'Closed';
     if (t.hoursOpen > 24) return 'Long open';
     if (flags.some(function (f) { return /gps/i.test(f); })) return 'GPS issue';
-    return 'Enroute';
+    return ENROUTE_LABEL;
   }
   function tripDistance(t) { return t.closeKm != null && t.startKm != null ? t.closeKm - t.startKm : t.gpsKm != null ? t.gpsKm : null; }
   function dataset(type, T) {
