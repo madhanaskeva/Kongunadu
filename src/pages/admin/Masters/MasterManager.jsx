@@ -222,6 +222,9 @@ export const MasterManager = ({ type }) => {
 
   const [masterQ, setMasterQ] = useState('');
   const [activeBunksPopover, setActiveBunksPopover] = useState(null);
+  // Loading Location Master: pick the client first — locations belong to one client,
+  // so there is nothing sensible to add until we know whose location it is.
+  const [locClient, setLocClient] = useState('');
 
   const handleDeleteBunkFromRoute = (routeRec, bunkToDelete) => {
     const rawList = routeRec.authorizedBunks || [];
@@ -251,6 +254,8 @@ export const MasterManager = ({ type }) => {
   const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
   const clientList = mdata('clients', tms.clients || []);
   const clientOpts = clientList.map(c => ({ value: c.id, label: c.name }));
+  // Loading locations are owned by exactly one client, so both masters read the same list.
+  const locationList = mdata('locations', tms.locations || []);
   const supervisorList = mdata('supervisors', tms.supervisors || []);
   const getSupervisorOptions = (selectedBranch) => {
     const sups = supervisorList.filter(s => s.status !== 'Inactive' && s.status !== 'Suspended');
@@ -464,17 +469,21 @@ export const MasterManager = ({ type }) => {
           (c.supervisors && typeof c.supervisors === 'string' && c.supervisors.toLowerCase().includes(s.name.toLowerCase()))
         );
         const supervisorNames = sups.map(s => s.name).join(', ') || c.supervisors || '—';
-        const loc = (tms.locations || []).find(l => l.clientId === c.id || l.client === c.id || l.id === c.loadingLocationId);
-        const loadingLoc = c.loadingLocation || (loc ? loc.name : '') || c.contact || '—';
+        // Loading locations live in the Loading Location master and belong to one client.
+        const ownLocs = locationList.filter(l => (l.clientId || l.client) === c.id);
+        const locNames = ownLocs.map(l => l.name).filter(Boolean);
+        const loadingLoc = locNames.join(', ') || c.loadingLocation || '—';
         return {
           ...c,
           loadingLocation: loadingLoc,
+          loadingLocations: locNames,
+          loadingLocationCount: locNames.length,
           supervisorsFormatted: supervisorNames,
           customers: mdata('customers', tms.customers || []).filter(u => u.client === c.id && !deleted.includes(u.id)).length,
         };
       }),
       rowLink: c => `/admin/masters/clients/${c.id}`,
-      cols: ['Client', 'GSTIN', 'Branch', 'Loading Location', 'Phone', 'Supervisors', 'Customers', 'Status'],
+      cols: ['Client', 'GSTIN', 'Branch', 'Loading Locations', 'Phone', 'Supervisors', 'Customers', 'Status'],
       cells: c => [
         { ...txtCell(c.name, true), color: 'var(--text-brand)' },
         txtCell(c.gst),
@@ -489,7 +498,7 @@ export const MasterManager = ({ type }) => {
         ['name', 'Client name', null, 'e.g. Linde India or INOX Air Products'],
         ['gst', 'GSTIN', null, '33AAACL0123M1Z2', { clean: 'gstin', hint: '15-character GST identification number' }],
         ['branch', 'Branch', branchOpts],
-        ['loadingLocation', 'Loading location', null, 'e.g. Sriperumbudur Cryogenic Hub', { hint: 'Primary loading plant, terminal, or hub' }],
+        ['loadingLocations', 'Loading locations', 'locations-input', 'Type a loading location (e.g. Sriperumbudur Cryogenic Hub)'],
         ['phone', 'Client phone number', null, '98410 11220', { clean: 'phone', prefix: '+91', hint: 'Primary contact or dispatch phone' }],
         ['supervisors', 'Supervisor assignment', 'checkbox-select', 'Select supervisors', {
           options: (f) => getSupervisorOptions(f?.branch),
@@ -519,18 +528,14 @@ export const MasterManager = ({ type }) => {
       plural: 'loading locations',
       addLabel: 'Add location',
       searchPh: 'Search location or client',
-      data: mdata('locations', tms.locations || []).map(l => {
-        const cl = (tms.clients || []).find(c =>
-          c.id === l.clientId ||
-          c.id === l.client ||
-          c.loadingLocationId === l.id ||
-          (c.loadingLocation && c.loadingLocation.trim().toLowerCase() === (l.name || '').trim().toLowerCase()) ||
-          c.name === l.clientName
-        );
+      data: locationList.map(l => {
+        const ownerId = l.clientId || l.client || '';
+        const cl = clientList.find(c => c.id === ownerId);
         return {
           ...l,
-          clientName: (cl ? cl.name : l.clientName) || (l.client && tms.C?.[l.client]?.name) || '—',
-          clientId: cl ? cl.id : (l.clientId || l.client || ''),
+          client: ownerId,
+          clientId: ownerId,
+          clientName: (cl ? cl.name : l.clientName) || '—',
         };
       }),
       cols: ['Location', 'Client', 'Branch', 'Address', 'Safe radius', 'Gps Coordinates', 'Status'],
@@ -544,8 +549,8 @@ export const MasterManager = ({ type }) => {
         statusBadge(l.status),
       ],
       fields: [
-        ['name', 'Location name', null, 'e.g. Sriperumbudur Cryogenic Hub'],
         ['client', 'Client', clientOpts, 'Select client'],
+        ['name', 'Location name', null, 'e.g. Sriperumbudur Cryogenic Hub'],
         ['branch', 'Branch', branchOpts],
         ['address', 'Address', null, 'Plant or yard address'],
         ['radius', 'Safe radius (m)', null, '100'],
@@ -553,6 +558,11 @@ export const MasterManager = ({ type }) => {
         ['lng', 'Longitude', null, '79.9412'],
         ['status', 'Status', ['Active', 'Inactive']],
       ],
+      required: ['client', 'name'],
+      validate: (f) => ({
+        client: !f.client ? 'Select the client this loading location belongs to.' : undefined,
+        name: !String(f.name || '').trim() ? 'Enter the location name.' : undefined,
+      }),
     },
     routes: {
       title: 'Route Master',
@@ -610,13 +620,18 @@ export const MasterManager = ({ type }) => {
   }));
 
   const rows = m.data.filter(r =>
+    (type !== 'locations' || !locClient || (r.clientId || r.client) === locClient) &&
     !deleted.includes(r.id) &&
     matchesSearch(masterQ, Object.values(r), (tms.B[r.branch] || {}).name) &&
     (type !== 'drivers' || !driverApprovalFilter || (approvals[r.id] || r.approval || 'Approved') === driverApprovalFilter)
   );
-  const rowsPg = usePagination(rows, [type, masterQ, driverApprovalFilter]);
+  const rowsPg = usePagination(rows, [type, masterQ, driverApprovalFilter, locClient]);
+
+  // Nothing to add on the Loading Location page until a client is picked.
+  const addBlocked = type === 'locations' && !locClient;
 
   const handleNewRecord = () => {
+    if (addBlocked) return;
     setDrawer({
       isForm: true,
       isMaster: true,
@@ -632,9 +647,9 @@ export const MasterManager = ({ type }) => {
       type === 'supervisors'
         ? { clients: [] }
         : type === 'clients'
-        ? { supervisors: [], status: 'Active', loadingLocation: '' }
+        ? { supervisors: [], status: 'Active', loadingLocations: [] }
         : type === 'locations'
-        ? { status: 'Active', radius: 100 }
+        ? { status: 'Active', radius: 100, client: locClient, branch: (clientList.find(c => c.id === locClient) || {}).branch || '' }
         : {}
     );
     setFormError('');
@@ -679,7 +694,7 @@ export const MasterManager = ({ type }) => {
       ...rec,
       authorizedBunks: initialAuthBunks,
       ...(type === 'supervisors' ? { clients: initialClients } : {}),
-      ...(type === 'clients' ? { supervisors: initialSupervisors, loadingLocation: rec.loadingLocation || rec.contact || '' } : {}),
+      ...(type === 'clients' ? { supervisors: initialSupervisors, loadingLocations: rec.loadingLocations || [] } : {}),
       ...(type === 'locations' ? { client: rec.clientId || rec.client || '' } : {}),
       phone: rec.phone ? String(rec.phone).replace(/\D/g, '').slice(-10) : '',
     });
@@ -1002,6 +1017,29 @@ export const MasterManager = ({ type }) => {
               }}
             />
 
+            {/* Loading Location Master: choose the client before adding anything */}
+            {type === 'locations' && (
+              <select
+                value={locClient}
+                onChange={(e) => setLocClient(e.target.value)}
+                aria-label="Client"
+                style={{
+                  width: '220px',
+                  height: '36px',
+                  padding: '0 10px',
+                  fontSize: '14px',
+                  border: `1px solid ${locClient ? 'var(--color-brand)' : 'var(--color-hazard)'}`,
+                  borderRadius: 'var(--radius-md)',
+                  background: '#fff',
+                  color: 'var(--text-heading)',
+                  outline: 'none',
+                }}
+              >
+                <option value="">Select a client…</option>
+                {clientOpts.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            )}
+
             {/* Driver Approval Filter Pills */}
             {type === 'drivers' && (
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -1080,9 +1118,12 @@ export const MasterManager = ({ type }) => {
             {canAdd && (
               <button
                 onClick={handleNewRecord}
+                disabled={addBlocked}
+                title={addBlocked ? 'Select a client first — a loading location belongs to one client.' : m.addLabel}
                 style={{
                   all: 'unset',
-                  cursor: 'pointer',
+                  cursor: addBlocked ? 'not-allowed' : 'pointer',
+                  opacity: addBlocked ? 0.5 : 1,
                   padding: '0 14px',
                   height: '32px',
                   display: 'inline-flex',
@@ -1221,12 +1262,14 @@ export const MasterManager = ({ type }) => {
         {rows.length === 0 && (
           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
-              No {m.plural} found
+              {addBlocked ? 'Select a client to begin' : `No ${m.plural} found`}
             </div>
             <p style={{ margin: '6px 0 16px', color: 'var(--text-muted)', fontSize: '14px' }}>
-              Nothing matches &ldquo;{masterQ}&rdquo;. Add the record or clear the search.
+              {addBlocked
+                ? 'A loading location belongs to one client. Pick the client above to see its locations and add new ones.'
+                : <>Nothing matches &ldquo;{masterQ}&rdquo;. Add the record or clear the search.</>}
             </p>
-            {canAdd && (
+            {canAdd && !addBlocked && (
               <button
                 onClick={handleNewRecord}
                 style={{

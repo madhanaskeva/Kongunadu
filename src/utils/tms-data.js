@@ -69,12 +69,12 @@ const customers=[
  {id:'U12',name:'HPCL Bottling Plant \u2013 Bengaluru',client:'C06',city:'Bengaluru',route:'R02',billing:'Per trip',status:'Active'}
 ];
 const locations=[
- {id:'L01',name:'Sriperumbudur Cryogenic Hub',branch:'B01',address:'SIPCOT Phase 2, Sriperumbudur',radius:100,lat:'12.9605',lng:'79.9412',status:'Active'},
- {id:'L02',name:'Ambattur Cold Store',branch:'B01',address:'Ambattur Industrial Estate, Chennai',radius:100,lat:'13.1143',lng:'80.1548',status:'Active'},
- {id:'L03',name:'Namakkal Yard',branch:'B02',address:'Salem Main Road, Namakkal',radius:150,lat:'11.2189',lng:'78.1674',status:'Active'},
- {id:'L04',name:'Jeedimetla Plant Gate 2',branch:'B03',address:'Jeedimetla, Hyderabad',radius:100,lat:'17.5066',lng:'78.4530',status:'Active'},
- {id:'L05',name:'Bommasandra Loading Bay',branch:'B04',address:'Bommasandra Industrial Area',radius:100,lat:'12.8060',lng:'77.6990',status:'Active'},
- {id:'L06',name:'Bhiwandi Warehouse',branch:'B05',address:'Bhiwandi, Thane',radius:200,lat:'19.2813',lng:'73.0483',status:'Inactive'}
+ {id:'L01',client:'C01',clientId:'C01',name:'Sriperumbudur Cryogenic Hub',branch:'B01',address:'SIPCOT Phase 2, Sriperumbudur',radius:100,lat:'12.9605',lng:'79.9412',status:'Active'},
+ {id:'L02',client:'C02',clientId:'C02',name:'Ambattur Cold Store',branch:'B01',address:'Ambattur Industrial Estate, Chennai',radius:100,lat:'13.1143',lng:'80.1548',status:'Active'},
+ {id:'L03',client:'C03',clientId:'C03',name:'Namakkal Yard',branch:'B02',address:'Salem Main Road, Namakkal',radius:150,lat:'11.2189',lng:'78.1674',status:'Active'},
+ {id:'L04',client:'C04',clientId:'C04',name:'Jeedimetla Plant Gate 2',branch:'B03',address:'Jeedimetla, Hyderabad',radius:100,lat:'17.5066',lng:'78.4530',status:'Active'},
+ {id:'L05',client:'C06',clientId:'C06',name:'Bommasandra Loading Bay',branch:'B04',address:'Bommasandra Industrial Area',radius:100,lat:'12.8060',lng:'77.6990',status:'Active'},
+ {id:'L06',client:'C01',clientId:'C01',name:'Bhiwandi Warehouse',branch:'B05',address:'Bhiwandi, Thane',radius:200,lat:'19.2813',lng:'73.0483',status:'Inactive'}
 ];
 const bunks=[
  {id:'F01',name:'IOC – Sriperumbudur Highway',branch:'B01',rate:94.80,status:'Active'},

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { Eye, EyeOff, X } from 'lucide-react';
-import { FormCheckboxSelect, FormBunksInput } from '../../components/forms';
+import { FormCheckboxSelect, FormBunksInput, FormLocationsInput } from '../../components/forms';
 
 const PasswordField = ({ value, onChange, placeholder }) => {
   const [show, setShow] = useState(false);
@@ -578,9 +578,10 @@ export const AdminDrawer = () => {
                 const isArea = opts === 'textarea';
                 const isChecks = opts === 'checks';
                 const isBunksInput = opts === 'bunks-input' || key === 'authorizedBunks';
+                const isLocationsInput = opts === 'locations-input' || key === 'loadingLocations';
                 const isCheckboxSelect = (opts === 'checkbox-select'
                   || (key === 'clients' && extra && extra.options)
-                  || (key === 'supervisors' && extra && extra.options)) && !isBunksInput;
+                  || (key === 'supervisors' && extra && extra.options)) && !isBunksInput && !isLocationsInput;
                 const isSelect = Array.isArray(opts);
                 const raw = form[key];
                 const file = isUpload && raw && typeof raw === 'object' ? raw : null;
@@ -592,6 +593,20 @@ export const AdminDrawer = () => {
                         label={label}
                         value={raw}
                         placeholder={typeof hint === 'string' ? hint : 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'}
+                        onChange={(nextVal) => setForm(prev => ({ ...prev, [key]: nextVal }))}
+                      />
+                    </div>
+                  );
+                }
+
+                if (isLocationsInput) {
+                  return (
+                    <div key={idx}>
+                      <FormLocationsInput
+                        label={label}
+                        value={raw}
+                        placeholder={typeof hint === 'string' ? hint : undefined}
+                        hint={extra.hint}
                         onChange={(nextVal) => setForm(prev => ({ ...prev, [key]: nextVal }))}
                       />
                     </div>

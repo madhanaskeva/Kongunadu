@@ -463,6 +463,21 @@ export const TMSAdminProvider = ({ children }) => {
 
   // Save one or many records of a collection. items: [{ rec, isNew }]
   const saveMasterMany = (route, items) => {
+    // A loading location belongs to exactly one client, so a name taken off the
+    // client's list is removed from the Loading Location master as well.
+    if (route === 'clients') {
+      const drop = [];
+      items.forEach(({ rec }) => {
+        if (!Array.isArray(rec.loadingLocations)) return;
+        const wanted = rec.loadingLocations.map(n => String(n).toLowerCase());
+        (tmsView.locations || [])
+          .filter(l => (l.clientId || l.client) === rec.id)
+          .filter(l => !wanted.includes(String(l.name || '').toLowerCase()))
+          .forEach(l => drop.push(l.id));
+      });
+      if (drop.length) setDeleted(prev => Array.from(new Set([...prev, ...drop])));
+    }
+
     setMasterEdits(all => {
       let next = { ...all };
       let cur = next[route] || { added: [], edited: {} };
@@ -532,6 +547,41 @@ export const TMSAdminProvider = ({ children }) => {
           });
         });
         next.supervisors = supCur;
+      }
+
+      // Names typed in the client drawer become real Loading Location records.
+      if (route === 'clients') {
+        const baseLocations = (typeof window !== 'undefined' && window.TMS?.locations) || TMS.locations || [];
+        let locCur = next.locations || { added: [], edited: {} };
+
+        items.forEach(({ rec }) => {
+          if (!Array.isArray(rec.loadingLocations)) return;
+          const owned = [
+            ...(locCur.added || []),
+            ...baseLocations.map(l => (locCur.edited || {})[l.id] ? { ...l, ...locCur.edited[l.id] } : l),
+          ].filter(l => (l.clientId || l.client) === rec.id);
+
+          rec.loadingLocations
+            .filter(name => !owned.some(l => String(l.name || '').toLowerCase() === String(name).toLowerCase()))
+            .forEach(name => {
+              locCur = {
+                ...locCur,
+                added: [{
+                  id: 'LOX' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                  name,
+                  client: rec.id,
+                  clientId: rec.id,
+                  branch: rec.branch || '',
+                  address: '',
+                  radius: 100,
+                  lat: '',
+                  lng: '',
+                  status: 'Active',
+                }, ...(locCur.added || [])],
+              };
+            });
+        });
+        next.locations = locCur;
       }
 
       if (route === 'supervisors') {
@@ -678,6 +728,17 @@ export const TMSAdminProvider = ({ children }) => {
       } else {
         f.supervisorIds = f.supervisorIds || [];
         f.supervisors = f.supervisors || '';
+      }
+      // Loading locations typed in the client drawer; saveMasterMany turns these
+      // into records in the Loading Location master owned by this client. Left
+      // undefined when the caller never supplied the field (e.g. an Excel import),
+      // so that path cannot silently drop a client's existing locations.
+      if (f.loadingLocations !== undefined || f.loadingLocation !== undefined) {
+        const locNames = Array.isArray(f.loadingLocations)
+          ? f.loadingLocations
+          : String(f.loadingLocations || f.loadingLocation || '').split(',');
+        f.loadingLocations = locNames.map(n => String(n).trim()).filter(Boolean);
+        f.loadingLocation = f.loadingLocations.join(', ');
       }
     }
     if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
