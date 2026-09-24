@@ -24,7 +24,7 @@ export class SupervisorApp extends React.Component {
     rf: this.blankRf(), showReqErrors: false,
     selected: 'T01', history: [], histSel: '', closedData: {}, forceEmptyHist: false,
     notifFilter: 'all', notifSel: '', notifRead: ['N05', 'N06'], activity: [], adminNotices: [],
-    hf: { vehicle: '', from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '',
+    hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '',
     localTrips: [], closedIds: [],
     att: { D01: 'P', D02: '', D07: '', D09: '' }, attVeh: { D01: 'V01' }, attVehStatus: {}, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
     am: { vehicle: '', driver: '', status: '' },
@@ -361,10 +361,28 @@ export class SupervisorApp extends React.Component {
     }).sort((a, b) => b.sort.localeCompare(a.sort));
     // Trip history filters · vehicle and closed-date range, applied together
     const hf = s.hf;
-    const histVehicles = [...new Set(histList.map(t => t.vehicle))].map(id => T.V[id]).filter(Boolean).sort((a, b) => a.number.localeCompare(b.number));
-    const hfVehicleOptions = [{ value: '__all', label: `All vehicles (${histList.length})` }, ...histVehicles.map(v => { const n = histList.filter(t => t.vehicle === v.id).length; return { value: v.id, label: `${v.number} · ${n} ${n === 1 ? 'trip' : 'trips'}` }; })];
-    const histFiltered = histList.filter(t => (!hf.vehicle || t.vehicle === hf.vehicle) && (!hf.from || t.closedDay >= hf.from) && (!hf.to || t.closedDay <= hf.to));
-    const hfHasRange = !!(hf.from || hf.to), hfAnyFilter = hfHasRange || !!hf.vehicle;
+    const selectedVehs = s.hfSelectedVehicles || [];
+    const histVehicles = [...new Set(histList.map(t => t.vehicle))].map(id => {
+      const veh = T.V[id];
+      const count = histList.filter(t => t.vehicle === id).length;
+      return veh ? { id: veh.id, number: veh.number, count } : null;
+    }).filter(Boolean).sort((a, b) => a.number.localeCompare(b.number));
+    let hfVehTriggerLabel = 'All vehicles';
+    if (selectedVehs.length === 1) {
+      const found = histVehicles.find(v => v.id === selectedVehs[0]);
+      hfVehTriggerLabel = found ? found.number : '1 vehicle selected';
+    } else if (selectedVehs.length > 1 && selectedVehs.length < histVehicles.length) {
+      hfVehTriggerLabel = `${selectedVehs.length} vehicles selected`;
+    }
+    const hfHasVehFilter = selectedVehs.length > 0 && selectedVehs.length < histVehicles.length;
+    const hfVehicleOptions = [{ value: '__all', label: `All vehicles (${histList.length})` }, ...histVehicles.map(v => ({ value: v.id, label: `${v.number} · ${v.count} ${v.count === 1 ? 'trip' : 'trips'}` }))];
+    const histFiltered = histList.filter(t => {
+      const vehMatch = selectedVehs.length === 0 || selectedVehs.includes(t.vehicle) || (!hfHasVehFilter && !hf.vehicle) || (hf.vehicle && t.vehicle === hf.vehicle);
+      const fromMatch = !hf.from || t.closedDay >= hf.from;
+      const toMatch = !hf.to || t.closedDay <= hf.to;
+      return vehMatch && fromMatch && toMatch;
+    });
+    const hfHasRange = !!(hf.from || hf.to), hfAnyFilter = hfHasRange || hfHasVehFilter || !!hf.vehicle;
     const hfRangeLabel = hf.from && hf.to ? (hf.from === hf.to ? prettyDay(hf.from) : `${prettyDay(hf.from)} – ${prettyDay(hf.to)}`) : hf.from ? `From ${prettyDay(hf.from)}` : hf.to ? `Up to ${prettyDay(hf.to)}` : '';
     const TODAY = todayIso;
     const hfPresets = [['Today', TODAY, TODAY], ['Last 7 days', isoDaysAgo(6), TODAY], ['This month', todayIso.slice(0, 8) + '01', TODAY]].map(([label, from, to]) => { const on = s.hfDraft.from === from && s.hfDraft.to === to; return { label, from, to, border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; });
@@ -815,6 +833,12 @@ export class SupervisorApp extends React.Component {
       removeFill: e => { const i = Number(e.currentTarget.dataset.i); this.patchCf({ fills: fills.filter((_, j) => j !== i), fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }); },
       dieselAmount: dieselTotal ? money0(dieselTotal) : '—', dieselTotalLabel: fills.length > 1 ? `Diesel total · ${fills.length} bunks · ${km(dieselLitres)} L` : 'Diesel amount',
       // expense and remarks
+      expBreakdown: cf.expBreakdown || { dieselCash: '', driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
+      otherExpenses: cf.otherExpenses || [{ name: '', amount: '' }],
+      setExpBreakdown: (field, val) => this.setExpBreakdown(field, val),
+      setOtherExpense: (idx, field, val) => this.setOtherExpense(idx, field, val),
+      addOtherExpense: () => this.addOtherExpense(),
+      removeOtherExpense: (idx) => this.removeOtherExpense(idx),
       setTotalExpense: e => this.patchCf({ totalExpense: e.target.value.replace(/\D/g, '').slice(0, 8) }),
       totalExpenseHint: `Everything spent on this trip: diesel${dieselTotal ? ' (' + money0(dieselTotal) + ')' : ''}, toll, driver bata, loading charges.`,
       setCloseRemarks: e => this.patchCf({ remarks: e.target.value.slice(0, 250) }), closeRemarksCount: (cf.remarks || '').length,
@@ -878,12 +902,25 @@ export class SupervisorApp extends React.Component {
       histCountLine: hfAnyFilter && !s.forceEmptyHist ? `${histShown.length} of ${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}` : `${histShown.length} closed ${histShown.length === 1 ? 'trip' : 'trips'} · ${me.branch}`,
       histEmptyTitle: hfAnyFilter && !s.forceEmptyHist ? 'No trips match these filters' : 'No closed trips yet',
       histEmptyText: hfAnyFilter && !s.forceEmptyHist ? `Nothing closed${hf.vehicle ? ' for ' + (T.V[hf.vehicle] || {}).number : ''}${hfHasRange ? ' in ' + hfRangeLabel : ''}. Try another vehicle or date range.` : 'Trips you close appear here with the full closing details, newest first.',
+      histVehicles,
+      hfSelectedVehicles: selectedVehs,
+      hfVehOpen: !!s.hfVehOpen,
+      hfVehHasSelection: hfHasVehFilter,
+      hfVehTriggerLabel,
+      toggleHfVehOpen: () => this.setState(st => ({ hfVehOpen: !st.hfVehOpen, hfCalOpen: false })),
+      toggleHfVehicle: (vehId) => this.setState(st => {
+        const cur = st.hfSelectedVehicles || [];
+        const next = cur.includes(vehId) ? cur.filter(x => x !== vehId) : [...cur, vehId];
+        return { hfSelectedVehicles: next };
+      }),
+      selectAllHfVehicles: () => this.setState({ hfSelectedVehicles: histVehicles.map(v => v.id) }),
+      clearHfVehicles: () => this.setState({ hfSelectedVehicles: [] }),
       hfVehicleOptions, hfVehicleValue: hf.vehicle || '__all', hfHasRange, hfAnyFilter, hfNoFilter: !hfAnyFilter, hfRangeLabel, hfPresets, hfMaxDay: TODAY,
       hfCalOpen: s.hfCalOpen, hfDraft: s.hfDraft, hfErr: s.hfErr,
       hfCalBorder: s.hfCalOpen || hfHasRange ? 'var(--color-brand)' : 'var(--border-strong)', hfCalBg: hfHasRange ? 'var(--color-brand)' : s.hfCalOpen ? 'var(--color-brand-tint)' : '#fff', hfCalFg: hfHasRange ? '#fff' : 'var(--text-heading)',
       hfDateBorder: s.hfErr ? 'var(--status-danger)' : 'var(--border-strong)',
       setHfVehicle: e => { const v = e.target.value; this.setState(st => ({ hf: { ...st.hf, vehicle: v === '__all' ? '' : v } })); },
-      toggleHfCal: () => this.setState(st => ({ hfCalOpen: !st.hfCalOpen, hfDraft: { from: st.hf.from, to: st.hf.to }, hfErr: '' })),
+      toggleHfCal: () => this.setState(st => ({ hfCalOpen: !st.hfCalOpen, hfVehOpen: false, hfDraft: { from: st.hf.from, to: st.hf.to }, hfErr: '' })),
       setHfFrom: e => { const from = e.target.value; this.setState(st => ({ hfDraft: { from, to: st.hfDraft.to && from && st.hfDraft.to < from ? '' : st.hfDraft.to }, hfErr: '' })); },
       setHfTo: e => { const to = e.target.value; this.setState(st => ({ hfDraft: { ...st.hfDraft, to }, hfErr: '' })); },
       pickHfPreset: e => { const { from, to } = e.currentTarget.dataset; this.setState({ hfDraft: { from, to }, hfErr: '' }); },
@@ -894,9 +931,9 @@ export class SupervisorApp extends React.Component {
         this.setState(st => ({ hf: { ...st.hf, from, to }, hfCalOpen: false, hfErr: '', railVariant: '' }));
       },
       clearHfRange: () => this.setState(st => ({ hf: { ...st.hf, from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' })),
-      clearHfAll: () => this.setState({ hf: { vehicle: '', from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '', railVariant: '' }),
+      clearHfAll: () => this.setState({ hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '', railVariant: '' }),
       openHistTrip: e => this.go('histTrip', { histSel: e.currentTarget.dataset.id, railVariant: '' }),
-      goHistory: () => this.go('history', { railVariant: '', forceEmptyHist: false, hf: { vehicle: '', from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' }),
+      goHistory: () => this.go('history', { railVariant: '', forceEmptyHist: false, hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' }),
       // unclosed
       unclosedList,
       unclosedAlertOpen: !!s.unclosedAlert,
@@ -998,8 +1035,57 @@ export class SupervisorApp extends React.Component {
     ];
   }
   blankClose() { return { invoice: '', lr: '', qtyLoad: '', qtyUnload: '', totalExpense: '', remarks: '',
+    expBreakdown: { dieselCash: '', driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
+    otherExpenses: [{ name: '', amount: '' }],
     legs: [], legDraft: this.blankLeg(), legEdit: -1, legOpen: false, legTried: false,
     fills: [], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }; }
+  recalcTotalExpense(cf) {
+    const eb = cf.expBreakdown || {};
+    const dCash = Number(eb.dieselCash) || 0;
+    const drvB = Number(eb.driverBata) || 0;
+    const clnB = Number(eb.cleanerBata) || 0;
+    const rto = Number(eb.rto) || 0;
+    const toll = Number(eb.toll) || 0;
+    const weigh = Number(eb.weighment) || 0;
+    const oth = (cf.otherExpenses || []).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+    const sum = dCash + drvB + clnB + rto + toll + weigh + oth;
+    return sum > 0 ? String(sum) : '';
+  }
+  setExpBreakdown(field, value) {
+    this.setState(st => {
+      const expBreakdown = { ...(st.cf.expBreakdown || {}), [field]: value.replace(/\D/g, '') };
+      const cf = { ...st.cf, expBreakdown };
+      const totalExpense = this.recalcTotalExpense(cf);
+      return { cf: { ...cf, totalExpense: totalExpense || st.cf.totalExpense } };
+    });
+  }
+  setOtherExpense(index, field, value) {
+    this.setState(st => {
+      const cur = st.cf.otherExpenses || [{ name: '', amount: '' }];
+      const otherExpenses = cur.map((x, i) =>
+        i === index ? { ...x, [field]: field === 'amount' ? value.replace(/\D/g, '') : value } : x
+      );
+      const cf = { ...st.cf, otherExpenses };
+      const totalExpense = this.recalcTotalExpense(cf);
+      return { cf: { ...cf, totalExpense: totalExpense || st.cf.totalExpense } };
+    });
+  }
+  addOtherExpense() {
+    this.setState(st => {
+      const otherExpenses = [...(st.cf.otherExpenses || []), { name: '', amount: '' }];
+      return { cf: { ...st.cf, otherExpenses } };
+    });
+  }
+  removeOtherExpense(index) {
+    this.setState(st => {
+      const cur = st.cf.otherExpenses || [];
+      const otherExpenses = cur.filter((_, i) => i !== index);
+      const nextList = otherExpenses.length ? otherExpenses : [{ name: '', amount: '' }];
+      const cf = { ...st.cf, otherExpenses: nextList };
+      const totalExpense = this.recalcTotalExpense(cf);
+      return { cf: { ...cf, totalExpense } };
+    });
+  }
   blankLeg() { return { from: '', to: '', reading: '', photo: null }; }
   blankFill() { return { bunk: '', litres: '', rate: '' }; }
   patchCf(patch) { this.setState(st => ({ cf: { ...st.cf, ...patch } })); }
