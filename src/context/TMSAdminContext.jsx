@@ -141,9 +141,24 @@ export const TMSAdminProvider = ({ children }) => {
   const [drvReqs, setDrvReqs] = useState([]);
   const [rejectReason, setRejectReason] = useState('');
   const [vehTanks, setVehTanks] = useState({});
-  const [masterEdits, setMasterEdits] = useState({});
+  const [masterEdits, setMasterEdits] = usePersisted(MASTER_KEY, {});
   const [devReqs, setDevReqs] = useState([]);
   const [devFilter, setDevFilter] = useState('all');
+  const BUNK_REQ_KEY = 'kr-tms-bunk-requests';
+  const [bunkReqs, setBunkReqs] = usePersisted(BUNK_REQ_KEY, [
+    {
+      id: 'BR-seed-1',
+      bunkName: 'IOC – Salem Highway Hub',
+      routeId: 'R01',
+      routeName: 'Sriperumbudur → Hyderabad',
+      tripId: 'T01',
+      tripNumber: 'TN28AQ4521/09/014',
+      supervisorName: 'R. Senthil Kumar',
+      branch: 'B01',
+      status: 'Pending',
+      requestedAt: 'Today 09:30',
+    },
+  ]);
   const [adminNotifOpen, setAdminNotifOpen] = useState(false);
   const [sendNoticeOpen, setSendNoticeOpen] = useState(false);
 
@@ -214,11 +229,12 @@ export const TMSAdminProvider = ({ children }) => {
   // Helper functions
   // Seed data with the admin's saved adds / edits (masterEdits) applied and deleted records removed,
   // so every page, dropdown and lookup map sees the same records.
+  const editsObj = typeof masterEdits !== 'undefined' && masterEdits ? masterEdits : {};
   const tmsView = useMemo(() => {
     const base = (typeof window !== 'undefined' && window.TMS) || TMS;
     const gone = new Set(deleted);
     const merge = (key) => {
-      const e = masterEdits[key] || {}, ed = e.edited || {};
+      const e = editsObj[key] || {}, ed = e.edited || {};
       return [...(e.added || []), ...(base[key] || []).map(r => (ed[r.id] ? { ...r, ...ed[r.id] } : r))].filter(r => !gone.has(r.id));
     };
     const by = a => Object.fromEntries(a.map(r => [r.id, r]));
@@ -245,7 +261,7 @@ export const TMSAdminProvider = ({ children }) => {
         review: t.distReview || null,
       }));
     return out;
-  }, [masterEdits, deleted]);
+  }, [editsObj, deleted]);
   const T = () => tmsView;
 
   const fmtPhone = (d) => formatPhone(d);
@@ -310,6 +326,88 @@ export const TMSAdminProvider = ({ children }) => {
       body: ok ? `Your request to add ${d.name} is approved. The driver is in the driver list and can be assigned to trips.` : `Head Office rejected the request to add ${d.name}.${reason ? ' Reason: ' + reason + '.' : ''} The driver cannot be assigned to trips.`,
       rows: [['Driver', d.name], ['Licence', d.licence], ['Mobile', '+91 ' + fmtPhone(d.phone)], ['Action taken', ok ? 'Approved' : 'Rejected'], ...(reason ? [['Reason', reason]] : [])]
     });
+  };
+
+  const requestNewBunk = ({ bunkName, routeId, routeName, tripId, tripNumber, supervisorName, branch }) => {
+    if (!bunkName || !bunkName.trim()) return null;
+    const cleanName = bunkName.trim();
+
+    const existingReq = (bunkReqs || []).find(r => r.bunkName.toLowerCase() === cleanName.toLowerCase() && (r.routeId === routeId || r.routeName === routeName));
+    if (existingReq) return existingReq;
+
+    const newReq = {
+      id: 'BR' + Date.now().toString(36),
+      bunkName: cleanName,
+      routeId: routeId || '',
+      routeName: routeName || '',
+      tripId: tripId || '',
+      tripNumber: tripNumber || '',
+      supervisorName: supervisorName || 'Supervisor',
+      branch: branch || 'B01',
+      status: 'Pending',
+      requestedAt: stampNow(),
+    };
+
+    setBunkReqs(prev => [newReq, ...(prev || [])]);
+
+    pushAdminNotification({
+      title: 'New Bunk Approval Request',
+      body: `Supervisor requested new bunk "${cleanName}" for route "${routeName || 'Route'}" (${tripNumber || 'Close Trip'}).`,
+      time: 'Just now',
+      bunkRequestId: newReq.id,
+      bunkName: cleanName,
+      routeId,
+      routeName,
+      kind: 'bunkApproval',
+    });
+
+    return newReq;
+  };
+
+  const decideBunkRequest = (id, approval) => {
+    const ok = approval === 'Approved';
+    const req = (bunkReqs || []).find(r => r.id === id);
+    if (!req) return;
+
+    setBunkReqs(prev => (prev || []).map(r => r.id === id ? { ...r, status: ok ? 'Approved' : 'Rejected', decidedAt: stampNow() } : r));
+
+    if (ok) {
+      const tms = tmsView;
+      let existingBunk = (tms.bunks || []).find(b => b.name.toLowerCase() === req.bunkName.trim().toLowerCase());
+      let bunkId = existingBunk?.id;
+
+      if (!existingBunk) {
+        bunkId = 'F' + Date.now().toString(36).slice(-4).toUpperCase();
+        const newBunk = {
+          id: bunkId,
+          name: req.bunkName,
+          branch: req.branch || 'B01',
+          rate: 95.0,
+          status: 'Active',
+        };
+        saveMaster('bunks', newBunk, true);
+      }
+
+      const route = (tms.routes || []).find(rt => rt.id === req.routeId || rt.name === req.routeName);
+      if (route) {
+        const curAuth = route.authorizedBunks || [];
+        if (!curAuth.includes(bunkId) && !curAuth.includes(req.bunkName)) {
+          const nextAuth = [...curAuth, bunkId];
+          saveMaster('routes', { ...route, authorizedBunks: nextAuth }, false);
+        }
+      }
+
+      showToast('success', 'Bunk approved & authorized', `"${req.bunkName}" approved and added to authorized bunks for ${req.routeName || 'route'}.`);
+      pushNotice({
+        kind: 'action',
+        branch: req.branch || 'B01',
+        title: `Bunk approved · ${req.bunkName}`,
+        body: `Head Office approved bunk "${req.bunkName}". It is now authorized for route ${req.routeName || ''}.`,
+        rows: [['Bunk', req.bunkName], ['Route', req.routeName || '—'], ['Status', 'Authorized']]
+      });
+    } else {
+      showToast('warning', 'Bunk request rejected', `Request for "${req.bunkName}" was rejected.`);
+    }
   };
 
   // Save one or many records of a collection. items: [{ rec, isNew }]
@@ -572,7 +670,7 @@ export const TMSAdminProvider = ({ children }) => {
         dashFormErr, setDashFormErr,
         rb, setRb,
         fmtPhone, fmtImei, stampNow,
-        pushNotice, decideDriver, saveMaster, saveMasterMany, setVehTank, normalizeRecord,
+        pushNotice, decideDriver, requestNewBunk, decideBunkRequest, bunkReqs, setBunkReqs, saveMaster, saveMasterMany, setVehTank, normalizeRecord,
         shrinkImage, readReqs, writeReqs, navTo,
       }}
     >

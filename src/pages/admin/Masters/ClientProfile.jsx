@@ -86,8 +86,11 @@ export const ClientProfile = () => {
   const { can } = useModuleAccess();
   const tms = T();
 
-  const client = mergeEdits(masterEdits.clients, tms.clients || []).find(c => c.id === id);
-  const customers = mergeEdits(masterEdits.customers, tms.customers || []).filter(u => u.client === id && !deleted.includes(u.id));
+  const clientEdits = (masterEdits || {}).clients;
+  const customerEdits = (masterEdits || {}).customers;
+  const delList = deleted || [];
+  const client = mergeEdits(clientEdits, tms.clients || []).find(c => c.id === id);
+  const customers = mergeEdits(customerEdits, tms.customers || []).filter(u => u.client === id && !delList.includes(u.id));
   const routeName = rid => (tms.R[rid] || {}).name || rid || '—';
   const rows = customers.filter(u => matchesSearch(q, u.name, u.city, routeName(u.route), u.billing, u.status));
   const pg = usePagination(rows, [id, q]);

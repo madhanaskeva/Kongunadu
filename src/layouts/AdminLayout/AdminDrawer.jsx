@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { Eye, EyeOff, X } from 'lucide-react';
-import { FormCheckboxSelect } from '../../components/forms';
+import { FormCheckboxSelect, FormBunksInput } from '../../components/forms';
 
 const PasswordField = ({ value, onChange, placeholder }) => {
   const [show, setShow] = useState(false);
@@ -550,10 +550,24 @@ export const AdminDrawer = () => {
                 const isUpload = opts === 'upload';
                 const isArea = opts === 'textarea';
                 const isChecks = opts === 'checks';
-                const isCheckboxSelect = opts === 'checkbox-select' || (key === 'clients' && extra && extra.options);
+                const isBunksInput = opts === 'bunks-input' || key === 'authorizedBunks';
+                const isCheckboxSelect = (opts === 'checkbox-select' || (key === 'clients' && extra && extra.options)) && !isBunksInput;
                 const isSelect = Array.isArray(opts);
                 const raw = form[key];
                 const file = isUpload && raw && typeof raw === 'object' ? raw : null;
+
+                if (isBunksInput) {
+                  return (
+                    <div key={idx}>
+                      <FormBunksInput
+                        label={label}
+                        value={raw}
+                        placeholder={typeof hint === 'string' ? hint : 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'}
+                        onChange={(nextVal) => setForm(prev => ({ ...prev, [key]: nextVal }))}
+                      />
+                    </div>
+                  );
+                }
 
                 if (isCheckboxSelect) {
                   const options = extra.options || (Array.isArray(opts) ? opts : []);

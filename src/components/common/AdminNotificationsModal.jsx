@@ -16,7 +16,7 @@ import { useTMSAdmin } from '../../context/TMSAdminContext';
 const PREVIEW_COUNT = 4;
 
 export const AdminNotificationsModal = ({ isOpen, onClose }) => {
-  const { adminNotifications, markAdminNotifsRead } = useTMSAdmin();
+  const { adminNotifications, markAdminNotifsRead, decideBunkRequest } = useTMSAdmin();
   const navigate = useNavigate();
 
   const handleClose = () => {
@@ -75,6 +75,44 @@ export const AdminNotificationsModal = ({ isOpen, onClose }) => {
             body={item.body}
             time={item.time}
             unread={item.unread}
+            actions={
+              item.kind === 'bunkApproval' && item.bunkRequestId ? (
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Approved')}
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      background: 'var(--color-brand)',
+                      color: '#fff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Approve Bunk
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Rejected')}
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--kr-red-600)',
+                      color: 'var(--kr-red-600)',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Reject
+                  </button>
+                </div>
+              ) : null
+            }
           />
         ))}
 

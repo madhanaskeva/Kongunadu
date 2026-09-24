@@ -16,6 +16,7 @@ export const NotificationCard = ({
   body,
   time,
   unread = false,
+  actions,
   onClick,
   style = {},
 }) => {
@@ -74,14 +75,28 @@ export const NotificationCard = ({
       </div>
       <div
         style={{
-          fontFamily: 'var(--font-body)',
-          fontSize: '12px',
-          color: '#9ca3af',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '8px',
           marginTop: '2px',
         }}
       >
-        {time}
+        <span
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '12px',
+            color: '#9ca3af',
+          }}
+        >
+          {time}
+        </span>
       </div>
+      {actions && (
+        <div style={{ marginTop: '6px' }} onClick={e => e.stopPropagation()}>
+          {actions}
+        </div>
+      )}
     </div>
   );
 };
