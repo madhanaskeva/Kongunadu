@@ -1,12 +1,196 @@
 import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCheck } from 'lucide-react';
+import { UserCheck, Eye, Pencil, Trash2, X, Plus, Fuel } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { downloadXlsx, readSheet } from '../../../utils/spreadsheet';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
+const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk }) => {
+  const rawBunks = route.authorizedBunks || [];
+  const bunkNames = rawBunks.map(bId => (tms.F[bId] || {}).name || bId);
+  const count = bunkNames.length;
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+      <span
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: '12px',
+          fontWeight: 700,
+          padding: '4px 10px',
+          borderRadius: 'var(--radius-md)',
+          background: count > 0 ? 'var(--color-brand-tint)' : 'var(--surface-muted)',
+          color: count > 0 ? 'var(--kr-green-900)' : 'var(--text-muted)',
+          border: `1px solid ${count > 0 ? 'rgba(0, 98, 63, 0.25)' : 'var(--border-default)'}`,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}
+      >
+        <Fuel size={13} style={{ color: count > 0 ? 'var(--color-brand)' : 'var(--text-muted)' }} />
+        {count} {count === 1 ? 'Bunk' : 'Bunks'}
+      </span>
+
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        title="View authorized fuel bunks list"
+        aria-label="View authorized fuel bunks"
+        style={{
+          all: 'unset',
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '28px',
+          height: '28px',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-strong)',
+          background: isOpen ? 'var(--color-brand)' : '#fff',
+          color: isOpen ? '#fff' : 'var(--text-heading)',
+          transition: 'all 0.15s ease',
+        }}
+      >
+        <Eye size={15} />
+      </button>
+
+      {isOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 6px)',
+            left: 0,
+            zIndex: 100,
+            width: '320px',
+            background: '#fff',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--border-strong)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+            padding: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-default)', paddingBottom: '8px' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 800, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Fuel size={15} style={{ color: 'var(--color-brand)' }} />
+              Authorized Fuel Bunks ({count})
+            </span>
+            <button
+              type="button"
+              onClick={onToggle}
+              style={{ all: 'unset', cursor: 'pointer', color: 'var(--text-muted)', display: 'grid', placeItems: 'center' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {count === 0 ? (
+            <div style={{ padding: '12px 8px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
+              <div>No authorized bunks added for this route.</div>
+              <button
+                type="button"
+                onClick={() => {
+                  onToggle();
+                  onEditRoute();
+                }}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  marginTop: '8px',
+                  padding: '4px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-brand)',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Plus size={14} /> Add Bunks in Edit Form
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
+              {bunkNames.map((bunkName, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--surface-muted)',
+                    border: '1px solid var(--border-default)',
+                    fontSize: '13px',
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: 'var(--text-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <strong style={{ color: 'var(--color-brand)', marginRight: '6px' }}>{idx + 1}.</strong>
+                    {bunkName}
+                  </span>
+
+                  <div style={{ display: 'flex', gap: '4px', flex: 'none' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onToggle();
+                        onEditRoute();
+                      }}
+                      title="Edit route authorized bunks"
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        padding: '4px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: '#fff',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--color-brand)',
+                        display: 'grid',
+                        placeItems: 'center',
+                      }}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteBunk(bunkName)}
+                      title="Delete this authorized bunk"
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        padding: '4px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--kr-red-50)',
+                        border: '1px solid var(--kr-red-100)',
+                        color: 'var(--kr-red-600)',
+                        display: 'grid',
+                        placeItems: 'center',
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const MasterManager = ({ type }) => {
   const {
@@ -27,6 +211,8 @@ export const MasterManager = ({ type }) => {
     showToast,
     fmtPhone,
     fmtImei,
+    bunkReqs,
+    decideBunkRequest,
     vehTanks,
     setVehTank,
     saveMaster,
@@ -35,6 +221,16 @@ export const MasterManager = ({ type }) => {
   } = useTMSAdmin();
 
   const [masterQ, setMasterQ] = useState('');
+  const [activeBunksPopover, setActiveBunksPopover] = useState(null);
+
+  const handleDeleteBunkFromRoute = (routeRec, bunkToDelete) => {
+    const rawList = routeRec.authorizedBunks || [];
+    const currentBunks = rawList.map(b => (tms.F[b] || {}).name || b);
+    const updatedBunks = currentBunks.filter(b => String(b).toLowerCase() !== String(bunkToDelete).toLowerCase());
+    saveMaster('routes', { ...routeRec, authorizedBunks: updatedBunks }, false);
+    const displayBunkName = (tms.F[bunkToDelete] || {}).name || bunkToDelete;
+    showToast('success', 'Bunk removed', `Removed "${displayBunkName}" from route ${routeRec.name || ''}.`);
+  };
   const navigate = useNavigate();
   const { can } = useModuleAccess();
   const canAdd = can(type, 'add');
@@ -47,8 +243,9 @@ export const MasterManager = ({ type }) => {
   // tms lists already include saved adds and edits (see TMSAdminContext); this only overlays
   // edits on rows built outside them, like drivers requested from the Supervisor App.
   const mdata = (routeKey, seed) => {
-    const ed = (masterEdits[routeKey] || {}).edited || {};
-    return seed.filter(r => !deleted.includes(r.id)).map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r);
+    const ed = ((masterEdits || {})[routeKey] || {}).edited || {};
+    const delList = deleted || [];
+    return (seed || []).filter(r => !delList.includes(r.id)).map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r);
   };
 
   const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
@@ -294,21 +491,26 @@ export const MasterManager = ({ type }) => {
       addLabel: 'Add route',
       searchPh: 'Search route',
       data: mdata('routes', tms.routes || []),
-      cols: ['Route', 'From', 'To', 'Fixed KM', 'Duration', 'Toll'],
-      cells: r => [
-        txtCell(r.name, true),
-        txtCell((tms.L[r.from] || {}).name),
-        txtCell(r.to),
-        txtCell(r.km + ' km'),
-        txtCell(r.hours + ' h'),
-        txtCell(r.toll),
-      ],
+      cols: ['Route', 'From', 'To', 'Fixed KM', 'Duration', 'Toll', 'Authorized Fuel Bunks'],
+      cells: r => {
+        const authBunks = (r.authorizedBunks || []).map(bId => (tms.F[bId] || {}).name || bId).join(', ') || 'All active bunks';
+        return [
+          txtCell(r.name, true),
+          txtCell((tms.L[r.from] || {}).name),
+          txtCell(r.to),
+          txtCell(r.km + ' km'),
+          txtCell(r.hours + ' h'),
+          txtCell(r.toll),
+          txtCell(authBunks),
+        ];
+      },
       fields: [
         ['from', 'Loading location', (tms.locations || []).map(l => ({ value: l.id, label: l.name }))],
         ['to', 'Destination'],
         ['km', 'Fixed distance (km)', null, 'Billing reference'],
         ['hours', 'Expected duration (h)'],
         ['toll', 'Toll estimate'],
+        ['authorizedBunks', 'Authorized fuel bunks', 'bunks-input', 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'],
         ['status', 'Status', ['Active', 'Under review']],
       ],
     },
@@ -382,8 +584,10 @@ export const MasterManager = ({ type }) => {
         if (!initialClients.length) initialClients = rec.clients.split(',').map(s => s.trim());
       }
     }
+    const initialAuthBunks = (rec.authorizedBunks || []).map(b => (tms.F[b] || {}).name || b);
     setForm({
       ...rec,
+      authorizedBunks: initialAuthBunks,
       ...(type === 'supervisors' ? { clients: initialClients } : {}),
       phone: rec.phone ? String(rec.phone).replace(/\D/g, '').slice(-10) : '',
     });
@@ -464,6 +668,94 @@ export const MasterManager = ({ type }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Bunk Approval Queue banner for Routes / Bunks */}
+      {(type === 'routes' || type === 'bunks') && (bunkReqs || []).filter(r => r.status === 'Pending').length > 0 && (
+        <section
+          aria-label="Bunk approval queue"
+          style={{
+            background: 'var(--color-hazard-soft)',
+            border: '1px solid rgba(230, 160, 0, 0.3)',
+            borderLeft: '4px solid var(--kr-saffron-500)',
+            borderRadius: 'var(--radius-lg)',
+            color: '#7A4300',
+            overflow: 'hidden',
+          }}
+        >
+          <div style={{ padding: '14px 18px 12px' }}>
+            <strong style={{ fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Pending Bunk Approvals · {(bunkReqs || []).filter(r => r.status === 'Pending').length} requested
+            </strong>
+            <div style={{ fontSize: '14px', marginTop: '2px' }}>
+              New bunks entered by supervisors during trip closing. Approving a bunk adds it to Master Bunks and automatically authorizes it for the route.
+            </div>
+          </div>
+
+          {(bunkReqs || []).filter(r => r.status === 'Pending').map(q => (
+            <div
+              key={q.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                flexWrap: 'wrap',
+                padding: '12px 18px',
+                borderTop: '1px solid rgba(230, 160, 0, 0.2)',
+                background: '#fff',
+              }}
+            >
+              <div style={{ flex: 1, minWidth: '240px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text-heading)' }}>{q.bunkName}</span>
+                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--color-hazard-soft)', color: '#7A4300' }}>
+                    New Bunk Request
+                  </span>
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Route: <strong>{q.routeName || '—'}</strong> · Requested by {q.supervisorName} (Trip #{q.tripNumber || 'Close Trip'}) · {q.requestedAt}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => decideBunkRequest(q.id, 'Approved')}
+                  style={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    height: '32px',
+                    padding: '0 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-brand)',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                  }}
+                >
+                  Approve & Authorize
+                </button>
+                <button
+                  type="button"
+                  onClick={() => decideBunkRequest(q.id, 'Rejected')}
+                  style={{
+                    all: 'unset',
+                    cursor: 'pointer',
+                    height: '32px',
+                    padding: '0 14px',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--kr-red-600)',
+                    color: 'var(--kr-red-600)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                  }}
+                >
+                  Reject
+                </button>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* Driver Approval Queue banner */}
       {type === 'drivers' && drvQueue.length > 0 && (
         <section
@@ -764,30 +1056,47 @@ export const MasterManager = ({ type }) => {
                     key={r.id}
                     style={{ borderTop: '1px solid var(--border-default)' }}
                   >
-                    {cells.map((c, ci) => (
-                      <td key={ci} style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: c.color, fontWeight: c.weight }}>
-                        {c.badge ? (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              fontFamily: 'var(--font-display)',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              letterSpacing: '0.1em',
-                              textTransform: 'uppercase',
-                              padding: '3px 8px',
-                              borderRadius: 'var(--radius-sm)',
-                              background: c.bg,
-                              color: c.fg,
-                            }}
-                          >
-                            {c.v}
-                          </span>
-                        ) : (
-                          c.v
-                        )}
-                      </td>
-                    ))}
+                    {cells.map((c, ci) => {
+                      const isBunksCol = m.cols[ci] === 'Authorized Fuel Bunks';
+                      if (isBunksCol) {
+                        return (
+                          <td key={ci} style={{ padding: '12px 14px', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
+                            <RouteBunksCell
+                              route={r}
+                              tms={tms}
+                              isOpen={activeBunksPopover === r.id}
+                              onToggle={() => setActiveBunksPopover(activeBunksPopover === r.id ? null : r.id)}
+                              onEditRoute={() => handleEditRecord(r)}
+                              onDeleteBunk={(bunkName) => handleDeleteBunkFromRoute(r, bunkName)}
+                            />
+                          </td>
+                        );
+                      }
+                      return (
+                        <td key={ci} style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: c.color, fontWeight: c.weight }}>
+                          {c.badge ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                fontFamily: 'var(--font-display)',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                letterSpacing: '0.1em',
+                                textTransform: 'uppercase',
+                                padding: '3px 8px',
+                                borderRadius: 'var(--radius-sm)',
+                                background: c.bg,
+                                color: c.fg,
+                              }}
+                            >
+                              {c.v}
+                            </span>
+                          ) : (
+                            c.v
+                          )}
+                        </td>
+                      );
+                    })}
                     <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                       <RowActions
                         actions={isPendingDriver ? [

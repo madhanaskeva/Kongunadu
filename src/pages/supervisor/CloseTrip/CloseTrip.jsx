@@ -234,7 +234,35 @@ export const CloseTrip = ({ v }) => (
                 <div style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--kr-green-900)" }}>
                   {v.fillEditorTitle}
                 </div>
-                <Input label="Bunk name" placeholder="e.g. IOC – Sriperumbudur Highway" value={v.cf.fillDraft.bunk} onChange={v.setFillBunk} error={v.fillErr.bunk} hint={v.fillBunkHint} />
+                {v.authorizedBunkOptions ? (
+                  <>
+                    <Select
+                      label="Authorized Fuel Bunk"
+                      placeholder="Select authorized bunk for route"
+                      options={v.authorizedBunkOptions}
+                      value={v.selectedBunkChoice || ''}
+                      onChange={v.selectBunkChoice}
+                      error={v.fillErr.bunk}
+                      hint={v.fillBunkHint}
+                    />
+                    {(v.selectedBunkChoice === 'NEW_BUNK' || (!v.authorizedBunkOptions.some(o => o.value === v.selectedBunkChoice) && v.selectedBunkChoice)) && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <Input
+                          label="New fuel bunk name"
+                          placeholder="e.g. Sri Krishna Bunk – Salem Bypass"
+                          value={v.cf.fillDraft.customBunk || v.cf.fillDraft.bunk || ''}
+                          onChange={v.setCustomBunkName}
+                          error={v.fillErr.bunk}
+                        />
+                        <div style={{ padding: '8px 10px', background: 'var(--color-hazard-soft)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: '#7A4300', lineHeight: 1.4 }}>
+                          <strong>Note:</strong> This bunk is not listed as authorized for this route. Entering it will submit a request to Head Office Admin for approval. Once approved, it will automatically become authorized for this route.
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <Input label="Bunk name" placeholder="e.g. IOC – Sriperumbudur Highway" value={v.cf.fillDraft.bunk} onChange={v.setFillBunk} error={v.fillErr.bunk} hint={v.fillBunkHint} />
+                )}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "10px" }}>
                   <Input label="Quantity" suffix="L" value={v.cf.fillDraft.litres} onChange={v.setFillLitres} inputMode="decimal" error={v.fillErr.litres} hint={v.qtyHint} />
                   <Input label="Rate" prefix="₹" suffix="/L" value={v.cf.fillDraft.rate} onChange={v.setFillRate} inputMode="decimal" error={v.fillErr.rate} />

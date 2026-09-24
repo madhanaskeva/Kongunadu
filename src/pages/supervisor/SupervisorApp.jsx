@@ -422,12 +422,26 @@ export class SupervisorApp extends React.Component {
       photo: !ld.photo ? 'Take a photo of the odometer.' : undefined };
     const legErr = cf.legTried ? legBad : {};
     const closeNum = legs.length ? Number(legs[legs.length - 1].reading) : 0;
-    // Diesel — one entry per bunk
+    // Diesel — authorized bunks for this route
+    const selRoute = (T.routes || []).find(r => r.id === selTrip.route || r.name === selTrip.route) || (T.routes || []).find(r => r.from === selTrip.loading && r.to === selTrip.unloading);
+    const routeAuthIds = selRoute?.authorizedBunks || [];
     const bunkList = T.bunks.filter(b => b.branch === this.BR && b.status === 'Active');
+    const routeAuthBunks = routeAuthIds.length > 0
+      ? [
+          ...T.bunks.filter(b => routeAuthIds.includes(b.id) || routeAuthIds.some(a => String(a).toLowerCase() === String(b.name).toLowerCase())),
+          ...routeAuthIds.filter(a => !T.bunks.some(b => b.id === a || String(b.name).toLowerCase() === String(a).toLowerCase())).map(name => ({ name }))
+        ]
+      : bunkList;
+    const authorizedBunkOptions = [
+      ...routeAuthBunks.map(b => ({ value: b.name, label: `${b.name} (Authorized)` })),
+      { value: 'NEW_BUNK', label: '+ Enter new bunk (Request Admin approval)' },
+    ];
+
     const fillEditing = cf.fillEdit >= 0, fillEditorOpen = cf.fillOpen || !fills.length, fd = cf.fillDraft;
-    const fdL = Number(fd.litres) || 0, fdR = Number(fd.rate) || 0, fdRef = bunkList.find(b => b.name.toLowerCase() === fd.bunk.trim().toLowerCase());
+    const fdBunkName = fd.bunkChoice === 'NEW_BUNK' ? (fd.customBunk || '').trim() : (fd.bunkChoice || fd.bunk).trim();
+    const fdL = Number(fd.litres) || 0, fdR = Number(fd.rate) || 0, fdRef = bunkList.find(b => b.name.toLowerCase() === fdBunkName.toLowerCase());
     const tank = this.tankOf(selTrip.vehicle), overTank = l => tank > 0 && Number(l) > tank, tankMsg = `More than the ${km(tank)} L tank.`;
-    const fillBad = { bunk: !fd.bunk.trim() ? 'Enter the bunk name.' : undefined, litres: !(fdL > 0) ? 'Required.' : overTank(fdL) ? tankMsg : undefined, rate: !(fdR > 0) ? 'Required.' : undefined };
+    const fillBad = { bunk: !fdBunkName ? 'Enter or select the bunk name.' : undefined, litres: !(fdL > 0) ? 'Required.' : overTank(fdL) ? tankMsg : undefined, rate: !(fdR > 0) ? 'Required.' : undefined };
     // Over-tank shows straight away, not only after tapping Add bunk
     const fillErr = cf.fillTried ? fillBad : overTank(fdL) ? { litres: tankMsg } : {};
     const overFill = (cf.fills || []).findIndex(x => overTank(x.litres));
@@ -756,12 +770,45 @@ export class SupervisorApp extends React.Component {
       fillCards: fills.map((x, i) => ({ i, n: i + 1, bunk: x.bunk, line: `${km(x.litres)} L × ₹${Number(x.rate).toFixed(2)}/L = ${money0(x.litres * x.rate)}`, bg: overTank(x.litres) ? 'var(--kr-red-100)' : fillEditing && cf.fillEdit === i ? 'var(--color-brand-tint)' : '#fff', lineColor: overTank(x.litres) ? 'var(--kr-red-800)' : 'var(--text-body)' })),
       tankLabel: tank ? km(tank) + ' L' : '—', qtyHint: tank ? `Tank holds ${km(tank)} L` : undefined,
       fillEditorOpen, fillAddShown: !fillEditorOpen, fillCanCancel: fills.length > 0, fillEditorTitle: fillEditing ? `Edit bunk ${cf.fillEdit + 1}` : `Bunk ${fills.length + 1}`, fillSaveLabel: fillEditing ? 'Save changes' : 'Add bunk',
-      fillBunkHint: fdRef ? `Branch bunk · rate on record ₹${fdRef.rate.toFixed(2)}/L.` : 'Type the bunk name from the diesel slip.',
+      authorizedBunkOptions,
+      selectedBunkChoice: fd.bunkChoice || (routeAuthBunks.some(b => b.name === fd.bunk) ? fd.bunk : fd.bunk ? 'NEW_BUNK' : ''),
+      selectBunkChoice: e => {
+        const choice = e.target.value;
+        if (choice === 'NEW_BUNK') {
+          this.patchCf({ fillDraft: { ...fd, bunkChoice: 'NEW_BUNK', bunk: fd.customBunk || '' } });
+        } else {
+          const ref = routeAuthBunks.find(b => b.name === choice);
+          this.patchCf({ fillDraft: { ...fd, bunkChoice: choice, bunk: choice, rate: ref && !fd.rate ? ref.rate.toFixed(2) : fd.rate } });
+        }
+      },
+      setCustomBunkName: e => {
+        const val = e.target.value;
+        this.patchCf({ fillDraft: { ...fd, bunkChoice: 'NEW_BUNK', customBunk: val, bunk: val } });
+      },
+      fillBunkHint: fdRef ? `Authorized bunk · rate on record ₹${fdRef.rate.toFixed(2)}/L.` : 'Select from authorized bunks or request a new bunk.',
       fillDraftAmount: fdL && fdR ? money0(fdL * fdR) : '—',
       setFillBunk: e => { const bunk = e.target.value, ref = bunkList.find(b => b.name.toLowerCase() === bunk.trim().toLowerCase()); this.patchCf({ fillDraft: { ...fd, bunk, rate: ref && !fd.rate ? ref.rate.toFixed(2) : fd.rate } }); },
       setFillLitres: e => this.patchCf({ fillDraft: { ...fd, litres: e.target.value.replace(/[^\d.]/g, '') } }), setFillRate: e => this.patchCf({ fillDraft: { ...fd, rate: e.target.value.replace(/[^\d.]/g, '') } }),
-      saveFill: () => { if (Object.values(fillBad).some(Boolean)) { this.patchCf({ fillTried: true }); return; } const x = { bunk: fd.bunk.trim(), litres: String(fdL), rate: fdR.toFixed(2) };
-        this.patchCf({ fills: fillEditing ? fills.map((y, j) => j === cf.fillEdit ? x : y) : [...fills, x], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }); },
+      saveFill: () => {
+        const finalBunkName = fd.bunkChoice === 'NEW_BUNK' ? (fd.customBunk || '').trim() : (fd.bunkChoice || fd.bunk).trim();
+        if (Object.values(fillBad).some(Boolean) || !finalBunkName) { this.patchCf({ fillTried: true }); return; }
+        
+        const isCustom = fd.bunkChoice === 'NEW_BUNK' || !routeAuthBunks.some(b => b.name.toLowerCase() === finalBunkName.toLowerCase());
+        if (isCustom && this.ctx?.requestNewBunk) {
+          this.ctx.requestNewBunk({
+            bunkName: finalBunkName,
+            routeId: selRoute?.id,
+            routeName: selRoute?.name || 'Route',
+            tripId: selTrip.id,
+            tripNumber: selD.number,
+            supervisorName: (T.S[selTrip.supervisor] || {}).name || 'Supervisor',
+            branch: selTrip.branch,
+          });
+        }
+
+        const x = { bunk: finalBunkName, litres: String(fdL), rate: fdR.toFixed(2), isNewBunk: isCustom };
+        this.patchCf({ fills: fillEditing ? fills.map((y, j) => j === cf.fillEdit ? x : y) : [...fills, x], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false });
+      },
       cancelFill: () => this.patchCf({ fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }),
       openFillEditor: () => this.patchCf({ fillDraft: this.blankFill(), fillEdit: -1, fillOpen: true, fillTried: false }),
       editFill: e => { const i = Number(e.currentTarget.dataset.i); this.patchCf({ fillDraft: { ...fills[i] }, fillEdit: i, fillOpen: true, fillTried: false }); },

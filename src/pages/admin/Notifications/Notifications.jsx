@@ -4,7 +4,7 @@ import { useTMSAdmin } from '../../../context/TMSAdminContext';
 
 // Every admin notification, newest first. Opened from "View all" in the header's notifications popup.
 export const Notifications = () => {
-  const { adminNotifications, adminNotifRead, markAdminNotifsRead } = useTMSAdmin();
+  const { adminNotifications, adminNotifRead, markAdminNotifsRead, decideBunkRequest } = useTMSAdmin();
   const list = adminNotifications || [];
   const readSet = new Set(adminNotifRead || []);
   const isUnread = n => !readSet.has(n.id);
@@ -30,7 +30,51 @@ export const Notifications = () => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '18px' }}>
         {list.map(item => (
-          <NotificationCard key={item.id} title={item.title} body={item.body} time={item.time} unread={isUnread(item)} />
+          <NotificationCard
+            key={item.id}
+            title={item.title}
+            body={item.body}
+            time={item.time}
+            unread={isUnread(item)}
+            actions={
+              item.kind === 'bunkApproval' && item.bunkRequestId ? (
+                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Approved')}
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      background: 'var(--color-brand)',
+                      color: '#fff',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Approve Bunk & Authorize
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Rejected')}
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '4px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--kr-red-600)',
+                      color: 'var(--kr-red-600)',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Reject
+                  </button>
+                </div>
+              ) : null
+            }
+          />
         ))}
 
         {list.length === 0 && (
