@@ -301,7 +301,53 @@ export const CloseTrip = ({ v }) => (
           <Input label="Loading qty" value={v.cf.qtyLoad} onChange={v.setCf.qtyLoad} error={v.cerr.qtyLoad} />
           <Input label="Unloading qty" value={v.cf.qtyUnload} onChange={v.setCf.qtyUnload} error={v.cerr.qtyUnload} />
         </div>
-        <Input label="Total expense" prefix="₹" placeholder="0" value={v.cf.totalExpense} onChange={v.setTotalExpense} inputMode="numeric" error={v.cerr.totalExpense} hint={v.totalExpenseHint} />
+        {/* Expense breakdown — every box feeds the total, so nothing is typed twice */}
+        <section style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px 12px", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)" }}>
+          <div style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>
+            Trip expenses
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "12px" }}>
+            <Input label="1. Diesel cash" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.dieselCash} onChange={e => v.setExpBreakdown('dieselCash', e.target.value)} />
+            <Input label="2. Driver bata" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.driverBata} onChange={e => v.setExpBreakdown('driverBata', e.target.value)} />
+            <Input label="3. Cleaner bata" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.cleanerBata} onChange={e => v.setExpBreakdown('cleanerBata', e.target.value)} />
+            <Input label="4. R.T.O. & P.C. exp" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.rto} onChange={e => v.setExpBreakdown('rto', e.target.value)} />
+            <Input label="5. Toll cash exp" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.toll} onChange={e => v.setExpBreakdown('toll', e.target.value)} />
+            <Input label="6. Weighment exp" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.weighment} onChange={e => v.setExpBreakdown('weighment', e.target.value)} />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>
+              7. Other expenses
+            </span>
+            {v.otherExpenses.map((row, i) => (
+              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <Input style={{ flex: "1 1 auto", minWidth: 0 }} placeholder="What it was for" value={row.name} onChange={e => v.setOtherExpense(i, 'name', e.target.value)} />
+                <Input style={{ flex: "0 0 128px" }} prefix="₹" placeholder="0" inputMode="numeric" value={row.amount} onChange={e => v.setOtherExpense(i, 'amount', e.target.value)} />
+                <button
+                  type="button"
+                  onClick={() => v.removeOtherExpense(i)}
+                  aria-label={`Remove other expense ${i + 1}`}
+                  style={{ all: "unset", cursor: "pointer", flex: "none", width: "32px", height: "32px", display: "grid", placeItems: "center", borderRadius: "var(--radius-sm)", color: "var(--status-danger)", fontSize: "20px", fontWeight: "700" }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <Button variant="secondary" size="sm" onClick={v.addOtherExpense}>+ Add another box</Button>
+          </div>
+        </section>
+
+        {/* Total is the sum of the boxes above — it is shown, never typed */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", padding: "12px 14px", background: "var(--color-brand-tint)", borderRadius: "var(--radius-md)" }}>
+          <span>
+            <span style={{ display: "block", fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>Total expense</span>
+            <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)" }}>{v.totalExpenseHint}</span>
+          </span>
+          <strong style={{ fontFamily: "var(--font-display)", fontSize: "22px", color: "var(--text-heading)", whiteSpace: "nowrap" }}>{v.totalExpenseDisplay}</strong>
+        </div>
+        {v.cerr.totalExpense ? (
+          <div style={{ fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>{v.cerr.totalExpense}</div>
+        ) : null}
         <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>Remarks</span>

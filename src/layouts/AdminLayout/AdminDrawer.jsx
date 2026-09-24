@@ -155,6 +155,10 @@ export const AdminDrawer = () => {
   const isPendingDrv = drvStatus === 'Pending approval' || drvStatus === 'Pending';
   const mask = a => a ? '•••• ' + String(a).slice(-4) + ` (${String(a).length} digits)` : '—';
 
+  // A form whose shape depends on its own answers resolves these per render.
+  const saveLabelOf = (f) => (typeof drawer.saveLabel === 'function' ? drawer.saveLabel(f) : drawer.saveLabel);
+  const requiredOf = (f) => (typeof drawer.required === 'function' ? drawer.required(f) : drawer.required) || [];
+
   // Save form handling
   const handleSaveForm = () => {
     if (drawer.validate) {
@@ -165,7 +169,7 @@ export const AdminDrawer = () => {
         return;
       }
     }
-    const missing = (drawer.required || []).filter(k => !String(form[k] || '').trim());
+    const missing = requiredOf(form).filter(k => !String(form[k] || '').trim());
     if (missing.length) {
       setFormError(`${missing.length} required ${missing.length > 1 ? 'fields are' : 'field is'} missing.`);
       return;
@@ -214,7 +218,7 @@ export const AdminDrawer = () => {
     }
 
     closeDrawer();
-    showToast('success', drawer.saveLabel.replace(/^Create|^Save|^Send/, m => ({ Create: 'Created', Save: 'Saved', Send: 'Sent' })[m]), `${drawer.title} · ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
+    showToast('success', String(saveLabelOf(form)).replace(/^Create|^Save|^Send/, m => ({ Create: 'Created', Save: 'Saved', Send: 'Sent' })[m]), `${drawer.title} · ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
   };
 
   const pickFormUpload = (e, key) => {
@@ -543,6 +547,29 @@ export const AdminDrawer = () => {
                   {drawer.intro}
                 </p>
               )}
+              {drawer.details && drawer.details.length > 0 && (
+                <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                  {drawer.details.map(([dLabel, dValue, dTone], i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        padding: '9px 14px',
+                        fontSize: '13.5px',
+                        background: i % 2 ? 'var(--surface-muted)' : '#fff',
+                      }}
+                    >
+                      <span style={{ color: 'var(--kr-grey-700)' }}>{dLabel}</span>
+                      <span style={{ fontWeight: 700, textAlign: 'right', color: dTone === 'bad' ? 'var(--kr-red-700)' : 'var(--text-heading)' }}>
+                        {dValue == null || dValue === '' ? '—' : dValue}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {formError && (
                 <div
                   role="alert"
@@ -573,6 +600,7 @@ export const AdminDrawer = () => {
               )}
 
               {drawer.fields && drawer.fields.map(([key, label, opts, hint, extra = {}], idx) => {
+                if (extra.when && !extra.when(form)) return null;
                 const isSection = opts === 'section';
                 const isUpload = opts === 'upload';
                 const isArea = opts === 'textarea';
@@ -676,6 +704,9 @@ export const AdminDrawer = () => {
                         <option value="">Select</option>
                         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
+                      {hint && typeof hint === 'string' && (
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{hint}</span>
+                      )}
                     </div>
                   );
                 }
@@ -955,7 +986,7 @@ export const AdminDrawer = () => {
                 color: '#fff',
               }}
             >
-              {drawer.saveLabel}
+              {saveLabelOf(form)}
             </button>
           )}
         </div>

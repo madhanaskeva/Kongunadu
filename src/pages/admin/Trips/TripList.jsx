@@ -384,39 +384,50 @@ export const TripList = () => {
 
       {/* Table Container */}
       <div className="tms-card" style={{ overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 20px', borderBottom: '1px solid #e3e9e6', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid #e3e9e6', gap: '12px', flexWrap: 'wrap' }}>
           {/* Status Tabs */}
-          <div className="tms-tabrow" style={{ display: 'flex', gap: '4px' }}>
+          {/* Status filters — press one to narrow the list, press it again to go back to All. */}
+          <div className="tms-tabrow" style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '12px 0' }}>
             {[
               { id: '', label: 'All', count: statusPool.length },
               { id: 'Enroute', label: ENROUTE_LABEL, count: statusPool.filter(t => t.status === 'Enroute').length },
               { id: 'Closed', label: 'Closed', count: statusPool.filter(t => t.status === 'Closed').length },
-              { id: PENDING_TAB, label: PENDING_CLOSE_LABEL, count: statusPool.filter(t => t.pendingClose).length, accent: 'var(--st-pending-fg)', icon: ClockAlert },
+              { id: PENDING_TAB, label: PENDING_CLOSE_LABEL, count: statusPool.filter(t => t.pendingClose).length, accent: 'var(--st-pending-fg)', edge: 'var(--st-pending-edge)', soft: 'var(--st-pending-bg)', icon: ClockAlert },
             ].map(tab => {
               const on = (tf.status || '') === tab.id;
               const accent = tab.accent || 'var(--kr-green-700)';
+              const edge = tab.edge || 'var(--kr-green-700)';
+              const soft = tab.soft || 'var(--kr-green-100)';
               const TabIcon = tab.icon;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setTf({ ...tf, status: tab.id })}
+                  type="button"
+                  aria-pressed={on}
+                  title={on ? `Clear the ${tab.label} filter` : `Show only ${tab.label}`}
+                  onClick={() => setTf({ ...tf, status: on ? '' : tab.id })}
                   style={{
                     all: 'unset',
                     cursor: 'pointer',
-                    padding: '16px 22px 13px',
-                    fontSize: '15px',
+                    boxSizing: 'border-box',
+                    height: '38px',
+                    padding: '0 16px',
+                    borderRadius: 'var(--radius-pill, 999px)',
+                    border: `1.5px solid ${on ? edge : 'var(--border-strong, #cbd5e1)'}`,
+                    background: on ? soft : '#fff',
+                    color: on ? accent : 'var(--text-heading)',
+                    fontSize: '14px',
                     fontWeight: 700,
                     whiteSpace: 'nowrap',
-                    borderBottom: `3px solid ${on ? accent : 'transparent'}`,
-                    color: on ? accent : 'var(--text-heading)',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '6px',
+                    gap: '7px',
+                    transition: 'background var(--dur-fast, 0.15s), border-color var(--dur-fast, 0.15s)',
                   }}
                 >
-                  {TabIcon && <TabIcon size={16} style={{ color: on ? accent : 'var(--st-pending-edge)' }} />}
+                  {TabIcon && <TabIcon size={15} style={{ color: on ? accent : 'var(--st-pending-edge)' }} />}
                   {tab.label}
-                  <span style={{ fontSize: '13px', fontWeight: on ? 700 : 500, color: on ? accent : 'var(--text-muted)' }}>({tab.count})</span>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: on ? accent : 'var(--text-muted)' }}>{tab.count}</span>
                 </button>
               );
             })}

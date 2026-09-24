@@ -839,15 +839,19 @@ export class SupervisorApp extends React.Component {
       setOtherExpense: (idx, field, val) => this.setOtherExpense(idx, field, val),
       addOtherExpense: () => this.addOtherExpense(),
       removeOtherExpense: (idx) => this.removeOtherExpense(idx),
-      setTotalExpense: e => this.patchCf({ totalExpense: e.target.value.replace(/\D/g, '').slice(0, 8) }),
-      totalExpenseHint: `Everything spent on this trip: diesel${dieselTotal ? ' (' + money0(dieselTotal) + ')' : ''}, toll, driver bata, loading charges.`,
+      totalExpenseDisplay: Number(cf.totalExpense) > 0 ? money0(Number(cf.totalExpense)) : '₹0',
+      totalExpenseHint: 'Added up automatically: bunk diesel plus the seven boxes above.',
       setCloseRemarks: e => this.patchCf({ remarks: e.target.value.slice(0, 250) }), closeRemarksCount: (cf.remarks || '').length,
       closeSummary, closePhotos, hasClosePhotos: closePhotos.length > 0,
       closeReviewHead: flagged ? `Variance ${pct}% will be flagged.` : 'Validation passed.',
       closeReviewNote: flagged ? `The odometer distance is outside 5% of the ${km(fixed)} km fixed route, so Head Office reviews it after you close.` : fixed ? `Odometer distance is within 5% of the ${km(fixed)} km fixed route.` : 'Non-business movement. No fixed route to check against.',
       submitClose: () => { if (Object.values(closeBad).some(Boolean)) { this.setState({ showCloseErrors: true, railVariant: 'errors' }); return; } this.go('closeReview', { railVariant: '' }); },
       confirmClose: () => {
-        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: this.stampText() };
+        // Only the rows the supervisor actually filled in are worth keeping.
+        const otherExp = (cf.otherExpenses || [])
+          .map(x => ({ name: String(x.name || '').trim(), amount: Number(x.amount) || 0 }))
+          .filter(x => x.name || x.amount);
+        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, expBreakdown: cf.expBreakdown || {}, otherExpenses: otherExp, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: this.stampText() };
         try {
           const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
           const cur = m.trips || { added: [], edited: {} };
@@ -866,6 +870,9 @@ export class SupervisorApp extends React.Component {
             dieselLitres: Number(rec.litres) || selTrip.dieselLitres,
             dieselTotal: dieselTotal || selTrip.dieselTotal,
             totalExpense: rec.totalExpense ? `₹${Number(rec.totalExpense).toLocaleString('en-IN')}` : selTrip.totalExpense,
+            // Head Office reads the toll and the itemised extras off these.
+            expBreakdown: rec.expBreakdown,
+            otherExpenses: rec.otherExpenses,
             closeRemarks: rec.remarks || selTrip.closeRemarks,
             qtyLoad: rec.qtyLoad || selTrip.qtyLoad,
             qtyUnload: rec.qtyUnload || selTrip.qtyUnload,
@@ -1039,6 +1046,9 @@ export class SupervisorApp extends React.Component {
     otherExpenses: [{ name: '', amount: '' }],
     legs: [], legDraft: this.blankLeg(), legEdit: -1, legOpen: false, legTried: false,
     fills: [], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }; }
+  // Total expense = diesel drawn at the bunks + the six boxes + every other-expense row.
+  // Diesel is part of it because the bunk fill is money spent on this trip, the same
+  // way the seed trips were totalled before the boxes existed.
   recalcTotalExpense(cf) {
     const eb = cf.expBreakdown || {};
     const dCash = Number(eb.dieselCash) || 0;
@@ -1048,7 +1058,8 @@ export class SupervisorApp extends React.Component {
     const toll = Number(eb.toll) || 0;
     const weigh = Number(eb.weighment) || 0;
     const oth = (cf.otherExpenses || []).reduce((a, x) => a + (Number(x.amount) || 0), 0);
-    const sum = dCash + drvB + clnB + rto + toll + weigh + oth;
+    const bunkDiesel = (cf.fills || []).reduce((a, x) => a + (Number(x.litres) || 0) * (Number(x.rate) || 0), 0);
+    const sum = Math.round(bunkDiesel) + dCash + drvB + clnB + rto + toll + weigh + oth;
     return sum > 0 ? String(sum) : '';
   }
   setExpBreakdown(field, value) {
@@ -1056,7 +1067,7 @@ export class SupervisorApp extends React.Component {
       const expBreakdown = { ...(st.cf.expBreakdown || {}), [field]: value.replace(/\D/g, '') };
       const cf = { ...st.cf, expBreakdown };
       const totalExpense = this.recalcTotalExpense(cf);
-      return { cf: { ...cf, totalExpense: totalExpense || st.cf.totalExpense } };
+      return { cf: { ...cf, totalExpense } };
     });
   }
   setOtherExpense(index, field, value) {
@@ -1067,7 +1078,7 @@ export class SupervisorApp extends React.Component {
       );
       const cf = { ...st.cf, otherExpenses };
       const totalExpense = this.recalcTotalExpense(cf);
-      return { cf: { ...cf, totalExpense: totalExpense || st.cf.totalExpense } };
+      return { cf: { ...cf, totalExpense } };
     });
   }
   addOtherExpense() {
@@ -1088,7 +1099,15 @@ export class SupervisorApp extends React.Component {
   }
   blankLeg() { return { from: '', to: '', reading: '', photo: null }; }
   blankFill() { return { bunk: '', litres: '', rate: '' }; }
-  patchCf(patch) { this.setState(st => ({ cf: { ...st.cf, ...patch } })); }
+  patchCf(patch) {
+    this.setState(st => {
+      const cf = { ...st.cf, ...patch };
+      // Adding or removing a bunk changes the diesel spend, so the total follows it
+      // the same way it follows the expense boxes.
+      if ('fills' in patch) cf.totalExpense = this.recalcTotalExpense(cf);
+      return { cf };
+    });
+  }
   // Points an odometer reading can be taken between: loading point, each unloading customer, then the branch yard.
   tripPoints(t) {
     const T = this.T(), yard = ((T.B[t.branch] || {}).name || 'Branch') + ' yard';

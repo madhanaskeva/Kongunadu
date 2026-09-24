@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { CircleCheck, CircleX, Fuel, Lock, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Fuel, Lock, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
@@ -9,7 +9,7 @@ import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import {
   VERIFY_STATUS, VERIFY_LEVEL_1, VERIFY_LEVEL_2,
   runChecks, verifyState,
-  routeDieselLimit, overLimitLitres, overLimitValue,
+  routeDieselLimit, overLimitLitres, overLimitValue, routesOfTrip,
 } from '../../../utils/tripVerification';
 import './tripDetail.css';
 
@@ -137,6 +137,12 @@ export const TripDetail = () => {
     if (str.startsWith('₹')) return str;
     const num = Number(str.replace(/[^\d.]/g, ''));
     return isNaN(num) ? str : '₹' + num.toLocaleString('en-IN');
+  };
+  // "₹34,500" / 34500 / "" → 34500 / null
+  const moneyOf = (val) => {
+    if (val == null || val === '') return null;
+    const n = Number(String(val).replace(/[^\d.-]/g, ''));
+    return isNaN(n) ? null : n;
   };
 
   const computedOdo =
@@ -303,46 +309,117 @@ export const TripDetail = () => {
     });
   };
 
-  // A trip that failed a check cannot be signed off at Level 1; it goes up with
-  // the driver's explanation attached.
+  // Diesel above the authorized limit cannot be signed off at Level 1. The
+  // escalation form carries the trip's own facts, the reason for the excess, and
+  // the one decision that settles it: recover the money from the driver, or not.
   const escalate = () => {
     setDrawer({
       isForm: true,
       kicker: `Escalate ${rawTrip.number}`,
-      title: 'Send to Administrator',
-      saveLabel: 'Escalate',
-      required: ['reason'],
-      intro: `Diesel is ${overLimit || 0} L above the ${dieselLimit || 0} L authorized for this route — ₹${(overValue || 0).toLocaleString('en-IN')} at this trip's rate. Record the driver's explanation for the excess.`,
-      fields: [['reason', "Driver's explanation for the excess"]],
+      title: 'Diesel above authorized limit',
+      details: [
+        ['Driver', (d || {}).name || rawTrip.driverName || '—'],
+        ['Vehicle', (v || {}).number || rawTrip.vehicleNumber || '—'],
+        ['Route', routeLine || '—'],
+        ['Authorized limit', dieselLimit != null ? `${dieselLimit.toLocaleString('en-IN')} L` : '—'],
+        ['Diesel booked', dieselLitres != null ? `${dieselLitres.toLocaleString('en-IN')} L` : '—'],
+        [
+          'Exceeded by',
+          `${(overLimit || 0).toLocaleString('en-IN')} L${overValue != null ? ` · ${fmtMoney(overValue)}` : ''}`,
+          'bad',
+        ],
+      ],
+      fields: [
+        ['reason', 'Reason for the excess', 'textarea', "Record the driver's explanation for the extra diesel."],
+        ['deduct', 'Deduct from salary?', ['No', 'Yes'], 'Yes recovers the excess through payroll. No writes it off and approves the trip.'],
+        [
+          'amount',
+          'Amount to deduct (₹)',
+          null,
+          '0',
+          { when: (f) => f.deduct === 'Yes' },
+        ],
+      ],
+      required: (f) => (f.deduct === 'Yes' ? ['reason', 'deduct', 'amount'] : ['reason', 'deduct']),
+      validate: (f) => ({
+        reason: !String(f.reason || '').trim() ? 'Record why the diesel went over the limit.' : undefined,
+        deduct: !f.deduct ? 'Choose whether to deduct this from the driver.' : undefined,
+        amount:
+          f.deduct === 'Yes' && !(Number(String(f.amount || '').replace(/[^\d.]/g, '')) > 0)
+            ? 'Enter the amount to recover.'
+            : undefined,
+      }),
+      saveLabel: (f) => (f.deduct === 'Yes' ? 'Raise deduction' : 'Approve & lock'),
       onSave: (f) => {
+        const note = (f.reason || '').trim();
+
+        // Written off: the trip is approved and the record locks.
+        if (f.deduct !== 'Yes') {
+          saveVerify({
+            status: VERIFY_STATUS.APPROVED,
+            level: VERIFY_LEVEL_2,
+            reason: note,
+            escalatedBy: VERIFY_LEVEL_1,
+            escalatedAt: stamp(),
+            approvedBy: VERIFY_LEVEL_2,
+            approvedAt: stamp(),
+            explanationAccepted: true,
+          });
+          showToast('success', 'Excess written off', `${rawTrip.number} approved and locked.`);
+          return;
+        }
+
+        // Recovered: the excess goes to payroll against the driver.
+        const amount = Number(String(f.amount || '').replace(/[^\d.]/g, '')) || 0;
         saveVerify({
-          status: VERIFY_STATUS.ESCALATED,
+          status: VERIFY_STATUS.DEDUCTED,
           level: VERIFY_LEVEL_2,
-          reason: (f.reason || '').trim(),
+          reason: note,
           escalatedBy: VERIFY_LEVEL_1,
           escalatedAt: stamp(),
-          failed: vState.failed.map(c => c.label),
+          decidedBy: VERIFY_LEVEL_2,
+          decidedAt: stamp(),
+          explanationAccepted: false,
+          deduction: { amount, note, driver: rawTrip.driver, at: stamp() },
         });
-        showToast('info', 'Escalated to Administrator', `${rawTrip.number} is waiting on a Level 2 decision.`);
+        setDeductions([
+          {
+            id: 'SD' + Date.now(),
+            trip: rawTrip.id,
+            tripNumber: rawTrip.number,
+            driver: rawTrip.driver,
+            driverName: (d || {}).name || '—',
+            branch: rawTrip.branch,
+            litres: overLimit || 0,
+            amount,
+            note,
+            raisedBy: VERIFY_LEVEL_2,
+            raisedAt: stamp(),
+            status: 'Pending payroll',
+          },
+          ...deductions,
+        ]);
+        showToast('danger', 'Deduction raised', `₹${amount.toLocaleString('en-IN')} to recover from ${(d || {}).name || 'the driver'}.`);
         pushNotice({
           kind: 'action',
           priority: 'Urgent',
           branch: rawTrip.branch,
-          title: `Trip escalated · ${rawTrip.number}`,
-          body: `Verification found ${vState.failed.length} failed check on this trip. Awaiting a Level 2 decision.`,
+          title: `Salary deduction · ${(d || {}).name || 'Driver'}`,
+          body: `Diesel on ${rawTrip.number} was ${overLimit || 0} L above the authorized limit. ₹${amount.toLocaleString('en-IN')} will be recovered through payroll.`,
           rows: [
             ['Trip', rawTrip.number],
-            ['Vehicle', (v || {}).number || '—'],
             ['Driver', (d || {}).name || '—'],
-            ['Failed checks', vState.failed.map(c => c.label).join(', ')],
-            ["Driver's explanation", (f.reason || '').trim()],
+            ['Route', routeLine || '—'],
+            ['Excess diesel', `${overLimit || 0} L`],
+            ['Deduction', `₹${amount.toLocaleString('en-IN')}`],
+            ['Reason', note],
           ],
           link: { trip: rawTrip.id },
           linkLabel: 'View trip',
         });
       },
     });
-    setForm({ reason: '' });
+    setForm({ reason: '', deduct: 'No', amount: '' });
   };
 
   // Level 2 accepts the explanation: the excess is written off and the trip locks.
@@ -458,6 +535,11 @@ export const TripDetail = () => {
   // The only diesel gate: what Head Office authorized for this trip's route in
   // the Route Master, against what the supervisor filed when closing the trip.
   const dieselLimit = routeDieselLimit(rawTrip, tms);
+  // "Sriperumbudur Cryogenic Hub → Bengaluru", one leg per drop on the trip.
+  const routeLine = routesOfTrip(rawTrip, tms)
+    .map(r => `${(tms.L[r.from] || {}).name || r.from || '—'} → ${r.to || '—'}`)
+    .join(', ')
+    || ((tms.L[rawTrip.loading] || {}).name || rawTrip.loading || '—') + ' → ' + (rawTrip.unloading || '—');
   const overLimit = overLimitLitres(rawTrip, dieselLimit);
   const overValue = overLimitValue(rawTrip, dieselLimit);
   const limitSignal = overLimit == null ? null : overLimit > 0 ? 'bad' : 'good';
@@ -474,19 +556,112 @@ export const TripDetail = () => {
 
   const vv = VERIFY_VIEW[vState.status] || VERIFY_VIEW[VERIFY_STATUS.PENDING];
 
-  const expenseRows = [
+  // What the supervisor filed on the close form, item by item.
+  const expBreakdown = rawTrip.expBreakdown || {};
+  const tollCash = expBreakdown.toll != null && expBreakdown.toll !== '' ? Number(expBreakdown.toll) : null;
+  const otherExpenses = (rawTrip.otherExpenses || []).filter(x => x && (x.name || x.amount));
+  const otherTotal = otherExpenses.reduce((a, x) => a + (Number(x.amount) || 0), 0);
+
+  // The six named boxes on the supervisor's close form, in the order he fills them.
+  const breakdownRows = [
+    ['Diesel cash', 'dieselCash'],
+    ['Driver bata', 'driverBata'],
+    ['Cleaner bata', 'cleanerBata'],
+    ['R.T.O. & P.C. expense', 'rto'],
+    ['Toll cash expense', 'toll'],
+    ['Weighment expense', 'weighment'],
+  ].map(([label, key]) => {
+    const raw = expBreakdown[key];
+    const val = raw == null || raw === '' ? null : Number(raw);
+    return [label, val != null ? fmtMoney(val) : null, null, isClosed ? '₹0' : 'Pending'];
+  });
+
+  // What the boxes and the other-expense rows add up to, which is what the
+  // supervisor's "Total expense" is built from on the close form.
+  const breakdownTotal = [
+    'dieselCash', 'driverBata', 'cleanerBata', 'rto', 'toll', 'weighment',
+  ].reduce((a, k) => a + (Number(expBreakdown[k]) || 0), 0);
+  // Diesel drawn at the bunks is part of what was spent, so it is part of the total.
+  const filedTotal = (dieselAmount || 0) + breakdownTotal + otherTotal;
+  // Trips closed on the current form cannot disagree — the total IS this sum.
+  // Older records were totalled by hand, so only a material gap is worth raising;
+  // small rounding differences would otherwise flag every legacy trip.
+  const statedTotal = moneyOf(rawTrip.totalExpense);
+  const totalGap = statedTotal != null ? Math.abs(statedTotal - filedTotal) : 0;
+  const totalMismatch =
+    statedTotal != null && filedTotal > 0 && totalGap > Math.max(100, statedTotal * 0.05);
+
+  const dieselRows = [
     [
-      'Authorized diesel limit',
+      'Authorized limit',
       dieselLimit != null ? `${dieselLimit.toLocaleString('en-IN')} L` : null,
       null,
       dieselLimit == null ? 'Not set on this route' : null,
     ],
     [
-      'Supervisor noted diesel quantity',
+      'Supervisor noted',
       dieselLitres != null ? `${dieselLitres.toLocaleString('en-IN')} L` : null,
       limitSignal,
     ],
+    ['Diesel rate', dieselRate != null ? `₹${dieselRate.toFixed(2)} / L` : null, null],
+    ['Diesel amount', dieselAmount != null ? fmtMoney(dieselAmount) : null, null],
   ];
+
+  const expenseRows = [
+    ...breakdownRows,
+    [
+      'Other expenses',
+      otherExpenses.length ? fmtMoney(otherTotal) : null,
+      null,
+      isClosed ? 'None recorded' : 'Pending',
+    ],
+  ];
+
+  // One stat line: label left, value right, with the limit dot when it applies.
+  const statRow = ([label, val, tone, fallback], i, arr) => (
+    <div
+      key={i}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: '12px',
+        padding: '9px 0',
+        borderBottom: i === arr.length - 1 ? 'none' : '1px solid var(--border-default)',
+        fontSize: '13.5px',
+      }}
+    >
+      <span style={{ color: 'var(--kr-grey-700)' }}>{label}</span>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '6px',
+          fontWeight: 700,
+          whiteSpace: 'nowrap',
+          color: tone === 'bad' ? 'var(--kr-red-700)'
+            : tone === 'good' ? 'var(--kr-green-800)'
+            : val == null ? 'var(--kr-grey-500)' : 'var(--text-heading)',
+        }}
+      >
+        {/* Red over the authorized limit, green inside it */}
+        {val != null && (tone === 'bad' || tone === 'good') && (
+          <span
+            aria-label={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
+            title={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
+            style={{
+              flex: 'none',
+              width: '9px',
+              height: '9px',
+              borderRadius: '50%',
+              background: tone === 'bad' ? 'var(--kr-red-600)' : 'var(--kr-green-600)',
+              boxShadow: `0 0 0 3px ${tone === 'bad' ? 'rgba(217,22,25,0.18)' : 'rgba(0,98,63,0.16)'}`,
+            }}
+          />
+        )}
+        {val == null ? (fallback || (isClosed ? '—' : 'Pending')) : val}
+      </span>
+    </div>
+  );
 
   const tripRecords = [
     ['Branch', (b || {}).name || rawTrip.branchName || '—'],
@@ -945,112 +1120,116 @@ export const TripDetail = () => {
           </span>
         </div>
 
-        {/* Over the diesel limit Head Office authorized for this route */}
-        {overLimit > 0 && (
-          <div
-            role="alert"
-            style={{
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-start',
-              padding: '12px 18px',
-              background: 'var(--kr-red-100)',
-              color: 'var(--kr-red-800)',
-              fontSize: '14px',
-              lineHeight: 1.5,
-            }}
-          >
-            <Fuel size={18} style={{ flex: 'none', marginTop: '1px' }} />
-            <span>
-              <strong>Diesel is above the authorized limit for this route.</strong>{' '}
-              The supervisor booked {dieselLitres.toLocaleString('en-IN')} L against an authorized{' '}
-              {dieselLimit.toLocaleString('en-IN')} L — {overLimit.toLocaleString('en-IN')} L over
-              {dieselRate ? `, worth ${fmtMoney(Math.round(overLimit * dieselRate))} at ₹${dieselRate.toFixed(2)}/L` : ''}.
-              Approve &amp; lock is withdrawn; escalate it to {VERIFY_LEVEL_2} with the driver&rsquo;s explanation.
-            </span>
-          </div>
-        )}
-
         <div className="td-verify-grid">
-          {/* Expense figures */}
+          {/* Left — the diesel decision: the limit, what was booked, the verdict */}
           <div style={{ padding: '16px 18px' }}>
-            <h3 className="td-verify-head">Expenses</h3>
+            <h3 className="td-verify-head">Diesel</h3>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {expenseRows.map(([label, val, tone, fallback], i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '12px',
-                    padding: '9px 0',
-                    borderBottom: i === expenseRows.length - 1 ? 'none' : '1px solid var(--border-default)',
-                    fontSize: '13.5px',
-                  }}
-                >
-                  <span style={{ color: 'var(--kr-grey-700)' }}>{label}</span>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                      color: tone === 'bad' ? 'var(--kr-red-700)'
-                        : tone === 'good' ? 'var(--kr-green-800)'
-                        : val == null ? 'var(--kr-grey-500)' : 'var(--text-heading)',
-                    }}
-                  >
-                    {/* Red over the authorized limit, green inside it */}
-                    {val != null && (tone === 'bad' || tone === 'good') && (
-                      <span
-                        aria-label={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
-                        title={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
-                        style={{
-                          flex: 'none',
-                          width: '9px',
-                          height: '9px',
-                          borderRadius: '50%',
-                          background: tone === 'bad' ? 'var(--kr-red-600)' : 'var(--kr-green-600)',
-                          boxShadow: `0 0 0 3px ${tone === 'bad' ? 'rgba(217,22,25,0.18)' : 'rgba(0,98,63,0.16)'}`,
-                        }}
-                      />
-                    )}
-                    {val == null ? (fallback || (isClosed ? '—' : 'Pending')) : val}
-                  </span>
-                </div>
-              ))}
+              {dieselRows.map(statRow)}
             </div>
 
+            <div style={{ marginTop: '14px' }}>
+              {!isClosed ? (
+                <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--kr-grey-700)', lineHeight: 1.55 }}>
+                  The diesel check runs once the supervisor closes the trip and files the diesel entry.
+                </p>
+              ) : dieselLimit == null ? (
+                <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--kr-grey-700)', lineHeight: 1.55 }}>
+                  No authorized diesel limit is set on this trip&rsquo;s route. Set one in the Route Master to check it.
+                </p>
+              ) : (
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'flex-start',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    background: overLimit > 0 ? 'var(--kr-red-100)' : 'var(--kr-green-100)',
+                    color: overLimit > 0 ? 'var(--kr-red-800)' : 'var(--kr-green-800)',
+                  }}
+                >
+                  <Fuel size={20} style={{ flex: 'none', marginTop: '2px' }} />
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '19px', fontWeight: 800, lineHeight: 1.2 }}>
+                      {overLimit > 0
+                        ? `${overLimit.toLocaleString('en-IN')} L over the limit`
+                        : 'Within the authorized limit'}
+                    </span>
+                    <span style={{ display: 'block', marginTop: '4px', fontSize: '13px', lineHeight: 1.5 }}>
+                      {dieselLitres.toLocaleString('en-IN')} L booked against an authorized{' '}
+                      {dieselLimit.toLocaleString('en-IN')} L
+                      {overLimit > 0 && overValue != null ? ` — ${fmtMoney(overValue)} at ₹${dieselRate.toFixed(2)}/L` : ''}.
+                    </span>
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Validation results */}
+          {/* Right — what the trip cost, as the supervisor filed it box by box */}
           <div style={{ padding: '16px 18px' }}>
-            <h3 className="td-verify-head">Validation</h3>
-            {!isClosed ? (
-              <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--kr-grey-700)', lineHeight: 1.55 }}>
-                Validation runs once the supervisor closes the trip and files the diesel and expense entries.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {checks.map(chk => {
-                  const [Icon, color] =
-                    chk.ok === true ? [CircleCheck, 'var(--kr-green-700)']
-                      : chk.ok === false ? [CircleX, 'var(--kr-red-600)']
-                      : [CircleCheck, 'var(--kr-grey-300)'];
-                  return (
-                    <div key={chk.key} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                      <Icon size={17} style={{ flex: 'none', marginTop: '1px', color }} />
-                      <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', fontSize: '13.5px', fontWeight: 700, color: chk.ok === false ? 'var(--kr-red-700)' : 'var(--text-heading)' }}>
-                          {chk.label}
-                        </span>
-                        <span style={{ display: 'block', fontSize: '12.5px', color: 'var(--kr-grey-700)' }}>{chk.detail}</span>
-                      </span>
-                    </div>
-                  );
-                })}
+            <h3 className="td-verify-head">Expenses filed at close</h3>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {expenseRows.map(statRow)}
+            </div>
+
+            {/* The itemised extras behind the "Other expenses" total */}
+            {otherExpenses.length > 0 && (
+              <div style={{ marginTop: '12px', padding: '10px 12px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ fontSize: '11.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--kr-grey-700)', marginBottom: '6px' }}>
+                  Other expenses, itemised
+                </div>
+                {otherExpenses.map((x, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      padding: '5px 0',
+                      fontSize: '13px',
+                      borderTop: i === 0 ? 'none' : '1px solid var(--border-default)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--kr-grey-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {x.name || 'Unnamed'}
+                    </span>
+                    <span style={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--text-heading)' }}>
+                      {fmtMoney(Number(x.amount) || 0)}
+                    </span>
+                  </div>
+                ))}
               </div>
+            )}
+
+            {/* Total expense — diesel plus every box above, as the close form added it up */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+                marginTop: '12px',
+                padding: '12px 14px',
+                background: 'var(--color-brand-tint)',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              <span style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--kr-green-900)' }}>
+                Total expense
+              </span>
+              <strong style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                {isClosed ? fmtMoney(filedTotal > 0 ? filedTotal : statedTotal || 0) : 'Pending'}
+              </strong>
+            </div>
+
+            {/* Older trips were closed before the itemised boxes existed, so the
+                figure the supervisor typed can differ from what the boxes add to. */}
+            {totalMismatch && (
+              <p style={{ margin: '8px 0 0', fontSize: '12.5px', lineHeight: 1.5, color: '#7A4300' }}>
+                The supervisor filed {fmtMoney(statedTotal)} as the total, but the itemised boxes add up to {fmtMoney(filedTotal)}.
+              </p>
             )}
           </div>
         </div>
