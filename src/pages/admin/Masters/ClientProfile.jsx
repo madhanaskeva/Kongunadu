@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, FileText, MapPin, Phone, Plus } from 'lucide-react';
+import { ArrowLeft, Building2, Edit3, FileText, MapPin, Phone, Plus, UserCheck } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
@@ -108,8 +108,77 @@ export const ClientProfile = () => {
 
   const vehicles = (tms.vehicles || []).filter(v => (v.clients || []).includes(id));
   const trips = (tms.trips || []).filter(t => t.client === id);
-  const supervisors = (tms.supervisors || []).filter(s => (s.clientIds || []).includes(id));
+  const supervisors = (tms.supervisors || []).filter(s =>
+    (s.clientIds || []).includes(id) ||
+    (client.supervisorIds || []).includes(s.id) ||
+    (client.supervisors && typeof client.supervisors === 'string' && client.supervisors.toLowerCase().includes(s.name.toLowerCase()))
+  );
   const activeCust = customers.filter(u => u.status === 'Active').length;
+
+  const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+  const getSupervisorOptions = (selectedBranch) => {
+    const sups = (tms.supervisors || []).filter(s => s.status !== 'Inactive' && s.status !== 'Suspended');
+    const sorted = [...sups].sort((a, b) => {
+      if (selectedBranch) {
+        if (a.branch === selectedBranch && b.branch !== selectedBranch) return -1;
+        if (a.branch !== selectedBranch && b.branch === selectedBranch) return 1;
+      }
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    return sorted.map(s => {
+      const bName = (tms.B[s.branch] || {}).name || s.branch;
+      const isPrimary = selectedBranch && s.branch === selectedBranch;
+      return {
+        value: s.id,
+        label: `${s.name} (${bName}${isPrimary ? ' · Primary' : ''})`,
+      };
+    });
+  };
+
+  const openEditClientForm = () => {
+    const initialSupervisors = supervisors.map(s => s.id);
+    setDrawer({
+      isForm: true,
+      isMaster: true,
+      masterKey: 'clients',
+      kicker: 'Edit client',
+      title: client.name,
+      saveLabel: 'Save changes',
+      required: ['name', 'gst', 'branch'],
+      fields: [
+        ['name', 'Client name', null, 'e.g. Linde India or INOX Air Products'],
+        ['gst', 'GSTIN', null, '33AAACL0123M1Z2', { clean: 'gstin', hint: '15-character GST identification number' }],
+        ['branch', 'Branch', branchOpts],
+        ['phone', 'Client phone number', null, '98410 11220', { clean: 'phone', prefix: '+91', hint: 'Primary contact or dispatch phone' }],
+        ['contact', 'Contact person / desk', null, 'e.g. Cryogenic desk, Sriperumbudur'],
+        ['supervisors', 'Supervisor assignment', 'checkbox-select', 'Select supervisors', {
+          options: (f) => getSupervisorOptions(f?.branch),
+          itemNoun: 'supervisor',
+          searchPlaceholder: 'Search supervisors...',
+        }],
+        ['status', 'Status', ['Active', 'On hold']],
+      ],
+      validate: (f) => {
+        const dg = x => String(x || '').replace(/\D/g, '');
+        return {
+          name: !String(f.name || '').trim() ? 'Enter the client name.' : undefined,
+          gst: !String(f.gst || '').trim()
+            ? 'Enter the GSTIN.'
+            : String(f.gst || '').replace(/\s/g, '').length !== 15
+            ? 'GSTIN must be 15 characters.'
+            : undefined,
+          branch: !f.branch ? 'Select a branch for this client.' : undefined,
+          phone: f.phone && dg(f.phone).length !== 10 ? 'Enter a 10-digit mobile number.' : undefined,
+        };
+      },
+    });
+    setForm({
+      ...client,
+      supervisors: initialSupervisors,
+      phone: client.phone ? String(client.phone).replace(/\D/g, '').slice(-10) : '',
+    });
+    setFormError('');
+  };
 
   const customerFields = [
     ['name', 'Customer name', null, 'e.g. Apollo Hospitals LMO Bank – Chennai'],
@@ -152,7 +221,8 @@ export const ClientProfile = () => {
   const facts = [
     [FileText, 'GSTIN', client.gst],
     [Building2, 'Branch', (tms.B[client.branch] || {}).name],
-    [Phone, 'Contact', client.contact],
+    [Phone, 'Phone', client.phone ? (String(client.phone).startsWith('+91') ? client.phone : `+91 ${client.phone}`) : '—'],
+    [UserCheck, 'Contact person', client.contact || '—'],
     [MapPin, 'Supervisors', supervisors.map(s => s.name).join(', ') || 'None mapped'],
   ];
 
@@ -191,12 +261,19 @@ export const ClientProfile = () => {
           >
             {initials}
           </span>
-          <div style={{ flex: 1, minWidth: '220px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '22px', color: 'var(--text-heading)' }}>{client.name}</h2>
-              <Badge v={client.status} />
+          <div style={{ flex: 1, minWidth: '220px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '22px', color: 'var(--text-heading)' }}>{client.name}</h2>
+                <Badge v={client.status} />
+              </div>
+              <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--text-muted)' }}>Client ID {client.id}</div>
             </div>
-            <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--text-muted)' }}>Client ID {client.id}</div>
+            {can('clients', 'edit') && (
+              <button onClick={openEditClientForm} style={btnSecondary}>
+                <Edit3 size={15} /> Edit client
+              </button>
+            )}
           </div>
         </div>
 
@@ -221,6 +298,79 @@ export const ClientProfile = () => {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Supervisors section */}
+      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px 22px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+          <div>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+              Assigned Supervisors · {supervisors.length}
+            </h3>
+            <p style={{ margin: '3px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+              Branch supervisors authorized to manage, open, and close trips for {client.name}.
+            </p>
+          </div>
+          {can('clients', 'edit') && (
+            <button onClick={openEditClientForm} style={btnSecondary}>
+              <UserCheck size={15} /> Reassign supervisors
+            </button>
+          )}
+        </div>
+
+        {supervisors.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+            {supervisors.map(s => (
+              <div
+                key={s.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '12px 14px',
+                  background: 'var(--surface-muted, #f8fafc)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                }}
+              >
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    background: 'var(--color-brand-soft)',
+                    color: 'var(--color-brand)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    flexShrink: 0,
+                  }}
+                >
+                  {s.name ? s.name.charAt(0) : 'S'}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-heading)' }}>{s.name}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    {(tms.B[s.branch] || {}).name || s.branch} {s.phone ? `· +91 ${s.phone}` : ''}
+                  </div>
+                </div>
+                <Badge v={s.status} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: '24px', textAlign: 'center', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
+            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>
+              No supervisors currently assigned to {client.name}. Reassign to grant supervisors trip access.
+            </p>
+            {can('clients', 'edit') && (
+              <button onClick={openEditClientForm} style={{ ...btnPrimary, marginTop: '12px' }}>
+                <UserCheck size={15} /> Assign supervisors
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
       {/* Customers table */}

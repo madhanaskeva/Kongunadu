@@ -250,6 +250,8 @@ export const getDashModules = (tms = {}, ctx = {}) => {
     'Client': c.name || '—',
     'GSTIN': c.gst || '—',
     'Branch': (tms.B && tms.B[c.branch] ? tms.B[c.branch].name : c.branch) || '—',
+    'Phone': c.phone ? (String(c.phone).startsWith('+91') ? c.phone : `+91 ${c.phone}`) : '—',
+    'Supervisors': c.supervisors || ((tms.supervisors || []).filter(s => (s.clientIds || []).includes(c.id)).map(s => s.name).join(', ')) || '—',
     'Customers': c.customers != null ? c.customers : '—',
     'Contact': c.contact || '—',
   }));
@@ -357,7 +359,7 @@ export const getDashModules = (tms = {}, ctx = {}) => {
     { id: 'supervisors', label: 'Supervisors', route: 'supervisors', kind: 'route', cols: ['Name', 'Phone', 'Branch', 'Clients handled', 'Last login', 'Status'], rows: supervisorsRows },
     { id: 'vehicles', label: 'Vehicles', route: 'vehicles', kind: 'route', cols: ['Registration', 'Type', 'Branch', 'Odometer', 'Tank', 'GPS', 'Status'], rows: vehiclesRows },
     { id: 'drivers', label: 'Drivers', route: 'drivers', kind: 'drv', cols: ['Name', 'Licence', 'Phone', 'Branch', 'Type', 'Approval', 'Status'], rows: driversRows },
-    { id: 'clients', label: 'Clients', route: 'clients', kind: 'route', cols: ['Client', 'GSTIN', 'Branch', 'Customers', 'Contact'], rows: clientsRows },
+    { id: 'clients', label: 'Clients', route: 'clients', kind: 'route', cols: ['Client', 'GSTIN', 'Branch', 'Phone', 'Supervisors', 'Customers', 'Contact'], rows: clientsRows },
     { id: 'locations', label: 'Loading locations', route: 'locations', kind: 'route', cols: ['Location', 'Branch', 'Address', 'Safe radius', 'Coordinates'], rows: locationsRows },
     { id: 'routes', label: 'Routes', route: 'routes', kind: 'route', cols: ['Route', 'From', 'To', 'Fixed KM', 'Duration', 'Toll'], rows: routesRows },
     { id: 'analytics', label: 'Analytics', route: 'analytics', kind: 'route', cols: ['Area', 'KPI', 'Value', 'Note'], rows: analyticsRows },

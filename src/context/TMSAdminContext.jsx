@@ -464,7 +464,8 @@ export const TMSAdminProvider = ({ children }) => {
   // Save one or many records of a collection. items: [{ rec, isNew }]
   const saveMasterMany = (route, items) => {
     setMasterEdits(all => {
-      let cur = all[route] || { added: [], edited: {} };
+      let next = { ...all };
+      let cur = next[route] || { added: [], edited: {} };
       items.forEach(({ rec, isNew }) => {
         const added = cur.added || [];
         cur = isNew
@@ -473,7 +474,123 @@ export const TMSAdminProvider = ({ children }) => {
           ? { ...cur, added: added.map(r => r.id === rec.id ? { ...r, ...rec } : r) }
           : { ...cur, edited: { ...(cur.edited || {}), [rec.id]: { ...((cur.edited || {})[rec.id] || {}), ...rec } } };
       });
-      const next = { ...all, [route]: cur };
+      next[route] = cur;
+
+      // Bi-directional synchronization between clients and supervisors
+      if (route === 'clients') {
+        const baseSupervisors = (typeof window !== 'undefined' && window.TMS?.supervisors) || TMS.supervisors || [];
+        let supCur = next.supervisors || { added: [], edited: {} };
+        const getSupRec = (sid) => {
+          const inEdited = supCur.edited?.[sid];
+          if (inEdited) return inEdited;
+          const inAdded = supCur.added?.find(x => x.id === sid);
+          if (inAdded) return inAdded;
+          return baseSupervisors.find(x => x.id === sid);
+        };
+        const allClientList = [
+          ...(next.clients?.added || []),
+          ...((typeof window !== 'undefined' && window.TMS?.clients) || TMS.clients || []).map(c => next.clients?.edited?.[c.id] ? { ...c, ...next.clients.edited[c.id] } : c)
+        ];
+
+        items.forEach(({ rec }) => {
+          const clientId = rec.id;
+          const assignedSupIds = Array.isArray(rec.supervisorIds) ? rec.supervisorIds : [];
+
+          const allKnownSupIds = Array.from(new Set([
+            ...baseSupervisors.map(s => s.id),
+            ...(supCur.added || []).map(s => s.id),
+            ...Object.keys(supCur.edited || {}),
+            ...assignedSupIds,
+          ]));
+
+          allKnownSupIds.forEach(sid => {
+            const supRec = getSupRec(sid);
+            if (!supRec) return;
+            const curClientIds = Array.isArray(supRec.clientIds) ? supRec.clientIds : (supRec.clients ? String(supRec.clients).split(',').map(s => s.trim()) : []);
+            const shouldHave = assignedSupIds.includes(sid);
+            const hasNow = curClientIds.includes(clientId);
+
+            if (shouldHave && !hasNow) {
+              const updatedIds = [...curClientIds, clientId];
+              const updatedNames = updatedIds.map(cid => (allClientList.find(c => c.id === cid) || {}).name || cid);
+              const updatedSup = { ...supRec, clientIds: updatedIds, clients: updatedNames.join(', ') };
+              if (supCur.added && supCur.added.some(s => s.id === sid)) {
+                supCur = { ...supCur, added: supCur.added.map(s => s.id === sid ? updatedSup : s) };
+              } else {
+                supCur = { ...supCur, edited: { ...(supCur.edited || {}), [sid]: updatedSup } };
+              }
+            } else if (!shouldHave && hasNow) {
+              const updatedIds = curClientIds.filter(id => id !== clientId);
+              const updatedNames = updatedIds.map(cid => (allClientList.find(c => c.id === cid) || {}).name || cid);
+              const updatedSup = { ...supRec, clientIds: updatedIds, clients: updatedNames.join(', ') };
+              if (supCur.added && supCur.added.some(s => s.id === sid)) {
+                supCur = { ...supCur, added: supCur.added.map(s => s.id === sid ? updatedSup : s) };
+              } else {
+                supCur = { ...supCur, edited: { ...(supCur.edited || {}), [sid]: updatedSup } };
+              }
+            }
+          });
+        });
+        next.supervisors = supCur;
+      }
+
+      if (route === 'supervisors') {
+        const baseClients = (typeof window !== 'undefined' && window.TMS?.clients) || TMS.clients || [];
+        let cliCur = next.clients || { added: [], edited: {} };
+        const getCliRec = (cid) => {
+          const inEdited = cliCur.edited?.[cid];
+          if (inEdited) return inEdited;
+          const inAdded = cliCur.added?.find(x => x.id === cid);
+          if (inAdded) return inAdded;
+          return baseClients.find(x => x.id === cid);
+        };
+        const allSupList = [
+          ...(next.supervisors?.added || []),
+          ...((typeof window !== 'undefined' && window.TMS?.supervisors) || TMS.supervisors || []).map(s => next.supervisors?.edited?.[s.id] ? { ...s, ...next.supervisors.edited[s.id] } : s)
+        ];
+
+        items.forEach(({ rec }) => {
+          const supId = rec.id;
+          const handledClientIds = Array.isArray(rec.clientIds) ? rec.clientIds : [];
+
+          const allKnownClientIds = Array.from(new Set([
+            ...baseClients.map(c => c.id),
+            ...(cliCur.added || []).map(c => c.id),
+            ...Object.keys(cliCur.edited || {}),
+            ...handledClientIds,
+          ]));
+
+          allKnownClientIds.forEach(cid => {
+            const cliRec = getCliRec(cid);
+            if (!cliRec) return;
+            const curSupIds = Array.isArray(cliRec.supervisorIds) ? cliRec.supervisorIds : [];
+            const shouldHave = handledClientIds.includes(cid);
+            const hasNow = curSupIds.includes(supId);
+
+            if (shouldHave && !hasNow) {
+              const updatedIds = [...curSupIds, supId];
+              const updatedNames = updatedIds.map(sid => (allSupList.find(s => s.id === sid) || {}).name || sid);
+              const updatedCli = { ...cliRec, supervisorIds: updatedIds, supervisors: updatedNames.join(', ') };
+              if (cliCur.added && cliCur.added.some(c => c.id === cid)) {
+                cliCur = { ...cliCur, added: cliCur.added.map(c => c.id === cid ? updatedCli : c) };
+              } else {
+                cliCur = { ...cliCur, edited: { ...(cliCur.edited || {}), [cid]: updatedCli } };
+              }
+            } else if (!shouldHave && hasNow) {
+              const updatedIds = curSupIds.filter(id => id !== supId);
+              const updatedNames = updatedIds.map(sid => (allSupList.find(s => s.id === sid) || {}).name || sid);
+              const updatedCli = { ...cliRec, supervisorIds: updatedIds, supervisors: updatedNames.join(', ') };
+              if (cliCur.added && cliCur.added.some(c => c.id === cid)) {
+                cliCur = { ...cliCur, added: cliCur.added.map(c => c.id === cid ? updatedCli : c) };
+              } else {
+                cliCur = { ...cliCur, edited: { ...(cliCur.edited || {}), [cid]: updatedCli } };
+              }
+            }
+          });
+        });
+        next.clients = cliCur;
+      }
+
       try { localStorage.setItem(MASTER_KEY, JSON.stringify(next)); } catch (e) {}
       return next;
     });
@@ -531,7 +648,38 @@ export const TMSAdminProvider = ({ children }) => {
         f.clients = names.join(', ');
       }
     }
-    if (route === 'clients' && isNew) { f.customers = 0; dflt('status', 'Active'); }
+    if (route === 'clients') {
+      if (f.phone) f.phone = fmtPhone(dg(f.phone));
+      if (isNew) { f.customers = 0; dflt('status', 'Active'); }
+      const allSupervisors = tms.supervisors || [];
+      if (Array.isArray(f.supervisors)) {
+        const ids = [];
+        const names = [];
+        f.supervisors.forEach(val => {
+          const match = allSupervisors.find(s => s.id === val || s.name.toLowerCase() === String(val).toLowerCase());
+          if (match) {
+            ids.push(match.id);
+            names.push(match.name);
+          } else if (val) {
+            ids.push(val);
+            names.push(val);
+          }
+        });
+        f.supervisorIds = ids;
+        f.supervisors = names.join(', ');
+      } else if (typeof f.supervisors === 'string' && f.supervisors.trim()) {
+        const names = f.supervisors.split(',').map(s => s.trim()).filter(Boolean);
+        const ids = names.map(n => {
+          const match = allSupervisors.find(s => s.name.toLowerCase() === n.toLowerCase() || s.id === n);
+          return match ? match.id : n;
+        });
+        f.supervisorIds = ids;
+        f.supervisors = names.join(', ');
+      } else {
+        f.supervisorIds = f.supervisorIds || [];
+        f.supervisors = f.supervisors || '';
+      }
+    }
     if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
     if (route === 'locations') { num('radius'); num('lat'); num('lng'); dflt('radius', 100); dflt('status', 'Active'); }
     if (route === 'trips') {

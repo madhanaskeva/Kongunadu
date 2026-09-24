@@ -251,6 +251,25 @@ export const MasterManager = ({ type }) => {
   const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
   const clientList = mdata('clients', tms.clients || []);
   const clientOpts = clientList.map(c => ({ value: c.id, label: c.name }));
+  const supervisorList = mdata('supervisors', tms.supervisors || []);
+  const getSupervisorOptions = (selectedBranch) => {
+    const sups = supervisorList.filter(s => s.status !== 'Inactive' && s.status !== 'Suspended');
+    const sorted = [...sups].sort((a, b) => {
+      if (selectedBranch) {
+        if (a.branch === selectedBranch && b.branch !== selectedBranch) return -1;
+        if (a.branch !== selectedBranch && b.branch === selectedBranch) return 1;
+      }
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    return sorted.map(s => {
+      const bName = (tms.B[s.branch] || {}).name || s.branch;
+      const isPrimary = selectedBranch && s.branch === selectedBranch;
+      return {
+        value: s.id,
+        label: `${s.name} (${bName}${isPrimary ? ' · Primary' : ''})`,
+      };
+    });
+  };
 
   const statusBadge = (v) => ({
     v: v || '—',
@@ -437,50 +456,101 @@ export const MasterManager = ({ type }) => {
       singular: 'client',
       plural: 'clients',
       addLabel: 'Add client',
-      searchPh: 'Search client or GST',
-      data: mdata('clients', tms.clients || []).map(c => ({
-        ...c,
-        customers: mdata('customers', tms.customers || []).filter(u => u.client === c.id && !deleted.includes(u.id)).length,
-      })),
+      searchPh: 'Search client, GST, or loading location',
+      data: mdata('clients', tms.clients || []).map(c => {
+        const sups = (tms.supervisors || []).filter(s =>
+          (s.clientIds || []).includes(c.id) ||
+          (c.supervisorIds || []).includes(s.id) ||
+          (c.supervisors && typeof c.supervisors === 'string' && c.supervisors.toLowerCase().includes(s.name.toLowerCase()))
+        );
+        const supervisorNames = sups.map(s => s.name).join(', ') || c.supervisors || '—';
+        const loc = (tms.locations || []).find(l => l.clientId === c.id || l.client === c.id || l.id === c.loadingLocationId);
+        const loadingLoc = c.loadingLocation || (loc ? loc.name : '') || c.contact || '—';
+        return {
+          ...c,
+          loadingLocation: loadingLoc,
+          supervisorsFormatted: supervisorNames,
+          customers: mdata('customers', tms.customers || []).filter(u => u.client === c.id && !deleted.includes(u.id)).length,
+        };
+      }),
       rowLink: c => `/admin/masters/clients/${c.id}`,
-      cols: ['Client', 'GSTIN', 'Branch', 'Customers', 'Contact'],
+      cols: ['Client', 'GSTIN', 'Branch', 'Loading Location', 'Phone', 'Supervisors', 'Customers', 'Status'],
       cells: c => [
         { ...txtCell(c.name, true), color: 'var(--text-brand)' },
         txtCell(c.gst),
         txtCell(bn(c.branch)),
+        txtCell(c.loadingLocation || '—', true),
+        txtCell(c.phone ? (String(c.phone).startsWith('+91') ? c.phone : `+91 ${c.phone}`) : '—'),
+        txtCell(c.supervisorsFormatted || '—'),
         txtCell(c.customers),
-        txtCell(c.contact),
+        statusBadge(c.status),
       ],
       fields: [
-        ['name', 'Client name'],
-        ['gst', 'GSTIN'],
+        ['name', 'Client name', null, 'e.g. Linde India or INOX Air Products'],
+        ['gst', 'GSTIN', null, '33AAACL0123M1Z2', { clean: 'gstin', hint: '15-character GST identification number' }],
         ['branch', 'Branch', branchOpts],
-        ['contact', 'Contact'],
+        ['loadingLocation', 'Loading location', null, 'e.g. Sriperumbudur Cryogenic Hub', { hint: 'Primary loading plant, terminal, or hub' }],
+        ['phone', 'Client phone number', null, '98410 11220', { clean: 'phone', prefix: '+91', hint: 'Primary contact or dispatch phone' }],
+        ['supervisors', 'Supervisor assignment', 'checkbox-select', 'Select supervisors', {
+          options: (f) => getSupervisorOptions(f?.branch),
+          itemNoun: 'supervisor',
+          searchPlaceholder: 'Search supervisors...',
+        }],
         ['status', 'Status', ['Active', 'On hold']],
       ],
+      required: ['name', 'gst', 'branch'],
+      validate: (f) => {
+        const dg = x => String(x || '').replace(/\D/g, '');
+        return {
+          name: !String(f.name || '').trim() ? 'Enter the client name.' : undefined,
+          gst: !String(f.gst || '').trim()
+            ? 'Enter the GSTIN.'
+            : String(f.gst || '').replace(/\s/g, '').length !== 15
+            ? 'GSTIN must be 15 characters.'
+            : undefined,
+          branch: !f.branch ? 'Select a branch for this client.' : undefined,
+          phone: f.phone && dg(f.phone).length !== 10 ? 'Enter a 10-digit mobile number.' : undefined,
+        };
+      },
     },
     locations: {
       title: 'Loading Location Master',
       singular: 'loading location',
       plural: 'loading locations',
       addLabel: 'Add location',
-      searchPh: 'Search location',
-      data: mdata('locations', tms.locations || []),
-      cols: ['Location', 'Branch', 'Address', 'Safe radius', 'Gps Coordinates'],
+      searchPh: 'Search location or client',
+      data: mdata('locations', tms.locations || []).map(l => {
+        const cl = (tms.clients || []).find(c =>
+          c.id === l.clientId ||
+          c.id === l.client ||
+          c.loadingLocationId === l.id ||
+          (c.loadingLocation && c.loadingLocation.trim().toLowerCase() === (l.name || '').trim().toLowerCase()) ||
+          c.name === l.clientName
+        );
+        return {
+          ...l,
+          clientName: (cl ? cl.name : l.clientName) || (l.client && tms.C?.[l.client]?.name) || '—',
+          clientId: cl ? cl.id : (l.clientId || l.client || ''),
+        };
+      }),
+      cols: ['Location', 'Client', 'Branch', 'Address', 'Safe radius', 'Gps Coordinates', 'Status'],
       cells: l => [
         txtCell(l.name, true),
+        { ...txtCell(l.clientName || '—', true), color: l.clientName && l.clientName !== '—' ? 'var(--text-brand)' : 'var(--text-body)' },
         txtCell(bn(l.branch)),
         txtCell(l.address),
-        txtCell(l.radius + ' m'),
-        txtCell(l.lat + ', ' + l.lng),
+        txtCell(l.radius ? l.radius + ' m' : '—'),
+        txtCell(l.lat && l.lng ? `${l.lat}, ${l.lng}` : '—'),
+        statusBadge(l.status),
       ],
       fields: [
-        ['name', 'Location name'],
+        ['name', 'Location name', null, 'e.g. Sriperumbudur Cryogenic Hub'],
+        ['client', 'Client', clientOpts, 'Select client'],
         ['branch', 'Branch', branchOpts],
-        ['address', 'Address'],
+        ['address', 'Address', null, 'Plant or yard address'],
         ['radius', 'Safe radius (m)', null, '100'],
-        ['lat', 'Latitude'],
-        ['lng', 'Longitude'],
+        ['lat', 'Latitude', null, '12.9605'],
+        ['lng', 'Longitude', null, '79.9412'],
         ['status', 'Status', ['Active', 'Inactive']],
       ],
     },
@@ -554,11 +624,19 @@ export const MasterManager = ({ type }) => {
       kicker: 'New ' + m.singular,
       title: m.addLabel,
       saveLabel: 'Create ' + m.singular,
-      required: m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
+      required: m.required || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
       fields: m.fields,
       validate: m.validate ? f => m.validate(f, true) : null,
     });
-    setForm(type === 'supervisors' ? { clients: [] } : {});
+    setForm(
+      type === 'supervisors'
+        ? { clients: [] }
+        : type === 'clients'
+        ? { supervisors: [], status: 'Active', loadingLocation: '' }
+        : type === 'locations'
+        ? { status: 'Active', radius: 100 }
+        : {}
+    );
     setFormError('');
   };
 
@@ -570,7 +648,7 @@ export const MasterManager = ({ type }) => {
       kicker: 'Edit ' + m.singular,
       title: rec.name || rec.number,
       saveLabel: 'Save changes',
-      required: m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
+      required: m.required || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
       fields: m.fields,
       validate: m.validate ? f => m.validate(f, false) : null,
     });
@@ -585,10 +663,24 @@ export const MasterManager = ({ type }) => {
       }
     }
     const initialAuthBunks = (rec.authorizedBunks || []).map(b => (tms.F[b] || {}).name || b);
+    let initialSupervisors = rec.supervisorIds || [];
+    if (!initialSupervisors || !initialSupervisors.length) {
+      if (Array.isArray(rec.supervisors)) {
+        initialSupervisors = rec.supervisors;
+      } else {
+        const mappedSups = (tms.supervisors || []).filter(s =>
+          (s.clientIds || []).includes(rec.id) ||
+          (rec.supervisors && typeof rec.supervisors === 'string' && rec.supervisors.toLowerCase().includes(s.name.toLowerCase()))
+        );
+        initialSupervisors = mappedSups.map(s => s.id);
+      }
+    }
     setForm({
       ...rec,
       authorizedBunks: initialAuthBunks,
       ...(type === 'supervisors' ? { clients: initialClients } : {}),
+      ...(type === 'clients' ? { supervisors: initialSupervisors, loadingLocation: rec.loadingLocation || rec.contact || '' } : {}),
+      ...(type === 'locations' ? { client: rec.clientId || rec.client || '' } : {}),
       phone: rec.phone ? String(rec.phone).replace(/\D/g, '').slice(-10) : '',
     });
     setFormError('');
