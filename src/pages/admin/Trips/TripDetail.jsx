@@ -8,7 +8,8 @@ import { RowActions } from '../../../components/common/RowActions';
 import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import {
   VERIFY_STATUS, VERIFY_LEVEL_1, VERIFY_LEVEL_2,
-  runChecks, verifyState, excessLitres, excessValue, tankOf,
+  runChecks, verifyState,
+  routeDieselLimit, overLimitLitres, overLimitValue,
 } from '../../../utils/tripVerification';
 import './tripDetail.css';
 
@@ -66,6 +67,7 @@ const VERIFY_VIEW = {
   [VERIFY_STATUS.PENDING]: {
     bg: 'var(--color-hazard-soft)', fg: '#7A4300', edge: 'var(--kr-saffron-500)',
     hint: 'Waiting on Level 1 · Verification Team.',
+    hintOver: 'Diesel is above the authorized limit — Level 1 cannot sign this off.',
   },
   [VERIFY_STATUS.ESCALATED]: {
     bg: 'var(--kr-red-100)', fg: 'var(--kr-red-800)', edge: 'var(--kr-red-600)',
@@ -104,7 +106,6 @@ export const TripDetail = () => {
     setExcSel,
     setExcAssignees,
     setExcNote,
-    vehTanks,
     tripVerify,
     setTripVerify,
     deductions,
@@ -136,13 +137,6 @@ export const TripDetail = () => {
     if (str.startsWith('₹')) return str;
     const num = Number(str.replace(/[^\d.]/g, ''));
     return isNaN(num) ? str : '₹' + num.toLocaleString('en-IN');
-  };
-
-  // "₹34,500" / 34500 / "" → 34500 / null
-  const moneyOf = (val) => {
-    if (val == null || val === '') return null;
-    const n = Number(String(val).replace(/[^\d.-]/g, ''));
-    return isNaN(n) ? null : n;
   };
 
   const computedOdo =
@@ -318,9 +312,7 @@ export const TripDetail = () => {
       title: 'Send to Administrator',
       saveLabel: 'Escalate',
       required: ['reason'],
-      intro: overLitres
-        ? `Diesel is ${overLitres} L more than the ${tankLitres} L tank holds — ₹${(overValue || 0).toLocaleString('en-IN')} at this trip's rate. Record the driver's explanation for the excess.`
-        : 'Record why this trip should still be approved despite the failed checks.',
+      intro: `Diesel is ${overLimit || 0} L above the ${dieselLimit || 0} L authorized for this route — ₹${(overValue || 0).toLocaleString('en-IN')} at this trip's rate. Record the driver's explanation for the excess.`,
       fields: [['reason', "Driver's explanation for the excess"]],
       onSave: (f) => {
         saveVerify({
@@ -357,7 +349,7 @@ export const TripDetail = () => {
   const acceptExplanation = () => {
     setConfirm({
       title: `Accept the explanation for ${rawTrip.number}?`,
-      body: `The excess of ${overLitres || 0} L is written off and the trip is approved for processing. The record locks permanently.`,
+      body: `The excess of ${overLimit || 0} L is written off and the trip is approved for processing. The record locks permanently.`,
       okLabel: 'Accept and approve',
       onOk: () => {
         saveVerify({ status: VERIFY_STATUS.APPROVED, level: VERIFY_LEVEL_2, approvedBy: VERIFY_LEVEL_2, approvedAt: stamp(), explanationAccepted: true });
@@ -374,7 +366,7 @@ export const TripDetail = () => {
       title: 'Raise salary deduction',
       saveLabel: 'Confirm deduction',
       required: ['amount', 'note'],
-      intro: `${overLitres || 0} L over the ${tankLitres || 0} L tank at ₹${(dieselRate || 0).toFixed(2)}/L. The amount is pre-filled from that excess and can be changed before confirming.`,
+      intro: `${overLimit || 0} L over the ${dieselLimit || 0} L authorized for this route, at ₹${(dieselRate || 0).toFixed(2)}/L. The amount is pre-filled from that excess and can be changed before confirming.`,
       fields: [
         ['amount', 'Deduction amount (₹)'],
         ['note', 'Why the explanation was not accepted'],
@@ -398,7 +390,7 @@ export const TripDetail = () => {
             driver: rawTrip.driver,
             driverName: (d || {}).name || '—',
             branch: rawTrip.branch,
-            litres: overLitres || 0,
+            litres: overLimit || 0,
             amount,
             note,
             raisedBy: VERIFY_LEVEL_2,
@@ -417,7 +409,7 @@ export const TripDetail = () => {
           rows: [
             ['Trip', rawTrip.number],
             ['Driver', (d || {}).name || '—'],
-            ['Excess diesel', `${overLitres || 0} L`],
+            ['Excess diesel', `${overLimit || 0} L`],
             ['Deduction', `₹${amount.toLocaleString('en-IN')}`],
             ['Reason', note],
           ],
@@ -463,19 +455,17 @@ export const TripDetail = () => {
   /* --------------------------------------------------------------------- */
   /* Trip expense & verification                                            */
   /* --------------------------------------------------------------------- */
-  const tankLitres = tankOf(v, vehTanks);
-  const overLitres = excessLitres(rawTrip, v, vehTanks);
-  const overValue = excessValue(rawTrip, v, vehTanks);
-  const advance = moneyOf(rawTrip.advance);
-  const totalExpense = moneyOf(rawTrip.totalExpense);
-  // What the supervisor still has to settle after the advance he was given.
-  const balance = totalExpense != null ? totalExpense - (advance || 0) : null;
+  // The only diesel gate: what Head Office authorized for this trip's route in
+  // the Route Master, against what the supervisor filed when closing the trip.
+  const dieselLimit = routeDieselLimit(rawTrip, tms);
+  const overLimit = overLimitLitres(rawTrip, dieselLimit);
+  const overValue = overLimitValue(rawTrip, dieselLimit);
+  const limitSignal = overLimit == null ? null : overLimit > 0 ? 'bad' : 'good';
 
   const checks = runChecks(rawTrip, {
-    vehicle: v,
-    vehTanks,
     variancePct: hasBaseline && isClosed ? pct : null,
     varianceThreshold: thr,
+    dieselLimit,
   });
   const verifyRecord = tripVerify[rawTrip.id];
   const vState = verifyState(rawTrip, verifyRecord, checks);
@@ -485,14 +475,17 @@ export const TripDetail = () => {
   const vv = VERIFY_VIEW[vState.status] || VERIFY_VIEW[VERIFY_STATUS.PENDING];
 
   const expenseRows = [
-    ['Diesel quantity', dieselLitres != null ? `${dieselLitres.toLocaleString('en-IN')} L` : null, overLitres ? 'bad' : null],
-    ['Tank capacity', tankLitres != null ? `${tankLitres.toLocaleString('en-IN')} L` : null, null],
-    ['Diesel rate', dieselRate != null ? `₹${dieselRate.toFixed(2)} / L` : null, null],
-    ['Diesel amount', dieselAmount != null ? fmtMoney(dieselAmount) : null, null],
-    ['Bunk', rawTrip.bunk || null, null],
-    ['Advance given', advance != null ? fmtMoney(advance) : null, null],
-    ['Total expense', totalExpense != null ? fmtMoney(totalExpense) : null, null],
-    ['Balance to settle', balance != null ? fmtMoney(balance) : null, null],
+    [
+      'Authorized diesel limit',
+      dieselLimit != null ? `${dieselLimit.toLocaleString('en-IN')} L` : null,
+      null,
+      dieselLimit == null ? 'Not set on this route' : null,
+    ],
+    [
+      'Supervisor noted diesel quantity',
+      dieselLitres != null ? `${dieselLitres.toLocaleString('en-IN')} L` : null,
+      limitSignal,
+    ],
   ];
 
   const tripRecords = [
@@ -952,8 +945,8 @@ export const TripDetail = () => {
           </span>
         </div>
 
-        {/* Over-tank alert: the one failure that carries money */}
-        {overLitres > 0 && (
+        {/* Over the diesel limit Head Office authorized for this route */}
+        {overLimit > 0 && (
           <div
             role="alert"
             style={{
@@ -969,11 +962,11 @@ export const TripDetail = () => {
           >
             <Fuel size={18} style={{ flex: 'none', marginTop: '1px' }} />
             <span>
-              <strong>Diesel exceeds tank capacity.</strong>{' '}
-              {dieselLitres.toLocaleString('en-IN')} L was filled into a {tankLitres.toLocaleString('en-IN')} L tank —{' '}
-              {overLitres.toLocaleString('en-IN')} L more than it physically holds
-              {overValue != null ? `, worth ${fmtMoney(overValue)} at ₹${dieselRate.toFixed(2)}/L` : ''}. This trip cannot be
-              approved at Level 1 without an explanation.
+              <strong>Diesel is above the authorized limit for this route.</strong>{' '}
+              The supervisor booked {dieselLitres.toLocaleString('en-IN')} L against an authorized{' '}
+              {dieselLimit.toLocaleString('en-IN')} L — {overLimit.toLocaleString('en-IN')} L over
+              {dieselRate ? `, worth ${fmtMoney(Math.round(overLimit * dieselRate))} at ₹${dieselRate.toFixed(2)}/L` : ''}.
+              Approve &amp; lock is withdrawn; escalate it to {VERIFY_LEVEL_2} with the driver&rsquo;s explanation.
             </span>
           </div>
         )}
@@ -983,7 +976,7 @@ export const TripDetail = () => {
           <div style={{ padding: '16px 18px' }}>
             <h3 className="td-verify-head">Expenses</h3>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {expenseRows.map(([label, val, tone], i) => (
+              {expenseRows.map(([label, val, tone, fallback], i) => (
                 <div
                   key={i}
                   style={{
@@ -998,42 +991,37 @@ export const TripDetail = () => {
                   <span style={{ color: 'var(--kr-grey-700)' }}>{label}</span>
                   <span
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
                       fontWeight: 700,
                       whiteSpace: 'nowrap',
-                      color: tone === 'bad' ? 'var(--kr-red-700)' : val == null ? 'var(--kr-grey-500)' : 'var(--text-heading)',
+                      color: tone === 'bad' ? 'var(--kr-red-700)'
+                        : tone === 'good' ? 'var(--kr-green-800)'
+                        : val == null ? 'var(--kr-grey-500)' : 'var(--text-heading)',
                     }}
                   >
-                    {val == null ? (isClosed ? '—' : 'Pending') : val}
+                    {/* Red over the authorized limit, green inside it */}
+                    {val != null && (tone === 'bad' || tone === 'good') && (
+                      <span
+                        aria-label={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
+                        title={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
+                        style={{
+                          flex: 'none',
+                          width: '9px',
+                          height: '9px',
+                          borderRadius: '50%',
+                          background: tone === 'bad' ? 'var(--kr-red-600)' : 'var(--kr-green-600)',
+                          boxShadow: `0 0 0 3px ${tone === 'bad' ? 'rgba(217,22,25,0.18)' : 'rgba(0,98,63,0.16)'}`,
+                        }}
+                      />
+                    )}
+                    {val == null ? (fallback || (isClosed ? '—' : 'Pending')) : val}
                   </span>
                 </div>
               ))}
             </div>
 
-            {/* Tank fill gauge — how far the fill went past what the tank holds */}
-            {dieselLitres != null && tankLitres > 0 && (
-              <div style={{ marginTop: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, color: 'var(--kr-grey-700)', marginBottom: '5px' }}>
-                  <span>Fill against tank</span>
-                  <span style={{ color: overLitres ? 'var(--kr-red-700)' : 'var(--kr-green-800)' }}>
-                    {Math.round((dieselLitres / tankLitres) * 100)}% of capacity
-                  </span>
-                </div>
-                <div style={{ position: 'relative', height: '12px', background: 'var(--kr-grey-100)', borderRadius: '3px', overflow: 'hidden' }}>
-                  <span
-                    style={{
-                      display: 'block',
-                      height: '100%',
-                      width: Math.min(100, Math.round((dieselLitres / tankLitres) * 100)) + '%',
-                      background: overLitres ? 'var(--kr-red-600)' : 'var(--color-brand)',
-                    }}
-                  />
-                  {/* The 100% mark: anything to its right was never physically possible */}
-                  {overLitres > 0 && (
-                    <span style={{ position: 'absolute', left: `${Math.round((tankLitres / dieselLitres) * 100)}%`, top: 0, bottom: 0, width: '2px', background: 'var(--kr-grey-900)' }} />
-                  )}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Validation results */}
@@ -1122,7 +1110,9 @@ export const TripDetail = () => {
                     </button>
                   </>
                 )}
-                <span style={{ fontSize: '12.5px', color: 'var(--kr-grey-700)' }}>{vv.hint}</span>
+                <span style={{ fontSize: '12.5px', color: vState.overLimit ? 'var(--kr-red-700)' : 'var(--kr-grey-700)' }}>
+                  {(vState.overLimit && vv.hintOver) || vv.hint}
+                </span>
               </div>
             )}
           </div>

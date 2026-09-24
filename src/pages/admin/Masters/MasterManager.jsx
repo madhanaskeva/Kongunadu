@@ -571,7 +571,7 @@ export const MasterManager = ({ type }) => {
       addLabel: 'Add route',
       searchPh: 'Search route',
       data: mdata('routes', tms.routes || []),
-      cols: ['Route', 'From', 'To', 'Fixed KM', 'Duration', 'Toll', 'Authorized Fuel Bunks'],
+      cols: ['Route', 'From', 'To', 'Fixed KM', 'Duration', 'Toll', 'Diesel Limit', 'Authorized Fuel Bunks'],
       cells: r => {
         const authBunks = (r.authorizedBunks || []).map(bId => (tms.F[bId] || {}).name || bId).join(', ') || 'All active bunks';
         return [
@@ -581,6 +581,7 @@ export const MasterManager = ({ type }) => {
           txtCell(r.km + ' km'),
           txtCell(r.hours + ' h'),
           txtCell(r.toll),
+          txtCell(r.dieselLimit ? Number(r.dieselLimit).toLocaleString('en-IN') + ' L' : 'Not set', true),
           txtCell(authBunks),
         ];
       },
@@ -590,6 +591,7 @@ export const MasterManager = ({ type }) => {
         ['km', 'Fixed distance (km)', null, 'Billing reference'],
         ['hours', 'Expected duration (h)'],
         ['toll', 'Toll estimate'],
+        ['dieselLimit', 'Authorized diesel limit (L)', null, 'e.g. 200', { hint: 'Most diesel a supervisor may book on this route. Anything above it is flagged for verification.' }],
         ['authorizedBunks', 'Authorized fuel bunks', 'bunks-input', 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'],
         ['status', 'Status', ['Active', 'Under review']],
       ],

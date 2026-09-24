@@ -5,11 +5,15 @@
 //
 //   Supervisor closes  →  Level 1 (Verification Team)  →  Level 2 (Administrator)
 //
-// Level 1 approves a trip whose checks all pass. A trip that fails a check
-// cannot be approved at Level 1; it is either escalated with a reason, or the
-// verifier records the driver's explanation and sends it up. Level 2 accepts
-// the explanation and approves, or rejects it and raises a salary deduction
-// against the driver for the excess.
+// The diesel gate is the authorized limit Head Office sets per route in the
+// Route Master, compared against the quantity the supervisor filed at close.
+//
+// Level 1 approves any trip whose diesel is inside that limit. Diesel above it
+// cannot be approved at Level 1: the trip is escalated with the driver's
+// explanation attached. Level 2 accepts the explanation and approves, or rejects
+// it and raises a salary deduction against the driver for the excess.
+//
+// The remaining checks are context for the verifier, not a gate.
 //
 // Once a trip is approved the record is frozen: no further edits, at any level.
 
@@ -42,25 +46,43 @@ export const dieselAmountOf = (t) => {
   return l != null && r != null ? Math.round(l * r) : null;
 };
 
-// Tank capacity comes from the Vehicle Master, with any size Head Office has
-// corrected since (kept in the vehicle-tanks store) taking priority.
-export const tankOf = (vehicle, vehTanks = {}) => {
-  if (!vehicle) return null;
-  const override = num(vehTanks[vehicle.id]);
-  return override != null ? override : num(vehicle.tank);
+// The routes a trip runs. Each customer on the trip carries the route id for its
+// own drop, so a multi-drop trip legitimately runs more than one route.
+export const routesOfTrip = (t, tms) => {
+  if (!t || !tms) return [];
+  const seen = new Set();
+  return (t.customers || [])
+    .map(cid => ((tms.U || {})[cid] || {}).route)
+    .filter(rid => rid && !seen.has(rid) && seen.add(rid))
+    .map(rid => (tms.R || {})[rid])
+    .filter(Boolean);
 };
 
-// Litres taken beyond what the tank physically holds, or null when not checkable.
-export const excessLitres = (t, vehicle, vehTanks) => {
+export const routeOfTrip = (t, tms) => routesOfTrip(t, tms)[0] || null;
+
+// Litres Head Office authorizes for this trip: the sum of the limits on every
+// route it runs, so a two-drop trip gets both legs' budget. null when no route
+// carries a limit. A limit stored on the trip itself wins, so a one-off
+// authorization can override the route default.
+export const routeDieselLimit = (t, tms) => {
+  if (t && t.dieselLimit != null && t.dieselLimit !== '') return num(t.dieselLimit);
+  const limits = routesOfTrip(t, tms)
+    .map(r => num(r.dieselLimit))
+    .filter(n => n != null);
+  return limits.length ? limits.reduce((a, b) => a + b, 0) : null;
+};
+
+// Litres booked beyond the route's authorized limit; 0 when inside it, null when
+// there is nothing to compare.
+export const overLimitLitres = (t, limit) => {
   const litres = dieselLitresOf(t);
-  const tank = tankOf(vehicle, vehTanks);
-  if (litres == null || tank == null || tank <= 0) return null;
-  return litres > tank ? Math.round((litres - tank) * 100) / 100 : 0;
+  if (litres == null || limit == null || limit <= 0) return null;
+  return litres > limit ? Math.round((litres - limit) * 100) / 100 : 0;
 };
 
 // Money value of that excess, used to pre-fill a salary deduction.
-export const excessValue = (t, vehicle, vehTanks) => {
-  const over = excessLitres(t, vehicle, vehTanks);
+export const overLimitValue = (t, limit) => {
+  const over = overLimitLitres(t, limit);
   const rate = dieselRateOf(t);
   return over && rate ? Math.round(over * rate) : null;
 };
@@ -69,25 +91,24 @@ export const excessValue = (t, vehicle, vehTanks) => {
  * The checks a trip must pass before Level 1 can approve it outright.
  * Returns [{ key, label, ok, detail }]; `ok: null` means "nothing to check".
  */
-export const runChecks = (t, { vehicle, vehTanks = {}, variancePct = null, varianceThreshold = 5 } = {}) => {
+export const runChecks = (t, { variancePct = null, varianceThreshold = 5, dieselLimit = null } = {}) => {
   const litres = dieselLitresOf(t);
-  const tank = tankOf(vehicle, vehTanks);
-  const over = excessLitres(t, vehicle, vehTanks);
+  const overLimit = overLimitLitres(t, dieselLimit);
   const fmtL = (n) => `${Number(n).toLocaleString('en-IN')} L`;
 
   const checks = [
     {
-      key: 'tank',
-      label: 'Diesel within tank capacity',
-      ok: over == null ? null : over === 0,
+      key: 'dieselLimit',
+      label: 'Diesel within authorized route limit',
+      ok: overLimit == null ? null : overLimit === 0,
       detail:
-        over == null
+        overLimit == null
           ? litres == null
             ? 'No diesel quantity recorded'
-            : 'Tank capacity not set on this vehicle'
-          : over === 0
-          ? `${fmtL(litres)} into a ${fmtL(tank)} tank`
-          : `${fmtL(litres)} into a ${fmtL(tank)} tank — ${fmtL(over)} more than it holds`,
+            : 'No authorized limit set on this route'
+          : overLimit === 0
+          ? `${fmtL(litres)} against an authorized ${fmtL(dieselLimit)}`
+          : `${fmtL(litres)} against an authorized ${fmtL(dieselLimit)} — ${fmtL(overLimit)} over the limit`,
     },
     {
       key: 'rate',
@@ -132,21 +153,26 @@ export const isVerifiable = (t) => !!t && t.status === 'Closed';
  */
 export const verifyState = (t, record, checks) => {
   if (!isVerifiable(t)) {
-    return { status: VERIFY_STATUS.NOT_READY, locked: false, canApproveL1: false, canEscalate: false, canDecideL2: false, failed: [] };
+    return { status: VERIFY_STATUS.NOT_READY, locked: false, canApproveL1: false, canEscalate: false, canDecideL2: false, failed: [], overLimit: false };
   }
   const failed = failedChecks(checks);
   const status = (record && record.status) || VERIFY_STATUS.PENDING;
   const settled = status === VERIFY_STATUS.APPROVED || status === VERIFY_STATUS.DEDUCTED;
+  // Only the authorized diesel limit decides whether Level 1 may sign off. The
+  // other checks stay on the Validation panel as context for the verifier, but
+  // they do not take the Approve & lock button away.
+  const overLimit = (checks || []).some(c => c.key === 'dieselLimit' && c.ok === false);
 
   return {
     status,
     failed,
+    overLimit,
     // An approved or deducted trip is closed for good — the record is frozen.
     locked: settled,
-    // Level 1 signs off only a clean trip that nobody has settled yet.
-    canApproveL1: status === VERIFY_STATUS.PENDING && failed.length === 0,
-    // A trip that failed a check leaves Level 1 only by going up, with a reason.
-    canEscalate: status === VERIFY_STATUS.PENDING && failed.length > 0,
+    // Level 1 signs off any trip inside its authorized diesel limit.
+    canApproveL1: status === VERIFY_STATUS.PENDING && !overLimit,
+    // Diesel above the authorized limit leaves Level 1 only by going up, with a reason.
+    canEscalate: status === VERIFY_STATUS.PENDING && overLimit,
     // Level 2 rules on an escalated trip.
     canDecideL2: status === VERIFY_STATUS.ESCALATED,
   };
@@ -158,9 +184,11 @@ export default {
   VERIFY_LEVEL_2,
   runChecks,
   verifyState,
-  excessLitres,
-  excessValue,
-  tankOf,
+  routeOfTrip,
+  routesOfTrip,
+  routeDieselLimit,
+  overLimitLitres,
+  overLimitValue,
   dieselLitresOf,
   dieselRateOf,
   dieselAmountOf,

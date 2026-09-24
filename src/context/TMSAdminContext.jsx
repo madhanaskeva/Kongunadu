@@ -758,7 +758,7 @@ export const TMSAdminProvider = ({ children }) => {
       // Admin sets the password, so the account is ready to sign in straight away
       if (isNew) { dflt('role', 'Administrator'); f.status = 'Active'; f.last = 'Never'; }
     }
-    if (route === 'routes') { num('km'); num('hours'); f.name = `${(tms.L[f.from] || {}).name || '—'} → ${f.to || '—'}`; dflt('status', 'Active'); }
+    if (route === 'routes') { num('km'); num('hours'); num('dieselLimit'); f.name = `${(tms.L[f.from] || {}).name || '—'} → ${f.to || '—'}`; dflt('status', 'Active'); }
     return f;
   };
 

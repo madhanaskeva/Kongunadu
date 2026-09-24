@@ -84,15 +84,15 @@ const bunks=[
  {id:'F05',name:'HP – Jeedimetla',branch:'B03',rate:96.40,status:'Active'}
 ];
 const routes=[
- {id:'R01',name:'Sriperumbudur \u2192 Hyderabad',from:'L01',to:'Hyderabad',km:628,hours:14,toll:'\u20B92,340',status:'Active'},
- {id:'R02',name:'Sriperumbudur \u2192 Bengaluru',from:'L01',to:'Bengaluru',km:312,hours:7,toll:'\u20B91,120',status:'Active'},
- {id:'R03',name:'Sriperumbudur \u2192 Coimbatore',from:'L01',to:'Coimbatore',km:486,hours:9,toll:'\u20B91,480',status:'Active'},
- {id:'R04',name:'Sriperumbudur \u2192 Pune',from:'L01',to:'Pune',km:1152,hours:24,toll:'\u20B94,010',status:'Active'},
- {id:'R05',name:'Ambattur \u2192 Vijayawada',from:'L02',to:'Vijayawada',km:452,hours:9,toll:'\u20B91,610',status:'Active'},
- {id:'R06',name:'Ambattur \u2192 Chennai city',from:'L02',to:'Chennai',km:200,hours:1,toll:'\u20B90',status:'Active'},
- {id:'R07',name:'Ambattur \u2192 Madurai',from:'L02',to:'Madurai',km:470,hours:9,toll:'\u20B91,380',status:'Active'},
- {id:'R08',name:'Namakkal \u2192 Kochi',from:'L03',to:'Kochi',km:378,hours:9,toll:'\u20B9940',status:'Active'},
- {id:'R09',name:'Jeedimetla \u2192 Mumbai',from:'L04',to:'Mumbai',km:712,hours:16,toll:'\u20B92,980',status:'Under review'}
+ {id:'R01',dieselLimit:255,name:'Sriperumbudur \u2192 Hyderabad',from:'L01',to:'Hyderabad',km:628,hours:14,toll:'\u20B92,340',status:'Active'},
+ {id:'R02',dieselLimit:125,name:'Sriperumbudur \u2192 Bengaluru',from:'L01',to:'Bengaluru',km:312,hours:7,toll:'\u20B91,120',status:'Active'},
+ {id:'R03',dieselLimit:195,name:'Sriperumbudur \u2192 Coimbatore',from:'L01',to:'Coimbatore',km:486,hours:9,toll:'\u20B91,480',status:'Active'},
+ {id:'R04',dieselLimit:465,name:'Sriperumbudur \u2192 Pune',from:'L01',to:'Pune',km:1152,hours:24,toll:'\u20B94,010',status:'Active'},
+ {id:'R05',dieselLimit:185,name:'Ambattur \u2192 Vijayawada',from:'L02',to:'Vijayawada',km:452,hours:9,toll:'\u20B91,610',status:'Active'},
+ {id:'R06',dieselLimit:80,name:'Ambattur \u2192 Chennai city',from:'L02',to:'Chennai',km:200,hours:1,toll:'\u20B90',status:'Active'},
+ {id:'R07',dieselLimit:190,name:'Ambattur \u2192 Madurai',from:'L02',to:'Madurai',km:470,hours:9,toll:'\u20B91,380',status:'Active'},
+ {id:'R08',dieselLimit:155,name:'Namakkal \u2192 Kochi',from:'L03',to:'Kochi',km:378,hours:9,toll:'\u20B9940',status:'Active'},
+ {id:'R09',dieselLimit:285,name:'Jeedimetla \u2192 Mumbai',from:'L04',to:'Mumbai',km:712,hours:16,toll:'\u20B92,980',status:'Under review'}
 ];
 const trips=[
  {id:'T01',number:'TN28AQ4521/09/014',branch:'B01',client:'C01',customers:['U01'],vehicle:'V01',driver:'D01',loading:'L01',unloading:'Yashoda Hospitals LOX Bank \u2013 Hyderabad',startKm:125450,closeKm:null,type:'Business',status:'Enroute',opened:'14 Sep 2026 05:40',closed:null,supervisor:'S01',fixedKm:628,gpsKm:212,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:'18 kL liquid oxygen',qtyUnload:null,hoursOpen:6,flags:[]},
