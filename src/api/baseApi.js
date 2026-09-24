@@ -40,12 +40,12 @@ export const mockData = {
     { id: 'D09', name: 'Ravi T.', licence: 'TN2820120008890', phone: '90031 88900', branch: 'B01', type: 'Regular', status: 'Inactive', approval: 'Approved', present: 0, absent: 26, util: '0%' },
   ],
   clients: [
-    { id: 'C01', name: 'INOX Air Products', gst: '33AAACI4521F1Z6', branch: 'B01', customers: 4, contact: 'Cryogenic desk, Sriperumbudur', status: 'Active' },
-    { id: 'C02', name: 'Linde India', gst: '33AAACL0123M1Z2', branch: 'B01', customers: 3, contact: 'Central dispatch, Chennai', status: 'Active' },
-    { id: 'C03', name: 'Air Liquide India', gst: '33AAACA7896R1Z8', branch: 'B02', customers: 2, contact: 'Distribution, Namakkal', status: 'Active' },
-    { id: 'C04', name: 'Bharat Petroleum', gst: '36AAACB4567P1Z1', branch: 'B03', customers: 1, contact: 'Fuels terminal, Hyderabad', status: 'Active' },
-    { id: 'C05', name: 'Suguna Foods', gst: '33AAACS3456K1Z9', branch: 'B01', customers: 1, contact: 'Cold chain desk, Chennai', status: 'On hold' },
-    { id: 'C06', name: 'Hindustan Petroleum', gst: '29AAACH2233Q1Z4', branch: 'B04', customers: 1, contact: 'Bommasandra terminal', status: 'Active' },
+    { id: 'C01', name: 'INOX Air Products', gst: '33AAACI4521F1Z6', branch: 'B01', phone: '98410 11220', supervisorIds: ['S01', 'S06'], supervisors: 'R. Senthil Kumar, A. Deshmukh', customers: 4, contact: 'Cryogenic desk, Sriperumbudur', status: 'Active' },
+    { id: 'C02', name: 'Linde India', gst: '33AAACL0123M1Z2', branch: 'B01', phone: '98410 22330', supervisorIds: ['S01', 'S03'], supervisors: 'R. Senthil Kumar, K. Vijayalakshmi', customers: 3, contact: 'Central dispatch, Chennai', status: 'Active' },
+    { id: 'C03', name: 'Air Liquide India', gst: '33AAACA7896R1Z8', branch: 'B02', phone: '98430 33440', supervisorIds: ['S02'], supervisors: 'M. Arunachalam', customers: 2, contact: 'Distribution, Namakkal', status: 'Active' },
+    { id: 'C04', name: 'Bharat Petroleum', gst: '36AAACB4567P1Z1', branch: 'B03', phone: '90000 44550', supervisorIds: ['S04'], supervisors: 'P. Ramesh Babu', customers: 1, contact: 'Fuels terminal, Hyderabad', status: 'Active' },
+    { id: 'C05', name: 'Suguna Foods', gst: '33AAACS3456K1Z9', branch: 'B01', phone: '99400 55660', supervisorIds: ['S03'], supervisors: 'K. Vijayalakshmi', customers: 1, contact: 'Cold chain desk, Chennai', status: 'On hold' },
+    { id: 'C06', name: 'Hindustan Petroleum', gst: '29AAACH2233Q1Z4', branch: 'B04', phone: '98860 66770', supervisorIds: ['S05'], supervisors: 'S. Nagaraj', customers: 1, contact: 'Bommasandra terminal', status: 'Active' },
   ],
   customers: [
     { id: 'U01', name: 'Yashoda Hospitals LOX Bank – Hyderabad', client: 'C01', city: 'Hyderabad', route: 'R01', billing: 'Per trip', status: 'Active' },

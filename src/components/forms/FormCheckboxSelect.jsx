@@ -29,10 +29,15 @@ export const FormCheckboxSelect = ({
   disabled = false,
   style = {},
   hint,
+  itemNoun,
+  searchPlaceholder,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
+
+  const noun = itemNoun || (name === 'supervisors' || (label && label.toLowerCase().includes('supervisor')) ? 'supervisor' : 'client');
+  const nounPlural = noun === 'supervisor' ? 'supervisors' : noun === 'client' ? 'clients' : `${noun}s`;
 
   // Normalize options to { value: string, label: string }
   const normalizedOptions = useMemo(() => {
@@ -58,12 +63,18 @@ export const FormCheckboxSelect = ({
     return [String(value)];
   }, [value]);
 
-  // Determine checked state for an option: matches either value (ID) or label (name)
+  // Determine checked state for an option: matches value (ID), label (name), or prefix match
   const isOptionSelected = (opt) => {
     return (
       selectedValues.includes(opt.value) ||
       selectedValues.includes(opt.label) ||
-      selectedValues.some(v => v.toLowerCase() === opt.label.toLowerCase() || v.toLowerCase() === opt.value.toLowerCase())
+      selectedValues.some(v =>
+        v.toLowerCase() === opt.label.toLowerCase() ||
+        v.toLowerCase() === opt.value.toLowerCase() ||
+        opt.label.toLowerCase().startsWith(v.toLowerCase() + ' ') ||
+        opt.label.toLowerCase().startsWith(v.toLowerCase() + ' (') ||
+        opt.label.toLowerCase().startsWith(v.toLowerCase() + ' ·')
+      )
     );
   };
 
@@ -259,7 +270,7 @@ export const FormCheckboxSelect = ({
                   flexShrink: 0,
                 }}
               >
-                {selectedLabels.length} {selectedLabels.length === 1 ? 'client' : 'clients'}
+                {selectedLabels.length} {selectedLabels.length === 1 ? noun : nounPlural}
               </span>
               <span
                 style={{
@@ -350,7 +361,7 @@ export const FormCheckboxSelect = ({
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search clients..."
+              placeholder={searchPlaceholder || `Search ${nounPlural}...`}
               autoFocus
               style={{
                 border: 'none',
@@ -440,7 +451,7 @@ export const FormCheckboxSelect = ({
                   color: 'var(--text-muted, #94a3b8)',
                 }}
               >
-                No matching clients found
+                No matching {nounPlural} found
               </div>
             ) : (
               filteredOptions.map((opt) => {

@@ -550,13 +550,13 @@ export const AdminDrawer = () => {
                 const isUpload = opts === 'upload';
                 const isArea = opts === 'textarea';
                 const isChecks = opts === 'checks';
-                const isCheckboxSelect = opts === 'checkbox-select' || (key === 'clients' && extra && extra.options);
+                const isCheckboxSelect = opts === 'checkbox-select' || (key === 'clients' && extra && extra.options) || (key === 'supervisors' && extra && extra.options);
                 const isSelect = Array.isArray(opts);
                 const raw = form[key];
                 const file = isUpload && raw && typeof raw === 'object' ? raw : null;
 
                 if (isCheckboxSelect) {
-                  const options = extra.options || (Array.isArray(opts) ? opts : []);
+                  const options = (typeof extra.options === 'function' ? extra.options(form) : extra.options) || (Array.isArray(opts) ? opts : []);
                   return (
                     <div key={idx}>
                       <FormCheckboxSelect
@@ -565,6 +565,8 @@ export const AdminDrawer = () => {
                         value={raw}
                         options={options}
                         placeholder={hint && typeof hint === 'string' ? hint : `Select ${label.toLowerCase()}`}
+                        itemNoun={extra.itemNoun || (key === 'supervisors' ? 'supervisor' : 'client')}
+                        searchPlaceholder={extra.searchPlaceholder || (key === 'supervisors' ? 'Search supervisors...' : 'Search clients...')}
                         onChange={(e) => {
                           const val = e && e.target ? e.target.value : e;
                           const str = e && e.target && e.target.string ? e.target.string : (Array.isArray(val) ? val.join(', ') : String(val || ''));
@@ -572,7 +574,8 @@ export const AdminDrawer = () => {
                             ...prev,
                             [key]: val,
                             [`${key}Names`]: str,
-                            clientIds: val,
+                            ...(key === 'clients' ? { clientIds: val } : {}),
+                            ...(key === 'supervisors' ? { supervisorIds: val } : {}),
                           }));
                         }}
                       />
@@ -751,13 +754,42 @@ export const AdminDrawer = () => {
                     <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
                       {label}
                     </label>
-                    <input
-                      type={extra.clean === 'account' || extra.clean === 'litres' ? 'number' : 'text'}
-                      placeholder={hint || ''}
-                      value={raw ?? ''}
-                      onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                      style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontFamily: 'inherit' }}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'stretch' }}>
+                      {extra.prefix && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '0 12px',
+                            background: 'var(--surface-muted)',
+                            border: '1px solid var(--border-strong)',
+                            borderRight: 'none',
+                            borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
+                            fontSize: '13px',
+                            fontWeight: 600,
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          {extra.prefix}
+                        </span>
+                      )}
+                      <input
+                        type={extra.clean === 'account' || extra.clean === 'litres' ? 'number' : 'text'}
+                        placeholder={hint || ''}
+                        value={raw ?? ''}
+                        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                        style={{
+                          width: '100%',
+                          height: '40px',
+                          padding: '0 10px',
+                          borderRadius: extra.prefix ? '0 var(--radius-md) var(--radius-md) 0' : 'var(--radius-md)',
+                          border: '1px solid var(--border-strong)',
+                          fontFamily: 'inherit',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                    {extra.hint && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>}
                   </div>
                 );
               })}
