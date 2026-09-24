@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Building2, FileText, MapPin, Phone, Plus } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
@@ -155,7 +156,7 @@ export const ClientProfile = () => {
   const stats = [
     ['Customers', customers.length, `${activeCust} active`],
     ['Vehicles mapped', vehicles.length, vehicles.slice(0, 2).map(v => v.number).join(', ') || 'None'],
-    ['Trips', trips.length, `${trips.filter(t => t.status === 'Enroute').length} enroute now`],
+    ['Trips', trips.length, `${trips.filter(t => t.status === 'Enroute').length} ${ENROUTE_LABEL_LOWER} now`],
   ];
 
   return (

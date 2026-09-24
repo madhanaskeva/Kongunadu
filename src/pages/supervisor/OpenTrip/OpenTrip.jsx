@@ -1,4 +1,5 @@
 import React from 'react';
+import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import { Button, Checkbox, Input, Select } from '../components/ds';
 
 export const OpenTrip = ({ v }) => (
@@ -361,7 +362,7 @@ export const OpenTrip = ({ v }) => (
         <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 14px", background: "var(--surface-muted)", borderRadius: "var(--radius-md)", fontSize: "14px" }}>
           <span style={{ color: "var(--text-muted)" }}>Status on save</span>
           <span style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 8px", borderRadius: "var(--radius-sm)", background: "var(--st-enroute-bg)", color: "var(--st-enroute-fg)" }}>
-            Enroute
+            {ENROUTE_LABEL}
           </span>
         </div>
       </div>

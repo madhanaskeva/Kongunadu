@@ -11,7 +11,7 @@ export const Exceptions = () => {
     excStatus,
     setExcStatus,
     setExcSel,
-    setExcAssignee,
+    setExcAssignees,
     setExcNote,
     setDrawer,
     excOverrides,
@@ -78,7 +78,7 @@ export const Exceptions = () => {
 
   const openException = (x) => {
     setExcSel(x.id);
-    setExcAssignee(x.assignee === 'Unassigned' ? '' : x.assignee);
+    setExcAssignees(x.assigneeIds || []);
     setExcNote('');
     setDrawer({ isException: true, kicker: 'Exception ' + x.id, title: x.type });
   };
