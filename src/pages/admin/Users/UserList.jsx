@@ -26,7 +26,7 @@ export const UserList = () => {
     ['name', 'Full name'],
     ['email', 'Email', null, 'name@transport.example'],
     ['password', 'Password', null, 'At least 8 characters', { type: 'password', hint: 'The user signs in with this email and password.' }],
-    ['role', 'Role', ['Administrator', 'Owner (read-only)', 'Billing (read-only)']],
+    ['role', 'Role', ['Administrator', 'Verification Team', 'Owner (read-only)', 'Billing (read-only)']],
     ['branch', 'Branch scope', [{ value: 'all', label: 'All branches' }, ...branchOptions]],
   ];
 

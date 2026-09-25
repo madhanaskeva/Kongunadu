@@ -45,6 +45,7 @@ export const EXCEPTION_TYPES = [
 
 export const ROLES = {
   ADMIN: 'Administrator',
+  VERIFIER: 'Verification Team',
   OWNER: 'Owner (read-only)',
   BILLING: 'Billing (read-only)',
   SUPERVISOR: 'Supervisor',

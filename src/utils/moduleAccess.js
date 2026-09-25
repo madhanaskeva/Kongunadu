@@ -16,7 +16,7 @@ export const MODULE_GROUPS = [
     group: 'Operations',
     items: [
       ['dashboard', 'Dashboard', ['view'], '/admin/dashboard'],
-      ['trips', 'Trips', ['view', 'edit', 'delete', 'export'], '/admin/trips'],
+      ['trips', 'Trips', ['view', 'edit', 'delete', 'export', 'verify'], '/admin/trips'],
       ['exceptions', 'Exceptions', ['view', 'edit'], '/admin/exceptions'],
       ['fleet', 'Fleet & GPS', ['view'], '/admin/fleet'],
       ['distance', 'Distance Variation', ['view', 'edit'], '/admin/distance'],
@@ -76,6 +76,7 @@ export const roleDefault = role => {
   ALL_MODULES.forEach(([key, , acts]) => {
     let allowed = [];
     if (isAdminRole(role)) allowed = acts;
+    else if (/^Verification/.test(role)) allowed = key === 'trips' ? ['view', 'verify', 'export'] : ['dashboard', 'exceptions', 'distance', 'vehicles', 'drivers', 'analytics', 'reports'].includes(key) ? acts.filter(a => a === 'view' || a === 'export') : [];
     else if (/^Owner/.test(role)) allowed = ['users', 'deviceApprovals', 'settings'].includes(key) ? [] : acts.filter(a => a === 'view' || a === 'export');
     else if (/^Billing/.test(role)) allowed = ['dashboard', 'trips', 'clients', 'analytics', 'reports'].includes(key) ? acts.filter(a => a === 'view' || a === 'export') : [];
     out[key] = allowed;

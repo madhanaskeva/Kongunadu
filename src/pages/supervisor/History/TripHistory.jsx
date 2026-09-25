@@ -6,7 +6,129 @@ export const TripHistory = ({ v }) => (
     <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "16px", gap: "12px" }}>
       <div style={{ position: "relative" }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
-          <div style={{ flex: "1", minWidth: "0" }}><Select label="Vehicle number" options={v.hfVehicleOptions} value={v.hfVehicleValue} onChange={v.setHfVehicle} /></div>
+          <div style={{ flex: "1", minWidth: "0", position: "relative" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>
+                Vehicle number
+              </span>
+              <button
+                type="button"
+                onClick={v.toggleHfVehOpen}
+                aria-label="Filter by vehicle number"
+                aria-expanded={v.hfVehOpen}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  height: "48px",
+                  padding: "0 12px",
+                  fontFamily: "inherit",
+                  fontSize: "15px",
+                  fontWeight: "600",
+                  color: "var(--text-heading)",
+                  background: "#fff",
+                  border: `2px solid ${v.hfVehOpen || v.hfVehHasSelection ? "var(--color-brand)" : "var(--border-strong)"}`,
+                  borderRadius: "var(--radius-md)",
+                  outline: "0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {v.hfVehTriggerLabel}
+                </span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", transform: v.hfVehOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s ease" }}>
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+            </label>
+
+            {v.hfVehOpen && (
+              <div
+                role="dialog"
+                aria-label="Vehicle checkbox filter"
+                style={{
+                  position: "absolute",
+                  left: "0",
+                  right: "0",
+                  top: "calc(100% + 8px)",
+                  zIndex: "10",
+                  background: "#fff",
+                  border: "1px solid var(--border-default)",
+                  borderTop: "4px solid var(--color-brand)",
+                  borderRadius: "var(--radius-lg)",
+                  boxShadow: "var(--shadow-lg)",
+                  padding: "12px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "14px", color: "var(--text-heading)" }}>
+                    Filter by Vehicle
+                  </span>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      onClick={v.selectAllHfVehicles}
+                      style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "700", color: "var(--color-brand)" }}
+                    >
+                      Select All
+                    </button>
+                    <span style={{ color: "var(--border-strong)" }}>|</span>
+                    <button
+                      type="button"
+                      onClick={v.clearHfVehicles}
+                      style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "200px", overflowY: "auto" }}>
+                  {(v.histVehicles || []).map((veh) => {
+                    const isChecked = (v.hfSelectedVehicles || []).includes(veh.id);
+                    return (
+                      <label
+                        key={veh.id}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 10px",
+                          borderRadius: "var(--radius-md)",
+                          background: isChecked ? "var(--color-brand-tint)" : "var(--surface-muted)",
+                          border: `1px solid ${isChecked ? "var(--color-brand)" : "transparent"}`,
+                          cursor: "pointer",
+                          transition: "background 0.15s ease",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => v.toggleHfVehicle(veh.id)}
+                            style={{ width: "16px", height: "16px", accentColor: "var(--color-brand)", cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-heading)" }}>
+                            {veh.number}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>
+                          {veh.count} {veh.count === 1 ? "trip" : "trips"}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
           <button onClick={v.toggleHfCal} aria-label="Filter by date range" aria-expanded={v.hfCalOpen} title="Date range" style={{ all: "unset", cursor: "pointer", position: "relative", flex: "none", boxSizing: "border-box", width: "52px", height: "48px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", border: `2px solid ${v.hfCalBorder}`, background: v.hfCalBg, color: v.hfCalFg }} className="sv-h12">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="3" y="4" width="18" height="18" rx="2" />

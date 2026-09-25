@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Building2, Edit3, FileText, MapPin, Phone, Plus, UserCheck } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
@@ -86,8 +87,11 @@ export const ClientProfile = () => {
   const { can } = useModuleAccess();
   const tms = T();
 
-  const client = mergeEdits(masterEdits.clients, tms.clients || []).find(c => c.id === id);
-  const customers = mergeEdits(masterEdits.customers, tms.customers || []).filter(u => u.client === id && !deleted.includes(u.id));
+  const clientEdits = (masterEdits || {}).clients;
+  const customerEdits = (masterEdits || {}).customers;
+  const delList = deleted || [];
+  const client = mergeEdits(clientEdits, tms.clients || []).find(c => c.id === id);
+  const customers = mergeEdits(customerEdits, tms.customers || []).filter(u => u.client === id && !delList.includes(u.id));
   const routeName = rid => (tms.R[rid] || {}).name || rid || '—';
   const rows = customers.filter(u => matchesSearch(q, u.name, u.city, routeName(u.route), u.billing, u.status));
   const pg = usePagination(rows, [id, q]);
@@ -225,7 +229,7 @@ export const ClientProfile = () => {
   const stats = [
     ['Customers', customers.length, `${activeCust} active`],
     ['Vehicles mapped', vehicles.length, vehicles.slice(0, 2).map(v => v.number).join(', ') || 'None'],
-    ['Trips', trips.length, `${trips.filter(t => t.status === 'Enroute').length} enroute now`],
+    ['Trips', trips.length, `${trips.filter(t => t.status === 'Enroute').length} ${ENROUTE_LABEL_LOWER} now`],
   ];
 
   return (

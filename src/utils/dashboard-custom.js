@@ -1,6 +1,8 @@
 // Dashboard Custom Widgets Engine
 // Calculates live module datasets and statistics for custom cards, charts, and lists.
 
+import { ENROUTE_LABEL } from './tripStatus';
+
 export const txtOf = (v) => (v == null ? '' : String(v).trim() === '—' ? '' : String(v).trim());
 
 export const numOf = (v) => {
@@ -91,7 +93,7 @@ export const getDashModules = (tms = {}, ctx = {}) => {
     const gpsBad = (t.flags || []).some(f => /GPS/i.test(f));
     const badge = t.status === 'Closed'
       ? ((t.flags || []).length ? 'Closed · flagged' : 'Closed')
-      : (long ? 'Long open' : (gpsBad ? 'GPS issue' : t.stage || 'Enroute'));
+      : (long ? 'Long open' : (gpsBad ? 'GPS issue' : t.stage || ENROUTE_LABEL));
     const flags = (t.flags || []).join(', ') || '—';
     const clientUnload = [c.name, t.unloading].filter(Boolean).join(' · ') || '—';
     return {

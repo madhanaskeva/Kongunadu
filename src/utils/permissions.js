@@ -3,6 +3,8 @@ export const ROLE_PERMISSIONS = {
     trips: 'Full',
     editTrip: true,
     deleteTrip: true,
+    verifyTrip: true,
+    approveEscalation: true,
     masters: 'Full',
     driverApproval: 'Approve',
     exceptions: 'Resolve',
@@ -10,6 +12,22 @@ export const ROLE_PERMISSIONS = {
     analytics: 'Full + export',
     users: 'Full',
     settings: 'Full',
+  },
+  // Level 1 of the trip approval workflow: checks supervisor-submitted expenses
+  // before Head Office processes the trip. Can approve a clean trip outright and
+  // escalate one that fails a check, but cannot edit or delete the record.
+  'Verification Team': {
+    trips: 'View closed',
+    editTrip: false,
+    deleteTrip: false,
+    verifyTrip: true,
+    masters: 'View',
+    driverApproval: 'No',
+    exceptions: 'View',
+    attendance: 'View',
+    analytics: 'View',
+    users: 'No',
+    settings: 'No',
   },
   'Owner (read-only)': {
     trips: 'View',

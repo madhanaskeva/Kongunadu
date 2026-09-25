@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { Eye, EyeOff, X } from 'lucide-react';
-import { FormCheckboxSelect } from '../../components/forms';
+import { FormCheckboxSelect, FormBunksInput, FormLocationsInput } from '../../components/forms';
 
 const PasswordField = ({ value, onChange, placeholder }) => {
   const [show, setShow] = useState(false);
@@ -38,8 +38,8 @@ export const AdminDrawer = () => {
     excOverrides,
     setExcOverrides,
     excSel,
-    excAssignee,
-    setExcAssignee,
+    excAssignees,
+    setExcAssignees,
     excNote,
     setExcNote,
     drvReqs,
@@ -82,52 +82,69 @@ export const AdminDrawer = () => {
     ],
   };
 
-  const handleExcUnderReview = () => {
-    const assignee = excAssignee || 'Head Office Admin';
-    setExcOverrides(prev => ({ ...prev, [exc.id]: { ...(prev[exc.id] || {}), status: 'Under review', assignee } }));
-    closeDrawer();
-    showToast('info', 'Marked under review', `${exc.type} assigned to ${assignee}.`);
-    pushNotice({
-      kind: 'action',
-      branch: exc.branch,
-      title: `${exc.type} · under review`,
-      body: exc.detail,
-      rows: [
-        ['Exception', `${exc.id} · ${exc.severity} severity`],
-        ['Vehicle', excDetail.vehicleNumber],
-        ['Trip', excDetail.tripNumber],
-        ['Action taken', 'Marked under review'],
-        ['Assigned to', assignee],
-      ],
-      link: exc.trip ? { trip: exc.trip } : null,
-      linkLabel: 'View trip',
-    });
-  };
+  // Supervisors are listed branch-first: the ones who own this vehicle's branch
+  // are the people who can actually act on the exception.
+  const supervisorOptions = [...(tms.supervisors || [])]
+    .sort((a, bb) => (a.branch === exc.branch ? 0 : 1) - (bb.branch === exc.branch ? 0 : 1))
+    .map(sup => ({
+      value: sup.id,
+      label: `${sup.name} · ${(tms.B[sup.branch] || {}).name || 'No branch'}`,
+    }));
 
-  const handleExcResolve = () => {
-    if (!excNote.trim()) {
-      showToast('warning', 'Resolution note required', 'Record what was found before resolving.');
+  const assigneeNames = excAssignees.map(id => (tms.S[id] || {}).name).filter(Boolean);
+
+  // Submit dispatches the exception: it is assigned to everyone ticked and each
+  // of them gets it as an alert in their Supervisor app.
+  const handleExcSubmit = () => {
+    if (!excAssignees.length) {
+      showToast('warning', 'Pick at least one supervisor', 'Tick who should be alerted before sending.');
       return;
     }
-    const assignee = excAssignee || 'Head Office Admin';
-    setExcOverrides(prev => ({ ...prev, [exc.id]: { ...(prev[exc.id] || {}), status: 'Resolved', assignee, note: excNote.trim(), resolvedAt: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) } }));
+    const assignee = assigneeNames.length > 1
+      ? `${assigneeNames[0]} +${assigneeNames.length - 1}`
+      : assigneeNames[0];
+    const note = excNote.trim();
+
+    setExcOverrides(prev => ({
+      ...prev,
+      [exc.id]: {
+        ...(prev[exc.id] || {}),
+        status: 'Under review',
+        assignee,
+        assigneeIds: excAssignees,
+        note,
+        alertedAt: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+      },
+    }));
     closeDrawer();
-    showToast('success', 'Exception resolved', `${exc.type} on ${excDetail.vehicleNumber} closed.`);
-    pushNotice({
-      kind: 'action',
-      branch: exc.branch,
-      title: `${exc.type} · resolved`,
-      body: exc.detail,
-      note: excNote,
-      rows: [
-        ['Exception', `${exc.id} · ${exc.severity} severity`],
-        ['Vehicle', excDetail.vehicleNumber],
-        ['Trip', excDetail.tripNumber],
-        ['Action taken', 'Resolved by Head Office'],
-        ['Resolution note', excNote],
-      ],
-      link: exc.trip ? { trip: exc.trip } : null,
-      linkLabel: 'View trip',
+    showToast(
+      'success',
+      `Alert sent to ${excAssignees.length} supervisor${excAssignees.length > 1 ? 's' : ''}`,
+      `${exc.type} on ${excDetail.vehicleNumber} · ${assigneeNames.join(', ')}`
+    );
+
+    // One notice per supervisor, addressed by id, so it reaches only them.
+    excAssignees.forEach(supId => {
+      const sup = tms.S[supId] || {};
+      pushNotice({
+        kind: 'action',
+        priority: exc.severity === 'High' ? 'Urgent' : 'Normal',
+        to: [supId],
+        branch: sup.branch || exc.branch,
+        title: `${exc.type} · action needed`,
+        body: exc.detail,
+        note,
+        rows: [
+          ['Exception', `${exc.id} · ${exc.severity} severity`],
+          ['Vehicle', excDetail.vehicleNumber],
+          ['Trip', excDetail.tripNumber],
+          ['Raised', exc.raised],
+          ['Assigned to', assigneeNames.join(', ')],
+          ...(note ? [['Message', note]] : []),
+        ],
+        link: exc.trip ? { trip: exc.trip } : null,
+        linkLabel: 'View trip',
+      });
     });
   };
 
@@ -137,6 +154,10 @@ export const AdminDrawer = () => {
   const drvStatus = drvReq ? (isReq ? (drvReq.status === 'Pending' ? 'Pending approval' : drvReq.status) : drvReq.approval) : '';
   const isPendingDrv = drvStatus === 'Pending approval' || drvStatus === 'Pending';
   const mask = a => a ? '•••• ' + String(a).slice(-4) + ` (${String(a).length} digits)` : '—';
+
+  // A form whose shape depends on its own answers resolves these per render.
+  const saveLabelOf = (f) => (typeof drawer.saveLabel === 'function' ? drawer.saveLabel(f) : drawer.saveLabel);
+  const requiredOf = (f) => (typeof drawer.required === 'function' ? drawer.required(f) : drawer.required) || [];
 
   // Save form handling
   const handleSaveForm = () => {
@@ -148,9 +169,15 @@ export const AdminDrawer = () => {
         return;
       }
     }
-    const missing = (drawer.required || []).filter(k => !String(form[k] || '').trim());
+    const missing = requiredOf(form).filter(k => !String(form[k] || '').trim());
     if (missing.length) {
       setFormError(`${missing.length} required ${missing.length > 1 ? 'fields are' : 'field is'} missing.`);
+      return;
+    }
+
+    if (drawer.onSave) {
+      drawer.onSave(form);
+      closeDrawer();
       return;
     }
 
@@ -191,7 +218,7 @@ export const AdminDrawer = () => {
     }
 
     closeDrawer();
-    showToast('success', drawer.saveLabel.replace(/^Create|^Save|^Send/, m => ({ Create: 'Created', Save: 'Saved', Send: 'Sent' })[m]), `${drawer.title} · ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
+    showToast('success', String(saveLabelOf(form)).replace(/^Create|^Save|^Send/, m => ({ Create: 'Created', Save: 'Saved', Send: 'Sent' })[m]), `${drawer.title} · ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
   };
 
   const pickFormUpload = (e, key) => {
@@ -381,28 +408,27 @@ export const AdminDrawer = () => {
                   Open trip {excDetail.tripNumber} →
                 </button>
               )}
+              <FormCheckboxSelect
+                label="Alert supervisors"
+                name="excAssignees"
+                required
+                value={excAssignees}
+                options={supervisorOptions}
+                placeholder="Choose supervisors"
+                onChange={(e) => setExcAssignees((e && e.target ? e.target.value : e) || [])}
+                hint={
+                  excAssignees.length === 0
+                    ? 'Each supervisor you tick gets this exception as an alert in their app.'
+                    : `${excAssignees.length} supervisor${excAssignees.length > 1 ? 's' : ''} will be alerted on submit.`
+                }
+              />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                  Assign to
-                </label>
-                <select
-                  value={excAssignee}
-                  onChange={(e) => setExcAssignee(e.target.value)}
-                  style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-                >
-                  <option value="Head Office Admin">Head Office Admin</option>
-                  {(tms.supervisors || []).map(s => (
-                    <option key={s.id} value={s.name}>{s.name} · {(tms.B[s.branch] || {}).name}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                  Resolution note
+                  Message to supervisor <span style={{ fontWeight: 600, color: 'var(--kr-grey-700)' }}>· optional</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="What was found and what was done"
+                  placeholder="What should they check or do"
                   value={excNote}
                   onChange={(e) => setExcNote(e.target.value)}
                   style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
@@ -516,6 +542,34 @@ export const AdminDrawer = () => {
           {/* GENERIC RECORD / NOTICE FORM */}
           {drawer.isForm && (
             <>
+              {drawer.intro && (
+                <p style={{ margin: 0, padding: '12px 14px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)', fontSize: '13.5px', lineHeight: 1.55, color: 'var(--text-body)' }}>
+                  {drawer.intro}
+                </p>
+              )}
+              {drawer.details && drawer.details.length > 0 && (
+                <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+                  {drawer.details.map(([dLabel, dValue, dTone], i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        padding: '9px 14px',
+                        fontSize: '13.5px',
+                        background: i % 2 ? 'var(--surface-muted)' : '#fff',
+                      }}
+                    >
+                      <span style={{ color: 'var(--kr-grey-700)' }}>{dLabel}</span>
+                      <span style={{ fontWeight: 700, textAlign: 'right', color: dTone === 'bad' ? 'var(--kr-red-700)' : 'var(--text-heading)' }}>
+                        {dValue == null || dValue === '' ? '—' : dValue}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {formError && (
                 <div
                   role="alert"
@@ -546,14 +600,46 @@ export const AdminDrawer = () => {
               )}
 
               {drawer.fields && drawer.fields.map(([key, label, opts, hint, extra = {}], idx) => {
+                if (extra.when && !extra.when(form)) return null;
                 const isSection = opts === 'section';
                 const isUpload = opts === 'upload';
                 const isArea = opts === 'textarea';
                 const isChecks = opts === 'checks';
-                const isCheckboxSelect = opts === 'checkbox-select' || (key === 'clients' && extra && extra.options) || (key === 'supervisors' && extra && extra.options);
+                const isBunksInput = opts === 'bunks-input' || key === 'authorizedBunks';
+                const isLocationsInput = opts === 'locations-input' || key === 'loadingLocations';
+                const isCheckboxSelect = (opts === 'checkbox-select'
+                  || (key === 'clients' && extra && extra.options)
+                  || (key === 'supervisors' && extra && extra.options)) && !isBunksInput && !isLocationsInput;
                 const isSelect = Array.isArray(opts);
                 const raw = form[key];
                 const file = isUpload && raw && typeof raw === 'object' ? raw : null;
+
+                if (isBunksInput) {
+                  return (
+                    <div key={idx}>
+                      <FormBunksInput
+                        label={label}
+                        value={raw}
+                        placeholder={typeof hint === 'string' ? hint : 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'}
+                        onChange={(nextVal) => setForm(prev => ({ ...prev, [key]: nextVal }))}
+                      />
+                    </div>
+                  );
+                }
+
+                if (isLocationsInput) {
+                  return (
+                    <div key={idx}>
+                      <FormLocationsInput
+                        label={label}
+                        value={raw}
+                        placeholder={typeof hint === 'string' ? hint : undefined}
+                        hint={extra.hint}
+                        onChange={(nextVal) => setForm(prev => ({ ...prev, [key]: nextVal }))}
+                      />
+                    </div>
+                  );
+                }
 
                 if (isCheckboxSelect) {
                   const options = (typeof extra.options === 'function' ? extra.options(form) : extra.options) || (Array.isArray(opts) ? opts : []);
@@ -618,6 +704,9 @@ export const AdminDrawer = () => {
                         <option value="">Select</option>
                         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
+                      {hint && typeof hint === 'string' && (
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{hint}</span>
+                      )}
                     </div>
                   );
                 }
@@ -826,43 +915,24 @@ export const AdminDrawer = () => {
             Cancel
           </button>
           {drawer.isException && exc.status !== 'Resolved' && (
-            <>
-              {exc.status === 'Open' && (
-              <button
-                onClick={handleExcUnderReview}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  height: '38px',
-                  padding: '0 16px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  background: 'var(--surface-card)',
-                  color: 'var(--color-brand)',
-                  border: '1px solid var(--color-brand)',
-                }}
-              >
-                Mark under review
-              </button>
-              )}
-              <button
-                onClick={handleExcResolve}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  height: '38px',
-                  padding: '0 16px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  background: 'var(--color-brand)',
-                  color: '#fff',
-                }}
-              >
-                Resolve
-              </button>
-            </>
+            <button
+              onClick={handleExcSubmit}
+              disabled={!excAssignees.length}
+              style={{
+                all: 'unset',
+                cursor: excAssignees.length ? 'pointer' : 'not-allowed',
+                opacity: excAssignees.length ? 1 : 0.5,
+                height: '38px',
+                padding: '0 20px',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '14px',
+                fontWeight: 700,
+                background: 'var(--color-brand)',
+                color: '#fff',
+              }}
+            >
+              Submit
+            </button>
           )}
           {drawer.isDriverReq && isPendingDrv && (
             <>
@@ -916,7 +986,7 @@ export const AdminDrawer = () => {
                 color: '#fff',
               }}
             >
-              {drawer.saveLabel}
+              {saveLabelOf(form)}
             </button>
           )}
         </div>

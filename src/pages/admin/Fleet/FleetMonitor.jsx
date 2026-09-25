@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, Clock, ChevronDown } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
 
@@ -7,30 +7,50 @@ export const FleetMonitor = () => {
   const { T, fleetFilter, setFleetFilter, navTo, deleted } = useTMSAdmin();
   const tms = T();
   const [trackId, setTrackId] = useState(null);
+  const [idleDurationFilter, setIdleDurationFilter] = useState('all');
 
   const ff = fleetFilter;
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id));
 
   // Fleet Vehicles
-  const fleetAll = (tms.vehicles || []).map(v => ({
-    ...v,
-    branchName: (tms.B[v.branch] || {}).name,
-    driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
-    gpsColor: v.gps === 'OK' ? 'var(--kr-green-600)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
-    radiusAlert: v.id === 'V04'
-      ? 'Left Ambattur Cold Store 100 m radius at 02:14 without an open trip.'
-      : v.id === 'V05'
-      ? 'No GPS fix for 2 h 14 min. Distance falling back to odometer.'
-      : false,
-  }));
+  const fleetAll = (tms.vehicles || []).map(v => {
+    let idleHours = 0;
+    let idleText = v.lastSeen;
 
-  const fleetCards = fleetAll.filter(v =>
-    ff === 'all' ||
-    (ff === 'running' && v.status === 'Running') ||
-    (ff === 'idle' && v.status === 'Idle') ||
-    (ff === 'maint' && v.status === 'Maintenance') ||
-    (ff === 'gps' && v.gps !== 'OK')
-  );
+    if (v.id === 'V02') { idleHours = 1.5; idleText = '1 h 30 min ago'; }
+    else if (v.id === 'V04') { idleHours = 2.5; idleText = '2 h 30 min ago'; }
+    else if (v.id === 'V08') { idleHours = 0.5; idleText = '30 min ago'; }
+    else if (v.id === 'V10') { idleHours = 4.5; idleText = '4 h 30 min ago'; }
+    else if (v.status === 'Idle') { idleHours = 1.2; idleText = '1 h 12 min ago'; }
+
+    return {
+      ...v,
+      idleHours,
+      lastSeen: idleText,
+      branchName: (tms.B[v.branch] || {}).name,
+      driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
+      gpsColor: v.gps === 'OK' ? 'var(--kr-green-600)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
+      radiusAlert: v.id === 'V04'
+        ? 'Left Ambattur Cold Store 100 m radius at 02:14 without an open trip.'
+        : v.id === 'V05'
+        ? 'No GPS fix for 2 h 14 min. Distance falling back to odometer.'
+        : false,
+    };
+  });
+
+  const fleetCards = fleetAll.filter(v => {
+    const matchesCategory =
+      ff === 'all' ||
+      (ff === 'running' && v.status === 'Running') ||
+      (ff === 'idle' && v.status === 'Idle') ||
+      (ff === 'maint' && v.status === 'Maintenance') ||
+      (ff === 'gps' && v.gps !== 'OK');
+
+    const targetMinHours = (ff === 'idle' && idleDurationFilter !== 'all') ? Number(idleDurationFilter) : 0;
+    const matchesDuration = ff !== 'idle' || idleDurationFilter === 'all' || v.idleHours > targetMinHours;
+
+    return matchesCategory && matchesDuration;
+  });
 
   const gpsTone = g => g === 'OK' ? 'var(--kr-green-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
@@ -231,125 +251,172 @@ export const FleetMonitor = () => {
         ))}
       </div>
 
-      {/* Filter Pills */}
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        {fleetFilters.map(f => (
-          <button
-            key={f.id}
-            onClick={() => setFleetFilter(f.id)}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              padding: '0 14px',
-              height: '34px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              borderRadius: 'var(--radius-pill)',
-              fontFamily: 'var(--font-display)',
-              fontSize: '12px',
-              fontWeight: 700,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              border: `2px solid ${f.border}`,
-              background: f.bg,
-              color: f.color,
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
+      {/* Filter Pills and Right Side Duration Filter Option */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {fleetFilters.map(f => (
+            <button
+              key={f.id}
+              onClick={() => {
+                setFleetFilter(f.id);
+                if (f.id !== 'idle') {
+                  setIdleDurationFilter('all');
+                }
+              }}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                padding: '0 14px',
+                height: '34px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                borderRadius: 'var(--radius-pill)',
+                fontFamily: 'var(--font-display)',
+                fontSize: '12px',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                border: `2px solid ${f.border}`,
+                background: f.bg,
+                color: f.color,
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Right side duration filter option — ONLY shown in IDLE section */}
+        {ff === 'idle' && (
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
+            <Clock size={14} style={{ position: 'absolute', left: '12px', color: idleDurationFilter !== 'all' ? 'var(--color-brand)' : 'var(--text-muted)', pointerEvents: 'none' }} />
+            <select
+              value={idleDurationFilter}
+              onChange={e => setIdleDurationFilter(e.target.value)}
+              style={{
+                height: '34px',
+                padding: '0 28px 0 32px',
+                borderRadius: 'var(--radius-pill)',
+                border: idleDurationFilter !== 'all' ? '2px solid var(--color-brand)' : '1px solid var(--border-strong)',
+                background: idleDurationFilter !== 'all' ? 'var(--color-brand-tint)' : '#fff',
+                color: idleDurationFilter !== 'all' ? 'var(--kr-green-800)' : 'var(--text-heading)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                boxSizing: 'border-box',
+              }}
+            >
+              <option value="all">All durations</option>
+              <option value="1">More than 1 hour</option>
+              <option value="2">More than 2 hours</option>
+              <option value="3">More than 3 hours</option>
+              <option value="4">More than 4 hours</option>
+            </select>
+            <ChevronDown size={14} style={{ position: 'absolute', right: '10px', color: idleDurationFilter !== 'all' ? 'var(--color-brand)' : 'var(--text-muted)', pointerEvents: 'none' }} />
+          </div>
+        )}
       </div>
 
       {/* VEHICLES VIEW */}
       {fleetShowVehicles && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '16px' }}>
-          {fleetCards.map(v => (
-            <div
-              key={v.id}
-              role="button"
-              tabIndex={0}
-              aria-label={`Track ${v.number} on the map`}
-              onClick={() => setTrackId(v.id)}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTrackId(v.id); } }}
-              className="tms-fleet-card"
-              style={{
-                background: '#fff',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                cursor: 'pointer',
-                transition: 'border-color var(--dur-fast), box-shadow var(--dur-fast)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 800,
-                    fontSize: '16px',
-                    color: 'var(--text-heading)',
-                  }}
-                >
-                  {v.number}
-                </span>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: v.gpsColor,
-                  }}
-                >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: v.gpsColor }}></span>
-                  GPS {v.gps}
-                </span>
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                {v.type} · {v.branchName}
-              </div>
-              <div style={{ fontSize: '14px', color: 'var(--text-heading)' }}>{v.route}</div>
+        fleetCards.length === 0 ? (
+          <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
+            No idle vehicles match the selected duration filter {idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '16px' }}>
+            {fleetCards.map(v => (
               <div
+                key={v.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`Track ${v.number} on the map`}
+                onClick={() => setTrackId(v.id)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTrackId(v.id); } }}
+                className="tms-fleet-card"
                 style={{
+                  background: '#fff',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '16px',
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: '8px',
-                  fontSize: '13px',
-                  color: 'var(--text-muted)',
-                  borderTop: '1px solid var(--border-default)',
-                  paddingTop: '10px',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  transition: 'border-color var(--dur-fast), box-shadow var(--dur-fast)',
                 }}
               >
-                <span>{v.status} · {v.driverName}</span>
-                <span style={{ whiteSpace: 'nowrap' }}>{v.lastSeen}</span>
-              </div>
-              {v.radiusAlert && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontWeight: 800,
+                      fontSize: '16px',
+                      color: 'var(--text-heading)',
+                    }}
+                  >
+                    {v.number}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      color: v.gpsColor,
+                    }}
+                  >
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: v.gpsColor }}></span>
+                    GPS {v.gps}
+                  </span>
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  {v.type} · {v.branchName}
+                </div>
+                <div style={{ fontSize: '14px', color: 'var(--text-heading)' }}>{v.route}</div>
                 <div
                   style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: '8px',
                     fontSize: '13px',
-                    padding: '8px 10px',
-                    background: 'var(--color-hazard-soft)',
-                    borderRadius: 'var(--radius-md)',
-                    color: '#7A4300',
+                    color: 'var(--text-muted)',
+                    borderTop: '1px solid var(--border-default)',
+                    paddingTop: '10px',
                   }}
                 >
-                  {v.radiusAlert}
+                  <span>{v.status} · {v.driverName}</span>
+                  <span style={{ whiteSpace: 'nowrap' }}>{v.lastSeen}</span>
                 </div>
-              )}
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-brand)', marginTop: 'auto' }}>
-                <MapPin size={13} /> Track on map
+                {v.radiusAlert && (
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      padding: '8px 10px',
+                      background: 'var(--color-hazard-soft)',
+                      borderRadius: 'var(--radius-md)',
+                      color: '#7A4300',
+                    }}
+                  >
+                    {v.radiusAlert}
+                  </div>
+                )}
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-brand)', marginTop: 'auto' }}>
+                  <MapPin size={13} /> Track on map
+                </div>
               </div>
-            </div>
-          ))}
-          <style>{`.tms-fleet-card:hover, .tms-fleet-card:focus-visible { border-color: var(--color-brand) !important; box-shadow: 0 6px 18px rgba(0, 60, 40, 0.10); outline: none; }`}</style>
-        </div>
+            ))}
+            <style>{`.tms-fleet-card:hover, .tms-fleet-card:focus-visible { border-color: var(--color-brand) !important; box-shadow: 0 6px 18px rgba(0, 60, 40, 0.10); outline: none; }`}</style>
+          </div>
+        )
       )}
 
       {trackId && (() => {

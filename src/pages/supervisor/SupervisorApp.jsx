@@ -1,6 +1,7 @@
 import React from 'react';
 import SupervisorScreens from './SupervisorScreens';
 import { TMS, formatPhone } from '../../utils';
+import { isPendingClose, pendingCloseDetail, ENROUTE_LABEL } from '../../utils/tripStatus';
 import './supervisorStates.css';
 import './supervisorApp.css';
 
@@ -23,7 +24,7 @@ export class SupervisorApp extends React.Component {
     rf: this.blankRf(), showReqErrors: false,
     selected: 'T01', history: [], histSel: '', closedData: {}, forceEmptyHist: false,
     notifFilter: 'all', notifSel: '', notifRead: ['N05', 'N06'], activity: [], adminNotices: [],
-    hf: { vehicle: '', from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '',
+    hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '',
     localTrips: [], closedIds: [],
     att: { D01: 'P', D02: '', D07: '', D09: '' }, attVeh: { D01: 'V01' }, attVehStatus: {}, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
     am: { vehicle: '', driver: '', status: '' },
@@ -92,7 +93,11 @@ export class SupervisorApp extends React.Component {
     const json = JSON.stringify(list);
     if (json === this._noticeJson) return;
     const first = this._noticeJson === undefined; this._noticeJson = json;
-    const mine = list.filter(n => n.branch === this.BR || n.branch === 'all');
+    // A notice addressed to named supervisors (`to`) reaches only them;
+    // everything else is branch-wide as before.
+    const mine = list.filter(n => (Array.isArray(n.to) && n.to.length)
+      ? n.to.includes(this.SUP)
+      : (n.branch === this.BR || n.branch === 'all'));
     const fresh = first ? [] : mine.filter(n => !this.state.adminNotices.some(o => o.id === n.id));
     this.setState({ adminNotices: mine });
     if (fresh.length && !['approval', 'otp', 'register', 'login'].includes(this.state.screen)) this.toast(fresh[0].priority === 'Urgent' ? 'warning' : 'info', fresh[0].kind === 'message' ? 'New message from Head Office' : 'Update from Head Office', fresh[0].title);
@@ -182,7 +187,7 @@ export class SupervisorApp extends React.Component {
   active() { return this.allTrips().filter(t => t.branch === this.BR && t.status === 'Enroute' && !this.state.closedIds.includes(t.id)); }
   // Badge colours per status label → [background, text, edge], from the --st-* palette in <helmet>.
   statusTone(label) {
-    const k = { 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent' }[label] || 'neutral';
+    const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent' }[label] || 'neutral';
     return [`var(--st-${k}-bg)`, `var(--st-${k}-fg)`, `var(--st-${k}-edge)`];
   }
   decorate(t) {
@@ -356,10 +361,28 @@ export class SupervisorApp extends React.Component {
     }).sort((a, b) => b.sort.localeCompare(a.sort));
     // Trip history filters · vehicle and closed-date range, applied together
     const hf = s.hf;
-    const histVehicles = [...new Set(histList.map(t => t.vehicle))].map(id => T.V[id]).filter(Boolean).sort((a, b) => a.number.localeCompare(b.number));
-    const hfVehicleOptions = [{ value: '__all', label: `All vehicles (${histList.length})` }, ...histVehicles.map(v => { const n = histList.filter(t => t.vehicle === v.id).length; return { value: v.id, label: `${v.number} · ${n} ${n === 1 ? 'trip' : 'trips'}` }; })];
-    const histFiltered = histList.filter(t => (!hf.vehicle || t.vehicle === hf.vehicle) && (!hf.from || t.closedDay >= hf.from) && (!hf.to || t.closedDay <= hf.to));
-    const hfHasRange = !!(hf.from || hf.to), hfAnyFilter = hfHasRange || !!hf.vehicle;
+    const selectedVehs = s.hfSelectedVehicles || [];
+    const histVehicles = [...new Set(histList.map(t => t.vehicle))].map(id => {
+      const veh = T.V[id];
+      const count = histList.filter(t => t.vehicle === id).length;
+      return veh ? { id: veh.id, number: veh.number, count } : null;
+    }).filter(Boolean).sort((a, b) => a.number.localeCompare(b.number));
+    let hfVehTriggerLabel = 'All vehicles';
+    if (selectedVehs.length === 1) {
+      const found = histVehicles.find(v => v.id === selectedVehs[0]);
+      hfVehTriggerLabel = found ? found.number : '1 vehicle selected';
+    } else if (selectedVehs.length > 1 && selectedVehs.length < histVehicles.length) {
+      hfVehTriggerLabel = `${selectedVehs.length} vehicles selected`;
+    }
+    const hfHasVehFilter = selectedVehs.length > 0 && selectedVehs.length < histVehicles.length;
+    const hfVehicleOptions = [{ value: '__all', label: `All vehicles (${histList.length})` }, ...histVehicles.map(v => ({ value: v.id, label: `${v.number} · ${v.count} ${v.count === 1 ? 'trip' : 'trips'}` }))];
+    const histFiltered = histList.filter(t => {
+      const vehMatch = selectedVehs.length === 0 || selectedVehs.includes(t.vehicle) || (!hfHasVehFilter && !hf.vehicle) || (hf.vehicle && t.vehicle === hf.vehicle);
+      const fromMatch = !hf.from || t.closedDay >= hf.from;
+      const toMatch = !hf.to || t.closedDay <= hf.to;
+      return vehMatch && fromMatch && toMatch;
+    });
+    const hfHasRange = !!(hf.from || hf.to), hfAnyFilter = hfHasRange || hfHasVehFilter || !!hf.vehicle;
     const hfRangeLabel = hf.from && hf.to ? (hf.from === hf.to ? prettyDay(hf.from) : `${prettyDay(hf.from)} – ${prettyDay(hf.to)}`) : hf.from ? `From ${prettyDay(hf.from)}` : hf.to ? `Up to ${prettyDay(hf.to)}` : '';
     const TODAY = todayIso;
     const hfPresets = [['Today', TODAY, TODAY], ['Last 7 days', isoDaysAgo(6), TODAY], ['This month', todayIso.slice(0, 8) + '01', TODAY]].map(([label, from, to]) => { const on = s.hfDraft.from === from && s.hfDraft.to === to; return { label, from, to, border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; });
@@ -417,12 +440,26 @@ export class SupervisorApp extends React.Component {
       photo: !ld.photo ? 'Take a photo of the odometer.' : undefined };
     const legErr = cf.legTried ? legBad : {};
     const closeNum = legs.length ? Number(legs[legs.length - 1].reading) : 0;
-    // Diesel — one entry per bunk
+    // Diesel — authorized bunks for this route
+    const selRoute = (T.routes || []).find(r => r.id === selTrip.route || r.name === selTrip.route) || (T.routes || []).find(r => r.from === selTrip.loading && r.to === selTrip.unloading);
+    const routeAuthIds = selRoute?.authorizedBunks || [];
     const bunkList = T.bunks.filter(b => b.branch === this.BR && b.status === 'Active');
+    const routeAuthBunks = routeAuthIds.length > 0
+      ? [
+          ...T.bunks.filter(b => routeAuthIds.includes(b.id) || routeAuthIds.some(a => String(a).toLowerCase() === String(b.name).toLowerCase())),
+          ...routeAuthIds.filter(a => !T.bunks.some(b => b.id === a || String(b.name).toLowerCase() === String(a).toLowerCase())).map(name => ({ name }))
+        ]
+      : bunkList;
+    const authorizedBunkOptions = [
+      ...routeAuthBunks.map(b => ({ value: b.name, label: `${b.name} (Authorized)` })),
+      { value: 'NEW_BUNK', label: '+ Enter new bunk (Request Admin approval)' },
+    ];
+
     const fillEditing = cf.fillEdit >= 0, fillEditorOpen = cf.fillOpen || !fills.length, fd = cf.fillDraft;
-    const fdL = Number(fd.litres) || 0, fdR = Number(fd.rate) || 0, fdRef = bunkList.find(b => b.name.toLowerCase() === fd.bunk.trim().toLowerCase());
+    const fdBunkName = fd.bunkChoice === 'NEW_BUNK' ? (fd.customBunk || '').trim() : (fd.bunkChoice || fd.bunk).trim();
+    const fdL = Number(fd.litres) || 0, fdR = Number(fd.rate) || 0, fdRef = bunkList.find(b => b.name.toLowerCase() === fdBunkName.toLowerCase());
     const tank = this.tankOf(selTrip.vehicle), overTank = l => tank > 0 && Number(l) > tank, tankMsg = `More than the ${km(tank)} L tank.`;
-    const fillBad = { bunk: !fd.bunk.trim() ? 'Enter the bunk name.' : undefined, litres: !(fdL > 0) ? 'Required.' : overTank(fdL) ? tankMsg : undefined, rate: !(fdR > 0) ? 'Required.' : undefined };
+    const fillBad = { bunk: !fdBunkName ? 'Enter or select the bunk name.' : undefined, litres: !(fdL > 0) ? 'Required.' : overTank(fdL) ? tankMsg : undefined, rate: !(fdR > 0) ? 'Required.' : undefined };
     // Over-tank shows straight away, not only after tapping Add bunk
     const fillErr = cf.fillTried ? fillBad : overTank(fdL) ? { litres: tankMsg } : {};
     const overFill = (cf.fills || []).findIndex(x => overTank(x.litres));
@@ -527,7 +564,8 @@ export class SupervisorApp extends React.Component {
     const noticeAt = sort => { const [d, hm = ''] = String(sort || '').split(' '); const [y, m, dd] = d.split('-'); return m ? `${Number(dd)} ${MON[Number(m) - 1]} ${hm.slice(0, 5)}` : ''; };
     const noticeAtLong = sort => { const [d, hm = ''] = String(sort || '').split(' '); const [y, m, dd] = d.split('-'); return m ? `${Number(dd)} ${MON[Number(m) - 1]} ${y}, ${hm.slice(0, 5)}` : ''; };
     const alertItems = [
-      ...activeD.filter(t => t.hoursOpen > 24).map(t => ({ id: `al-long-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:30', title: `Long open trip · ${t.vehicleNumber}`, body: `${t.number} has been open ${t.hoursOpen} h against an expected ${t.expectedHours} h. Close it once unloading is done, or Head Office is alerted.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Open for', `${t.hoursOpen} h · expected ${t.expectedHours} h`]], link: { trip: t.id }, linkLabel: 'View trip' })),
+      ...activeD.filter(t => isPendingClose(t)).map(t => ({ id: `al-pendclose-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:45', title: `Trip completed · not closed · ${t.vehicleNumber}`, body: `${t.number} has reached the customer but is still open — ${pendingCloseDetail(t)}. File the closing entry so Head Office can bill the trip.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Why', pendingCloseDetail(t)]], link: { trip: t.id }, linkLabel: 'Close trip' })),
+      ...activeD.filter(t => t.hoursOpen > 24 && !isPendingClose(t)).map(t => ({ id: `al-long-${t.id}`, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:30', title: `Long open trip · ${t.vehicleNumber}`, body: `${t.number} has been open ${t.hoursOpen} h against an expected ${t.expectedHours} h. Close it once unloading is done, or Head Office is alerted.`, rows: [['Trip', t.number], ['Vehicle', t.vehicleNumber], ['Driver', t.driverName], ['Route', t.routeLine], ['Opened', t.opened], ['Open for', `${t.hoursOpen} h · expected ${t.expectedHours} h`]], link: { trip: t.id }, linkLabel: 'View trip' })),
       ...(attendanceMarked < attendanceTotal ? [{ id: 'al-att-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:00', title: 'Attendance pending for today', body: `${attendanceTotal - attendanceMarked} of ${attendanceTotal} drivers are not marked for ${todayDM}. Missing attendance is reported to Head Office after 48 hours.`, rows: [['Marked', attDrivers.filter(d => s.att[d.id]).map(d => d.name).join(', ') || 'None yet'], ['Not marked', attDrivers.filter(d => !s.att[d.id]).map(d => d.name).join(', ')], ['Date', prettyDay(todayIso)]], link: { screen: 'attMark' }, linkLabel: 'Mark attendance' }] : []),
       ...(idleMissing ? [{ id: 'al-idle-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 08:30', title: 'Idle reason missing', body: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle has' : 'vehicles have'} no reason recorded. Head Office uses the reason to plan loads and maintenance.`, rows: idleRows.filter(v => v.missingReason).map(v => [v.number, v.sinceText]), link: { screen: 'idle' }, linkLabel: 'Record idle reasons' }] : [])
     ];
@@ -716,7 +754,7 @@ export class SupervisorApp extends React.Component {
           } catch (e) {}
           this.setState(st => ({ saving: false, screen: 'openDone', localTrips: [...st.localTrips, t], newTrip: t, form: this.blankForm(), showErrors: false, idle: { ...st.idle, [f.vehicle]: { on: false, reason: '', note: '' } } }));
           this.toast('success', 'Trip saved', num + ' is enroute. GPS monitoring started.');
-          this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', 'Enroute']], link: { trip: t.id }, linkLabel: 'View trip' });
+          this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', ENROUTE_LABEL]], link: { trip: t.id }, linkLabel: 'View trip' });
           this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by ${me.name} (${me.branch}).`, time: 'Just now' });
         }, 1200);
       },
@@ -750,27 +788,70 @@ export class SupervisorApp extends React.Component {
       fillCards: fills.map((x, i) => ({ i, n: i + 1, bunk: x.bunk, line: `${km(x.litres)} L × ₹${Number(x.rate).toFixed(2)}/L = ${money0(x.litres * x.rate)}`, bg: overTank(x.litres) ? 'var(--kr-red-100)' : fillEditing && cf.fillEdit === i ? 'var(--color-brand-tint)' : '#fff', lineColor: overTank(x.litres) ? 'var(--kr-red-800)' : 'var(--text-body)' })),
       tankLabel: tank ? km(tank) + ' L' : '—', qtyHint: tank ? `Tank holds ${km(tank)} L` : undefined,
       fillEditorOpen, fillAddShown: !fillEditorOpen, fillCanCancel: fills.length > 0, fillEditorTitle: fillEditing ? `Edit bunk ${cf.fillEdit + 1}` : `Bunk ${fills.length + 1}`, fillSaveLabel: fillEditing ? 'Save changes' : 'Add bunk',
-      fillBunkHint: fdRef ? `Branch bunk · rate on record ₹${fdRef.rate.toFixed(2)}/L.` : 'Type the bunk name from the diesel slip.',
+      authorizedBunkOptions,
+      selectedBunkChoice: fd.bunkChoice || (routeAuthBunks.some(b => b.name === fd.bunk) ? fd.bunk : fd.bunk ? 'NEW_BUNK' : ''),
+      selectBunkChoice: e => {
+        const choice = e.target.value;
+        if (choice === 'NEW_BUNK') {
+          this.patchCf({ fillDraft: { ...fd, bunkChoice: 'NEW_BUNK', bunk: fd.customBunk || '' } });
+        } else {
+          const ref = routeAuthBunks.find(b => b.name === choice);
+          this.patchCf({ fillDraft: { ...fd, bunkChoice: choice, bunk: choice, rate: ref && !fd.rate ? ref.rate.toFixed(2) : fd.rate } });
+        }
+      },
+      setCustomBunkName: e => {
+        const val = e.target.value;
+        this.patchCf({ fillDraft: { ...fd, bunkChoice: 'NEW_BUNK', customBunk: val, bunk: val } });
+      },
+      fillBunkHint: fdRef ? `Authorized bunk · rate on record ₹${fdRef.rate.toFixed(2)}/L.` : 'Select from authorized bunks or request a new bunk.',
       fillDraftAmount: fdL && fdR ? money0(fdL * fdR) : '—',
       setFillBunk: e => { const bunk = e.target.value, ref = bunkList.find(b => b.name.toLowerCase() === bunk.trim().toLowerCase()); this.patchCf({ fillDraft: { ...fd, bunk, rate: ref && !fd.rate ? ref.rate.toFixed(2) : fd.rate } }); },
       setFillLitres: e => this.patchCf({ fillDraft: { ...fd, litres: e.target.value.replace(/[^\d.]/g, '') } }), setFillRate: e => this.patchCf({ fillDraft: { ...fd, rate: e.target.value.replace(/[^\d.]/g, '') } }),
-      saveFill: () => { if (Object.values(fillBad).some(Boolean)) { this.patchCf({ fillTried: true }); return; } const x = { bunk: fd.bunk.trim(), litres: String(fdL), rate: fdR.toFixed(2) };
-        this.patchCf({ fills: fillEditing ? fills.map((y, j) => j === cf.fillEdit ? x : y) : [...fills, x], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }); },
+      saveFill: () => {
+        const finalBunkName = fd.bunkChoice === 'NEW_BUNK' ? (fd.customBunk || '').trim() : (fd.bunkChoice || fd.bunk).trim();
+        if (Object.values(fillBad).some(Boolean) || !finalBunkName) { this.patchCf({ fillTried: true }); return; }
+        
+        const isCustom = fd.bunkChoice === 'NEW_BUNK' || !routeAuthBunks.some(b => b.name.toLowerCase() === finalBunkName.toLowerCase());
+        if (isCustom && this.ctx?.requestNewBunk) {
+          this.ctx.requestNewBunk({
+            bunkName: finalBunkName,
+            routeId: selRoute?.id,
+            routeName: selRoute?.name || 'Route',
+            tripId: selTrip.id,
+            tripNumber: selD.number,
+            supervisorName: (T.S[selTrip.supervisor] || {}).name || 'Supervisor',
+            branch: selTrip.branch,
+          });
+        }
+
+        const x = { bunk: finalBunkName, litres: String(fdL), rate: fdR.toFixed(2), isNewBunk: isCustom };
+        this.patchCf({ fills: fillEditing ? fills.map((y, j) => j === cf.fillEdit ? x : y) : [...fills, x], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false });
+      },
       cancelFill: () => this.patchCf({ fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }),
       openFillEditor: () => this.patchCf({ fillDraft: this.blankFill(), fillEdit: -1, fillOpen: true, fillTried: false }),
       editFill: e => { const i = Number(e.currentTarget.dataset.i); this.patchCf({ fillDraft: { ...fills[i] }, fillEdit: i, fillOpen: true, fillTried: false }); },
       removeFill: e => { const i = Number(e.currentTarget.dataset.i); this.patchCf({ fills: fills.filter((_, j) => j !== i), fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }); },
       dieselAmount: dieselTotal ? money0(dieselTotal) : '—', dieselTotalLabel: fills.length > 1 ? `Diesel total · ${fills.length} bunks · ${km(dieselLitres)} L` : 'Diesel amount',
       // expense and remarks
-      setTotalExpense: e => this.patchCf({ totalExpense: e.target.value.replace(/\D/g, '').slice(0, 8) }),
-      totalExpenseHint: `Everything spent on this trip: diesel${dieselTotal ? ' (' + money0(dieselTotal) + ')' : ''}, toll, driver bata, loading charges.`,
+      expBreakdown: cf.expBreakdown || { dieselCash: '', driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
+      otherExpenses: cf.otherExpenses || [{ name: '', amount: '' }],
+      setExpBreakdown: (field, val) => this.setExpBreakdown(field, val),
+      setOtherExpense: (idx, field, val) => this.setOtherExpense(idx, field, val),
+      addOtherExpense: () => this.addOtherExpense(),
+      removeOtherExpense: (idx) => this.removeOtherExpense(idx),
+      totalExpenseDisplay: Number(cf.totalExpense) > 0 ? money0(Number(cf.totalExpense)) : '₹0',
+      totalExpenseHint: 'Added up automatically: bunk diesel plus the seven boxes above.',
       setCloseRemarks: e => this.patchCf({ remarks: e.target.value.slice(0, 250) }), closeRemarksCount: (cf.remarks || '').length,
       closeSummary, closePhotos, hasClosePhotos: closePhotos.length > 0,
       closeReviewHead: flagged ? `Variance ${pct}% will be flagged.` : 'Validation passed.',
       closeReviewNote: flagged ? `The odometer distance is outside 5% of the ${km(fixed)} km fixed route, so Head Office reviews it after you close.` : fixed ? `Odometer distance is within 5% of the ${km(fixed)} km fixed route.` : 'Non-business movement. No fixed route to check against.',
       submitClose: () => { if (Object.values(closeBad).some(Boolean)) { this.setState({ showCloseErrors: true, railVariant: 'errors' }); return; } this.go('closeReview', { railVariant: '' }); },
       confirmClose: () => {
-        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: this.stampText() };
+        // Only the rows the supervisor actually filled in are worth keeping.
+        const otherExp = (cf.otherExpenses || [])
+          .map(x => ({ name: String(x.name || '').trim(), amount: Number(x.amount) || 0 }))
+          .filter(x => x.name || x.amount);
+        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, expBreakdown: cf.expBreakdown || {}, otherExpenses: otherExp, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: this.stampText() };
         try {
           const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
           const cur = m.trips || { added: [], edited: {} };
@@ -789,6 +870,9 @@ export class SupervisorApp extends React.Component {
             dieselLitres: Number(rec.litres) || selTrip.dieselLitres,
             dieselTotal: dieselTotal || selTrip.dieselTotal,
             totalExpense: rec.totalExpense ? `₹${Number(rec.totalExpense).toLocaleString('en-IN')}` : selTrip.totalExpense,
+            // Head Office reads the toll and the itemised extras off these.
+            expBreakdown: rec.expBreakdown,
+            otherExpenses: rec.otherExpenses,
             closeRemarks: rec.remarks || selTrip.closeRemarks,
             qtyLoad: rec.qtyLoad || selTrip.qtyLoad,
             qtyUnload: rec.qtyUnload || selTrip.qtyUnload,
@@ -825,12 +909,25 @@ export class SupervisorApp extends React.Component {
       histCountLine: hfAnyFilter && !s.forceEmptyHist ? `${histShown.length} of ${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}` : `${histShown.length} closed ${histShown.length === 1 ? 'trip' : 'trips'} · ${me.branch}`,
       histEmptyTitle: hfAnyFilter && !s.forceEmptyHist ? 'No trips match these filters' : 'No closed trips yet',
       histEmptyText: hfAnyFilter && !s.forceEmptyHist ? `Nothing closed${hf.vehicle ? ' for ' + (T.V[hf.vehicle] || {}).number : ''}${hfHasRange ? ' in ' + hfRangeLabel : ''}. Try another vehicle or date range.` : 'Trips you close appear here with the full closing details, newest first.',
+      histVehicles,
+      hfSelectedVehicles: selectedVehs,
+      hfVehOpen: !!s.hfVehOpen,
+      hfVehHasSelection: hfHasVehFilter,
+      hfVehTriggerLabel,
+      toggleHfVehOpen: () => this.setState(st => ({ hfVehOpen: !st.hfVehOpen, hfCalOpen: false })),
+      toggleHfVehicle: (vehId) => this.setState(st => {
+        const cur = st.hfSelectedVehicles || [];
+        const next = cur.includes(vehId) ? cur.filter(x => x !== vehId) : [...cur, vehId];
+        return { hfSelectedVehicles: next };
+      }),
+      selectAllHfVehicles: () => this.setState({ hfSelectedVehicles: histVehicles.map(v => v.id) }),
+      clearHfVehicles: () => this.setState({ hfSelectedVehicles: [] }),
       hfVehicleOptions, hfVehicleValue: hf.vehicle || '__all', hfHasRange, hfAnyFilter, hfNoFilter: !hfAnyFilter, hfRangeLabel, hfPresets, hfMaxDay: TODAY,
       hfCalOpen: s.hfCalOpen, hfDraft: s.hfDraft, hfErr: s.hfErr,
       hfCalBorder: s.hfCalOpen || hfHasRange ? 'var(--color-brand)' : 'var(--border-strong)', hfCalBg: hfHasRange ? 'var(--color-brand)' : s.hfCalOpen ? 'var(--color-brand-tint)' : '#fff', hfCalFg: hfHasRange ? '#fff' : 'var(--text-heading)',
       hfDateBorder: s.hfErr ? 'var(--status-danger)' : 'var(--border-strong)',
       setHfVehicle: e => { const v = e.target.value; this.setState(st => ({ hf: { ...st.hf, vehicle: v === '__all' ? '' : v } })); },
-      toggleHfCal: () => this.setState(st => ({ hfCalOpen: !st.hfCalOpen, hfDraft: { from: st.hf.from, to: st.hf.to }, hfErr: '' })),
+      toggleHfCal: () => this.setState(st => ({ hfCalOpen: !st.hfCalOpen, hfVehOpen: false, hfDraft: { from: st.hf.from, to: st.hf.to }, hfErr: '' })),
       setHfFrom: e => { const from = e.target.value; this.setState(st => ({ hfDraft: { from, to: st.hfDraft.to && from && st.hfDraft.to < from ? '' : st.hfDraft.to }, hfErr: '' })); },
       setHfTo: e => { const to = e.target.value; this.setState(st => ({ hfDraft: { ...st.hfDraft, to }, hfErr: '' })); },
       pickHfPreset: e => { const { from, to } = e.currentTarget.dataset; this.setState({ hfDraft: { from, to }, hfErr: '' }); },
@@ -841,9 +938,9 @@ export class SupervisorApp extends React.Component {
         this.setState(st => ({ hf: { ...st.hf, from, to }, hfCalOpen: false, hfErr: '', railVariant: '' }));
       },
       clearHfRange: () => this.setState(st => ({ hf: { ...st.hf, from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' })),
-      clearHfAll: () => this.setState({ hf: { vehicle: '', from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '', railVariant: '' }),
+      clearHfAll: () => this.setState({ hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '', railVariant: '' }),
       openHistTrip: e => this.go('histTrip', { histSel: e.currentTarget.dataset.id, railVariant: '' }),
-      goHistory: () => this.go('history', { railVariant: '', forceEmptyHist: false, hf: { vehicle: '', from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' }),
+      goHistory: () => this.go('history', { railVariant: '', forceEmptyHist: false, hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' }),
       // unclosed
       unclosedList,
       unclosedAlertOpen: !!s.unclosedAlert,
@@ -945,11 +1042,72 @@ export class SupervisorApp extends React.Component {
     ];
   }
   blankClose() { return { invoice: '', lr: '', qtyLoad: '', qtyUnload: '', totalExpense: '', remarks: '',
+    expBreakdown: { dieselCash: '', driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
+    otherExpenses: [{ name: '', amount: '' }],
     legs: [], legDraft: this.blankLeg(), legEdit: -1, legOpen: false, legTried: false,
     fills: [], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }; }
+  // Total expense = diesel drawn at the bunks + the six boxes + every other-expense row.
+  // Diesel is part of it because the bunk fill is money spent on this trip, the same
+  // way the seed trips were totalled before the boxes existed.
+  recalcTotalExpense(cf) {
+    const eb = cf.expBreakdown || {};
+    const dCash = Number(eb.dieselCash) || 0;
+    const drvB = Number(eb.driverBata) || 0;
+    const clnB = Number(eb.cleanerBata) || 0;
+    const rto = Number(eb.rto) || 0;
+    const toll = Number(eb.toll) || 0;
+    const weigh = Number(eb.weighment) || 0;
+    const oth = (cf.otherExpenses || []).reduce((a, x) => a + (Number(x.amount) || 0), 0);
+    const bunkDiesel = (cf.fills || []).reduce((a, x) => a + (Number(x.litres) || 0) * (Number(x.rate) || 0), 0);
+    const sum = Math.round(bunkDiesel) + dCash + drvB + clnB + rto + toll + weigh + oth;
+    return sum > 0 ? String(sum) : '';
+  }
+  setExpBreakdown(field, value) {
+    this.setState(st => {
+      const expBreakdown = { ...(st.cf.expBreakdown || {}), [field]: value.replace(/\D/g, '') };
+      const cf = { ...st.cf, expBreakdown };
+      const totalExpense = this.recalcTotalExpense(cf);
+      return { cf: { ...cf, totalExpense } };
+    });
+  }
+  setOtherExpense(index, field, value) {
+    this.setState(st => {
+      const cur = st.cf.otherExpenses || [{ name: '', amount: '' }];
+      const otherExpenses = cur.map((x, i) =>
+        i === index ? { ...x, [field]: field === 'amount' ? value.replace(/\D/g, '') : value } : x
+      );
+      const cf = { ...st.cf, otherExpenses };
+      const totalExpense = this.recalcTotalExpense(cf);
+      return { cf: { ...cf, totalExpense } };
+    });
+  }
+  addOtherExpense() {
+    this.setState(st => {
+      const otherExpenses = [...(st.cf.otherExpenses || []), { name: '', amount: '' }];
+      return { cf: { ...st.cf, otherExpenses } };
+    });
+  }
+  removeOtherExpense(index) {
+    this.setState(st => {
+      const cur = st.cf.otherExpenses || [];
+      const otherExpenses = cur.filter((_, i) => i !== index);
+      const nextList = otherExpenses.length ? otherExpenses : [{ name: '', amount: '' }];
+      const cf = { ...st.cf, otherExpenses: nextList };
+      const totalExpense = this.recalcTotalExpense(cf);
+      return { cf: { ...cf, totalExpense } };
+    });
+  }
   blankLeg() { return { from: '', to: '', reading: '', photo: null }; }
   blankFill() { return { bunk: '', litres: '', rate: '' }; }
-  patchCf(patch) { this.setState(st => ({ cf: { ...st.cf, ...patch } })); }
+  patchCf(patch) {
+    this.setState(st => {
+      const cf = { ...st.cf, ...patch };
+      // Adding or removing a bunk changes the diesel spend, so the total follows it
+      // the same way it follows the expense boxes.
+      if ('fills' in patch) cf.totalExpense = this.recalcTotalExpense(cf);
+      return { cf };
+    });
+  }
   // Points an odometer reading can be taken between: loading point, each unloading customer, then the branch yard.
   tripPoints(t) {
     const T = this.T(), yard = ((T.B[t.branch] || {}).name || 'Branch') + ' yard';

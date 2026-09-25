@@ -97,6 +97,10 @@
   --st-gps-fg: var(--kr-red-800);
   --st-gps-edge: var(--kr-red-600);
 
+  --st-pending-bg: #fff4d6;
+  --st-pending-fg: #8a5300;
+  --st-pending-edge: #e0a316;
+
   --st-closed-bg: var(--kr-green-100);
   --st-closed-fg: var(--kr-green-800);
   --st-closed-edge: var(--kr-green-600);

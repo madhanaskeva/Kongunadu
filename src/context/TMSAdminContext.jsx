@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TMS, formatPhone, formatImei } from '../utils';
+import { isPendingClose, pendingCloseDetail } from '../utils/tripStatus';
 
 const TMSAdminContext = createContext(null);
 
@@ -25,6 +26,8 @@ export const TMSAdminProvider = ({ children }) => {
   const DELETED_KEY = 'kr-tms-deleted';
   const EXC_KEY = 'kr-tms-exception-overrides';
   const DIST_KEY = 'kr-tms-distance-review';
+  const VERIFY_KEY = 'kr-tms-trip-verification';
+  const DEDUCT_KEY = 'kr-tms-driver-deductions';
   const ST_KEY = 'kr-tms-settings';
   const ADMIN_NOTIF_KEY = 'kr-tms-admin-notifications';
   const ADMIN_NOTIF_READ_KEY = 'kr-tms-admin-notifications-read';
@@ -97,13 +100,19 @@ export const TMSAdminProvider = ({ children }) => {
   const [toast, setToast] = useState(null);
   const [globalQ, setGlobalQ] = useState('');
   const [selectedTrip, setSelectedTrip] = useState('T07');
-  const [tf, setTf] = useState({ branch: '', status: '', type: '', flag: '', q: '' });
+  // `vehicles` holds the ids ticked in the Trips vehicle filter — empty means every vehicle.
+  const [tf, setTf] = useState({ branch: '', status: '', type: '', flag: '', q: '', vehicles: [] });
   const [excType, setExcType] = useState('');
   const [excStatus, setExcStatus] = useState('open');
   const [excSel, setExcSel] = useState('X02');
-  const [excAssignee, setExcAssignee] = useState('');
+  // Supervisor ids ticked in the exception drawer — the alert goes to each of them.
+  const [excAssignees, setExcAssignees] = useState([]);
   const [excNote, setExcNote] = useState('');
   const [excOverrides, setExcOverrides] = usePersisted(EXC_KEY, {});
+  // Verification & approval records, keyed by trip id. See utils/tripVerification.js.
+  const [tripVerify, setTripVerify] = usePersisted(VERIFY_KEY, {});
+  // Salary deductions raised against drivers when an excess is not explained away.
+  const [deductions, setDeductions] = usePersisted(DEDUCT_KEY, []);
   const [fleetFilter, setFleetFilter] = useState('all');
   const [masterQ, setMasterQ] = useState('');
   const [attBranch, setAttBranch] = useState('');
@@ -145,9 +154,24 @@ export const TMSAdminProvider = ({ children }) => {
   const [drvReqs, setDrvReqs] = useState([]);
   const [rejectReason, setRejectReason] = useState('');
   const [vehTanks, setVehTanks] = useState({});
-  const [masterEdits, setMasterEdits] = useState({});
+  const [masterEdits, setMasterEdits] = usePersisted(MASTER_KEY, {});
   const [devReqs, setDevReqs] = useState([]);
   const [devFilter, setDevFilter] = useState('all');
+  const BUNK_REQ_KEY = 'kr-tms-bunk-requests';
+  const [bunkReqs, setBunkReqs] = usePersisted(BUNK_REQ_KEY, [
+    {
+      id: 'BR-seed-1',
+      bunkName: 'IOC – Salem Highway Hub',
+      routeId: 'R01',
+      routeName: 'Sriperumbudur → Hyderabad',
+      tripId: 'T01',
+      tripNumber: 'TN28AQ4521/09/014',
+      supervisorName: 'R. Senthil Kumar',
+      branch: 'B01',
+      status: 'Pending',
+      requestedAt: 'Today 09:30',
+    },
+  ]);
   const [adminNotifOpen, setAdminNotifOpen] = useState(false);
   const [sendNoticeOpen, setSendNoticeOpen] = useState(false);
 
@@ -197,6 +221,32 @@ export const TMSAdminProvider = ({ children }) => {
     } catch (e) {}
   };
 
+  // Adds only the items whose `key` is not already in the list, so system-generated
+  // alerts (pending closures, etc.) are raised once and survive reloads.
+  const pushAdminNotificationsOnce = (items) => {
+    if (!items || !items.length) return;
+    setAdminNotifications((prev) => {
+      const seen = new Set(prev.map((n) => n.key).filter(Boolean));
+      const fresh = items
+        .filter((i) => i.key && !seen.has(i.key))
+        .map((i) => ({
+          id: 'AN-' + i.key,
+          time: i.time || 'Just now',
+          createdAt: new Date().toISOString(),
+          ...i,
+        }));
+      if (!fresh.length) return prev;
+      const next = [...fresh, ...prev].slice(0, 50);
+      try {
+        localStorage.setItem(ADMIN_NOTIF_KEY, JSON.stringify(next));
+      } catch (e) {}
+      try {
+        window.dispatchEvent(new Event('kr-tms-admin-notifications-changed'));
+      } catch (e) {}
+      return next;
+    });
+  };
+
   const unreadAdminNotifCount = useMemo(() => {
     const readSet = new Set(adminNotifRead);
     return adminNotifications.filter((n) => !readSet.has(n.id)).length;
@@ -218,11 +268,12 @@ export const TMSAdminProvider = ({ children }) => {
   // Helper functions
   // Seed data with the admin's saved adds / edits (masterEdits) applied and deleted records removed,
   // so every page, dropdown and lookup map sees the same records.
+  const editsObj = typeof masterEdits !== 'undefined' && masterEdits ? masterEdits : {};
   const tmsView = useMemo(() => {
     const base = (typeof window !== 'undefined' && window.TMS) || TMS;
     const gone = new Set(deleted);
     const merge = (key) => {
-      const e = masterEdits[key] || {}, ed = e.edited || {};
+      const e = editsObj[key] || {}, ed = e.edited || {};
       return [...(e.added || []), ...(base[key] || []).map(r => (ed[r.id] ? { ...r, ...ed[r.id] } : r))].filter(r => !gone.has(r.id));
     };
     const by = a => Object.fromEntries(a.map(r => [r.id, r]));
@@ -249,8 +300,24 @@ export const TMSAdminProvider = ({ children }) => {
         review: t.distReview || null,
       }));
     return out;
-  }, [masterEdits, deleted]);
+  }, [editsObj, deleted]);
   const T = () => tmsView;
+
+  // Trips that reached the customer but were never closed. Head Office is told once
+  // per trip; the supervisor app raises the matching alert on its own side.
+  useEffect(() => {
+    const gone = new Set(deleted);
+    const pending = (tmsView.trips || []).filter(t => !gone.has(t.id) && isPendingClose(t));
+    pushAdminNotificationsOnce(pending.map(t => {
+      const veh = (tmsView.V[t.vehicle] || {}).number || '—';
+      const sup = (tmsView.S[t.supervisor] || {}).name || 'the supervisor';
+      return {
+        key: 'pending-close-' + t.id,
+        title: 'Trip pending closure',
+        body: `${t.number} (${veh}) has completed but is not closed — ${pendingCloseDetail(t)}. Ask ${sup} to file the closing entry.`,
+      };
+    }));
+  }, [tmsView, deleted]);
 
   const fmtPhone = (d) => formatPhone(d);
   const fmtImei = (d) => formatImei(d);
@@ -316,8 +383,105 @@ export const TMSAdminProvider = ({ children }) => {
     });
   };
 
+  const requestNewBunk = ({ bunkName, routeId, routeName, tripId, tripNumber, supervisorName, branch }) => {
+    if (!bunkName || !bunkName.trim()) return null;
+    const cleanName = bunkName.trim();
+
+    const existingReq = (bunkReqs || []).find(r => r.bunkName.toLowerCase() === cleanName.toLowerCase() && (r.routeId === routeId || r.routeName === routeName));
+    if (existingReq) return existingReq;
+
+    const newReq = {
+      id: 'BR' + Date.now().toString(36),
+      bunkName: cleanName,
+      routeId: routeId || '',
+      routeName: routeName || '',
+      tripId: tripId || '',
+      tripNumber: tripNumber || '',
+      supervisorName: supervisorName || 'Supervisor',
+      branch: branch || 'B01',
+      status: 'Pending',
+      requestedAt: stampNow(),
+    };
+
+    setBunkReqs(prev => [newReq, ...(prev || [])]);
+
+    pushAdminNotification({
+      title: 'New Bunk Approval Request',
+      body: `Supervisor requested new bunk "${cleanName}" for route "${routeName || 'Route'}" (${tripNumber || 'Close Trip'}).`,
+      time: 'Just now',
+      bunkRequestId: newReq.id,
+      bunkName: cleanName,
+      routeId,
+      routeName,
+      kind: 'bunkApproval',
+    });
+
+    return newReq;
+  };
+
+  const decideBunkRequest = (id, approval) => {
+    const ok = approval === 'Approved';
+    const req = (bunkReqs || []).find(r => r.id === id);
+    if (!req) return;
+
+    setBunkReqs(prev => (prev || []).map(r => r.id === id ? { ...r, status: ok ? 'Approved' : 'Rejected', decidedAt: stampNow() } : r));
+
+    if (ok) {
+      const tms = tmsView;
+      let existingBunk = (tms.bunks || []).find(b => b.name.toLowerCase() === req.bunkName.trim().toLowerCase());
+      let bunkId = existingBunk?.id;
+
+      if (!existingBunk) {
+        bunkId = 'F' + Date.now().toString(36).slice(-4).toUpperCase();
+        const newBunk = {
+          id: bunkId,
+          name: req.bunkName,
+          branch: req.branch || 'B01',
+          rate: 95.0,
+          status: 'Active',
+        };
+        saveMaster('bunks', newBunk, true);
+      }
+
+      const route = (tms.routes || []).find(rt => rt.id === req.routeId || rt.name === req.routeName);
+      if (route) {
+        const curAuth = route.authorizedBunks || [];
+        if (!curAuth.includes(bunkId) && !curAuth.includes(req.bunkName)) {
+          const nextAuth = [...curAuth, bunkId];
+          saveMaster('routes', { ...route, authorizedBunks: nextAuth }, false);
+        }
+      }
+
+      showToast('success', 'Bunk approved & authorized', `"${req.bunkName}" approved and added to authorized bunks for ${req.routeName || 'route'}.`);
+      pushNotice({
+        kind: 'action',
+        branch: req.branch || 'B01',
+        title: `Bunk approved · ${req.bunkName}`,
+        body: `Head Office approved bunk "${req.bunkName}". It is now authorized for route ${req.routeName || ''}.`,
+        rows: [['Bunk', req.bunkName], ['Route', req.routeName || '—'], ['Status', 'Authorized']]
+      });
+    } else {
+      showToast('warning', 'Bunk request rejected', `Request for "${req.bunkName}" was rejected.`);
+    }
+  };
+
   // Save one or many records of a collection. items: [{ rec, isNew }]
   const saveMasterMany = (route, items) => {
+    // A loading location belongs to exactly one client, so a name taken off the
+    // client's list is removed from the Loading Location master as well.
+    if (route === 'clients') {
+      const drop = [];
+      items.forEach(({ rec }) => {
+        if (!Array.isArray(rec.loadingLocations)) return;
+        const wanted = rec.loadingLocations.map(n => String(n).toLowerCase());
+        (tmsView.locations || [])
+          .filter(l => (l.clientId || l.client) === rec.id)
+          .filter(l => !wanted.includes(String(l.name || '').toLowerCase()))
+          .forEach(l => drop.push(l.id));
+      });
+      if (drop.length) setDeleted(prev => Array.from(new Set([...prev, ...drop])));
+    }
+
     setMasterEdits(all => {
       let next = { ...all };
       let cur = next[route] || { added: [], edited: {} };
@@ -387,6 +551,41 @@ export const TMSAdminProvider = ({ children }) => {
           });
         });
         next.supervisors = supCur;
+      }
+
+      // Names typed in the client drawer become real Loading Location records.
+      if (route === 'clients') {
+        const baseLocations = (typeof window !== 'undefined' && window.TMS?.locations) || TMS.locations || [];
+        let locCur = next.locations || { added: [], edited: {} };
+
+        items.forEach(({ rec }) => {
+          if (!Array.isArray(rec.loadingLocations)) return;
+          const owned = [
+            ...(locCur.added || []),
+            ...baseLocations.map(l => (locCur.edited || {})[l.id] ? { ...l, ...locCur.edited[l.id] } : l),
+          ].filter(l => (l.clientId || l.client) === rec.id);
+
+          rec.loadingLocations
+            .filter(name => !owned.some(l => String(l.name || '').toLowerCase() === String(name).toLowerCase()))
+            .forEach(name => {
+              locCur = {
+                ...locCur,
+                added: [{
+                  id: 'LOX' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                  name,
+                  client: rec.id,
+                  clientId: rec.id,
+                  branch: rec.branch || '',
+                  address: '',
+                  radius: 100,
+                  lat: '',
+                  lng: '',
+                  status: 'Active',
+                }, ...(locCur.added || [])],
+              };
+            });
+        });
+        next.locations = locCur;
       }
 
       if (route === 'supervisors') {
@@ -534,6 +733,17 @@ export const TMSAdminProvider = ({ children }) => {
         f.supervisorIds = f.supervisorIds || [];
         f.supervisors = f.supervisors || '';
       }
+      // Loading locations typed in the client drawer; saveMasterMany turns these
+      // into records in the Loading Location master owned by this client. Left
+      // undefined when the caller never supplied the field (e.g. an Excel import),
+      // so that path cannot silently drop a client's existing locations.
+      if (f.loadingLocations !== undefined || f.loadingLocation !== undefined) {
+        const locNames = Array.isArray(f.loadingLocations)
+          ? f.loadingLocations
+          : String(f.loadingLocations || f.loadingLocation || '').split(',');
+        f.loadingLocations = locNames.map(n => String(n).trim()).filter(Boolean);
+        f.loadingLocation = f.loadingLocations.join(', ');
+      }
     }
     if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
     if (route === 'locations') { num('radius'); num('lat'); num('lng'); dflt('radius', 100); dflt('status', 'Active'); }
@@ -552,7 +762,7 @@ export const TMSAdminProvider = ({ children }) => {
       // Admin sets the password, so the account is ready to sign in straight away
       if (isNew) { dflt('role', 'Administrator'); f.status = 'Active'; f.last = 'Never'; }
     }
-    if (route === 'routes') { num('km'); num('hours'); f.name = `${(tms.L[f.from] || {}).name || '—'} → ${f.to || '—'}`; dflt('status', 'Active'); }
+    if (route === 'routes') { num('km'); num('hours'); num('dieselLimit'); f.name = `${(tms.L[f.from] || {}).name || '—'} → ${f.to || '—'}`; dflt('status', 'Active'); }
     return f;
   };
 
@@ -690,9 +900,11 @@ export const TMSAdminProvider = ({ children }) => {
         excType, setExcType,
         excStatus, setExcStatus,
         excSel, setExcSel,
-        excAssignee, setExcAssignee,
+        excAssignees, setExcAssignees,
         excNote, setExcNote,
         excOverrides, setExcOverrides,
+        tripVerify, setTripVerify,
+        deductions, setDeductions,
         fleetFilter, setFleetFilter,
         masterQ, setMasterQ,
         attBranch, setAttBranch,
@@ -722,6 +934,7 @@ export const TMSAdminProvider = ({ children }) => {
         unreadAdminNotifCount,
         markAdminNotifsRead,
         pushAdminNotification,
+        pushAdminNotificationsOnce,
         dashTab, setDashTab,
         dashCfg: dashCfg || dashDefault(),
         saveDash,
@@ -730,7 +943,7 @@ export const TMSAdminProvider = ({ children }) => {
         dashFormErr, setDashFormErr,
         rb, setRb,
         fmtPhone, fmtImei, stampNow,
-        pushNotice, decideDriver, saveMaster, saveMasterMany, setVehTank, normalizeRecord,
+        pushNotice, decideDriver, requestNewBunk, decideBunkRequest, bunkReqs, setBunkReqs, saveMaster, saveMasterMany, setVehTank, normalizeRecord,
         shrinkImage, readReqs, writeReqs, navTo,
       }}
     >
