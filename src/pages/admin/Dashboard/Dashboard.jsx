@@ -2,6 +2,7 @@ import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { getDashModules, buildCustomWidget, DEFAULT_PALETTE } from '../../../utils/dashboard-custom';
 import { RowActions } from '../../../components/common/RowActions';
+import { DynamicChart, CHART_TYPES, CHART_LABELS } from '../../../components/charts';
 
 export const Dashboard = () => {
   const {
@@ -87,12 +88,115 @@ export const Dashboard = () => {
       { id: 'deviceApprovals', label: 'Device approvals', value: devPending.length, sub: 'Supervisor phones pending', subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'deviceApprovals' }
     ],
     charts: [
-      { id: 'branchTrips', title: 'Trips by branch · today', meta: 'Target 300–400/day', desc: 'Business and non-business trips per branch', kindLabel: 'Stacked bars', isHbar: true, rows: hbar(bb.map(([name, biz, non]) => [name, [[biz, 'var(--color-brand)'], [non, 'var(--kr-green-100)']], biz + non, ' · ' + non + ' non-biz']), 132), legend: [{ label: 'Business', color: 'var(--color-brand)' }, { label: 'Non-business', color: 'var(--kr-green-100)' }], route: 'analytics' },
-      { id: 'tripsTrend', title: 'Trips per day', meta: 'Last 14 days', desc: 'Daily trip volume across all branches', kindLabel: 'Columns', isColumn: true, route: 'analytics', bars: trend.map((v, i) => ({ h: Math.max(8, Math.round((v / 350) * 100)) + '%', color: i === trend.length - 1 ? 'var(--kr-green-800)' : 'var(--color-brand)', title: (i + 1) + ' Sep · ' + v, val: v, lbl: (i + 1) + ' Sep' })), axisStart: '1 Sep', axisEnd: '14 Sep' },
-      { id: 'gpsHealth', title: 'GPS health · fleet', meta: 'Live', desc: 'Tracking, weak signal and no fix across the fleet', kindLabel: 'Summary', isStat: true, stats: [[gpsOk, 'Tracking', 'var(--color-brand)'], [gpsWeak, 'Weak signal', 'var(--kr-saffron-600)'], [gpsFail, 'No fix', 'var(--kr-red-600)']].map(([value, label, color]) => ({ value, label, color, w: Math.max(1, Math.round((value / gpsTotal) * 100)) + '%' })), note: 'When GPS fails the odometer is used; when both fail the trip closes as a manual exception.', route: 'fleet' },
-      { id: 'excByType', title: 'Open exceptions by type', meta: openExc.length + ' open', desc: 'Where the open exceptions come from', kindLabel: 'Bars', isHbar: true, route: 'exceptions', rows: hbar(excByType.map(([t, n]) => [t, [[n, 'var(--kr-red-600)']], n]), Math.max(1, ...excByType.map(x => x[1]))) },
-      { id: 'vehStatus', title: 'Vehicle status · today', meta: '722 vehicles', desc: 'Running, idle by cause, and in maintenance', kindLabel: 'Bars', isHbar: true, route: 'attendance', rows: hbar(vehStatusBars.map(v => [v.label, [[v.count, v.color]], v.count]), 296) },
-      { id: 'distVariance', title: 'Distance variance · worst trips', meta: 'Flag above ' + distThr + '%', desc: 'Furthest source vs fixed km, closed trips', kindLabel: 'Bars', isHbar: true, route: 'distance', rows: hbar(worstDist.map(d => [(tms.V[d.vehicle] || {}).number || d.number, [[d.pct, d.flagged ? 'var(--kr-red-600)' : 'var(--color-brand)']], d.pctText]), Math.max(1, ...worstDist.map(d => d.pct))) }
+      {
+        id: 'branchTrips',
+        title: 'Trips by branch · today',
+        meta: 'Target 300–400/day',
+        desc: 'Business and non-business trips per branch',
+        kindLabel: 'Stacked bars',
+        isHbar: true,
+        rows: hbar(bb.map(([name, biz, non]) => [name, [[biz, 'var(--color-brand)'], [non, 'var(--kr-green-100)']], biz + non, ' · ' + non + ' non-biz']), 132),
+        legend: [{ label: 'Business', color: 'var(--color-brand)' }, { label: 'Non-business', color: 'var(--kr-green-100)' }],
+        route: 'analytics',
+        chartData: bb.map(([name, biz, non], i) => ({
+          label: name,
+          value: biz + non,
+          sub: `${biz} biz · ${non} non-biz`,
+          color: ['#00623F', '#0B7E52', '#F29A1F', '#2F7DB5', '#7A4300'][i % 5],
+        })),
+        centerValue: bb.reduce((acc, [, biz, non]) => acc + biz + non, 0),
+        centerLabel: 'Trips',
+      },
+      {
+        id: 'tripsTrend',
+        title: 'Trips per day',
+        meta: 'Last 14 days',
+        desc: 'Daily trip volume across all branches',
+        kindLabel: 'Columns',
+        isColumn: true,
+        route: 'analytics',
+        bars: trend.map((v, i) => ({ h: Math.max(8, Math.round((v / 350) * 100)) + '%', color: i === trend.length - 1 ? 'var(--kr-green-800)' : 'var(--color-brand)', title: (i + 1) + ' Sep · ' + v, val: v, lbl: (i + 1) + ' Sep' })),
+        axisStart: '1 Sep',
+        axisEnd: '14 Sep',
+        chartData: trend.map((v, i) => ({
+          label: `${i + 1} Sep`,
+          value: v,
+          color: i === trend.length - 1 ? '#004A31' : '#00623F',
+        })),
+        centerValue: trend.reduce((acc, v) => acc + v, 0),
+        centerLabel: '14-Day Trips',
+      },
+      {
+        id: 'gpsHealth',
+        title: 'GPS health · fleet',
+        meta: 'Live',
+        desc: 'Tracking, weak signal and no fix across the fleet',
+        kindLabel: 'Summary',
+        isStat: true,
+        stats: [[gpsOk, 'Tracking', 'var(--color-brand)'], [gpsWeak, 'Weak signal', 'var(--kr-saffron-600)'], [gpsFail, 'No fix', 'var(--kr-red-600)']].map(([value, label, color]) => ({ value, label, color, w: Math.max(1, Math.round((value / gpsTotal) * 100)) + '%' })),
+        note: 'When GPS fails the odometer is used; when both fail the trip closes as a manual exception.',
+        route: 'fleet',
+        chartData: [
+          { label: 'Tracking (OK)', value: gpsOk, color: '#00623F' },
+          { label: 'Weak signal', value: gpsWeak, color: '#F29A1F' },
+          { label: 'No fix', value: gpsFail, color: '#D91619' },
+        ],
+        centerValue: gpsTotal,
+        centerLabel: 'Vehicles',
+      },
+      {
+        id: 'excByType',
+        title: 'Open exceptions by type',
+        meta: openExc.length + ' open',
+        desc: 'Where the open exceptions come from',
+        kindLabel: 'Bars',
+        isHbar: true,
+        route: 'exceptions',
+        rows: hbar(excByType.map(([t, n]) => [t, [[n, 'var(--kr-red-600)']], n]), Math.max(1, ...excByType.map(x => x[1]))),
+        chartData: excByType.map(([t, n], i) => ({
+          label: t,
+          value: n,
+          color: ['#D91619', '#F29A1F', '#00623F', '#2F7DB5', '#7A4300', '#5B52D4'][i % 6],
+        })),
+        centerValue: openExc.length,
+        centerLabel: 'Exceptions',
+      },
+      {
+        id: 'vehStatus',
+        title: 'Vehicle status · today',
+        meta: '722 vehicles',
+        desc: 'Running, idle by cause, and in maintenance',
+        kindLabel: 'Bars',
+        isHbar: true,
+        route: 'attendance',
+        rows: hbar(vehStatusBars.map(v => [v.label, [[v.count, v.color]], v.count]), 296),
+        chartData: vehStatusBars.map(v => ({
+          label: v.label,
+          value: v.count,
+          color: v.color === 'var(--kr-green-100)' ? '#0B7E52' : v.color === 'var(--kr-grey-300)' ? '#7C7C76' : v.color,
+        })),
+        centerValue: 722,
+        centerLabel: 'Vehicles',
+      },
+      {
+        id: 'distVariance',
+        title: 'Distance variance · worst trips',
+        meta: 'Flag above ' + distThr + '%',
+        desc: 'Furthest source vs fixed km, closed trips',
+        kindLabel: 'Bars',
+        isHbar: true,
+        route: 'distance',
+        rows: hbar(worstDist.map(d => [(tms.V[d.vehicle] || {}).number || d.number, [[d.pct, d.flagged ? 'var(--kr-red-600)' : 'var(--color-brand)']], d.pctText]), Math.max(1, ...worstDist.map(d => d.pct))),
+        chartData: worstDist.map((d, i) => ({
+          label: (tms.V[d.vehicle] || {}).number || d.number,
+          value: Number(d.pct.toFixed(1)),
+          valueSuffix: '%',
+          color: d.flagged ? '#D91619' : ['#00623F', '#F29A1F', '#2F7DB5', '#7A4300', '#5B52D4'][i % 5],
+        })),
+        centerValue: worstDist[0]?.pctText || '0%',
+        centerLabel: 'Max Variance',
+        valueSuffix: '%',
+      }
     ],
     lists: [
       { id: 'openExceptions', title: 'Open exceptions', desc: 'Newest open exceptions with branch', linkLabel: 'All exceptions →', route: 'exceptions', items: openExc.slice(0, 5).map(x => ({ kind: 'exc', id: x.id, dot: x.severity === 'High' ? 'var(--kr-red-600)' : x.severity === 'Medium' ? 'var(--kr-saffron-500)' : 'var(--kr-grey-500)', title: x.type + ' · ' + ((tms.V[x.vehicle] || {}).number || '—'), detail: x.detail, meta: (tms.B[x.branch] || {}).name })) },
@@ -137,15 +241,25 @@ export const Dashboard = () => {
     return { ...w, ...it, label: it.title || w.label };
   }).filter(Boolean);
 
+  const handleUpdateChartType = (uid, chartType) => {
+    const nextCharts = (currentCfg.charts || []).map(c =>
+      c.uid === uid ? { ...c, chartType } : c
+    );
+    saveDash({ ...currentCfg, charts: nextCharts });
+    showToast('info', 'Chart view updated', `Changed to ${CHART_LABELS[chartType] || chartType}.`);
+  };
+
   const dashCharts = (currentCfg.charts || []).map(it => {
+    const selectedType = it.chartType || it.style || 'bar';
     if (it.module) {
       const m = modulesMap[it.module];
       if (!m) return null;
-      return buildCustomWidget.charts(it, m, hbar, DEFAULT_PALETTE);
+      const widget = buildCustomWidget.charts(it, m, hbar, DEFAULT_PALETTE);
+      return { ...widget, ...it, chartType: selectedType };
     }
     const w = cat.charts[it.src];
     if (!w) return null;
-    return { ...w, ...it, title: it.title || w.title };
+    return { ...w, ...it, title: it.title || w.title, chartType: selectedType };
   }).filter(Boolean);
 
   const dashLists = (currentCfg.lists || []).map(it => {
@@ -297,133 +411,64 @@ export const Dashboard = () => {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', gap: '8px', flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                  {c.title}
-                </h2>
-                <button
-                  onClick={() => navTo(c.route || 'dashboard')}
-                  style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)' }}
-                  onMouseEnter={e => e.currentTarget.style.color = 'var(--text-brand)'}
-                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                >
-                  {c.meta}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {c.title}
+                  </h2>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  {/* Chart view type switcher */}
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      background: 'var(--surface-muted, #f6f6f4)',
+                      borderRadius: 'var(--radius-md, 6px)',
+                      padding: '2px',
+                      border: '1px solid var(--border-default, #ecece8)',
+                    }}
+                  >
+                    {CHART_TYPES.map((ct) => {
+                      const Icon = ct.icon;
+                      const isActive = (c.chartType || 'bar') === ct.value;
+                      return (
+                        <button
+                          key={ct.value}
+                          type="button"
+                          onClick={() => handleUpdateChartType(c.uid, ct.value)}
+                          title={`${ct.label}: ${ct.description}`}
+                          style={{
+                            all: 'unset',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '4px',
+                            background: isActive ? '#fff' : 'transparent',
+                            color: isActive ? 'var(--color-brand)' : 'var(--text-muted)',
+                            boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => navTo(c.route || 'dashboard')}
+                    style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-brand)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                  >
+                    {c.meta}
+                  </button>
+                </div>
               </div>
               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                {/* Horizontal Bars */}
-                {c.isHbar && c.rows && (
-                  <>
-                    {c.rows.map((b, bi) => (
-                      <div key={bi} style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 150px) 1fr minmax(56px, auto)', gap: '12px', alignItems: 'center', fontSize: '14px' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {b.name}
-                        </span>
-                        <span style={{ height: '14px', background: 'var(--kr-grey-100)', borderRadius: '2px', overflow: 'hidden', display: 'flex' }}>
-                          {b.segs.map((g, gi) => (
-                            <span key={gi} style={{ width: g.w, background: g.color }} />
-                          ))}
-                        </span>
-                        <span style={{ textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                          <strong style={{ color: 'var(--text-heading)' }}>{b.value}</strong>{b.rest}
-                        </span>
-                      </div>
-                    ))}
-                    {c.legend && c.legend.length > 0 && (
-                      <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-muted)', paddingTop: '4px' }}>
-                        {c.legend.map((l, li) => (
-                          <span key={li} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ width: '10px', height: '10px', background: l.color }} />
-                            {l.label}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Columns Trend */}
-                {c.isColumn && c.bars && (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '160px', borderBottom: '1px solid var(--border-default)' }}>
-                      {c.bars.map((b, bi) => (
-                        <div
-                          key={bi}
-                          title={b.title}
-                          style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'stretch', height: '100%', minWidth: 0 }}
-                        >
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', textAlign: 'center' }}>
-                            {b.val}
-                          </span>
-                          <div style={{ height: b.h, background: b.color, borderRadius: '2px 2px 0 0' }} />
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
-                      <span>{c.axisStart}</span>
-                      <span>{c.axisEnd}</span>
-                    </div>
-                  </>
-                )}
-
-                {/* Stat Summary */}
-                {c.isStat && c.stats && (
-                  <>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                      {c.stats.map((x, xi) => (
-                        <div key={xi}>
-                          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '30px', lineHeight: 1, color: x.color }}>
-                            {x.value}
-                          </div>
-                          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{x.label}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ display: 'flex', height: '10px', borderRadius: '2px', overflow: 'hidden', gap: '2px' }}>
-                      {c.stats.map((x, xi) => (
-                        <span key={xi} title={x.label} style={{ width: x.w, background: x.color }} />
-                      ))}
-                    </div>
-                    {c.note && <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>{c.note}</p>}
-                  </>
-                )}
-
-                {/* Custom Grouped Bars for Custom Modules */}
-                {c.isGroups && c.groups && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {c.groups.map((gr, gri) => (
-                      <div key={gri} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                          <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                            {gr.h}
-                          </span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            {gr.sub}
-                          </span>
-                        </div>
-                        {gr.rows && gr.rows.map((b, bi) => (
-                          <div key={bi} style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 150px) 1fr minmax(56px, auto)', gap: '12px', alignItems: 'center', fontSize: '14px' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {b.name}
-                            </span>
-                            <span style={{ height: '14px', background: 'var(--kr-grey-100)', borderRadius: '2px', overflow: 'hidden', display: 'flex' }}>
-                              {b.segs.map((g, gi) => (
-                                <span key={gi} style={{ width: g.w, background: g.color }} />
-                              ))}
-                            </span>
-                            <span style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                              {b.value}
-                            </span>
-                          </div>
-                        ))}
-                        {gr.hasNote && gr.note && (
-                          <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                            {gr.note}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <DynamicChart chart={c} />
               </div>
             </section>
           ))}

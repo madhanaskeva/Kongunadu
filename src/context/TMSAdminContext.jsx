@@ -81,7 +81,11 @@ export const TMSAdminProvider = ({ children }) => {
 
   const dashItem = (group, src, f = {}) => {
     const base = { uid: src + '-' + Math.random().toString(36).slice(2, 7), src, title: f.title || '' };
-    return group === 'cards' ? { ...base, color: f.color || '' } : group === 'charts' ? { ...base, style: f.style || '' } : { ...base, rows: Number(f.rows) || 5 };
+    return group === 'cards'
+      ? { ...base, color: f.color || '' }
+      : group === 'charts'
+      ? { ...base, style: f.style || '', chartType: f.chartType || f.style || 'bar' }
+      : { ...base, rows: Number(f.rows) || 5 };
   };
 
   const dashDefault = () => Object.fromEntries(Object.keys(DASH_ALL).map(g => [g, DASH_ALL[g].map(src => ({ ...dashItem(g, src), uid: src }))]));
@@ -201,7 +205,7 @@ export const TMSAdminProvider = ({ children }) => {
   // Dashboard layout state
   const [dashTab, setDashTab] = useState('cards');
   const [dashCfg, setDashCfg] = useState(null);
-  const [dashForm, setDashForm] = useState({ module: '', title: '', fields: [] });
+  const [dashForm, setDashForm] = useState({ module: '', title: '', fields: [], chartType: 'bar' });
   const [dashFormErr, setDashFormErr] = useState('');
 
   // Report builder state
@@ -613,6 +617,12 @@ export const TMSAdminProvider = ({ children }) => {
         cfg = Object.fromEntries(Object.keys(DASH_ALL).map(g => [g, Array.isArray(saved[g]) ? saved[g] : cfg[g]]));
       }
     } catch (e) {}
+    if (cfg && Array.isArray(cfg.charts)) {
+      cfg.charts = cfg.charts.map(c => ({
+        ...c,
+        chartType: c.chartType || c.style || 'bar',
+      }));
+    }
     setDashCfg(cfg);
 
     return () => {

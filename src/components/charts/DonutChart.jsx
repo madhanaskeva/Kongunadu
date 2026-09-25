@@ -12,75 +12,60 @@ const DEFAULT_COLORS = [
   '#4A4A46', // Slate
 ];
 
-// Helper to convert polar coordinates to Cartesian
-function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
-  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
-  return {
-    x: centerX + radius * Math.cos(angleInRadians),
-    y: centerY + radius * Math.sin(angleInRadians),
-  };
-}
-
-// Generate SVG path for a pie slice
-function describeArc(x, y, radius, startAngle, endAngle) {
-  const start = polarToCartesian(x, y, radius, endAngle);
-  const end = polarToCartesian(x, y, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
-
-  return [
-    'M', x, y,
-    'L', start.x, start.y,
-    'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y,
-    'Z',
-  ].join(' ');
-}
-
-export const PieChart = ({
+export const DonutChart = ({
   data = [],
   title,
   height = 240,
   colors = DEFAULT_COLORS,
+  centerLabel = 'Total',
+  centerValue,
   valueSuffix = '',
   showLegend = true,
 }) => {
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
+  // Filter valid data items
   const validData = (data || []).filter((d) => d && typeof d.value === 'number' && d.value >= 0);
   const total = validData.reduce((acc, curr) => acc + (curr.value || 0), 0);
 
+  // SVG dimensions
   const size = 200;
   const cx = size / 2;
   const cy = size / 2;
-  const radius = 76;
+  const radius = 64;
+  const strokeWidth = 24;
+  const circumference = 2 * Math.PI * radius;
 
-  // Build slices
-  let accumulatedAngle = 0;
-  const slices = validData.map((item, idx) => {
+  // Compute stroke dash segments
+  let accumulatedPercent = 0;
+  const segments = validData.map((item, idx) => {
     const fraction = total > 0 ? item.value / total : 0;
-    const sliceAngle = fraction * 360;
-    const startAngle = accumulatedAngle;
-    const endAngle = accumulatedAngle + sliceAngle;
-    accumulatedAngle += sliceAngle;
+    const strokeDasharray = `${fraction * circumference} ${circumference}`;
+    const strokeDashoffset = -accumulatedPercent * circumference;
+    accumulatedPercent += fraction;
 
     const color = item.color || colors[idx % colors.length];
-    const pct = total > 0 ? (fraction * 100).toFixed(1) : '0';
-    const isFullCircle = fraction >= 0.9999;
-    const path = isFullCircle ? null : describeArc(cx, cy, radius, startAngle, endAngle);
+    const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
 
     return {
       ...item,
       idx,
       fraction,
-      startAngle,
-      endAngle,
-      color,
       pct,
-      path,
-      isFullCircle,
+      color,
+      strokeDasharray,
+      strokeDashoffset,
     };
   });
 
-  const activeItem = hoveredIdx != null ? slices[hoveredIdx] : null;
+  const activeItem = hoveredIdx != null ? segments[hoveredIdx] : null;
+  const displayVal = activeItem
+    ? `${activeItem.value.toLocaleString('en-IN')}${activeItem.valueSuffix || valueSuffix}`
+    : centerValue != null
+    ? `${centerValue.toLocaleString ? centerValue.toLocaleString('en-IN') : centerValue}${valueSuffix}`
+    : `${total.toLocaleString('en-IN')}${valueSuffix}`;
+
+  const displayLbl = activeItem ? activeItem.label : centerLabel;
 
   return (
     <div
@@ -123,7 +108,7 @@ export const PieChart = ({
             padding: '8px 0',
           }}
         >
-          {/* Pie SVG */}
+          {/* Donut SVG */}
           <div
             style={{
               position: 'relative',
@@ -137,51 +122,112 @@ export const PieChart = ({
               style={{
                 width: '100%',
                 height: '100%',
+                transform: 'rotate(-90deg)',
                 overflow: 'visible',
               }}
             >
-              {slices.map((slice) => {
-                const isHovered = hoveredIdx === slice.idx;
-                if (slice.isFullCircle) {
-                  return (
-                    <circle
-                      key={slice.idx}
-                      cx={cx}
-                      cy={cy}
-                      r={radius}
-                      fill={slice.color}
-                      stroke="#ffffff"
-                      strokeWidth="2"
-                      style={{ cursor: 'pointer' }}
-                      onMouseEnter={() => setHoveredIdx(slice.idx)}
-                      onMouseLeave={() => setHoveredIdx(null)}
-                    />
-                  );
-                }
+              {/* Background ring */}
+              <circle
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill="none"
+                stroke="var(--kr-grey-100, #ecece8)"
+                strokeWidth={strokeWidth}
+              />
 
+              {/* Segments */}
+              {segments.map((seg) => {
+                const isHovered = hoveredIdx === seg.idx;
                 return (
-                  <path
-                    key={slice.idx}
-                    d={slice.path}
-                    fill={slice.color}
-                    stroke="#ffffff"
-                    strokeWidth="1.5"
+                  <circle
+                    key={seg.idx}
+                    cx={cx}
+                    cy={cy}
+                    r={radius}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth={isHovered ? strokeWidth + 4 : strokeWidth}
+                    strokeDasharray={seg.strokeDasharray}
+                    strokeDashoffset={seg.strokeDashoffset}
                     style={{
-                      transition: 'opacity 0.2s ease, transform 0.2s ease',
+                      transition: 'stroke-width 0.2s ease, opacity 0.2s ease',
                       cursor: 'pointer',
                       opacity: hoveredIdx != null && !isHovered ? 0.6 : 1,
-                      transformOrigin: `${cx}px ${cy}px`,
-                      transform: isHovered ? 'scale(1.04)' : 'scale(1)',
                     }}
-                    onMouseEnter={() => setHoveredIdx(slice.idx)}
+                    onMouseEnter={() => setHoveredIdx(seg.idx)}
                     onMouseLeave={() => setHoveredIdx(null)}
                   />
                 );
               })}
             </svg>
+
+            {/* Center Label in Donut Hole */}
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+                textAlign: 'center',
+                padding: '12px',
+                boxSizing: 'border-box',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '20px',
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                  color: activeItem ? activeItem.color : 'var(--text-heading)',
+                  transition: 'color 0.2s ease',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {displayVal}
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  marginTop: '2px',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {displayLbl}
+              </span>
+              {activeItem && (
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--text-body)',
+                    marginTop: '2px',
+                  }}
+                >
+                  {activeItem.pct}%
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Legend and stats */}
+          {/* Legend */}
           {showLegend && (
             <div
               style={{
@@ -194,12 +240,12 @@ export const PieChart = ({
                 overflowY: 'auto',
               }}
             >
-              {slices.map((slice) => {
-                const isHovered = hoveredIdx === slice.idx;
+              {segments.map((seg) => {
+                const isHovered = hoveredIdx === seg.idx;
                 return (
                   <div
-                    key={slice.idx}
-                    onMouseEnter={() => setHoveredIdx(slice.idx)}
+                    key={seg.idx}
+                    onMouseEnter={() => setHoveredIdx(seg.idx)}
                     onMouseLeave={() => setHoveredIdx(null)}
                     style={{
                       display: 'flex',
@@ -220,7 +266,7 @@ export const PieChart = ({
                           width: '10px',
                           height: '10px',
                           borderRadius: '50%',
-                          backgroundColor: slice.color,
+                          backgroundColor: seg.color,
                           flexShrink: 0,
                         }}
                       />
@@ -232,18 +278,18 @@ export const PieChart = ({
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
                         }}
-                        title={slice.label}
+                        title={seg.label}
                       >
-                        {slice.label}
+                        {seg.label}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       <span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>
-                        {slice.value}
-                        {slice.valueSuffix || valueSuffix}
+                        {seg.value}
+                        {seg.valueSuffix || valueSuffix}
                       </span>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        ({slice.pct}%)
+                        ({seg.pct}%)
                       </span>
                     </div>
                   </div>
@@ -253,24 +299,8 @@ export const PieChart = ({
           )}
         </div>
       )}
-
-      {activeItem && (
-        <div
-          style={{
-            fontSize: '12px',
-            color: 'var(--text-heading)',
-            textAlign: 'center',
-            padding: '4px 8px',
-            background: 'var(--surface-muted)',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 600,
-          }}
-        >
-          {activeItem.label}: <strong>{activeItem.value}{activeItem.valueSuffix || valueSuffix}</strong> ({activeItem.pct}%)
-        </div>
-      )}
     </div>
   );
 };
 
-export default PieChart;
+export default DonutChart;
