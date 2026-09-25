@@ -282,7 +282,7 @@ export const ClientProfile = () => {
             <div key={label} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
               <Icon size={18} color="var(--kr-grey-700)" style={{ flex: 'none', marginTop: '2px' }} />
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{label}</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>{label}</div>
                 <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-heading)', marginTop: '2px' }}>{value || '—'}</div>
               </div>
             </div>
@@ -400,9 +400,9 @@ export const ClientProfile = () => {
             <thead>
               <tr style={{ background: 'var(--surface-muted)' }}>
                 {['Customer', 'City', 'Route', 'Billing', 'Status'].map(c => (
-                  <th key={c} style={thStyle}>{c}</th>
+                  <th key={c} style={{ ...thStyle, color: 'var(--text-heading)' }}>{c}</th>
                 ))}
-                <th style={{ ...thStyle, textAlign: 'center' }}>Actions</th>
+                <th style={{ ...thStyle, textAlign: 'center', color: 'var(--text-heading)' }}>Actions</th>
               </tr>
             </thead>
             <tbody>

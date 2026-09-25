@@ -419,7 +419,7 @@ export const Settings = () => {
                   >
                     <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
                       <span style={{ display: 'block', height: '4px', width: '36px', borderRadius: '2px', background: 'var(--color-brand)' }}></span>
-                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
                         {itemLabel}
                       </span>
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

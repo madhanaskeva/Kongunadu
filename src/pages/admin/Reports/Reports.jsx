@@ -708,7 +708,7 @@ export const Reports = () => {
                                   fontWeight: 700,
                                   letterSpacing: '0.1em',
                                   textTransform: 'uppercase',
-                                  color: 'var(--text-muted)',
+                                  color: 'var(--kr-grey-800 )',
                                   whiteSpace: 'nowrap',
                                 }}
                               >

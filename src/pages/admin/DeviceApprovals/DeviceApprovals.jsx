@@ -256,7 +256,7 @@ export const DeviceApprovals = () => {
                   >
                     <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
                       <div style={{ fontWeight: 700, color: 'var(--text-heading)' }}>+91 {fmtPhone(r.phone)}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <div style={{ fontWeight: 700, color: 'var(--text-heading)' }}>
                         {r.name || 'Supervisor · not registered yet'}
                       </div>
                     </td>

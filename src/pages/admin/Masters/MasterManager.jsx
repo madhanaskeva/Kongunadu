@@ -1158,7 +1158,7 @@ export const MasterManager = ({ type }) => {
                       fontWeight: 700,
                       letterSpacing: '0.1em',
                       textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
+                      color: 'var(--text-heading)',
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -1173,7 +1173,7 @@ export const MasterManager = ({ type }) => {
                     fontWeight: 700,
                     letterSpacing: '0.1em',
                     textTransform: 'uppercase',
-                    color: 'var(--text-muted)',
+                    color: 'var(--text-heading)',
                     whiteSpace: 'nowrap',
                     textAlign: 'center',
                   }}
