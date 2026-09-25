@@ -388,7 +388,7 @@ export const Settings = () => {
           {/* On the Dashboard Column */}
           <div style={{ flex: '3 1 420px', maxWidth: '100%', boxSizing: 'border-box', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
-              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--kr-grey-800)' }}>
                 On the dashboard ({dtItems.length})
               </h3>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
