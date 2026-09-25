@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { CHART_TYPES, CHART_LABELS } from '../../../components/charts';
 
 export const Settings = () => {
   const {
@@ -24,7 +25,7 @@ export const Settings = () => {
 
   // Dashboard Modules Catalog
   const dt = dashTab || 'cards';
-  const df = dashForm || { module: '', title: '', fields: [] };
+  const df = dashForm || { module: '', title: '', fields: [], chartType: 'bar' };
   const dtItems = (dashCfg && dashCfg[dt]) || [];
 
   const modulesList = [
@@ -70,11 +71,20 @@ export const Settings = () => {
       module: fm.id,
       title: (df.title || '').trim(),
       fields: fm.cols.filter(h => df.fields.includes(h)),
+      ...(dt === 'charts' ? { chartType: df.chartType || 'bar' } : {}),
     };
     saveDash({ ...dashCfg, [dt]: [...dtItems, item] });
-    setDashForm({ module: '', title: '', fields: [] });
+    setDashForm({ module: '', title: '', fields: [], chartType: 'bar' });
     setDashFormErr('');
     showToast('success', 'Added to dashboard', `${item.title || fm.label} · ${item.fields.length} headings from ${fm.label}.`);
+  };
+
+  const handleUpdateChartType = (uid, chartType) => {
+    const next = dtItems.map(item => item.uid === uid ? { ...item, chartType } : item);
+    saveDash({ ...dashCfg, charts: next });
+    const it = dtItems.find(x => x.uid === uid);
+    const itemLabel = it?.title || (it?.module ? modById[it.module]?.label : it?.src) || uid;
+    showToast('info', 'Chart view updated', `${itemLabel}: changed to ${CHART_LABELS[chartType] || chartType}.`);
   };
 
   const removeDashItem = (uid) => {
@@ -94,7 +104,7 @@ export const Settings = () => {
 
   const handleRestoreAll = () => {
     saveDash(dashDefault());
-    setDashForm({ module: '', title: '', fields: [] });
+    setDashForm({ module: '', title: '', fields: [], chartType: 'bar' });
     setDashFormErr('');
     showToast('info', 'Dashboard restored', 'Every metric is back on the dashboard.');
   };
@@ -232,6 +242,48 @@ export const Settings = () => {
                 Shown as the heading on the dashboard. Blank uses the module name.
               </span>
             </div>
+
+            {/* Chart Type Select (Only for Chart view) */}
+            {dt === 'charts' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+                  Chart view type
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                  {CHART_TYPES.map((ct) => {
+                    const Icon = ct.icon;
+                    const isSelected = (df.chartType || 'bar') === ct.value;
+                    return (
+                      <button
+                        key={ct.value}
+                        type="button"
+                        onClick={() => setDashForm({ ...df, chartType: ct.value })}
+                        style={{
+                          all: 'unset',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          height: '42px',
+                          padding: '0 12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: `1.5px solid ${isSelected ? 'var(--color-brand)' : 'var(--border-strong)'}`,
+                          background: isSelected ? 'var(--color-brand-tint, #edf8f3)' : '#fff',
+                          color: isSelected ? 'var(--color-brand)' : 'var(--text-heading)',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          transition: 'all 0.15s ease',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <Icon size={16} strokeWidth={isSelected ? 2.5 : 2} />
+                        <span>{ct.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Headings Selection */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -373,6 +425,42 @@ export const Settings = () => {
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                         {w.fields ? `${w.fields.length} headings` : 'Standard metric'}
                       </span>
+                      {dt === 'charts' && (
+                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                            Chart View
+                          </span>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: 'var(--surface-muted, #f6f6f4)', padding: '2px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-default)' }}>
+                            {CHART_TYPES.map((ct) => {
+                              const Icon = ct.icon;
+                              const isActive = (w.chartType || 'bar') === ct.value;
+                              return (
+                                <button
+                                  key={ct.value}
+                                  type="button"
+                                  onClick={() => handleUpdateChartType(w.uid, ct.value)}
+                                  title={ct.label}
+                                  style={{
+                                    all: 'unset',
+                                    cursor: 'pointer',
+                                    height: '28px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    borderRadius: '4px',
+                                    background: isActive ? '#fff' : 'transparent',
+                                    color: isActive ? 'var(--color-brand)' : 'var(--text-muted)',
+                                    boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
+                                    transition: 'all 0.15s ease',
+                                  }}
+                                >
+                                  <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', borderTop: '1px solid var(--border-default)', background: 'var(--surface-muted)' }}>
                       <button

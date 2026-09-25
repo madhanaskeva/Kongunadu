@@ -400,22 +400,39 @@ export const buildCustomWidget = {
       if (st.kind === 'number') {
         const top = [...st.nums].sort((x, y) => y[1] - x[1]).slice(0, 6);
         const mx = Math.max(1, ...top.map(x => x[1]));
+        const chartData = top.map(([r, n], i) => ({
+          label: txtOf(r[keyCol]) || '—',
+          value: n,
+          valueSuffix: st.sfx,
+          color: palette[i % palette.length],
+        }));
+        const total = top.reduce((acc, [, n]) => acc + n, 0);
         return {
           h,
           sub: 'Highest by ' + h.toLowerCase(),
           note: '',
           hasNote: false,
           rows: hbar(top.map(([r, n]) => [txtOf(r[keyCol]) || '—', [[n, 'var(--color-brand)']], fmtN(n) + st.sfx]), mx),
+          chartData,
+          total,
         };
       }
       if (st.kind === 'category') {
         const mx = Math.max(1, ...st.groups.map(g => g[1]));
+        const chartData = st.groups.slice(0, 6).map(([k, n], i) => ({
+          label: k,
+          value: n,
+          color: palette[i % palette.length],
+        }));
+        const total = st.groups.reduce((acc, [, n]) => acc + n, 0);
         return {
           h,
           sub: 'Records per value',
           note: '',
           hasNote: false,
           rows: hbar(st.groups.slice(0, 6).map(([k, n], i) => [k, [[n, palette[i % palette.length]]], n]), mx),
+          chartData,
+          total,
         };
       }
       return {
@@ -424,6 +441,8 @@ export const buildCustomWidget = {
         note: st.kind === 'empty' ? 'No values yet.' : 'Every record has its own value (' + st.text + '), so there is nothing to chart.',
         hasNote: true,
         rows: [],
+        chartData: [],
+        total: 0,
       };
     });
 
@@ -431,6 +450,7 @@ export const buildCustomWidget = {
       uid: it.uid,
       module: it.module,
       fields: it.fields,
+      chartType: it.chartType || it.style || 'bar',
       title,
       meta: m.rows.length + ' records',
       route: m.route,
@@ -445,6 +465,9 @@ export const buildCustomWidget = {
       bars: [],
       stats: [],
       groups,
+      chartData: groups[0]?.chartData || [],
+      centerValue: groups[0]?.total != null ? groups[0].total : undefined,
+      centerLabel: groups[0]?.h || 'Total',
     };
   },
 
