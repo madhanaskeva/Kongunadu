@@ -9,10 +9,10 @@ const branches=[
 ];
 const supervisors=[
  {id:'S01',name:'R. Senthil Kumar',email:'supervisor@transport.example',phone:'98410 22314',branch:'B01',clients:'INOX Air Products, Linde India, Air Liquide India, Bharat Petroleum, Suguna Foods',clientIds:['C01','C02','C03','C04','C05','C06'],status:'Active',lastLogin:'Today 06:12'},
- {id:'S02',name:'M. Arunachalam',phone:'98430 11908',branch:'B02',clients:'Air Liquide India',clientIds:['C03'],status:'Active',lastLogin:'Today 05:48'},
+ {id:'S02',name:'M. Arunachalam',email:'namakkal.supervisor@transport.example',phone:'98430 11908',branch:'B02',clients:'Air Liquide India',clientIds:['C03'],status:'Active',lastLogin:'Today 05:48'},
  {id:'S03',name:'K. Vijayalakshmi',phone:'99400 87621',branch:'B01',clients:'Linde India, Suguna Foods',clientIds:['C02','C05'],status:'Active',lastLogin:'Yesterday 21:30'},
- {id:'S04',name:'P. Ramesh Babu',phone:'90000 45512',branch:'B03',clients:'Bharat Petroleum',clientIds:['C04'],status:'Active',lastLogin:'Today 07:02'},
- {id:'S05',name:'S. Nagaraj',phone:'98860 32217',branch:'B04',clients:'Hindustan Petroleum',clientIds:['C06'],status:'Suspended',lastLogin:'12 Aug 2026'},
+ {id:'S04',name:'P. Ramesh Babu',email:'hyderabad.supervisor@transport.example',phone:'90000 45512',branch:'B03',clients:'Bharat Petroleum',clientIds:['C04'],status:'Active',lastLogin:'Today 07:02'},
+ {id:'S05',name:'S. Nagaraj',email:'bengaluru.supervisor@transport.example',phone:'98860 32217',branch:'B04',clients:'Hindustan Petroleum',clientIds:['C06'],status:'Suspended',lastLogin:'12 Aug 2026'},
  {id:'S06',name:'A. Deshmukh',phone:'98200 65430',branch:'B05',clients:'INOX Air Products',clientIds:['C01'],status:'Active',lastLogin:'Today 06:40'}
 ];
 const vehicles=[
@@ -23,12 +23,15 @@ const vehicles=[
  {id:'V05',number:'TS 09 UB 3344',type:'Reefer container 20ft',branch:'B03',clients:['C04'],driver:'D05',tank:300,odometer:154880,status:'Running',gps:'Failed',lastSeen:'2 h 14 min ago',route:'Hyderabad \u2192 Mumbai'},
  {id:'V06',number:'TN 34 CQ 5566',type:'Reefer trailer 32ft',branch:'B02',clients:['C03'],driver:'D04',tank:400,odometer:187002,status:'Maintenance',gps:'OK',lastSeen:'40 min ago',route:'Service bay, Namakkal'},
  {id:'V07',number:'KA 01 AJ 9087',type:'Closed body 24ft',branch:'B04',clients:['C06'],driver:'D06',tank:250,odometer:44510,status:'Running',gps:'OK',lastSeen:'1 min ago',route:'Bengaluru \u2192 Chennai'},
- {id:'V08',number:'TN 28 BD 2209',type:'Reefer container 20ft',branch:'B01',clients:['C01','C02'],driver:'D07',tank:300,odometer:132760,status:'Idle',gps:'OK',lastSeen:'3 min ago',route:'Parked at Sriperumbudur hub'},
+ {id:'V08',number:'TN 28 BD 2209',type:'Reefer container 20ft',branch:'B01',clients:['C01','C02'],driver:'D11',tank:300,odometer:132760,status:'Idle',gps:'OK',lastSeen:'3 min ago',route:'Parked at Sriperumbudur hub'},
  {id:'V09',number:'MH 04 GH 6612',type:'Reefer trailer 32ft',branch:'B05',clients:['C01'],driver:'D08',tank:400,odometer:201115,status:'Running',gps:'OK',lastSeen:'just now',route:'Mumbai \u2192 Pune'},
  {id:'V10',number:'TN 28 AQ 8890',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:'D09',tank:200,odometer:75300,status:'Idle',gps:'OK',lastSeen:'9 min ago',route:'Parked at Ambattur yard'},
  {id:'V11',number:'TN 28 CK 3310',type:'Reefer container 20ft',branch:'B01',clients:['C01','C02'],driver:'D12',tank:300,odometer:88420,status:'Running',gps:'OK',lastSeen:'1 min ago',route:'Loading at Sriperumbudur hub'},
  {id:'V12',number:'TN 28 CM 6645',type:'Reefer trailer 32ft',branch:'B01',clients:['C01','C02'],driver:'D13',tank:400,odometer:143905,status:'Running',gps:'OK',lastSeen:'4 min ago',route:'Unloading at Apollo Hospitals, Chennai'},
- {id:'V13',number:'TN 28 BZ 1902',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:'D14',tank:200,odometer:59870,status:'Running',gps:'OK',lastSeen:'7 min ago',route:'Ambattur \u2192 Vijayawada'}
+ {id:'V13',number:'TN 28 BZ 1902',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:'D14',tank:200,odometer:59870,status:'Running',gps:'OK',lastSeen:'7 min ago',route:'Ambattur \u2192 Vijayawada'},
+ {id:'V14',number:'TN 28 DK 4410',type:'Reefer container 20ft',branch:'B01',clients:['C01','C02'],driver:'D15',tank:300,odometer:100580,status:'Running',gps:'OK',lastSeen:'3 min ago',route:'Arrived at Yashoda Hospitals, Hyderabad'},
+ {id:'V15',number:'TN 28 DL 7753',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:'D16',tank:200,odometer:52340,status:'Running',gps:'OK',lastSeen:'2 min ago',route:'Ambattur yard \u2192 Sriperumbudur hub'},
+ {id:'V16',number:'TN 28 DM 0187',type:'Reefer trailer 32ft',branch:'B01',clients:['C01'],driver:null,tank:400,odometer:0,status:'Idle',gps:'Pending',lastSeen:'\u2014',route:'New vehicle \u00b7 GPS device not fitted'}
 ];
 const drivers=[
  {id:'D01',name:'Murugan S.',licence:'TN2820190004521',phone:'90031 22110',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:24,absent:2,util:'88%'},
@@ -44,7 +47,10 @@ const drivers=[
  {id:'D11',name:'Saravanan K.',licence:'TN2820200008812',phone:'90031 77320',branch:'B01',type:'Supporting',status:'Active',approval:'Approved',present:19,absent:7,util:'66%'},
  {id:'D12',name:'Senthil V.',licence:'TN2820160003318',phone:'90031 51240',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:23,absent:3,util:'84%'},
  {id:'D13',name:'Arul P.',licence:'TN2820190006645',phone:'90031 62011',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:24,absent:2,util:'86%'},
- {id:'D14',name:'Mani K.',licence:'TN2820210001902',phone:'90031 70455',branch:'B01',type:'Supporting',status:'Active',approval:'Approved',present:20,absent:6,util:'71%'}
+ {id:'D14',name:'Mani K.',licence:'TN2820210001902',phone:'90031 70455',branch:'B01',type:'Supporting',status:'Active',approval:'Approved',present:20,absent:6,util:'71%'},
+ {id:'D15',name:'Prakash N.',licence:'TN2820180004410',phone:'90031 34410',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:25,absent:1,util:'89%'},
+ {id:'D16',name:'Dinesh K.',licence:'TN2820200007753',phone:'90031 77530',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:22,absent:4,util:'76%'},
+ {id:'D17',name:'Kumaresan J.',licence:'TN3420220003187',phone:'97900 31870',branch:'B02',type:'Supporting',status:'Inactive',approval:'Rejected',present:0,absent:0,util:'\u2014'}
 ];
 const clients=[
  {id:'C01',name:'INOX Air Products',gst:'33AAACI4521F1Z6',branch:'B01',phone:'98410 11220',supervisorIds:['S01','S06'],supervisors:'R. Senthil Kumar, A. Deshmukh',customers:4,contact:'Cryogenic desk, Sriperumbudur',status:'Active'},
@@ -81,7 +87,9 @@ const bunks=[
  {id:'F02',name:'HP – Ambattur Industrial Estate',branch:'B01',rate:95.20,status:'Active'},
  {id:'F03',name:'BPCL – Poonamallee Bypass',branch:'B01',rate:94.60,status:'Active'},
  {id:'F04',name:'IOC – Namakkal Salem Road',branch:'B02',rate:93.90,status:'Active'},
- {id:'F05',name:'HP – Jeedimetla',branch:'B03',rate:96.40,status:'Active'}
+ {id:'F05',name:'HP – Jeedimetla',branch:'B03',rate:96.40,status:'Active'},
+ {id:'F06',name:'BPCL – Dindigul Bypass',branch:'B01',rate:95.20,status:'Active'},
+ {id:'F07',name:'IOC – Hosur Road',branch:'B04',rate:95.90,status:'Inactive'}
 ];
 const routes=[
  {id:'R01',dieselLimit:255,name:'Sriperumbudur \u2192 Hyderabad',from:'L01',to:'Hyderabad',km:628,hours:14,toll:'\u20B92,340',status:'Active'},
@@ -90,7 +98,7 @@ const routes=[
  {id:'R04',dieselLimit:465,name:'Sriperumbudur \u2192 Pune',from:'L01',to:'Pune',km:1152,hours:24,toll:'\u20B94,010',status:'Active'},
  {id:'R05',dieselLimit:185,name:'Ambattur \u2192 Vijayawada',from:'L02',to:'Vijayawada',km:452,hours:9,toll:'\u20B91,610',status:'Active'},
  {id:'R06',dieselLimit:80,name:'Ambattur \u2192 Chennai city',from:'L02',to:'Chennai',km:200,hours:1,toll:'\u20B90',status:'Active'},
- {id:'R07',dieselLimit:190,name:'Ambattur \u2192 Madurai',from:'L02',to:'Madurai',km:470,hours:9,toll:'\u20B91,380',status:'Active'},
+ {id:'R07',dieselLimit:190,authorizedBunks:['F02','F06'],name:'Ambattur \u2192 Madurai',from:'L02',to:'Madurai',km:470,hours:9,toll:'\u20B91,380',status:'Active'},
  {id:'R08',dieselLimit:155,name:'Namakkal \u2192 Kochi',from:'L03',to:'Kochi',km:378,hours:9,toll:'\u20B9940',status:'Active'},
  {id:'R09',dieselLimit:285,name:'Jeedimetla \u2192 Mumbai',from:'L04',to:'Mumbai',km:712,hours:16,toll:'\u20B92,980',status:'Under review'}
 ];
@@ -110,7 +118,17 @@ const trips=[
  {id:'T23',number:'TN28BZ1902/09/004',branch:'B01',client:'C02',customers:['U05'],vehicle:'V13',driver:'D14',loading:'L02',unloading:'Linde ASU \u2013 Vijayawada',startKm:59870,closeKm:null,type:'Business',status:'Enroute',stage:'Delayed',opened:'13 Sep 2026 19:30',closed:null,supervisor:'S01',fixedKm:452,gpsKm:236,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:'9 kL liquid argon',qtyUnload:null,hoursOpen:14,flags:[]},
 {id:'T11',number:'TN28AR7712/09/022',branch:'B01',client:'C01',customers:['U01'],vehicle:'V04',driver:'D10',loading:'L01',unloading:'Yashoda Hospitals LOX Bank – Hyderabad',startKm:60110,closeKm:60745,type:'Business',status:'Closed',opened:'15 Sep 2026 05:15',closed:'16 Sep 2026 12:40',supervisor:'S01',fixedKm:628,gpsKm:633,odoKm:635,invoice:'SP/INV/11042',lr:'LR-004512',bunk:'IOC – Sriperumbudur Highway',rate:96.4,advance:'₹8,000',diesel:'282 L',dieselLitres:282,dieselTotal:27185,totalExpense:'₹34,900',expBreakdown:{dieselCash:0,driverBata:1400,cleanerBata:700,rto:0,toll:2340,weighment:400},otherExpenses:[{name:'Loading labour',amount:850},{name:'Night halt',amount:600}],qtyLoad:'18 kL liquid oxygen',qtyUnload:'18 kL liquid oxygen',remarks:'LOX run to Hyderabad hospital bank',closeRemarks:'Extra fill taken at Kurnool, driver reported heavy headwind',hoursOpen:31,flags:[]},
  {id:'T12',number:'TN28BC1180/09/026',branch:'B01',client:'C02',customers:['U07'],vehicle:'V02',driver:'D02',loading:'L02',unloading:'Meenakshi Mission Hospital – Madurai',startKm:98210,closeKm:98695,type:'Business',status:'Closed',opened:'16 Sep 2026 06:40',closed:'16 Sep 2026 21:05',supervisor:'S03',fixedKm:470,gpsKm:479,odoKm:485,invoice:'CP/INV/11067',lr:'LR-004530',bunk:'BPCL – Dindigul Bypass',rate:95.2,advance:'₹6,000',diesel:'245 L',dieselLitres:245,dieselTotal:23324,totalExpense:'₹28,600',expBreakdown:{dieselCash:0,driverBata:1100,cleanerBata:550,rto:350,toll:1380,weighment:300},otherExpenses:[{name:'Unloading help',amount:400}],qtyLoad:'16 kL liquid oxygen',qtyUnload:'16 kL liquid oxygen',remarks:'Hospital LMO delivery, priority load',closeRemarks:'Second bunk fill at Dindigul, no slip photo attached',hoursOpen:14,flags:[]},
- {id:'T13',number:'TS09UB3344/09/014',branch:'B03',client:'C04',customers:['U10'],vehicle:'V05',driver:'D05',loading:'L04',unloading:'BPCL Fuel Terminal – Mumbai',startKm:153900,closeKm:154610,type:'Business',status:'Closed',opened:'14 Sep 2026 04:20',closed:'15 Sep 2026 22:15',supervisor:'S04',fixedKm:712,gpsKm:706,odoKm:710,invoice:'HY/INV/10884',lr:'LR-004489',bunk:'HP – Solapur Ring Road, IOC – Pune Highway',rate:98.1,advance:'₹12,000',diesel:'372 L',dieselLitres:372,dieselTotal:36493,totalExpense:'₹46,200',expBreakdown:{dieselCash:0,driverBata:1800,cleanerBata:900,rto:600,toll:2980,weighment:450},otherExpenses:[{name:'Terminal entry fee',amount:750},{name:'Tarpaulin rope',amount:280},{name:'Driver food advance',amount:500}],qtyLoad:'24 kL diesel',qtyUnload:'24 kL diesel',remarks:'Interstate fuel movement to Mumbai terminal',closeRemarks:'Filled at two bunks; driver says tanker ran heavy through the ghats',hoursOpen:42,flags:[]}
+ {id:'T13',number:'TS09UB3344/09/014',branch:'B03',client:'C04',customers:['U10'],vehicle:'V05',driver:'D05',loading:'L04',unloading:'BPCL Fuel Terminal – Mumbai',startKm:153900,closeKm:154610,type:'Business',status:'Closed',opened:'14 Sep 2026 04:20',closed:'15 Sep 2026 22:15',supervisor:'S04',fixedKm:712,gpsKm:706,odoKm:710,invoice:'HY/INV/10884',lr:'LR-004489',bunk:'HP – Solapur Ring Road, IOC – Pune Highway',rate:98.1,advance:'₹12,000',diesel:'372 L',dieselLitres:372,dieselTotal:36493,totalExpense:'₹46,200',expBreakdown:{dieselCash:0,driverBata:1800,cleanerBata:900,rto:600,toll:2980,weighment:450},otherExpenses:[{name:'Terminal entry fee',amount:750},{name:'Tarpaulin rope',amount:280},{name:'Driver food advance',amount:500}],qtyLoad:'24 kL diesel',qtyUnload:'24 kL diesel',remarks:'Interstate fuel movement to Mumbai terminal',closeRemarks:'Filled at two bunks; driver says tanker ran heavy through the ghats',hoursOpen:42,flags:[]},
+ // Closed · diesel over the route limit, explanation accepted at Level 2
+ {id:'T14',number:'TN28BD2209/09/010',branch:'B01',client:'C01',customers:['U02'],vehicle:'V08',driver:'D11',loading:'L01',unloading:'INOX Filling Station \u2013 Bengaluru',startKm:132190,closeKm:132512,type:'Business',status:'Closed',opened:'12 Sep 2026 05:50',closed:'12 Sep 2026 17:25',supervisor:'S01',fixedKm:312,gpsKm:318,odoKm:322,invoice:'SP/INV/11019',lr:'LR-004455',bunk:'BPCL \u2013 Poonamallee Bypass',rate:94.6,advance:'\u20B94,000',diesel:'142 L',dieselLitres:142,dieselTotal:13433,totalExpense:'\u20B916,723',expBreakdown:{dieselCash:0,driverBata:800,cleanerBata:400,rto:0,toll:1120,weighment:250},otherExpenses:[{name:'Loading labour',amount:600},{name:'Parking \u00b7 Hosur',amount:120}],qtyLoad:'16 kL liquid oxygen',qtyUnload:'16 kL liquid oxygen',remarks:'Filling station refill run',closeRemarks:'Detour via Hosur for bridge closure on NH48; extra 17 L taken at Krishnagiri',hoursOpen:12,flags:[]},
+ // Closed · rate and total expense missing at close, still waiting for Level 1
+ {id:'T15',number:'TN28BZ1902/09/003',branch:'B01',client:'C02',customers:['U07'],vehicle:'V13',driver:'D14',loading:'L02',unloading:'Meenakshi Mission Hospital \u2013 Madurai',startKm:59390,closeKm:59870,type:'Business',status:'Closed',opened:'12 Sep 2026 05:10',closed:'12 Sep 2026 21:30',supervisor:'S01',fixedKm:470,gpsKm:474,odoKm:480,invoice:'CP/INV/11102',lr:null,bunk:'HP \u2013 Ambattur Industrial Estate',rate:null,advance:'\u20B95,000',diesel:'176 L',dieselLitres:176,dieselTotal:null,totalExpense:null,expBreakdown:{dieselCash:0,driverBata:1000,cleanerBata:0,rto:0,toll:1380,weighment:0},otherExpenses:[],qtyLoad:'14 kL liquid oxygen',qtyUnload:'14 kL liquid oxygen',remarks:'Hospital LMO delivery',closeRemarks:'Bunk slip lost on the way back; rate and total expense to be confirmed',hoursOpen:16,flags:['Expense incomplete']},
+ // Closed · non-business yard transfer opened from the Supervisor app
+ {id:'T16',number:'TN28AR7712/09/023',branch:'B01',client:'',customers:[],vehicle:'V04',driver:'D10',loading:'',from:'Ambattur yard',unloading:'Sriperumbudur hub',nbKm:42,startKm:60745,closeKm:60787,type:'Non-Business',reason:'Internal Movement',status:'Closed',opened:'17 Sep 2026 09:00',closed:'17 Sep 2026 10:05',supervisor:'S01',fixedKm:0,gpsKm:41,odoKm:42,invoice:null,lr:null,bunk:null,rate:0,advance:'\u20B90',diesel:'0 L',dieselLitres:0,dieselTotal:0,totalExpense:'\u20B90',expBreakdown:{dieselCash:0,driverBata:0,cleanerBata:0,rto:0,toll:0,weighment:0},otherExpenses:[],qtyLoad:'\u2014',qtyUnload:'\u2014',remarks:'',closeRemarks:'Moved to hub for reefer unit check',hoursOpen:1,flags:[]},
+ // On road · GPS shows the drop is done but the trip was never closed, open over 24 h
+ {id:'T17',number:'TN28DK4410/09/007',branch:'B01',client:'C01',customers:['U01'],vehicle:'V14',driver:'D15',loading:'L01',unloading:'Yashoda Hospitals LOX Bank \u2013 Hyderabad',startKm:100580,closeKm:null,type:'Business',status:'Enroute',opened:'13 Sep 2026 08:10',closed:null,supervisor:'S01',fixedKm:628,gpsKm:612,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:'18 kL liquid oxygen',qtyUnload:null,hoursOpen:27,flags:['Long open']},
+ // On road · non-business internal movement opened from the Supervisor app
+ {id:'T18',number:'TN28DL7753/09/005',branch:'B01',client:'',customers:[],vehicle:'V15',driver:'D16',loading:'',from:'Ambattur yard',unloading:'Sriperumbudur hub',nbKm:48,startKm:52340,closeKm:null,type:'Non-Business',reason:'Internal Movement',remarks:'',status:'Enroute',opened:'14 Sep 2026 10:15',closed:null,supervisor:'S01',fixedKm:0,gpsKm:21,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:null,qtyUnload:null,hoursOpen:1,flags:[]}
 ];
 const exceptions=[
  {id:'X01',type:'Hidden kilometres',severity:'High',vehicle:'V10',branch:'B01',trip:'T10',detail:'Trip TN28AQ8890/09/018 closed at 75,190 km; trip /09/019 started at 75,245 km. 55 km unaccounted.',raised:'13 Sep 2026 14:02',status:'Open',assignee:'Unassigned'},
@@ -181,8 +199,11 @@ const gpsLog=[
 ];
 const users=[
  {id:'A01',name:'Head Office Admin',email:'admin@gmail.com',password:'admin@123',role:'Administrator',branch:'All branches',status:'Active',last:'Today 07:55'},
+ {id:'A03',name:'Verification Desk',email:'verify@gmail.com',password:'verify@123',role:'Verification Team',branch:'All branches',status:'Active',last:'Today 08:20'},
+ {id:'A04',name:'Chennai Operations',email:'chennai.admin@gmail.com',password:'chennai@123',role:'Administrator',branch:'Chennai HO',status:'Active',last:'Yesterday 17:45'},
  {id:'A02',name:'Company Owner',email:'owner@transport.example',role:'Owner (read-only)',branch:'All branches',status:'Active',last:'Yesterday 19:12'},
- {id:'A05',name:'Billing Desk',email:'billing@transport.example',role:'Billing (read-only)',branch:'All branches',status:'Invited',last:'\u2014'}
+ {id:'A05',name:'Billing Desk',email:'billing@transport.example',role:'Billing (read-only)',branch:'All branches',status:'Invited',last:'\u2014'},
+ {id:'A06',name:'Former Auditor',email:'auditor@transport.example',password:'auditor@123',role:'Owner (read-only)',branch:'All branches',status:'Suspended',last:'02 Aug 2026'}
 ];
 const permissions=[
  {module:'Trips',admin:'Full',supervisor:'Own branch',owner:'View',billing:'View closed'},
@@ -212,6 +233,8 @@ const supervisorNotices=[
  {id:'N03',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-13 11:05',title:'Distance variance under review · TN 28 BC 1180',body:'Trip TN28BC1180/09/008 ran 12.8% over its fixed route. Head Office has marked it under review before billing Linde India.',rows:[['Trip','TN28BC1180/09/008'],['Fixed route','452 km'],['GPS','474 km'],['Odometer','510 km'],['Variance','12.8% · limit 5%'],['Action taken','Marked under review']],note:'Send the toll receipts for the Ongole diversion.',link:{trip:'T07'},linkLabel:'View trip'},
  {id:'N04',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-12 16:30',title:'Driver request received · Anbu M.',body:'Your request to add Anbu M. as a supporting driver is with Head Office. He can be assigned to trips once the licence is verified and the request is approved.',rows:[['Driver','Anbu M.'],['Type','Supporting'],['Licence','TN2820210002209'],['Requested','12 Sep 2026 10:10'],['Status','Pending approval']]},
  {id:'N05',kind:'message',branch:'B01',priority:'Normal',from:'Head Office Admin',sort:'2026-09-11 09:00',title:'Complete September attendance',body:'2, 7 and 9 September still have unmarked drivers. Please complete them before 16 September so the monthly utilisation report is correct.',rows:[['Missing days','2, 7 and 9 Sep'],['Due by','16 Sep 2026']],link:{screen:'attMonth'},linkLabel:'Open monthly attendance'},
+ {id:'N07',kind:'message',branch:'all',priority:'Normal',from:'Head Office Admin',sort:'2026-09-14 07:30',title:'GPS device audit this week',body:'Technicians will check every GPS unit between 15 and 19 September. Keep vehicles at the yard for 30 minutes when asked and note the visit in the trip remarks.',rows:[['Applies to','All branches'],['Window','15\u201319 Sep 2026']]},
+ {id:'N08',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-13 16:10',title:'Bunk approved \u00b7 BPCL \u2013 Dindigul Bypass',body:'Head Office approved bunk "BPCL \u2013 Dindigul Bypass". It is now authorized for route Ambattur \u2192 Madurai.',rows:[['Bunk','BPCL \u2013 Dindigul Bypass'],['Route','Ambattur \u2192 Madurai'],['Status','Authorized']]},
  {id:'N06',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-10 17:20',title:'Vehicle master updated · TN 28 AR 7712',body:'TN 28 AR 7712 is now mapped to Linde India and Suguna Foods. Its driver mapping was cleared, so pick a driver when you open a trip for it.',rows:[['Vehicle','TN 28 AR 7712 · Closed body 19ft'],['Clients','Linde India, Suguna Foods'],['Driver','Not mapped'],['Action taken','Master record edited']]}
 ];
 export const byId = (arr) => Object.fromEntries((arr || []).map(x => [x.id, x]));

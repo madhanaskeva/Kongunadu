@@ -5,6 +5,7 @@ import { store } from './app/store/store';
 import { AntdProvider } from './app/AntdProvider';
 import App from './App';
 import './utils/tms-data';
+import './utils/mockSeed';
 import './utils/tms-report-builder';
 import './styles/global.css';
 import './styles/responsive.css';

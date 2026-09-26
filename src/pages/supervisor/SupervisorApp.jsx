@@ -10,12 +10,16 @@ import './supervisorApp.css';
 // the values and handlers each screen reads through its `v` prop.
 // Device approvals, driver requests, notices and master edits are shared with the Admin Portal
 // through localStorage on the same origin, polled once a second.
+// Used only when Head Office has not saved its own list of purposes yet.
+const DEFAULT_PURPOSES = ['Maintenance', 'Internal Movement', 'Empty Return', 'Driver Testing'];
+
 export class SupervisorApp extends React.Component {
   state = {
     screen: 'approval', loginState: 'idle', loginPhone: null, loginPassword: null, loginErr: '', supId: '', branchId: '',
     ob: { name: '', phone: '', otp: ['', '', '', ''], expected: '', shared: false, requestedAt: '' }, obStatus: 'idle', obReqId: '', obShowErr: false, obOtpErr: '',
     reg: { name: '', password: '' }, regShowErr: false, regSaving: false, account: null, notifOpen: false, discardOpen: false, toast: null, saving: false,
     gpsGranted: true, unclosedFilter: 'all', forceEmpty: false,
+    adminSettings: (() => { try { return JSON.parse(localStorage.getItem('kr-tms-settings') || '{}') || {}; } catch (e) { return {}; } })(),
     form: this.blankForm(),
     showErrors: false, drvPickOpen: false, reqFromOpen: false,
     newLoc: { open: false, name: '' }, showNewLocErr: false, addedLocations: [],
@@ -26,7 +30,8 @@ export class SupervisorApp extends React.Component {
     notifFilter: 'all', notifSel: '', notifRead: ['N05', 'N06'], activity: [], adminNotices: [],
     hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '',
     localTrips: [], closedIds: [],
-    att: { D01: 'P', D02: '', D07: '', D09: '' }, attVeh: { D01: 'V01' }, attVehStatus: {}, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
+    // Nobody starts the day pre-marked: the supervisor marks every driver himself.
+    att: {}, attVeh: {}, attVehStatus: {}, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
     am: { vehicle: '', driver: '', status: '' },
     idle: this.seedIdle(), idleFilter: 'all', showIdleErrors: false,
     profileMenuOpen: false
@@ -47,6 +52,8 @@ export class SupervisorApp extends React.Component {
   // Saved daily attendance, shared with the Admin Portal: { [branch]: { [YYYY-MM-DD]: { label, savedAt, entries } } }.
   ATT_KEY = 'kr-tms-attendance';
   ADMIN_NOTIF_KEY = 'kr-tms-admin-notifications';
+  // Head Office settings, including the non-business purposes a supervisor may pick.
+  ST_KEY = 'kr-tms-settings';
   pushAdminNotif(item) {
     try {
       const existing = JSON.parse(localStorage.getItem(this.ADMIN_NOTIF_KEY) || 'null') || [];
@@ -62,9 +69,43 @@ export class SupervisorApp extends React.Component {
     } catch (e) {}
   }
   readAttStore() { try { return JSON.parse(localStorage.getItem(this.ATT_KEY) || '{}') || {}; } catch (e) { return {}; } }
-  loadAttSaved() { const mine = this.readAttStore()[this.BR] || {}; const days = Object.keys(mine); if (!days.length) return; this.setState(st => ({ attSaved: [...days.map(day => ({ day, ...mine[day] })), ...st.attSaved.filter(r => !mine[r.day])] })); }
+  loadAttSaved() {
+    const mine = this.readAttStore()[this.BR] || {}; const days = Object.keys(mine); if (!days.length) return;
+    // Today's saved marks become the live marks, so the Open Trip form can suggest the driver present on a vehicle
+    // and re-saving today keeps them. Anything already marked in this session wins.
+    const d = new Date(), p = n => String(n).padStart(2, '0'), today = (mine[`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`] || {}).entries || {};
+    this.setState(st => {
+      const att = { ...st.att }, attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus };
+      Object.entries(today).forEach(([id, [mark, veh, vs] = []]) => { if (att[id] || !mark) return; att[id] = mark; if (mark === 'P') { if (veh) attVeh[id] = veh; if (vs) attVehStatus[id] = vs; } });
+      return { att, attVeh, attVehStatus, attSaved: [...days.map(day => ({ day, ...mine[day] })), ...st.attSaved.filter(r => !mine[r.day])] };
+    });
+  }
   writeAttDay(rec) { const store = this.readAttStore(), { day, ...rest } = rec; store[this.BR] = { ...(store[this.BR] || {}), [day]: rest }; try { localStorage.setItem(this.ATT_KEY, JSON.stringify(store)); } catch (e) { /* storage blocked: kept on this device only */ } }
   syncTanks() { let m; try { m = JSON.parse(localStorage.getItem(this.TANK_KEY) || '{}') || {}; } catch (e) { return; } const json = JSON.stringify(m); if (json === this._tankJson) return; this._tankJson = json; this.setState({ vehTanks: m }); }
+  // Head Office edits the purposes in Settings; the trip form follows within a second.
+  syncSettings() {
+    let m;
+    try { m = JSON.parse(localStorage.getItem(this.ST_KEY) || '{}') || {}; } catch (e) { return; }
+    const json = JSON.stringify(m);
+    if (json === this._stJson) return;
+    this._stJson = json;
+    this.setState({ adminSettings: m });
+  }
+  // Comma-separated in Settings, one option per purpose here. Falls back to the
+  // seeded list so the form is never left with an empty dropdown.
+  purposeOptions() {
+    const raw = (this.state.adminSettings || {}).reasons;
+    const list = String(raw == null ? '' : raw)
+      .split(',')
+      .map(x => x.trim())
+      .filter(Boolean);
+    const options = list.length ? list : DEFAULT_PURPOSES;
+    // Head Office can drop a purpose while a supervisor has it selected. Keeping
+    // the chosen one on the list stops the field going blank under him mid-form.
+    const chosen = (this.state.form || {}).reason;
+    const withChosen = chosen && !options.includes(chosen) ? [...options, chosen] : options;
+    return withChosen.map(x => ({ value: x, label: x }));
+  }
   tankOf(vehicleId) { return Number(this.state.vehTanks[vehicleId] || (this.T().V[vehicleId] || {}).tank) || 0; }
   readDrvReqs() { try { return JSON.parse(localStorage.getItem(this.DRV_KEY) || '[]') || []; } catch (e) { return this.state.drvReqs; } }
   syncDriverReqs() {
@@ -108,9 +149,9 @@ export class SupervisorApp extends React.Component {
   // Re-render when Head Office deletes a record (T() reads the deleted list itself).
   syncDeleted() { let j = '[]'; try { j = localStorage.getItem('kr-tms-deleted') || '[]'; } catch (e) { return; } if (j === this._delJson) return; const first = this._delJson === undefined; this._delJson = j; if (!first) this.forceUpdate(); }
   componentDidMount() {
-    this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.loadAttSaved();
-    this._poll = setInterval(() => { this.syncApproval(); this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.syncDeleted(); }, 1000);
-    this._onStorage = e => { if (e.key === this.REQ_KEY) this.syncApproval(); if (e.key === this.NOTICE_KEY) this.syncNotices(); if (e.key === this.DRV_KEY || e.key === this.DRV_APPROVAL_KEY) this.syncDriverReqs(); if (e.key === this.TANK_KEY) this.syncTanks(); if (e.key === this.MASTER_KEY) this.syncMaster(); };
+    this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.syncSettings(); this.loadAttSaved();
+    this._poll = setInterval(() => { this.syncApproval(); this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.syncSettings(); this.syncDeleted(); }, 1000);
+    this._onStorage = e => { if (e.key === this.REQ_KEY) this.syncApproval(); if (e.key === this.NOTICE_KEY) this.syncNotices(); if (e.key === this.DRV_KEY || e.key === this.DRV_APPROVAL_KEY) this.syncDriverReqs(); if (e.key === this.TANK_KEY) this.syncTanks(); if (e.key === this.MASTER_KEY) this.syncMaster(); if (e.key === this.ST_KEY) this.syncSettings(); };
     window.addEventListener('storage', this._onStorage);
     const mine = this.readReqs().find(r => r.imei === this.deviceImei() && r.status === 'Pending');
     if (mine && this.state.screen === 'approval') this.setState({ obStatus: 'waiting', obReqId: mine.id, ob: { ...this.state.ob, name: mine.name || '', phone: mine.phone, requestedAt: mine.requestedAt } });
@@ -183,6 +224,8 @@ export class SupervisorApp extends React.Component {
   toast(tone, title, message) { clearTimeout(this._tt); this.setState({ toast: { tone, title, message } }); this._tt = setTimeout(() => this.setState({ toast: null }), 3200); }
   allTrips() { const T = this.T(); return [...T.trips, ...this.state.localTrips]; }
   drv(id) { return this.branchDrivers().find(d => d.id === id) || this.T().D[id] || null; }
+  // A vehicle's mapped driver only counts once Head Office has approved them; until then the vehicle has no driver.
+  mappedDriver(v) { const d = v && v.driver ? this.drv(v.driver) : null; return d && d.approval === 'Approved' ? d : null; }
   loc(id) { return this.T().L[id] || this.state.addedLocations.find(l => l.id === id) || null; }
   toggleCustomer(id) { this.setState(s => { const cur = s.form.unloading || []; return { form: { ...s.form, unloading: cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id] } }; }); }
   active() { return this.allTrips().filter(t => t.branch === this.BR && t.status === 'Enroute' && !this.state.closedIds.includes(t.id)); }
@@ -245,7 +288,10 @@ export class SupervisorApp extends React.Component {
     // Closing KM from a trip closed in this session beats the master odometer.
     const lastKm = v => Math.max(Number(v.odometer) || 0, ...this.allTrips().filter(t => t.vehicle === v.id && s.closedData[t.id]).map(t => Number(s.closedData[t.id].closeKm) || 0));
     const allBranchDrv = this.branchDrivers(), branchDrv = allBranchDrv.filter(d => !d.requested || d.approval === 'Approved');
-    const locationOptions = [...T.locations.filter(l => l.branch === this.BR && l.status === 'Active'), ...s.addedLocations]
+    // Loading locations belong to a client (Client Master › Loading locations), so only the chosen client's points are offered.
+    const ownsLoc = (l, c) => !!c && (l.clientId || l.client) === c;
+    const clientLocs = f.client ? [...T.locations.filter(l => ownsLoc(l, f.client) && l.status === 'Active'), ...s.addedLocations.filter(l => ownsLoc(l, f.client))] : [];
+    const locationOptions = !f.client ? [] : clientLocs
       .map(l => ({ value: l.id, label: l.name })).concat([{ value: '__add', label: '+ Add loading location (GPS)' }]);
     const veh = T.V[f.vehicle]; const firstTrip = f.vehicle === 'V04';
     // Unloading — customers predefined against the selected client
@@ -261,8 +307,12 @@ export class SupervisorApp extends React.Component {
     // (active, approved, not on an open trip, not marked absent), plus anyone requested here for approval.
     const freeDrv = branchDrv.filter(d => d.status === 'Active' && d.approval === 'Approved' && !activeDrv.has(d.id) && s.att[d.id] !== 'A');
     const drvList = [...freeDrv, ...allBranchDrv.filter(d => d.requested && d.approval === 'Pending approval' && !activeDrv.has(d.id))];
-    const mappedDrv = veh && veh.driver ? this.drv(veh.driver) : null;
-    const driverVal = !veh ? '' : f.driver || (mappedDrv && drvList.some(d => d.id === mappedDrv.id) ? mappedDrv.id : '');
+    const mappedDrv = veh ? this.mappedDriver(veh) : null;
+    // The driver marked present on this vehicle in today's attendance is suggested first; the vehicle's mapped driver
+    // is the fallback when nobody was marked on it.
+    const attDrv = veh ? drvList.find(d => s.att[d.id] === 'P' && s.attVeh[d.id] === veh.id) || null : null;
+    const suggestDrv = attDrv || (mappedDrv && drvList.some(d => d.id === mappedDrv.id) ? mappedDrv : null);
+    const driverVal = !veh ? '' : f.driver || (suggestDrv ? suggestDrv.id : '');
     const drvSel = drvList.find(d => d.id === driverVal);
     const drvOk = !!drvSel && !!f.driverOk, drvPending = !!drvSel && drvSel.approval !== 'Approved';
     const initials = n => String(n || '').replace(/[^A-Za-z ]/g, ' ').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -280,7 +330,7 @@ export class SupervisorApp extends React.Component {
       none: dcState === 'none', ask: dcState === 'ask', ok: dcState === 'ok', empty: dcState === 'empty', has: dcState === 'ask' || dcState === 'ok',
       tag: { none: 'Mapped per vehicle', ask: 'Confirm driver', ok: drvPending ? 'Pending approval' : 'Confirmed', empty: 'Not set' }[dcState],
       name: drvSel ? drvSel.name : '', initials: drvSel ? initials(drvSel.name) : '', sub: drvSel ? drvSub(drvSel) : '',
-      status: dcState === 'ask' ? `Mapped to ${veh.number}` : drvPending ? 'Confirmed · pending approval' : 'Confirmed',
+      status: dcState === 'ask' ? (attDrv && drvSel.id === attDrv.id ? `Present on ${veh.number} today` : `Mapped to ${veh.number}`) : drvPending ? 'Confirmed · pending approval' : 'Confirmed',
       statusFg: dcState === 'ask' ? 'var(--text-muted)' : drvPending ? '#7A4300' : 'var(--kr-green-800)',
       border: err.driver ? 'var(--status-danger)' : dcState === 'ok' ? 'var(--color-brand)' : 'var(--border-strong)',
       bg: dcState === 'ok' ? 'var(--color-brand-tint)' : '#fff',
@@ -290,11 +340,11 @@ export class SupervisorApp extends React.Component {
         : dcState === 'ask' ? 'Tap ✓ if this driver is taking the trip, or ✕ to choose another.'
         : dcState === 'empty' ? `${drvList.length} ${drvList.length === 1 ? 'driver is' : 'drivers are'} free today.`
         : drvPending ? `${drvSel.name} is pending Head Office approval. The trip still opens.`
-        : mappedDrv && drvSel.id === mappedDrv.id ? `Mapped driver for ${veh.number}.` : `Assigned for this trip only. ${veh.number} stays mapped to ${mappedDrv ? mappedDrv.name : 'no driver'}.`
+        : attDrv && drvSel.id === attDrv.id ? `Marked present on ${veh.number} in today's attendance.` : mappedDrv && drvSel.id === mappedDrv.id ? `Mapped driver for ${veh.number}.` : `Assigned for this trip only. ${veh.number} stays mapped to ${mappedDrv ? mappedDrv.name : 'no driver'}.`
     };
     const driverErrText = !veh ? 'Select a vehicle, then confirm its driver.' : dcState === 'ask' ? 'Confirm the driver with ✓, or tap ✕ to choose another.' : 'Choose the driver taking this trip.';
-    const pickList = drvList.map(d => { const on = drvOk && d.id === driverVal, mapped = !!mappedDrv && d.id === mappedDrv.id, pending = d.approval !== 'Approved';
-      return { id: d.id, name: d.name, initials: initials(d.name), sub: drvSub(d), on: on ? 'true' : 'false', hasTag: mapped || pending, tag: pending ? 'Pending approval' : 'Mapped',
+    const pickList = drvList.map(d => { const on = drvOk && d.id === driverVal, present = !!attDrv && d.id === attDrv.id, mapped = !!mappedDrv && d.id === mappedDrv.id, pending = d.approval !== 'Approved';
+      return { id: d.id, name: d.name, initials: initials(d.name), sub: drvSub(d), on: on ? 'true' : 'false', hasTag: present || mapped || pending, tag: pending ? 'Pending approval' : present ? 'Present today' : 'Mapped',
         tagBg: pending ? 'var(--color-hazard-soft)' : 'var(--color-brand-tint)', tagFg: pending ? '#7A4300' : 'var(--kr-green-800)',
         bg: on ? 'var(--color-brand-tint)' : '#fff', ring: on ? 'var(--color-brand)' : 'var(--border-strong)', dot: on ? 'var(--color-brand)' : 'transparent',
         avatarBg: on ? 'var(--color-brand)' : 'var(--surface-muted)', avatarFg: on ? '#fff' : 'var(--text-heading)' }; });
@@ -520,7 +570,7 @@ export class SupervisorApp extends React.Component {
     const amFreeVeh = branchVeh.filter(v => !amUsedVeh.has(v.id) || v.id === am.vehicle);
     const amVehicleOptions = amFreeVeh.map(v => ({ value: v.id, label: `${v.number} · ${v.type}` }));
     const amDriverOptions = amDriverList.filter(d => !s.att[d.id] || d.id === am.driver).map(d => ({ value: d.id, label: `${d.name} · ${d.type}${d.status === 'Inactive' ? ' · inactive' : ''}` }));
-    const amMappedDrv = amVeh && amVeh.driver ? this.drv(amVeh.driver) : null;
+    const amMappedDrv = amVeh ? this.mappedDriver(amVeh) : null;
     const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : amUsedVeh.size ? `${amFreeVeh.length} of ${branchVeh.length} ${me.branch} vehicles free. ${amUsedVeh.size} already marked today are hidden.` : `${branchVeh.length} ${me.branch} vehicles from the admin vehicle master.`;
     // Vehicle status: Idle or Maintenance; a vehicle that is on a trip can also be recorded as On trip
     // Same vehicle statuses as the Admin Portal Vehicle Master.
@@ -728,8 +778,28 @@ export class SupervisorApp extends React.Component {
         : myClients.length
         ? `${myClients.length} ${myClients.length === 1 ? 'client is' : 'clients are'} mapped to you. One vehicle can run for several clients.`
         : 'No clients are mapped to you yet. Ask Head Office to assign your clients under Clients handled.',
-      vehicleHint: veh && (s.idle[veh.id] || {}).on ? `Marked idle${s.idle[veh.id].reason ? ': ' + s.idle[veh.id].reason : ''}. Opening this trip clears the idle record.` : (f.client ? `${availVeh.length} of ${mappedVeh.length} vehicles mapped to ${(T.C[f.client] || {}).name} are idle.` : `${availVeh.length} of ${branchVeh.length} ${me.branch} vehicles available.`) + (onTripVeh.length ? ` ${onTripVeh.map(v => v.number).join(', ')} ${onTripVeh.length === 1 ? 'has an unclosed trip' : 'have unclosed trips'}.` : '') + (busyVeh.length ? ` Hidden: ${busyVeh.join(', ')}.` : ''),
-      loadingHint: 'Predefined points are geofenced to 100 m. Add a new point from where you are standing if it is missing.',
+      // An empty list needs a reason and a next step, not "0 of 0".
+      vehicleHint: veh && (s.idle[veh.id] || {}).on
+        ? `Marked idle${s.idle[veh.id].reason ? ': ' + s.idle[veh.id].reason : ''}. Opening this trip clears the idle record.`
+        : needsLoad && !f.client
+        ? 'Pick the client first — vehicles are mapped to clients.'
+        : !vehicleOptions.length && !mappedVeh.length
+        ? `No ${me.branch} vehicle is mapped to ${(T.C[f.client] || {}).name || 'this client'}. Ask Head Office to map one in the Vehicle Master.`
+        : !vehicleOptions.length
+        ? `All ${mappedVeh.length} ${me.branch} ${mappedVeh.length === 1 ? 'vehicle' : 'vehicles'} for ${(T.C[f.client] || {}).name || 'this client'} are unavailable: ${busyVeh.join(', ')}.`
+        : (f.client
+            ? `${availVeh.length} of ${mappedVeh.length} vehicles mapped to ${(T.C[f.client] || {}).name} are idle.`
+            : `${availVeh.length} of ${branchVeh.length} ${me.branch} vehicles available.`)
+          + (onTripVeh.length ? ` ${onTripVeh.map(v => v.number).join(', ')} ${onTripVeh.length === 1 ? 'has an unclosed trip' : 'have unclosed trips'}.` : '')
+          + (busyVeh.length ? ` Hidden: ${busyVeh.join(', ')}.` : ''),
+      vehicleEmptyLabel: needsLoad && !f.client ? 'Select a client first' : 'No vehicle available',
+      vehicleHintTone: !vehicleOptions.length ? 'var(--kr-red-700)' : 'var(--text-muted)',
+      locationEmptyLabel: 'Select a client first',
+      loadingHint: !f.client
+        ? 'Pick the client first — loading locations are set per client in the Client Master.'
+        : !clientLocs.length
+        ? `No loading location is set for ${(T.C[f.client] || {}).name || 'this client'} yet. Add a point from where you are standing, or ask Head Office to add one in the Client Master.`
+        : `${clientLocs.length} ${clientLocs.length === 1 ? 'location' : 'locations'} set for ${(T.C[f.client] || {}).name}. Predefined points are geofenced to 100 m; add a new point from where you are standing if it is missing.`,
       dc, driverErrText, pickList, pickSub, pickEmpty: !pickList.length, drvPickOpen: s.drvPickOpen, customerOptions, hasCustomers: customerOptions.length > 0, noCustomers: !customerOptions.length,
       unloadCountLabel: !needsLoad ? 'Not needed' : !f.client ? 'Predefined per client' : unloadMode === 'single' ? `${clientCust.length} available` : picked.length ? `${picked.length} of ${clientCust.length} selected` : `Tick one or more · ${clientCust.length} available`,
       routeKnown: picked.length > 0, routeSummary, fullRow: { width: '100%' },
@@ -741,7 +811,7 @@ export class SupervisorApp extends React.Component {
       setSingleCust: e => this.set(['form', 'unloading'], e.target.value ? [e.target.value] : []),
       singleCustInfo: unloadMode === 'single' && picked[0] ? (customerOptions.find(c => c.id === picked[0]) || {}).sub : '',
       unloadErrText: unloadMode === 'single' ? 'Select the unloading customer.' : 'Tick at least one unloading customer.',
-      setClient: e => { const client = e.target.value; this.setState(st => { const vv = T.V[st.form.vehicle] || {}, drop = client && st.form.vehicle && (vv.clients || []).length > 0 && !vv.clients.includes(client); return { form: { ...st.form, client, unloading: [], ...(drop ? { vehicle: '', driver: '', driverOk: false } : {}) } }; }); },
+      setClient: e => { const client = e.target.value; this.setState(st => { const vv = T.V[st.form.vehicle] || {}, drop = client && st.form.vehicle && (vv.clients || []).length > 0 && !vv.clients.includes(client); const lc = this.loc(st.form.loading), keepLoc = !!lc && (lc.clientId || lc.client) === client; return { form: { ...st.form, client, unloading: [], ...(keepLoc ? {} : { loading: '' }), ...(drop ? { vehicle: '', driver: '', driverOk: false } : {}) } }; }); },
       setVehicle: e => { const vid = e.target.value, open = this.active().find(t => t.vehicle === vid); if (open) { this.setState({ unclosedAlert: { vehicle: vid, trip: open.id } }); return; } this.setState(st => ({ form: { ...st.form, vehicle: vid, driver: '', driverOk: false } })); }, setRemarks: e => this.set(['form', 'remarks'], e.target.value.slice(0, 250)), setStartKm: e => this.set(['form', 'startKm'], e.target.value), setReason: e => this.set(['form', 'reason'], e.target.value),
       setLoading: e => { if (e.target.value === '__add') { this.setState({ newLoc: { open: true, name: '' }, showNewLocErr: false }); return; } this.set(['form', 'loading'], e.target.value); },
       acceptDriver: () => this.setState(st => ({ form: { ...st.form, driver: driverVal, driverOk: true } })),
@@ -751,7 +821,7 @@ export class SupervisorApp extends React.Component {
       addLocOpen: s.newLoc.open, newLoc: s.newLoc, newLocErr: s.showNewLocErr && !s.newLoc.name.trim() ? 'Name the point so it can be reused.' : undefined,
       setNewLocName: e => this.set(['newLoc', 'name'], e.target.value),
       cancelNewLoc: () => this.setState({ newLoc: { open: false, name: '' }, showNewLocErr: false }),
-      saveNewLoc: () => { const name = s.newLoc.name.trim(); if (!name) { this.setState({ showNewLocErr: true }); return; } const id = 'LX' + (s.addedLocations.length + 1); this.setState(st => ({ addedLocations: [...st.addedLocations, { id, name, branch: this.BR, address: 'GPS 13.0827, 80.2707', radius: 100, status: 'Active' }], form: { ...st.form, loading: id }, newLoc: { open: false, name: '' }, showNewLocErr: false })); this.toast('success', 'Loading point added', `${name} saved at 13.0827, 80.2707 with a 100 m radius.`); },
+      saveNewLoc: () => { const name = s.newLoc.name.trim(); if (!name) { this.setState({ showNewLocErr: true }); return; } const id = 'LX' + (s.addedLocations.length + 1); this.setState(st => ({ addedLocations: [...st.addedLocations, { id, name, client: st.form.client, clientId: st.form.client, branch: this.BR, address: 'GPS 13.0827, 80.2707', radius: 100, status: 'Active' }], form: { ...st.form, loading: id }, newLoc: { open: false, name: '' }, showNewLocErr: false })); this.toast('success', 'Loading point added', `${name} saved at 13.0827, 80.2707 with a 100 m radius.`); },
       setType: e => { const type = e.currentTarget.dataset.v; this.setState(st => ({ form: type === st.form.type ? st.form : { ...this.blankForm(), type }, showErrors: false, newLoc: { open: false, name: '' }, drvPickOpen: false })); },
       tripTypeTabs: ['Business', 'Non-Business'].map(x => { const on = f.type === x; return { value: x, label: x, on: on ? 'true' : 'false', border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', fg: on ? '#fff' : 'var(--text-heading)' }; }),
       clientOptionsShown: needsLoad ? clientOptions : [], clientPlaceholder: needsLoad ? 'Select client' : 'No client · non-business',
@@ -763,7 +833,7 @@ export class SupervisorApp extends React.Component {
       nbVehicleHint: veh ? `${veh.type} · last closing KM ${lastKm(veh).toLocaleString('en-IN')}.` : `${availVeh.length} of ${branchVeh.length} ${me.branch} vehicles from the admin vehicle master are free.`,
       setFrom: e => this.set(['form', 'from'], e.target.value), setTo: e => this.set(['form', 'to'], e.target.value), setKm: e => this.set(['form', 'km'], e.target.value.replace(/[^\d.]/g, '')),
       typeHint: f.type === 'Business' ? 'Billable movement. Invoice details are captured when the trip closes.' : f.type === 'Non-Business' ? 'No billing. Record where the vehicle is going and why.' : 'Every vehicle movement is recorded, billable or not.',
-      reasonOptions: ['Maintenance', 'Internal Movement', 'Empty Return', 'Driver Testing'].map(x => ({ value: x, label: x })),
+      reasonOptions: this.purposeOptions(),
       reviewOpen: () => { const bad = Object.values(openBad).some(Boolean); if (bad) { this.setState({ showErrors: true, railVariant: 'errors' }); return; } this.go('openReview'); },
       askDiscard: () => this.setState({ discardOpen: true }), cancelDiscard: () => this.setState({ discardOpen: false }), confirmDiscard: () => this.setState({ discardOpen: false, screen: 'home', history: [], form: this.blankForm(), showErrors: false }),
       discardOpen: s.discardOpen, reviewRows, saving: s.saving, notSaving: !s.saving,

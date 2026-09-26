@@ -53,8 +53,8 @@ export const OpenTrip = ({ v }) => (
                 ) : null}
               </div>
               <div>
-                <Select label="Vehicle number" placeholder="Select available vehicle" options={v.vehicleOptions} value={v.form.vehicle} onChange={v.setVehicle} />
-                <div style={{ marginTop: "6px", fontSize: "13px", color: "var(--text-muted)" }}>{v.vehicleHint}</div>
+                <Select label="Vehicle number" placeholder="Select available vehicle" emptyLabel={v.vehicleEmptyLabel} options={v.vehicleOptions} value={v.form.vehicle} onChange={v.setVehicle} />
+                <div style={{ marginTop: "6px", fontSize: "13px", color: v.vehicleHintTone }}>{v.vehicleHint}</div>
                 {v.err.vehicle ? (
                   <>
                     <div style={{ marginTop: "4px", fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>Select a vehicle.</div>
@@ -130,7 +130,7 @@ export const OpenTrip = ({ v }) => (
                 ) : null}
               </div>
               <div>
-                <Select label="Loading location" placeholder="Select predefined location" options={v.locationOptions} value={v.form.loading} onChange={v.setLoading} />
+                <Select label="Loading location" placeholder="Select predefined location" emptyLabel={v.locationEmptyLabel} options={v.locationOptions} value={v.form.loading} onChange={v.setLoading} />
                 <div style={{ marginTop: "6px", fontSize: "13px", color: "var(--text-muted)" }}>{v.loadingHint}</div>
                 {v.err.loading ? (
                   <>

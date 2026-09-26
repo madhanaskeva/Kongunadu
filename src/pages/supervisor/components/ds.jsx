@@ -119,14 +119,17 @@ export const Input = ({ label, hint, error, prefix, suffix, size = 'md', disable
   );
 };
 
-export const Select = ({ label, options = [], placeholder, value, onChange, disabled, style }) => {
+export const Select = ({ label, options = [], placeholder, emptyLabel, value, onChange, disabled, style }) => {
+  // With nothing to choose, the control showed only its placeholder and looked broken.
+  const isEmpty = !options.length;
+  const locked = disabled || isEmpty;
   const [focused, setFocused] = useState(false);
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'var(--font-body)', ...style }}>
       {label && <span style={fieldLabel}>{label}</span>}
       <span style={{ position: 'relative', display: 'flex' }}>
         <select
-          disabled={disabled}
+          disabled={locked}
           value={value ?? ''}
           onChange={onChange}
           onFocus={() => setFocused(true)}
@@ -140,16 +143,20 @@ export const Select = ({ label, options = [], placeholder, value, onChange, disa
             fontSize: 16,
             fontFamily: 'inherit',
             color: value ? 'var(--text-heading)' : 'var(--text-muted)',
-            background: disabled ? 'var(--surface-muted)' : '#fff',
+            background: locked ? 'var(--surface-muted)' : '#fff',
             border: `2px solid ${focused ? 'var(--color-brand)' : 'var(--border-strong)'}`,
             borderRadius: 'var(--radius-md)',
             outline: 0,
             boxShadow: focused ? 'var(--focus-ring)' : 'none',
-            cursor: 'pointer',
+            cursor: locked ? 'not-allowed' : 'pointer',
           }}
         >
-          {placeholder && <option value="">{placeholder}</option>}
-          {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {isEmpty
+            ? <option value="">{emptyLabel || 'None available'}</option>
+            : <>
+                {placeholder && <option value="">{placeholder}</option>}
+                {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </>}
         </select>
         <svg
           width="16"

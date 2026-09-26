@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useMemo 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { TMS, formatPhone, formatImei } from '../utils';
 import { isPendingClose, pendingCloseDetail } from '../utils/tripStatus';
+import { MOCK_ADMIN_NOTIFICATIONS } from '../utils/mockSeed';
 
 const TMSAdminContext = createContext(null);
 
@@ -32,36 +33,7 @@ export const TMSAdminProvider = ({ children }) => {
   const ADMIN_NOTIF_KEY = 'kr-tms-admin-notifications';
   const ADMIN_NOTIF_READ_KEY = 'kr-tms-admin-notifications-read';
 
-  const SEED_ADMIN_NOTIFICATIONS = [
-    {
-      id: 'seed-notif-1',
-      title: 'Driver Request',
-      body: 'Mani requested for diesel allowance for trip #4029.',
-      time: 'Just now',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'seed-notif-2',
-      title: 'Maintenance Alert',
-      body: 'TN 38 AA 1234 is due for its regular service.',
-      time: '2 hrs ago',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'seed-notif-3',
-      title: 'Trip Update',
-      body: 'Trip #4028 has successfully reached destination.',
-      time: '4 hrs ago',
-      createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'seed-notif-4',
-      title: 'System Notice',
-      body: 'Scheduled maintenance this weekend.',
-      time: '1 day ago',
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ];
+  const SEED_ADMIN_NOTIFICATIONS = MOCK_ADMIN_NOTIFICATIONS;
 
   // State that survives a reload: read once from localStorage, written on every change.
   const usePersisted = (key, init) => {
@@ -286,6 +258,15 @@ export const TMSAdminProvider = ({ children }) => {
       if (map) out[map] = { ...base[map], ...by(out[key]) };
     });
     // Distance comparison is derived from closed trips so every row links to a real trip.
+    // Drivers requested from the Supervisor App can be put on a trip before Head Office decides,
+    // so trips reference them by request id. Lookup only: the Driver Master lists requests itself.
+    out.D = {
+      ...Object.fromEntries((drvReqs || []).filter(r => !gone.has(r.id)).map(r => [r.id, {
+        id: r.id, name: r.name, licence: r.licence, phone: formatPhone(r.phone), branch: r.branch, type: 'New',
+        status: r.status === 'Rejected' ? 'Inactive' : 'Active', approval: r.status === 'Pending' ? 'Pending approval' : r.status, requested: true,
+      }])),
+      ...out.D,
+    };
     out.distanceChecks = out.trips
       .filter(t => t.status === 'Closed' && Number(t.fixedKm) > 0)
       .map(t => ({
@@ -302,7 +283,7 @@ export const TMSAdminProvider = ({ children }) => {
         review: t.distReview || null,
       }));
     return out;
-  }, [editsObj, deleted]);
+  }, [editsObj, deleted, drvReqs]);
   const T = () => tmsView;
 
   // Trips that reached the customer but were never closed. Head Office is told once
