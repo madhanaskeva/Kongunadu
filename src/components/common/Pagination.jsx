@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { SelectField } from './SelectField';
 
 /**
  * Client-side paging for a table's rows.
@@ -123,10 +124,14 @@ export const Pagination = ({
           <ChevronRight size={18} />
         </button>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginLeft: '12px' }}>
-          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} aria-label="Rows per page" style={sizeSelect}>
-            {sizes.map(n => <option key={n} value={n}>{n} / page</option>)}
-          </select>
-          <ChevronDown size={16} style={{ position: 'absolute', right: '12px', pointerEvents: 'none', color: 'var(--kr-grey-700)' }} />
+          <SelectField
+            value={pageSize}
+            onChange={(v) => setPageSize(Number(v))}
+            options={sizes.map(n => ({ value: n, label: `${n} / page` }))}
+            ariaLabel="Rows per page"
+            width="128px"
+            height={36}
+          />
         </div>
       </div>
     </div>

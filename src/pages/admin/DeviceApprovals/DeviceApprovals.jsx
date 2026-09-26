@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SelectField } from '../../../components/common/SelectField';
 import { Modal } from '../../../components/common/Modal';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
@@ -415,14 +416,15 @@ export const DeviceApprovals = () => {
             </div>
             <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>Assign branch</span>
-              <select
+              <SelectField
                 value={approveBranch}
-                onChange={e => { setApproveBranch(e.target.value); setApproveErr(''); }}
-                style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: `1px solid ${approveErr ? 'var(--kr-red-600)' : 'var(--border-strong)'}`, fontSize: '14px', background: '#fff' }}
-              >
-                <option value="">Select branch</option>
-                {branchOpts.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+                onChange={(v) => { setApproveBranch(v); setApproveErr(''); }}
+                options={branchOpts.map(b => ({ value: b.id, label: b.name }))}
+                placeholder="Select branch"
+                error={approveErr ? ' ' : undefined}
+                ariaLabel="Branch"
+                height={40}
+              />
               {approveErr ? (
                 <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--kr-red-700)' }}>{approveErr}</span>
               ) : (

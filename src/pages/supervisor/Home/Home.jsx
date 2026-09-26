@@ -33,19 +33,19 @@ export const Home = ({ v }) => (
         </div>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
       </button>
-      <button onClick={v.goUnclosed} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", borderRadius: "var(--radius-lg)", borderTop: "4px solid var(--color-brand)", transition: "background var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h7 sv-a4">
-        <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Unclosed Trips</div>
-          <div style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "4px" }}>{v.unclosedHint}</div>
-        </div>
-        <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "34px", letterSpacing: "-0.02em", color: v.unclosedCountColor }}>{v.activeCount}</span>
-      </button>
       <button onClick={v.goCloseList} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand)", color: "#fff", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast)" }} className="sv-h5 sv-a4">
         <div>
           <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Close Trip</div>
           <div style={{ fontSize: "14px", opacity: ".85", marginTop: "4px" }}>Unloading done. Record closing details.</div>
         </div>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>
+      </button>
+      <button onClick={v.goUnclosed} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", borderRadius: "var(--radius-lg)", borderTop: "4px solid var(--color-brand)", transition: "background var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h7 sv-a4">
+        <div>
+          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Unclosed Trips</div>
+          <div style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "4px" }}>{v.unclosedHint}</div>
+        </div>
+        <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "34px", letterSpacing: "-0.02em", color: v.unclosedCountColor }}>{v.activeCount}</span>
       </button>
       <button onClick={v.goHistory} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "2px solid var(--border-strong)", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h7 sv-a4">
         <div>

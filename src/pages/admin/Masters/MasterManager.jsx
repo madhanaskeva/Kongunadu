@@ -7,6 +7,7 @@ import { downloadXlsx, readSheet } from '../../../utils/spreadsheet';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
+import { SelectField } from '../../../components/common/SelectField';
 
 const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
   const rawBunks = route.authorizedBunks || [];
@@ -1078,25 +1079,15 @@ export const MasterManager = ({ type }) => {
 
             {/* Loading Location Master: choose the client before adding anything */}
             {type === 'locations' && (
-              <select
+              <SelectField
                 value={locClient}
-                onChange={(e) => setLocClient(e.target.value)}
-                aria-label="Client"
-                style={{
-                  width: '220px',
-                  height: '36px',
-                  padding: '0 10px',
-                  fontSize: '14px',
-                  border: `1px solid ${locClient ? 'var(--color-brand)' : 'var(--color-hazard)'}`,
-                  borderRadius: 'var(--radius-md)',
-                  background: '#fff',
-                  color: 'var(--text-heading)',
-                  outline: 'none',
-                }}
-              >
-                <option value="">Select a client…</option>
-                {clientOpts.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
+                onChange={setLocClient}
+                options={clientOpts}
+                allLabel="Select a client…"
+                ariaLabel="Client"
+                width="230px"
+                height={36}
+              />
             )}
 
             {/* Driver Approval Filter Pills */}

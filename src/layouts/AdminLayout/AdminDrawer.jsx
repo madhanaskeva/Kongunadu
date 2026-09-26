@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { Eye, EyeOff, X } from 'lucide-react';
 import { FormCheckboxSelect, FormBunksInput, FormLocationsInput } from '../../components/forms';
+import { SelectField } from '../../components/common/SelectField';
 
 const PasswordField = ({ value, onChange, placeholder }) => {
   const [show, setShow] = useState(false);
@@ -696,14 +697,14 @@ export const AdminDrawer = () => {
                       <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
                         {label}
                       </label>
-                      <select
+                      <SelectField
                         value={raw ?? ''}
-                        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                        style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-                      >
-                        <option value="">Select</option>
-                        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
+                        onChange={(v) => setForm({ ...form, [key]: v })}
+                        options={options}
+                        placeholder="Select"
+                        ariaLabel={label}
+                        height={40}
+                      />
                       {hint && typeof hint === 'string' && (
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{hint}</span>
                       )}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SelectField } from '../../../components/common/SelectField';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { CHART_TYPES, CHART_LABELS } from '../../../components/charts';
 
@@ -198,24 +199,14 @@ export const Settings = () => {
               <label style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
                 Module
               </label>
-              <select
+              <SelectField
                 value={df.module || ''}
-                onChange={(e) => setDashForm({ ...df, module: e.target.value, fields: [] })}
-                style={{
-                  height: '42px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-strong)',
-                  fontSize: '14px',
-                  outline: 'none',
-                  background: '#fff',
-                }}
-              >
-                <option value="">Choose a module…</option>
-                {modulesList.map(m => (
-                  <option key={m.id} value={m.id}>{m.label}</option>
-                ))}
-              </select>
+                onChange={(v) => setDashForm({ ...df, module: v, fields: [] })}
+                options={modulesList.map(m => ({ value: m.id, label: m.label }))}
+                placeholder="Choose a module…"
+                ariaLabel="Module"
+                height={42}
+              />
             </div>
 
             {/* Title Input */}
@@ -607,15 +598,17 @@ export const Settings = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <label style={{ fontSize: '13px', fontWeight: 600 }}>Serial resets</label>
-              <select
+              <SelectField
                 value={st.serial || 'monthly'}
-                onChange={(e) => setSt({ ...st, serial: e.target.value })}
-                style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-              >
-                <option value="monthly">Every month (recommended)</option>
-                <option value="yearly">Every year</option>
-                <option value="never">Never</option>
-              </select>
+                onChange={(v) => setSt({ ...st, serial: v })}
+                options={[
+                  { value: 'monthly', label: 'Every month (recommended)' },
+                  { value: 'yearly', label: 'Every year' },
+                  { value: 'never', label: 'Never' },
+                ]}
+                ariaLabel="Serial resets"
+                height={38}
+              />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

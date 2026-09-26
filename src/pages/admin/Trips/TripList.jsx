@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowDown, Building2, ChevronDown, CircleCheck, Download,
+  ArrowDown, Building2, CircleCheck, Download,
   Flag, ClockAlert, Play, Search, Tag, TriangleAlert, Truck, X,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
@@ -10,6 +10,7 @@ import { MultiSelect } from '../../../components/common/MultiSelect';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
+import { SelectField } from '../../../components/common/SelectField';
 import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 
 // Tab id for the exception filter — not a trip status, so it is matched separately.
@@ -34,18 +35,16 @@ const fieldStyle = {
 const iconLeft = { position: 'absolute', left: '12px', pointerEvents: 'none', color: 'var(--kr-grey-700)' };
 const iconRight = { position: 'absolute', right: '12px', pointerEvents: 'none', color: 'var(--kr-grey-700)' };
 
-const FilterSelect = ({ label, icon: Icon, value, onChange, allLabel, options, width }) => (
-  <div style={{ width, flex: 'none' }}>
-    <label style={filterLabel}>{label}</label>
-    <div style={fieldWrap}>
-      <Icon size={17} style={iconLeft} />
-      <select value={value || ''} onChange={(e) => onChange(e.target.value)} style={fieldStyle}>
-        <option value="">{allLabel}</option>
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-      <ChevronDown size={17} style={iconRight} />
-    </div>
-  </div>
+const FilterSelect = ({ label, icon, value, onChange, allLabel, options, width }) => (
+  <SelectField
+    label={label}
+    icon={icon}
+    value={value}
+    onChange={onChange}
+    allLabel={allLabel}
+    options={options}
+    width={width}
+  />
 );
 
 const FilterMultiSelect = ({ label, noun, width, ...rest }) => (

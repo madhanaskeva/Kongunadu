@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { MapPin, Clock, ChevronDown, TriangleAlert } from 'lucide-react';
+import { MapPin, Clock, TriangleAlert } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
+import { SelectField } from '../../../components/common/SelectField';
 
 // Card edge + status chip colours, one entry per vehicle status.
 const FLEET_TONES = {
@@ -304,35 +305,22 @@ export const FleetMonitor = () => {
 
         {/* Right side duration filter option — ONLY shown in IDLE section */}
         {ff === 'idle' && (
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginLeft: 'auto' }}>
-            <Clock size={14} style={{ position: 'absolute', left: '12px', color: idleDurationFilter !== 'all' ? 'var(--color-brand)' : 'var(--text-muted)', pointerEvents: 'none' }} />
-            <select
+          <div style={{ marginLeft: 'auto' }}>
+            <SelectField
               value={idleDurationFilter}
-              onChange={e => setIdleDurationFilter(e.target.value)}
-              style={{
-                height: '34px',
-                padding: '0 28px 0 32px',
-                borderRadius: 'var(--radius-pill)',
-                border: idleDurationFilter !== 'all' ? '2px solid var(--color-brand)' : '1px solid var(--border-strong)',
-                background: idleDurationFilter !== 'all' ? 'var(--color-brand-tint)' : '#fff',
-                color: idleDurationFilter !== 'all' ? 'var(--kr-green-800)' : 'var(--text-heading)',
-                fontSize: '12px',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                cursor: 'pointer',
-                outline: 'none',
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                boxSizing: 'border-box',
-              }}
-            >
-              <option value="all">All durations</option>
-              <option value="1">More than 1 hour</option>
-              <option value="2">More than 2 hours</option>
-              <option value="3">More than 3 hours</option>
-              <option value="4">More than 4 hours</option>
-            </select>
-            <ChevronDown size={14} style={{ position: 'absolute', right: '10px', color: idleDurationFilter !== 'all' ? 'var(--color-brand)' : 'var(--text-muted)', pointerEvents: 'none' }} />
+              onChange={setIdleDurationFilter}
+              options={[
+                { value: 'all', label: 'All durations' },
+                { value: '1', label: 'More than 1 hour' },
+                { value: '2', label: 'More than 2 hours' },
+                { value: '3', label: 'More than 3 hours' },
+                { value: '4', label: 'More than 4 hours' },
+              ]}
+              icon={Clock}
+              ariaLabel="Idle duration"
+              width="200px"
+              height={38}
+            />
           </div>
         )}
       </div>
