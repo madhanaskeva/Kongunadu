@@ -351,7 +351,7 @@ export class SupervisorApp extends React.Component {
     const histList = closedTrips.map(t => {
       const v = T.V[t.vehicle], d = this.drv(t.driver), c = T.C[t.client], i = closeInfo(t);
       const flags = t.flags || [], flagged = flags.length > 0, when = dayKey(i.closedAt);
-      return { id: t.id, number: t.number, vehicle: t.vehicle, closedDay: when.day, sort: when.stamp,
+      return { id: t.id, number: t.number, vehicle: t.vehicle, client: t.client, vehicleNumber: v ? v.number : '—', driverName: d ? d.name : '—', clientName: c ? c.name : '—', closedDay: when.day, sort: when.stamp,
         crewLine: (v ? v.number : '—') + (d ? ' · ' + d.name : ''),
         routeLine: c ? `${c.name} → ${t.unloading}` : t.from ? `${t.from} → ${t.unloading} · ${t.reason}` : `${(this.loc(t.loading) || {}).name || '—'} · ${t.type}${t.reason ? ' · ' + t.reason : ''}`,
         badge: flagged ? 'Closed · flagged' : 'Closed', flagged, flagLine: flags.join(' · '),
@@ -359,9 +359,10 @@ export class SupervisorApp extends React.Component {
         edge: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[2],
         closedAt: i.closedAt, distance: i.odo ? i.odo.toLocaleString('en-IN') + ' km' : '—' };
     }).sort((a, b) => b.sort.localeCompare(a.sort));
-    // Trip history filters · vehicle and closed-date range, applied together
+    // Trip history filters · vehicle, client and closed-date range, applied together
     const hf = s.hf;
     const selectedVehs = s.hfSelectedVehicles || [];
+    const selectedClients = s.hfSelectedClients || [];
     const histVehicles = [...new Set(histList.map(t => t.vehicle))].map(id => {
       const veh = T.V[id];
       const count = histList.filter(t => t.vehicle === id).length;
@@ -375,12 +376,30 @@ export class SupervisorApp extends React.Component {
       hfVehTriggerLabel = `${selectedVehs.length} vehicles selected`;
     }
     const hfHasVehFilter = selectedVehs.length > 0 && selectedVehs.length < histVehicles.length;
+
+    const allMasterClients = T.clients || [];
+    const clientIds = [...new Set([...allMasterClients.map(c => c.id), ...histList.map(t => t.client)])].filter(Boolean);
+    const histClients = clientIds.map(id => {
+      const cli = T.C[id];
+      const count = histList.filter(t => t.client === id).length;
+      return cli ? { id: cli.id, name: cli.name, count } : { id, name: id, count };
+    }).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    let hfClientTriggerLabel = 'All clients';
+    if (selectedClients.length === 1) {
+      const found = histClients.find(c => c.id === selectedClients[0]);
+      hfClientTriggerLabel = found ? found.name : '1 client selected';
+    } else if (selectedClients.length > 1 && selectedClients.length < histClients.length) {
+      hfClientTriggerLabel = `${selectedClients.length} clients selected`;
+    }
+    const hfHasClientFilter = selectedClients.length > 0 && selectedClients.length < histClients.length;
+
     const hfVehicleOptions = [{ value: '__all', label: `All vehicles (${histList.length})` }, ...histVehicles.map(v => ({ value: v.id, label: `${v.number} · ${v.count} ${v.count === 1 ? 'trip' : 'trips'}` }))];
     const histFiltered = histList.filter(t => {
       const vehMatch = selectedVehs.length === 0 || selectedVehs.includes(t.vehicle) || (!hfHasVehFilter && !hf.vehicle) || (hf.vehicle && t.vehicle === hf.vehicle);
+      const clientMatch = selectedClients.length === 0 || selectedClients.includes(t.client);
       const fromMatch = !hf.from || t.closedDay >= hf.from;
       const toMatch = !hf.to || t.closedDay <= hf.to;
-      return vehMatch && fromMatch && toMatch;
+      return vehMatch && clientMatch && fromMatch && toMatch;
     });
     const hfHasRange = !!(hf.from || hf.to), hfAnyFilter = hfHasRange || hfHasVehFilter || !!hf.vehicle;
     const hfRangeLabel = hf.from && hf.to ? (hf.from === hf.to ? prettyDay(hf.from) : `${prettyDay(hf.from)} – ${prettyDay(hf.to)}`) : hf.from ? `From ${prettyDay(hf.from)}` : hf.to ? `Up to ${prettyDay(hf.to)}` : '';
@@ -914,7 +933,7 @@ export class SupervisorApp extends React.Component {
       hfVehOpen: !!s.hfVehOpen,
       hfVehHasSelection: hfHasVehFilter,
       hfVehTriggerLabel,
-      toggleHfVehOpen: () => this.setState(st => ({ hfVehOpen: !st.hfVehOpen, hfCalOpen: false })),
+      toggleHfVehOpen: () => this.setState(st => ({ hfVehOpen: !st.hfVehOpen, hfClientOpen: false, hfCalOpen: false })),
       toggleHfVehicle: (vehId) => this.setState(st => {
         const cur = st.hfSelectedVehicles || [];
         const next = cur.includes(vehId) ? cur.filter(x => x !== vehId) : [...cur, vehId];
@@ -922,12 +941,27 @@ export class SupervisorApp extends React.Component {
       }),
       selectAllHfVehicles: () => this.setState({ hfSelectedVehicles: histVehicles.map(v => v.id) }),
       clearHfVehicles: () => this.setState({ hfSelectedVehicles: [] }),
-      hfVehicleOptions, hfVehicleValue: hf.vehicle || '__all', hfHasRange, hfAnyFilter, hfNoFilter: !hfAnyFilter, hfRangeLabel, hfPresets, hfMaxDay: TODAY,
+
+      histClients,
+      hfSelectedClients: selectedClients,
+      hfClientOpen: !!s.hfClientOpen,
+      hfClientHasSelection: hfHasClientFilter,
+      hfClientTriggerLabel,
+      toggleHfClientOpen: () => this.setState(st => ({ hfClientOpen: !st.hfClientOpen, hfVehOpen: false, hfCalOpen: false })),
+      toggleHfClient: (cliId) => this.setState(st => {
+        const cur = st.hfSelectedClients || [];
+        const next = cur.includes(cliId) ? cur.filter(x => x !== cliId) : [...cur, cliId];
+        return { hfSelectedClients: next };
+      }),
+      selectAllHfClients: () => this.setState({ hfSelectedClients: histClients.map(c => c.id) }),
+      clearHfClients: () => this.setState({ hfSelectedClients: [] }),
+
+      hfVehicleOptions, hfVehicleValue: hf.vehicle || '__all', hfHasRange, hfAnyFilter: hfAnyFilter || hfHasClientFilter, hfNoFilter: !hfAnyFilter && !hfHasClientFilter, hfRangeLabel, hfPresets, hfMaxDay: TODAY,
       hfCalOpen: s.hfCalOpen, hfDraft: s.hfDraft, hfErr: s.hfErr,
       hfCalBorder: s.hfCalOpen || hfHasRange ? 'var(--color-brand)' : 'var(--border-strong)', hfCalBg: hfHasRange ? 'var(--color-brand)' : s.hfCalOpen ? 'var(--color-brand-tint)' : '#fff', hfCalFg: hfHasRange ? '#fff' : 'var(--text-heading)',
       hfDateBorder: s.hfErr ? 'var(--status-danger)' : 'var(--border-strong)',
       setHfVehicle: e => { const v = e.target.value; this.setState(st => ({ hf: { ...st.hf, vehicle: v === '__all' ? '' : v } })); },
-      toggleHfCal: () => this.setState(st => ({ hfCalOpen: !st.hfCalOpen, hfVehOpen: false, hfDraft: { from: st.hf.from, to: st.hf.to }, hfErr: '' })),
+      toggleHfCal: () => this.setState(st => ({ hfCalOpen: !st.hfCalOpen, hfVehOpen: false, hfClientOpen: false, hfDraft: { from: st.hf.from, to: st.hf.to }, hfErr: '' })),
       setHfFrom: e => { const from = e.target.value; this.setState(st => ({ hfDraft: { from, to: st.hfDraft.to && from && st.hfDraft.to < from ? '' : st.hfDraft.to }, hfErr: '' })); },
       setHfTo: e => { const to = e.target.value; this.setState(st => ({ hfDraft: { ...st.hfDraft, to }, hfErr: '' })); },
       pickHfPreset: e => { const { from, to } = e.currentTarget.dataset; this.setState({ hfDraft: { from, to }, hfErr: '' }); },
@@ -938,9 +972,9 @@ export class SupervisorApp extends React.Component {
         this.setState(st => ({ hf: { ...st.hf, from, to }, hfCalOpen: false, hfErr: '', railVariant: '' }));
       },
       clearHfRange: () => this.setState(st => ({ hf: { ...st.hf, from: '', to: '' }, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' })),
-      clearHfAll: () => this.setState({ hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '', railVariant: '' }),
+      clearHfAll: () => this.setState({ hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfSelectedClients: [], hfVehOpen: false, hfClientOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '', railVariant: '' }),
       openHistTrip: e => this.go('histTrip', { histSel: e.currentTarget.dataset.id, railVariant: '' }),
-      goHistory: () => this.go('history', { railVariant: '', forceEmptyHist: false, hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' }),
+      goHistory: () => this.go('history', { railVariant: '', forceEmptyHist: false, hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfSelectedClients: [], hfVehOpen: false, hfClientOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '' }),
       // unclosed
       unclosedList,
       unclosedAlertOpen: !!s.unclosedAlert,
