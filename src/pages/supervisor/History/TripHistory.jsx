@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Eraser, X } from 'lucide-react';
 import { Button } from '../components/ds';
 
 export const TripHistory = ({ v }) => {
@@ -95,17 +96,23 @@ export const TripHistory = ({ v }) => {
                       <button
                         type="button"
                         onClick={v.clearHfVehicles}
-                        style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}
+                        aria-label="Clear vehicle selection"
+                        title="Clear"
+                        style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--text-muted)" }}
+                        className="sv-h13"
                       >
-                        Clear
+                        <Eraser size={16} strokeWidth={2} aria-hidden="true" />
                       </button>
                       <span style={{ color: "var(--border-strong)" }}>|</span>
                       <button
                         type="button"
                         onClick={v.toggleHfVehOpen}
-                        style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}
+                        aria-label="Close vehicle filter"
+                        title="Close"
+                        style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--kr-red-600)" }}
+                        className="sv-h14"
                       >
-                        Close
+                        <X size={16} strokeWidth={2.5} aria-hidden="true" />
                       </button>
                     </div>
                   </div>
@@ -242,17 +249,23 @@ export const TripHistory = ({ v }) => {
                     <button
                       type="button"
                       onClick={v.clearHfClients}
-                      style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}
+                      aria-label="Clear client selection"
+                      title="Clear"
+                      style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--text-muted)" }}
+                      className="sv-h13"
                     >
-                      Clear
+                      <Eraser size={16} strokeWidth={2} aria-hidden="true" />
                     </button>
                     <span style={{ color: "var(--border-strong)" }}>|</span>
                     <button
                       type="button"
                       onClick={v.toggleHfClientOpen}
-                      style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}
+                      aria-label="Close client filter"
+                      title="Close"
+                      style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--kr-red-600)" }}
+                      className="sv-h14"
                     >
-                      Close
+                      <X size={16} strokeWidth={2.5} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -303,14 +316,15 @@ export const TripHistory = ({ v }) => {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "17px", color: "var(--text-heading)" }}>Date range</span>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>By closed date</span>
-                    <span style={{ color: "var(--border-strong)" }}>|</span>
                     <button
                       type="button"
                       onClick={v.toggleHfCal}
-                      style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}
+                      aria-label="Close date range filter"
+                      title="Close"
+                      style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--kr-red-600)" }}
+                      className="sv-h14"
                     >
-                      Close
+                      <X size={16} strokeWidth={2.5} aria-hidden="true" />
                     </button>
                   </div>
                 </div>
@@ -572,4 +586,3 @@ export const TripHistory = ({ v }) => {
 };
 
 export default TripHistory;
-

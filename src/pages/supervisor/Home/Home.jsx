@@ -7,7 +7,7 @@ export const Home = ({ v }) => (
         <div style={{ fontSize: "14px", color: "var(--text-muted)" }}>{v.todayLong}</div>
         <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-heading)" }}>{v.activeCount} {v.tripWord} enroute</div>
       </div>
-      <button onClick={v.goAttMark} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: "14px", minHeight: "76px", padding: "14px 18px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "1px solid var(--border-default)", borderLeft: "6px solid var(--color-brand)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", transition: "background var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h3 sv-a4">
+      <button onClick={v.goAttMark} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: "14px", minHeight: "76px", padding: "14px 18px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "1px solid var(--border-default)", borderLeft: "6px solid var(--color-brand)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", transition: "background var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h3 sv-h7 sv-a4">
         <span style={{ flex: "none", width: "44px", height: "44px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", background: "var(--color-brand-tint)", color: "var(--color-brand)" }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -39,14 +39,14 @@ export const Home = ({ v }) => (
         </div>
         <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "34px", letterSpacing: "-0.02em", color: v.unclosedCountColor }}>{v.activeCount}</span>
       </button>
-      <button onClick={v.goCloseList} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--color-brand)", border: "2px solid var(--color-brand)", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast)" }} className="sv-h6 sv-a4">
+      <button onClick={v.goCloseList} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand)", color: "#fff", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast)" }} className="sv-h5 sv-a4">
         <div>
           <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Close Trip</div>
-          <div style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "4px" }}>Unloading done. Record closing details.</div>
+          <div style={{ fontSize: "14px", opacity: ".85", marginTop: "4px" }}>Unloading done. Record closing details.</div>
         </div>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>
       </button>
-      <button onClick={v.goHistory} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "2px solid var(--border-strong)", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h8 sv-a4">
+      <button onClick={v.goHistory} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "2px solid var(--border-strong)", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h7 sv-a4">
         <div>
           <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Trip History</div>
           <div style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "4px" }}>{v.histHomeHint}</div>
