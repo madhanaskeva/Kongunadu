@@ -20,7 +20,7 @@ export const ReportFilterBuilder = ({
     const usedFields = new Set(filters.map(f => f.field));
     const nextField = fields.find(f => !usedFields.has(f.key)) || fields[0];
 
-    let defaultVal = '';
+    let defaultVal = [];
     let defaultOp = 'equals';
     if (nextField?.type === 'dateRange') {
       defaultVal = { from: '', to: '' };
@@ -94,7 +94,7 @@ export const ReportFilterBuilder = ({
             }}
           >
             <Plus size={13} />
-            + Add another choice
+             Add another choice
           </button>
         </div>
       </div>
@@ -155,7 +155,7 @@ export const ReportFilterBuilder = ({
               }}
             >
               <Plus size={13} />
-              + Add a choice
+               Add a choice
             </button>
           </div>
         ) : (

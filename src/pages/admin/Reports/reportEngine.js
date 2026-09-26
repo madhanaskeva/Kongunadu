@@ -276,10 +276,17 @@ export const MODULE_FIELDS = {
  * Chennai HO records.
  */
 export const getDependentOptions = (moduleId, fieldKey, currentFilters, tms) => {
-  const branchFilter = currentFilters.find(f => f.field === 'branch')?.value;
-  const vehicleFilter = currentFilters.find(f => f.field === 'vehicle')?.value;
-  const driverFilter = currentFilters.find(f => f.field === 'driver')?.value;
-  const clientFilter = currentFilters.find(f => f.field === 'client')?.value;
+  const getFilterValues = key => {
+    const val = currentFilters.find(f => f.field === key)?.value;
+    if (!val) return null;
+    if (Array.isArray(val)) return val.length ? val : null;
+    return [val];
+  };
+
+  const branchFilters = getFilterValues('branch');
+  const vehicleFilters = getFilterValues('vehicle');
+  const driverFilters = getFilterValues('driver');
+  const clientFilters = getFilterValues('client');
 
   const trips = tms.trips || [];
   const vehicles = tms.vehicles || [];
@@ -296,51 +303,51 @@ export const getDependentOptions = (moduleId, fieldKey, currentFilters, tms) => 
 
   if (fieldKey === 'vehicle') {
     let list = vehicles;
-    if (branchFilter) list = list.filter(v => v.branch === branchFilter);
-    if (driverFilter) {
+    if (branchFilters) list = list.filter(v => branchFilters.includes(v.branch));
+    if (driverFilters) {
       // Prioritize vehicles assigned to or driven by this driver
-      const drivenVehIds = new Set(trips.filter(t => t.driver === driverFilter).map(t => t.vehicle));
-      list = list.filter(v => v.driver === driverFilter || drivenVehIds.has(v.id));
+      const drivenVehIds = new Set(trips.filter(t => driverFilters.includes(t.driver)).map(t => t.vehicle));
+      list = list.filter(v => driverFilters.includes(v.driver) || drivenVehIds.has(v.id));
     }
-    if (clientFilter) {
-      list = list.filter(v => (v.clients || []).includes(clientFilter));
+    if (clientFilters) {
+      list = list.filter(v => (v.clients || []).some(c => clientFilters.includes(c)));
     }
     return list.map(v => ({ value: v.id, label: `${v.number} · ${v.type}` }));
   }
 
   if (fieldKey === 'driver') {
     let list = drivers;
-    if (branchFilter) list = list.filter(d => d.branch === branchFilter);
-    if (vehicleFilter) {
-      const v = vehicles.find(x => x.id === vehicleFilter);
-      const tripDriverIds = new Set(trips.filter(t => t.vehicle === vehicleFilter).map(t => t.driver));
-      list = list.filter(d => (v && v.driver === d.id) || tripDriverIds.has(d.id));
+    if (branchFilters) list = list.filter(d => branchFilters.includes(d.branch));
+    if (vehicleFilters) {
+      const vSet = new Set(vehicles.filter(x => vehicleFilters.includes(x.id)).map(x => x.driver));
+      const tripDriverIds = new Set(trips.filter(t => vehicleFilters.includes(t.vehicle)).map(t => t.driver));
+      list = list.filter(d => vSet.has(d.id) || tripDriverIds.has(d.id));
     }
     return list.map(d => ({ value: d.id, label: `${d.name} (${d.phone || d.licence || d.type})` }));
   }
 
   if (fieldKey === 'client') {
     let list = clients;
-    if (branchFilter) list = list.filter(c => c.branch === branchFilter);
+    if (branchFilters) list = list.filter(c => branchFilters.includes(c.branch));
     return list.map(c => ({ value: c.id, label: c.name }));
   }
 
   if (fieldKey === 'loading' || fieldKey === 'location') {
     let list = locations;
-    if (branchFilter) list = list.filter(l => l.branch === branchFilter);
-    if (clientFilter) list = list.filter(l => l.client === clientFilter || l.clientId === clientFilter);
+    if (branchFilters) list = list.filter(l => branchFilters.includes(l.branch));
+    if (clientFilters) list = list.filter(l => clientFilters.includes(l.client) || clientFilters.includes(l.clientId));
     return list.map(l => ({ value: l.id, label: l.name }));
   }
 
   if (fieldKey === 'bunk') {
     let list = bunks;
-    if (branchFilter) list = list.filter(b => b.branch === branchFilter);
+    if (branchFilters) list = list.filter(b => branchFilters.includes(b.branch));
     return list.map(b => ({ value: b.name, label: `${b.name} (${b.rate ? '₹' + b.rate + '/L' : 'Active'})` }));
   }
 
   if (fieldKey === 'supervisor') {
     let list = supervisors;
-    if (branchFilter) list = list.filter(s => s.branch === branchFilter);
+    if (branchFilters) list = list.filter(s => branchFilters.includes(s.branch));
     return list.map(s => ({ value: s.id, label: s.name }));
   }
 
@@ -361,6 +368,14 @@ export const getDependentOptions = (moduleId, fieldKey, currentFilters, tms) => 
 
 export const evaluateCondition = (recordVal, operator, filterVal) => {
   if (filterVal === undefined || filterVal === null || filterVal === '') return true;
+
+  if (Array.isArray(filterVal)) {
+    if (filterVal.length === 0) return true;
+    if (operator === 'not_equals' || operator === 'neq') {
+      return filterVal.every(singleVal => evaluateCondition(recordVal, 'not_equals', singleVal));
+    }
+    return filterVal.some(singleVal => evaluateCondition(recordVal, operator, singleVal));
+  }
 
   const clean = v => (v == null ? '' : String(v).trim().toLowerCase());
   const rVal = clean(recordVal);
@@ -400,6 +415,14 @@ export const evaluateCondition = (recordVal, operator, filterVal) => {
  */
 export const matchesEntityOrText = (idVal, textVal, op = 'equals', filterVal) => {
   if (filterVal === undefined || filterVal === null || filterVal === '') return true;
+
+  if (Array.isArray(filterVal)) {
+    if (filterVal.length === 0) return true;
+    if (op === 'not_equals' || op === 'neq') {
+      return filterVal.every(singleVal => matchesEntityOrText(idVal, textVal, 'not_equals', singleVal));
+    }
+    return filterVal.some(singleVal => matchesEntityOrText(idVal, textVal, op, singleVal));
+  }
 
   const clean = v => (v == null ? '' : String(v).trim().toLowerCase());
   const fVal = clean(filterVal);
@@ -1316,7 +1339,12 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
 
   // Format active filter descriptions for user presentation
   const activeFilterLabels = activeFilters
-    .filter(f => f.value && (typeof f.value !== 'object' || f.value.from || f.value.to))
+    .filter(f => {
+      if (f.value === undefined || f.value === null || f.value === '') return false;
+      if (Array.isArray(f.value)) return f.value.length > 0;
+      if (typeof f.value === 'object') return Boolean(f.value.from || f.value.to);
+      return true;
+    })
     .map(f => {
       const fieldDef = (MODULE_FIELDS[moduleId] || []).find(x => x.key === f.field);
       const fieldLabel = fieldDef ? fieldDef.label : f.field;
@@ -1324,7 +1352,24 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         return `${fieldLabel}: ${f.value.from || 'Start'} to ${f.value.to || 'Present'}`;
       }
       const opText = f.op === 'not_equals' ? 'is not' : f.op === 'contains' ? 'includes' : 'is';
-      return `${fieldLabel} ${opText} ${f.value}`;
+      if (Array.isArray(f.value)) {
+        const resolvedLabels = f.value.map(val => {
+          if (f.field === 'driver') return D[val]?.name || val;
+          if (f.field === 'vehicle') return V[val]?.number || val;
+          if (f.field === 'branch') return B[val]?.name || val;
+          if (f.field === 'client') return C[val]?.name || val;
+          if (f.field === 'loading') return L[val]?.name || val;
+          return val;
+        });
+        return `${fieldLabel} ${opText} ${resolvedLabels.join(', ')}`;
+      }
+      let displayVal = f.value;
+      if (f.field === 'driver') displayVal = D[f.value]?.name || f.value;
+      else if (f.field === 'vehicle') displayVal = V[f.value]?.number || f.value;
+      else if (f.field === 'branch') displayVal = B[f.value]?.name || f.value;
+      else if (f.field === 'client') displayVal = C[f.value]?.name || f.value;
+      else if (f.field === 'loading') displayVal = L[f.value]?.name || f.value;
+      return `${fieldLabel} ${opText} ${displayVal}`;
     });
 
   return {

@@ -17,7 +17,6 @@ import {
   ChevronUp,
   Download,
   Info,
-  ShieldCheck,
 } from 'lucide-react';
 
 const ATT_KEY = 'kr-tms-attendance';
@@ -160,64 +159,6 @@ export const Reports = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-      {/* Top Banner / Breadcrumb */}
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1px solid var(--border-default, #e2e8f0)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          padding: '18px 22px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '12px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-brand, #00623f)' }}>
-              Kongunadu Road Lines · Transport Management System
-            </span>
-          </div>
-          <h1
-            style={{
-              margin: '3px 0 0',
-              fontFamily: 'var(--font-display, sans-serif)',
-              fontSize: '22px',
-              fontWeight: 800,
-              color: 'var(--text-heading, #1e293b)',
-            }}
-          >
-            Reports & Data Export
-          </h1>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
-            <strong>Step 1: Choose Report</strong> → <strong>Step 2: Choose Details</strong> → <strong>Step 3: View & Download Report</strong>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              background: 'var(--kr-green-50, #edf8f3)',
-              border: '1px solid var(--kr-green-100, #daf1e7)',
-              fontSize: '12px',
-              fontWeight: 700,
-              color: 'var(--kr-green-800, #004a31)',
-            }}
-          >
-            <ShieldCheck size={14} />
-            <span>100% Verified Project Data</span>
-          </div>
-        </div>
-      </div>
-
       {/* Step 1 & Step 2: Two-Column Responsive Grid Layout */}
       <div className="reports-two-col-grid">
         {/* Column 1: Step 1 - Module Selector (Scrollable) */}

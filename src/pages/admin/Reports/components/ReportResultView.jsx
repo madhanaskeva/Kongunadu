@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   FileSpreadsheet,
-  FileText,
-  Printer,
   SlidersHorizontal,
   ArrowUpDown,
   Search,
@@ -12,8 +10,6 @@ import {
 } from 'lucide-react';
 import { Pagination, usePagination } from '../../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
-import { exportToExcel, exportToPDF } from '../../../../utils/exportUtils';
-import { ReportSummaryCards } from './ReportSummaryCards';
 import { ReportEmptyState } from './ReportEmptyState';
 
 export const ReportResultView = ({
@@ -120,37 +116,6 @@ export const ReportResultView = ({
     ]);
   };
 
-  // Export to CSV
-  const handleExportCsv = () => {
-    if (!processedRows.length) return;
-    const filename = `${(moduleMeta?.label || 'Report').replace(/[^a-zA-Z0-9]/g, '_')}_${fileDate()}`;
-    const headers = activeColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
-    const keys = activeColumns.map(c => c.key);
-
-    exportToExcel({
-      data: processedRows,
-      headers,
-      keys,
-      filename,
-      title: `${moduleMeta?.label || 'TMS'} Report`,
-    });
-  };
-
-  // Export to PDF / Print
-  const handleExportPdf = () => {
-    if (!processedRows.length) return;
-    const title = `${moduleMeta?.label || 'TMS'} Report - Kongunadu Road Lines`;
-    const headers = activeColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
-    const keys = activeColumns.map(c => c.key);
-
-    exportToPDF({
-      data: processedRows,
-      headers,
-      keys,
-      title,
-    });
-  };
-
   const getStatusBadgeStyle = (val) => {
     const s = String(val || '').toLowerCase();
     if (s.includes('active') || s.includes('closed') || s.includes('ok') || s.includes('running') || s.includes('present') || s.includes('approved')) {
@@ -224,52 +189,6 @@ export const ReportResultView = ({
             <FileSpreadsheet size={15} />
             Download Excel (.xlsx)
           </button>
-
-          <button
-            type="button"
-            onClick={handleExportCsv}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '36px',
-              padding: '0 12px',
-              borderRadius: '6px',
-              background: '#ffffff',
-              border: '1px solid var(--border-strong, #cbd5e1)',
-              color: 'var(--text-body, #334155)',
-              fontSize: '13px',
-              fontWeight: 600,
-            }}
-          >
-            <FileText size={15} />
-            CSV
-          </button>
-
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '36px',
-              padding: '0 12px',
-              borderRadius: '6px',
-              background: '#ffffff',
-              border: '1px solid var(--border-strong, #cbd5e1)',
-              color: 'var(--text-body, #334155)',
-              fontSize: '13px',
-              fontWeight: 600,
-            }}
-          >
-            <Printer size={15} />
-            Print / PDF
-          </button>
         </div>
       </div>
 
@@ -309,9 +228,6 @@ export const ReportResultView = ({
           ))}
         </div>
       )}
-
-      {/* Summary KPI Cards */}
-      <ReportSummaryCards summaries={summaries} />
 
       {/* Table Toolbar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>

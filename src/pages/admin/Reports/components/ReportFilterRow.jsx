@@ -1,6 +1,8 @@
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { MODULE_FIELDS, getDependentOptions } from '../reportEngine';
+import { ReportCustomSelect } from './ReportCustomSelect';
+import { ReportMultiSelect } from './ReportMultiSelect';
 
 export const ReportFilterRow = ({
   filter,
@@ -23,7 +25,7 @@ export const ReportFilterRow = ({
 
   const handleFieldChange = (newField) => {
     const nextDef = fields.find(f => f.key === newField);
-    let defaultVal = '';
+    let defaultVal = [];
     let defaultOp = 'equals';
 
     if (nextDef?.type === 'dateRange') {
@@ -39,25 +41,7 @@ export const ReportFilterRow = ({
   };
 
   const handleOpChange = (newOp) => {
-    let nextVal = filter.value;
-    // When changing to 'contains', convert ID to readable name if available so user can edit search keyword
-    if (newOp === 'contains' && nextVal && availableOptions.length > 0) {
-      const match = availableOptions.find(o => o.value === nextVal);
-      if (match) {
-        nextVal = match.label.replace(/\s*\([^)]*\)$/, '');
-      }
-    } else if (newOp !== 'contains' && nextVal && availableOptions.length > 0) {
-      // If switching from contains to equals/not_equals, find matching option value
-      const match = availableOptions.find(o =>
-        o.value === nextVal ||
-        o.label.toLowerCase() === String(nextVal).toLowerCase() ||
-        o.label.toLowerCase().includes(String(nextVal).toLowerCase())
-      );
-      if (match) {
-        nextVal = match.value;
-      }
-    }
-    onUpdateFilter(index, { ...filter, op: newOp, value: nextVal });
+    onUpdateFilter(index, { ...filter, op: newOp });
   };
 
   const handleValueChange = (newVal) => {
@@ -66,60 +50,45 @@ export const ReportFilterRow = ({
 
   const isDateRange = currentFieldDef?.type === 'dateRange' || filter.op === 'between';
 
+  // Field options for custom dropdown
+  const fieldSelectOptions = fields.map(f => ({
+    value: f.key,
+    label: f.label,
+  }));
+
+  // Operator options for custom dropdown
+  const operatorSelectOptions = isDateRange
+    ? [{ value: 'between', label: 'between' }]
+    : [
+        { value: 'equals', label: 'is' },
+        { value: 'not_equals', label: 'is not' },
+        { value: 'contains', label: 'includes' },
+      ];
+
   return (
-    <div className="report-filter-row-container">
+    <div
+      className="report-filter-row-container"
+      style={{
+        position: 'relative',
+        zIndex: (filters.length - index) * 10 + 5,
+      }}
+    >
       {/* 1. Field Selector */}
-      <select
+      <ReportCustomSelect
         value={fieldKey}
-        onChange={(e) => handleFieldChange(e.target.value)}
-        style={{
-          width: '100%',
-          boxSizing: 'border-box',
-          height: '36px',
-          padding: '0 8px',
-          borderRadius: '6px',
-          border: '1px solid var(--border-strong, #cbd5e1)',
-          background: '#ffffff',
-          fontSize: '12px',
-          fontWeight: 600,
-          color: 'var(--text-heading, #1e293b)',
-          outline: 'none',
-        }}
-      >
-        {fields.map(f => (
-          <option key={f.key} value={f.key}>
-            {f.label}
-          </option>
-        ))}
-      </select>
+        options={fieldSelectOptions}
+        onChange={handleFieldChange}
+        placeholder="Select Field"
+      />
 
       {/* 2. Operator Selector */}
-      <select
+      <ReportCustomSelect
         value={operator}
-        onChange={(e) => handleOpChange(e.target.value)}
-        style={{
-          width: '100%',
-          boxSizing: 'border-box',
-          height: '36px',
-          padding: '0 8px',
-          borderRadius: '6px',
-          border: '1px solid var(--border-strong, #cbd5e1)',
-          background: 'var(--surface-muted, #f8fafc)',
-          fontSize: '12px',
-          color: 'var(--text-body, #334155)',
-          outline: 'none',
-        }}
-      >
-        {isDateRange ? (
-          <option value="between">between</option>
-        ) : (
-          <>
-            <option value="equals">is</option>
-            <option value="not_equals">is not</option>
-            <option value="contains">includes</option>
-          </>
-        )}
-      </select>
+        options={operatorSelectOptions}
+        onChange={handleOpChange}
+        placeholder="Rule"
+        buttonStyle={{ background: 'var(--surface-muted, #f8fafc)' }}
+      />
 
       {/* 3. Value Selector */}
       <div style={{ minWidth: 0, width: '100%' }}>
@@ -134,15 +103,18 @@ export const ReportFilterRow = ({
                 minWidth: 0,
                 boxSizing: 'border-box',
                 height: '36px',
-                padding: '0 6px',
+                padding: '0 8px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-strong, #cbd5e1)',
-                fontSize: '11px',
+                fontSize: '11.5px',
                 color: 'var(--text-heading, #1e293b)',
                 outline: 'none',
+                background: '#ffffff',
               }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-brand, #00623f)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong, #cbd5e1)'; }}
             />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>–</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)' }}>–</span>
             <input
               type="date"
               value={val?.to || ''}
@@ -152,86 +124,48 @@ export const ReportFilterRow = ({
                 minWidth: 0,
                 boxSizing: 'border-box',
                 height: '36px',
-                padding: '0 6px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-strong, #cbd5e1)',
-                fontSize: '11px',
-                color: 'var(--text-heading, #1e293b)',
-                outline: 'none',
-              }}
-            />
-          </div>
-        ) : operator === 'contains' ? (
-          <>
-            <input
-              type="text"
-              list={`filter-options-${index}-${fieldKey}`}
-              placeholder={`Type to search ${currentFieldDef?.label || ''}...`}
-              value={val || ''}
-              onChange={(e) => handleValueChange(e.target.value)}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                height: '36px',
                 padding: '0 8px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-strong, #cbd5e1)',
-                fontSize: '12px',
+                fontSize: '11.5px',
                 color: 'var(--text-heading, #1e293b)',
                 outline: 'none',
+                background: '#ffffff',
               }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-brand, #00623f)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong, #cbd5e1)'; }}
             />
-            {availableOptions.length > 0 && (
-              <datalist id={`filter-options-${index}-${fieldKey}`}>
-                {availableOptions.map(opt => (
-                  <option key={opt.value} value={opt.label.replace(/\s*\([^)]*\)$/, '')} label={opt.label}>
-                    {opt.label}
-                  </option>
-                ))}
-              </datalist>
-            )}
-          </>
+          </div>
         ) : availableOptions.length > 0 ? (
-          <select
-            value={val || ''}
-            onChange={(e) => handleValueChange(e.target.value)}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              height: '36px',
-              padding: '0 8px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-strong, #cbd5e1)',
-              background: '#ffffff',
-              fontSize: '12px',
-              color: 'var(--text-heading, #1e293b)',
-              outline: 'none',
-            }}
-          >
-            <option value="">— Select {currentFieldDef?.label || 'Choice'} —</option>
-            {availableOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          /* Multi-Select with Checkboxes, Live Search & Select All */
+          <ReportMultiSelect
+            values={val}
+            options={availableOptions}
+            onChange={handleValueChange}
+            placeholder={`— Select ${currentFieldDef?.label || 'Choice'}(s) —`}
+            fieldName={currentFieldDef?.label || 'Choice'}
+          />
         ) : (
+          /* Text input fallback for free-form fields */
           <input
             type="text"
-            placeholder={`Enter ${currentFieldDef?.label || ''}...`}
-            value={val || ''}
+            placeholder={`Enter ${currentFieldDef?.label || ''}…`}
+            value={typeof val === 'string' ? val : (Array.isArray(val) ? val.join(', ') : '')}
             onChange={(e) => handleValueChange(e.target.value)}
             style={{
               width: '100%',
               boxSizing: 'border-box',
               height: '36px',
-              padding: '0 8px',
+              padding: '0 10px',
               borderRadius: '6px',
               border: '1px solid var(--border-strong, #cbd5e1)',
               fontSize: '12px',
               color: 'var(--text-heading, #1e293b)',
               outline: 'none',
+              background: '#ffffff',
             }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-brand, #00623f)'; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong, #cbd5e1)'; }}
           />
         )}
       </div>
