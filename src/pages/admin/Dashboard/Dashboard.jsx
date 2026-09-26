@@ -84,6 +84,7 @@ export const Dashboard = () => {
   });
   const distFlagged = distAll.filter(d => d.flagged).length;
   const distOpenCount = distAll.filter(d => d.review === 'Open').length;
+  const distAlerts = distAll.filter(d => d.review === 'Open' || d.review === 'Under review').sort((a, b) => b.pct - a.pct);
 
   const pendingDrivers = [...drvReqs.filter(r => r.status === 'Pending'), ...(tms.drivers || []).filter(d => (approvals[d.id] || d.approval) === 'Pending approval')];
   const devPending = devReqs.filter(r => r.status === 'Pending');
@@ -232,7 +233,14 @@ export const Dashboard = () => {
         valueSuffix: '%',
       }
     ],
-    lists: [],
+    lists: [
+      { id: 'openExceptions', title: 'Open exceptions', desc: 'Newest open exceptions with branch', items: openExc.slice(0, 5).map(x => ({ kind: 'exc', id: x.id, dot: x.severity === 'High' ? 'var(--kr-red-600)' : x.severity === 'Medium' ? 'var(--kr-saffron-500)' : 'var(--kr-grey-500)', title: x.type + ' · ' + ((tms.V[x.vehicle] || {}).number || '—'), detail: x.detail, meta: (tms.B[x.branch] || {}).name })) },
+      { id: 'longOpenTrips', title: 'Long open trips', desc: `${ENROUTE_LABEL} for more than 24 hours`, linkLabel: 'Over 24 h', route: 'trips', items: longOpen.map(t => ({ kind: 'trip', id: t.id, dot: 'var(--kr-saffron-500)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.B[t.branch] || {}).name || ''}`, meta: t.hoursOpen + ' h', metaColor: 'var(--kr-saffron-600)' })) },
+      { id: 'distAlerts', title: 'Distance variance alerts', desc: 'Flagged trips waiting for review', linkLabel: 'Distance variation →', route: 'distance', items: distAlerts.slice(0, 5).map(d => ({ kind: d.trip ? 'trip' : 'route', id: d.trip, route: 'distance', dot: 'var(--kr-red-600)', title: `${(tms.V[d.vehicle] || {}).number || d.number} · ${d.pctText}`, detail: (d.route || 'Corridor'), meta: d.review, metaColor: 'var(--kr-red-800)' })) },
+      { id: 'driverQueue', title: 'Driver approvals', desc: 'New and pending drivers to approve', linkLabel: 'Driver master →', route: 'drivers', items: pendingDrivers.slice(0, 5).map(q => ({ kind: 'drv', id: q.id, dot: 'var(--kr-saffron-500)', title: q.name, detail: `${(tms.B[q.branch] || {}).name} · ${q.licence}`, meta: 'Review', metaColor: 'var(--text-brand)' })) },
+      { id: 'deviceRequests', title: 'Device approvals', desc: 'Supervisor phones asking to register', linkLabel: 'Device approvals →', route: 'deviceApprovals', items: devPending.slice(0, 5).map(r => ({ kind: 'route', route: 'deviceApprovals', id: r.id, dot: 'var(--kr-saffron-500)', title: '+91 ' + r.phone, detail: `IMEI ${r.imei} · ${r.device || 'Android phone'}`, meta: r.requestedAt || 'Pending' })) },
+      { id: 'recentTrips', title: 'Recently closed trips', desc: 'Latest trips closed by supervisors', linkLabel: 'All trips →', route: 'trips', items: trips.filter(t => t.status === 'Closed').slice(0, 5).map(t => ({ kind: 'trip', id: t.id, dot: (t.flags || []).length ? 'var(--st-flagged-edge)' : 'var(--st-closed-edge)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.C[t.client] || {}).name || ''}`, meta: t.status, metaColor: 'var(--st-closed-fg)' })) }
+    ]
   };
 
   const cat = {
@@ -261,11 +269,26 @@ export const Dashboard = () => {
     if (it.module) {
       const m = modulesMap[it.module];
       if (!m) return null;
-      return buildCustomWidget.cards(it, m);
+      const widget = buildCustomWidget.cards(it, m);
+      const isExc = it.module === 'exceptions' || m.id === 'exceptions';
+      return {
+        ...widget,
+        ...it,
+        label: it.title || widget.label,
+        route: isExc ? null : (it.route || widget.route || null),
+        noLink: isExc,
+      };
     }
     const w = cat.cards[it.src];
     if (!w) return null;
-    return { ...w, ...it, label: it.title || w.label };
+    const isExc = it.src === 'exceptions' || w.id === 'exceptions' || it.src === 'hiddenKm';
+    return {
+      ...w,
+      ...it,
+      label: it.title || w.label,
+      route: isExc ? null : (it.route || w.route || null),
+      noLink: isExc,
+    };
   }).filter(Boolean);
 
   const handleUpdateChartType = (uid, chartType) => {
@@ -282,11 +305,57 @@ export const Dashboard = () => {
       const m = modulesMap[it.module];
       if (!m) return null;
       const widget = buildCustomWidget.charts(it, m, hbar, DEFAULT_PALETTE);
-      return { ...widget, ...it, chartType: selectedType };
+      const isExc = it.module === 'exceptions' || m.id === 'exceptions';
+      return {
+        ...widget,
+        ...it,
+        title: it.title || widget.title,
+        chartType: selectedType,
+        route: isExc ? null : (it.route || widget.route || null),
+        noLink: isExc,
+      };
     }
     const w = cat.charts[it.src];
     if (!w) return null;
-    return { ...w, ...it, title: it.title || w.title, chartType: selectedType };
+    const isExc = it.src === 'excByType' || w.id === 'excByType';
+    return {
+      ...w,
+      ...it,
+      title: it.title || w.title,
+      chartType: selectedType,
+      route: isExc ? null : (it.route || w.route || null),
+      noLink: isExc,
+    };
+  }).filter(Boolean);
+
+  const dashLists = (currentCfg.lists || []).map(it => {
+    if (it.module) {
+      const m = modulesMap[it.module];
+      if (!m) return null;
+      const widget = buildCustomWidget.lists(it, m);
+      const isExc = it.module === 'exceptions' || m.id === 'exceptions';
+      return {
+        ...widget,
+        ...it,
+        title: it.title || widget.title,
+        linkLabel: isExc ? null : (it.linkLabel || widget.linkLabel || null),
+        route: isExc ? null : (it.route || widget.route || null),
+        noActions: isExc || widget.noActions,
+        noLink: isExc,
+      };
+    }
+    const w = cat.lists[it.src];
+    if (!w) return null;
+    const isExc = it.src === 'openExceptions' || w.id === 'openExceptions';
+    return {
+      ...w,
+      ...it,
+      title: it.title || w.title,
+      linkLabel: isExc ? null : (it.linkLabel || w.linkLabel || null),
+      route: isExc ? null : (it.route || w.route || null),
+      noActions: isExc,
+      noLink: isExc,
+    };
   }).filter(Boolean);
 
 
@@ -312,29 +381,6 @@ export const Dashboard = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Top Banner */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
-        <div></div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Shown for now without the export; wire onClick={() => navTo('reports')} back to enable it. */}
-          <button
-            type="button"
-            style={{ all: 'unset', cursor: 'pointer', padding: '0 14px', height: '32px', display: 'inline-flex', alignItems: 'center', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontSize: '13px', fontWeight: 700, color: 'var(--color-brand)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-brand-tint)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          >
-            Export today
-          </button>
-          <button
-            onClick={() => navTo('exceptions')}
-            style={{ all: 'unset', cursor: 'pointer', padding: '0 14px', height: '32px', display: 'inline-flex', alignItems: 'center', borderRadius: 'var(--radius-md)', background: 'var(--color-brand)', color: '#fff', fontSize: '13px', fontWeight: 700 }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--color-brand-strong)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--color-brand)'}
-          >
-            Review exceptions
-          </button>
-        </div>
-      </div>
 
       {/* DASHBOARD CARDS */}
       {dashCards.length > 0 && (
@@ -502,6 +548,166 @@ export const Dashboard = () => {
               <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
                 <DynamicChart chart={c} />
               </div>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {/* DASHBOARD LISTS */}
+      {dashLists.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(320px, calc((100% - 24px) / 2)), 1fr))', gap: '24px' }}>
+          {dashLists.map((l, i) => (
+            <section
+              key={l.uid || i}
+              style={{
+                background: '#fff',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-lg)',
+                overflow: 'hidden',
+                boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', background: 'var(--surface-muted, #f7faf9)', gap: '8px' }}>
+                <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+                  {l.title}
+                </h2>
+                {l.linkLabel && (
+                  <button
+                    onClick={() => navTo(l.route || 'dashboard')}
+                    style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', whiteSpace: 'nowrap' }}
+                  >
+                    {l.linkLabel}
+                  </button>
+                )}
+              </div>
+
+              {/* Custom Table View for Custom Lists */}
+              {l.isTable && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead>
+                      <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
+                        {l.cols && l.cols.map((h, hi) => (
+                          <th
+                            key={hi}
+                            style={{
+                              padding: '10px 14px',
+                              fontFamily: 'var(--font-display)',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              letterSpacing: '0.1em',
+                              textTransform: 'uppercase',
+                              color: 'var(--text-muted)',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {h}
+                          </th>
+                        ))}
+                        {!l.noActions && (
+                          <th
+                            style={{
+                              padding: '10px 14px',
+                              fontFamily: 'var(--font-display)',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              letterSpacing: '0.1em',
+                              textTransform: 'uppercase',
+                              color: 'var(--text-muted)',
+                              whiteSpace: 'nowrap',
+                              textAlign: 'center',
+                            }}
+                          >
+                            Actions
+                          </th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {l.tRows && l.tRows.map((r, ri) => (
+                        <tr
+                          key={ri}
+                          style={{ borderTop: '1px solid var(--border-default)' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          {r.cells && r.cells.map((c, ci) => (
+                            <td
+                              key={ci}
+                              style={{
+                                padding: '10px 14px',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '260px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                fontWeight: c.weight,
+                                color: c.color,
+                              }}
+                            >
+                              {c.v}
+                            </td>
+                          ))}
+                          {!l.noActions && (
+                            <td style={{ padding: '8px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <RowActions
+                                onView={() => openDashItem(r)}
+                                viewLabel="View details"
+                                buttonAriaLabel="Actions"
+                              />
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Standard List Items */}
+              {!l.isTable && l.items && l.items.map((x, xi) => {
+                const isNoClick = l.noLink || l.id === 'openExceptions' || l.module === 'exceptions';
+                const Tag = isNoClick ? 'div' : 'button';
+                return (
+                  <Tag
+                    key={xi}
+                    onClick={isNoClick ? undefined : () => openDashItem(x)}
+                    style={{
+                      all: 'unset',
+                      cursor: isNoClick ? 'default' : 'pointer',
+                      display: 'grid',
+                      gridTemplateColumns: '8px 1fr auto',
+                      gap: '12px',
+                      alignItems: 'center',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: '12px 18px',
+                      borderBottom: '1px solid var(--border-default)',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={e => { if (!isNoClick) e.currentTarget.style.background = 'var(--surface-muted)'; }}
+                    onMouseLeave={e => { if (!isNoClick) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: x.dot || 'var(--color-brand)' }} />
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontWeight: 700, fontSize: '14px', color: 'var(--text-heading)', fontFamily: x.mono ? 'var(--font-mono)' : 'inherit' }}>
+                        {x.title}
+                      </span>
+                      <span style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {x.detail}
+                      </span>
+                    </span>
+                    <span style={{ whiteSpace: 'nowrap', fontSize: x.metaColor ? '14px' : '12px', fontWeight: 700, color: x.metaColor || 'var(--text-muted)' }}>
+                      {x.meta}
+                    </span>
+                  </Tag>
+                );
+              })}
+
+              {((!l.isTable && (!l.items || l.items.length === 0)) || (l.isTable && (!l.tRows || l.tRows.length === 0))) && (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
+                  {l.empty || 'No records.'}
+                </div>
+              )}
             </section>
           ))}
         </div>
