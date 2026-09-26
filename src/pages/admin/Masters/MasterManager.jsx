@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserCheck, Eye, Pencil, Trash2, X, Plus, Fuel } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
@@ -7,13 +7,31 @@ import { downloadXlsx, readSheet } from '../../../utils/spreadsheet';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
-const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk }) => {
+
+const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
   const rawBunks = route.authorizedBunks || [];
   const bunkNames = rawBunks.map(bId => (tms.F[bId] || {}).name || bId);
   const count = bunkNames.length;
+  const cellRef = useRef(null);
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = (e) => {
+      if (cellRef.current && !cellRef.current.contains(e.target)) {
+        onToggle();
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [isOpen, onToggle]);
 
   return (
-    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+    <div ref={cellRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
       <span
         style={{
           fontFamily: 'var(--font-display)',
@@ -64,21 +82,43 @@ const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBun
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
-            top: 'calc(100% + 6px)',
-            left: 0,
+            top: isNearBottom ? 'auto' : 'calc(100% + 8px)',
+            bottom: isNearBottom ? 'calc(100% + 8px)' : 'auto',
+            right: 0,
             zIndex: 100,
             width: '320px',
+            maxWidth: 'min(320px, calc(100vw - 32px))',
+            boxSizing: 'border-box',
             background: '#fff',
             borderRadius: 'var(--radius-lg)',
             border: '1px solid var(--border-strong)',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.18)',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
             padding: '12px',
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-default)', paddingBottom: '8px' }}>
+          {/* Pointer indicator arrow aligned directly beneath/above the eye button */}
+          <div
+            style={{
+              position: 'absolute',
+              top: isNearBottom ? 'auto' : '-5px',
+              bottom: isNearBottom ? '-5px' : 'auto',
+              right: '9px',
+              width: '10px',
+              height: '10px',
+              background: '#fff',
+              borderLeft: isNearBottom ? 'none' : '1px solid var(--border-strong)',
+              borderTop: isNearBottom ? 'none' : '1px solid var(--border-strong)',
+              borderRight: isNearBottom ? '1px solid var(--border-strong)' : 'none',
+              borderBottom: isNearBottom ? '1px solid var(--border-strong)' : 'none',
+              transform: 'rotate(45deg)',
+              zIndex: 1,
+            }}
+          />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-default)', paddingBottom: '8px', position: 'relative', zIndex: 2 }}>
             <span style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 800, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Fuel size={15} style={{ color: 'var(--color-brand)' }} />
               Authorized Fuel Bunks ({count})
@@ -136,7 +176,18 @@ const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBun
                     fontSize: '13px',
                   }}
                 >
-                  <span style={{ fontWeight: 600, color: 'var(--text-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span
+                    title={bunkName}
+                    style={{
+                      fontWeight: 600,
+                      color: 'var(--text-heading)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
                     <strong style={{ color: 'var(--color-brand)', marginRight: '6px' }}>{idx + 1}.</strong>
                     {bunkName}
                   </span>
@@ -159,7 +210,10 @@ const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBun
                         color: 'var(--color-brand)',
                         display: 'grid',
                         placeItems: 'center',
+                        transition: 'background 0.15s ease',
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-muted)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
                     >
                       <Pencil size={13} />
                     </button>
@@ -177,7 +231,10 @@ const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBun
                         color: 'var(--kr-red-600)',
                         display: 'grid',
                         placeItems: 'center',
+                        transition: 'background 0.15s ease',
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#fee2e2')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--kr-red-50)')}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -1144,7 +1201,7 @@ export const MasterManager = ({ type }) => {
         </div>
 
         {/* Records Table */}
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '760px' }}>
             <thead>
               <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
@@ -1183,9 +1240,10 @@ export const MasterManager = ({ type }) => {
               </tr>
             </thead>
             <tbody>
-              {rowsPg.rows.map(r => {
+              {rowsPg.rows.map((r, rIdx) => {
                 const cells = m.cells(r);
                 const isPendingDriver = type === 'drivers' && (approvals[r.id] || r.approval) === 'Pending approval';
+                const isNearBottom = rIdx >= rowsPg.rows.length - 2 && rowsPg.rows.length > 2;
                 return (
                   <tr
                     key={r.id}
@@ -1203,6 +1261,7 @@ export const MasterManager = ({ type }) => {
                               onToggle={() => setActiveBunksPopover(activeBunksPopover === r.id ? null : r.id)}
                               onEditRoute={() => handleEditRecord(r)}
                               onDeleteBunk={(bunkName) => handleDeleteBunkFromRoute(r, bunkName)}
+                              isNearBottom={isNearBottom}
                             />
                           </td>
                         );
