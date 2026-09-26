@@ -207,19 +207,26 @@ export const TripList = () => {
               className="tms-card"
               style={{
                 font: 'inherit', textAlign: 'left', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
-                display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 20px',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '10px', padding: '16px 18px',
+                borderTop: `4px solid ${k.fg}`,
                 borderColor: k.on ? k.fg : undefined,
-                boxShadow: k.on ? `inset 0 0 0 1px ${k.fg}, 0 1px 3px rgba(0, 48, 33, 0.05)` : undefined,
+                boxShadow: k.on ? `inset 0 0 0 1px ${k.fg}, 0 2px 8px rgba(0, 48, 33, 0.08)` : undefined,
               }}
             >
-              <span style={{ flex: 'none', width: '54px', height: '54px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: k.bg, color: k.fg }}>
-                <Icon size={26} strokeWidth={2.2} />
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-heading)' }}>{k.label}</div>
-                <div style={{ marginTop: '2px', fontFamily: 'var(--font-display)', fontSize: '28px', fontWeight: 800, color: 'var(--kr-grey-900)' }}>{k.value}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {k.label}
+                </span>
+                <span style={{ flex: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: k.bg, color: k.fg }}>
+                  <Icon size={18} strokeWidth={2.2} />
+                </span>
               </div>
-              <div style={{ alignSelf: 'flex-end', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'right' }}>{k.note}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 800, color: 'var(--kr-grey-900)', lineHeight: 1.1 }}>
+                {k.value}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                {k.note}
+              </div>
             </button>
           );
         })}
