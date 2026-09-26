@@ -175,24 +175,27 @@ const AdminLayoutContent = () => {
             className="tms-page-enter"
             style={{ padding: narrow ? '16px' : '20px 28px 28px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, boxSizing: 'border-box' }}
           >
-            <div className="tms-pagehead">
-              <div style={{ minWidth: 0 }}>
-                <div className="tms-pagehead-crumb">
-                  {meta.crumb}
-                  <ChevronRight size={14} />
-                  <strong>{meta.title}</strong>
+            {/* Pages listed in OWN_HEAD render their own heading, so this one is skipped */}
+            {!meta.hideHead && (
+              <div className="tms-pagehead">
+                <div style={{ minWidth: 0 }}>
+                  <div className="tms-pagehead-crumb">
+                    {meta.crumb}
+                    <ChevronRight size={14} />
+                    <strong>{meta.title}</strong>
+                  </div>
+                  <h1>{meta.title}</h1>
+                  {meta.sub && <p>{meta.sub}</p>}
                 </div>
-                <h1>{meta.title}</h1>
-                {meta.sub && <p>{meta.sub}</p>}
+                <div className="tms-pagehead-date">
+                  <CalendarDays size={20} color="var(--kr-grey-700)" />
+                  <span>
+                    <strong>Today, {todayLabel}</strong>
+                    <small>{dayLabel}</small>
+                  </span>
+                </div>
               </div>
-              <div className="tms-pagehead-date">
-                <CalendarDays size={20} color="var(--kr-grey-700)" />
-                <span>
-                  <strong>Today, {todayLabel}</strong>
-                  <small>{dayLabel}</small>
-                </span>
-              </div>
-            </div>
+            )}
             {!blocked ? (
               <Outlet />
             ) : firstPath ? (

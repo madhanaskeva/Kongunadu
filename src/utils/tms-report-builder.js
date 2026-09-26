@@ -262,7 +262,7 @@ var NOW = new Date(2026, 8, 14, 11, 32).getTime();
     if (/non[- ]?business|non[- ]?billable/.test(t) && has('type')) add({ field: 'type', op: 'eq', value: 'Non-Business', label: 'Trip type is Non-Business' });
     else if (/\bbusiness\b|\bbillable\b/.test(t) && has('type')) add({ field: 'type', op: 'eq', value: 'Business', label: 'Trip type is Business' });
     if (type === 'trip') {
-      if (/\b(open|enroute|en route|running|ongoing|in transit)\b/.test(t) && !/long[- ]open/.test(t)) add({ field: '_open', op: 'eq', value: true, label: 'Trip is open (enroute)' });
+      if (/\b(open|on road|on-road|enroute|en route|running|ongoing|in transit)\b/.test(t) && !/long[- ]open/.test(t)) add({ field: '_open', op: 'eq', value: true, label: 'Trip is open (on road)' });
       if (/\bclosed\b|\bcompleted\b/.test(t)) add({ field: '_open', op: 'eq', value: false, label: 'Trip is closed' });
       if (/\bflagged\b/.test(t)) add({ field: 'flags', op: 'filled', value: true, label: 'Trip has flags' });
       if (/maintenance|empty return|internal movement|driver testing/.test(t)) { var rs = /maintenance|empty return|internal movement|driver testing/.exec(t)[0]; add({ field: 'reason', op: 'contains', value: rs, label: 'Reason is ' + cap(rs) }); }

@@ -216,11 +216,6 @@ export const TripDetail = () => {
     })
     .sort((a, b) => (statusRank[a.status] ?? 3) - (statusRank[b.status] ?? 3));
   const openExcCount = tripExceptions.filter(x => x.status !== 'Resolved').length;
-  // Vehicle-level exceptions (idle, radius breach, hidden km between trips) carry no trip id,
-  // so they can only be reached from the fleet-wide Exceptions page.
-  const vehicleExcCount = allExceptions.filter(
-    x => x.vehicle === rawTrip.vehicle && !x.trip && x.status !== 'Resolved'
-  ).length;
 
   const openException = (x) => {
     setExcSel(x.id);
@@ -973,7 +968,7 @@ export const TripDetail = () => {
       {/* Exceptions raised on this trip */}
       {can('exceptions', 'view') && (
         <section id="trip-exceptions" style={{ ...cardStyle, overflow: 'hidden', scrollMarginTop: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
             <h2 style={sectionTitle}>
               Exceptions
               {tripExceptions.length > 0 && (
@@ -982,12 +977,6 @@ export const TripDetail = () => {
                 </span>
               )}
             </h2>
-            <button
-              onClick={() => navTo('exceptions')}
-              style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', whiteSpace: 'nowrap' }}
-            >
-              All exceptions →
-            </button>
           </div>
 
           {tripExceptions.length === 0 ? (
@@ -1060,20 +1049,6 @@ export const TripDetail = () => {
             </div>
           )}
 
-          {vehicleExcCount > 0 && (
-            <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border-default)', background: 'var(--surface-muted)', fontSize: '13px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-              <span>
-                {vehicleExcCount} more open exception{vehicleExcCount > 1 ? 's' : ''} on {(v || {}).number || 'this vehicle'}{' '}
-                {vehicleExcCount > 1 ? 'are' : 'is'} not linked to a trip.
-              </span>
-              <button
-                onClick={() => navTo('exceptions')}
-                style={{ all: 'unset', cursor: 'pointer', fontWeight: 700, color: 'var(--text-brand)', whiteSpace: 'nowrap' }}
-              >
-                View them →
-              </button>
-            </div>
-          )}
         </section>
       )}
 

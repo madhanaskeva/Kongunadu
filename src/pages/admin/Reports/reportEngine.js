@@ -12,6 +12,8 @@
  * 5. Deterministic AND-logic filter evaluation.
  */
 
+import { ENROUTE_LABEL } from '../../../utils/tripStatus';
+
 // Helper: parse date strings like "14 Sep 2026 05:40", "2026-09-14", "14 Sep 2026"
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
@@ -210,7 +212,7 @@ export const MODULE_FIELDS = {
     { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'client', label: 'Client', type: 'select', entity: 'clients' },
     { key: 'type', label: 'Trip Type', type: 'select', options: ['Business', 'Non-Business'] },
-    { key: 'status', label: 'Trip Status', type: 'select', options: ['Enroute', 'Closed', 'Long open'] },
+    { key: 'status', label: 'Trip Status', type: 'select', options: [{ value: 'Enroute', label: ENROUTE_LABEL }, 'Closed', 'Long open'] },
     { key: 'loading', label: 'Loading Location', type: 'select', entity: 'locations' },
     { key: 'supervisor', label: 'Supervisor', type: 'select', entity: 'supervisors' },
     { key: 'date', label: 'Time Period', type: 'dateRange' },
@@ -232,7 +234,7 @@ export const MODULE_FIELDS = {
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
     { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
-    { key: 'status', label: 'Trip Status', type: 'select', options: ['Closed', 'Enroute'] },
+    { key: 'status', label: 'Trip Status', type: 'select', options: ['Closed', { value: 'Enroute', label: ENROUTE_LABEL }] },
     { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   client: [
@@ -345,7 +347,9 @@ export const getDependentOptions = (moduleId, fieldKey, currentFilters, tms) => 
   // Predefined options
   const fieldDef = (MODULE_FIELDS[moduleId] || []).find(f => f.key === fieldKey);
   if (fieldDef && fieldDef.options) {
-    return fieldDef.options.map(opt => ({ value: opt, label: opt }));
+    // An option can be a plain string, or {value,label} when the stored value
+    // and the wording on screen differ (e.g. 'Enroute' shown as 'On Road').
+    return fieldDef.options.map(opt => (typeof opt === 'string' ? { value: opt, label: opt } : opt));
   }
 
   return [];
@@ -710,7 +714,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         }
 
         const isLongOpen = t.status !== 'Closed' && (t.hoursOpen > 24);
-        const statusLabel = isLongOpen ? 'Long open' : t.status;
+        const statusLabel = isLongOpen ? 'Long open' : t.status === 'Enroute' ? ENROUTE_LABEL : t.status;
 
         return {
           id: t.id,
@@ -768,7 +772,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       summaries = [
         { label: 'Total Trips', value: rows.length, unit: '' },
         { label: 'Closed Trips', value: rows.filter(r => r.status === 'Closed').length, unit: '' },
-        { label: 'Enroute Trips', value: rows.filter(r => r.status !== 'Closed').length, unit: '' },
+        { label: `${ENROUTE_LABEL} Trips`, value: rows.filter(r => r.status !== 'Closed').length, unit: '' },
         { label: 'Total Distance', value: rows.reduce((a, r) => a + r.distance, 0).toLocaleString('en-IN'), unit: 'km' },
         { label: 'Total Diesel', value: rows.reduce((a, r) => a + r.diesel, 0).toLocaleString('en-IN'), unit: 'L' },
         { label: 'Total Advances', value: '₹' + rows.reduce((a, r) => a + r.advance, 0).toLocaleString('en-IN'), unit: '' },
@@ -1135,7 +1139,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           branchId: t.branch,
           expected: expectedCorridor,
           actual: actualPath,
-          location: div.at || 'Enroute Corridor',
+          location: div.at || `${ENROUTE_LABEL} Corridor`,
           offKm: div.offKm || div.extraKm || '—',
           fixedKm: fixed || '—',
           gpsKm: gps || '—',

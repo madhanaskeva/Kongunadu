@@ -1,4 +1,5 @@
 import React from 'react';
+import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 import { Button } from '../components/ds';
 
 export const GpsPermission = ({ v }) => (
@@ -19,7 +20,7 @@ export const GpsPermission = ({ v }) => (
       <ul style={{ margin: "20px 0 0", padding: "0 0 0 18px", fontSize: "15px", lineHeight: "1.6" }}>
         <li>Geolocation permission</li>
         <li>Background location access</li>
-        <li>Continuous capture while a trip is enroute</li>
+        <li>Continuous capture while a trip is {ENROUTE_LABEL_LOWER}</li>
       </ul>
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
         <Button size="lg" fullWidth={true} onClick={v.grantGps} style={v.bigBtn}>Allow location</Button>

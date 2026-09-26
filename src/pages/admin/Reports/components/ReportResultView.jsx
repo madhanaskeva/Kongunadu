@@ -159,7 +159,7 @@ export const ReportResultView = ({
     if (s.includes('failed') || s.includes('inactive') || s.includes('high') || s.includes('absent') || s.includes('rejected')) {
       return { background: '#fef2f2', color: '#991b1b', border: '1px solid #fee2e2' };
     }
-    if (s.includes('enroute') || s.includes('idle') || s.includes('weak') || s.includes('medium') || s.includes('review') || s.includes('pending')) {
+    if (s.includes('enroute') || s.includes('on road') || s.includes('idle') || s.includes('weak') || s.includes('medium') || s.includes('review') || s.includes('pending')) {
       return { background: 'var(--kr-saffron-100, #fdebd3)', color: 'var(--kr-saffron-600, #d97b00)', border: '1px solid #fed7aa' };
     }
     return { background: 'var(--kr-grey-100, #f1f5f9)', color: 'var(--kr-grey-700, #334155)', border: '1px solid #e2e8f0' };

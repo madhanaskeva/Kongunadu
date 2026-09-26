@@ -22,9 +22,19 @@ const PAGE_META = [
   ['/admin/profile', 'Account', 'My profile', 'Your account details, sign-in email and password'],
 ];
 
+// Pages that build their own breadcrumb, title and date, so the shared page
+// header would only repeat them. Attendance does, because its header carries the
+// 11:00 AM marking deadline alongside the date.
+const OWN_HEAD = ['/admin/attendance'];
+
 export const getPageMeta = (pathname) => {
   const hit = PAGE_META.find(([path]) => pathname.includes(path)) || PAGE_META[0];
-  return { crumb: hit[1], title: hit[2], sub: hit[3] || '' };
+  return {
+    crumb: hit[1],
+    title: hit[2],
+    sub: hit[3] || '',
+    hideHead: OWN_HEAD.some(path => pathname.includes(path)),
+  };
 };
 
 export default getPageMeta;

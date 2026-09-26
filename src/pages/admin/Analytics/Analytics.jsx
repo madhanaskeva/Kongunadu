@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { Calendar, ArrowRight, Clock, RotateCcw } from 'lucide-react';
+import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -276,7 +277,7 @@ export const Analytics = () => {
 
         return {
           chartTitle: 'GPS fix rate',
-          chartSub: `Percentage of enroute minutes with a valid fix, ${periodInfo.chartSubSuffix}`,
+          chartSub: `Percentage of ${ENROUTE_LABEL_LOWER} minutes with a valid fix, ${periodInfo.chartSubSuffix}`,
           kpis: [
             ['Fix rate', fixRate, 'Target 98%', '#7A4300'],
             ['Route diversions', String(diversions), `${majorDiv} over 20 km`, '#7A4300'],

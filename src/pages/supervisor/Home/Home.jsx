@@ -1,11 +1,12 @@
 import React from 'react';
+import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 
 export const Home = ({ v }) => (
   <>
     <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "20px 16px 32px", gap: "16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <div style={{ fontSize: "14px", color: "var(--text-muted)" }}>{v.todayLong}</div>
-        <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-heading)" }}>{v.activeCount} {v.tripWord} enroute</div>
+        <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-heading)" }}>{v.activeCount} {v.tripWord} {ENROUTE_LABEL_LOWER}</div>
       </div>
       <button onClick={v.goAttMark} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: "14px", minHeight: "76px", padding: "14px 18px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "1px solid var(--border-default)", borderLeft: "6px solid var(--color-brand)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", transition: "background var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h3 sv-a4">
         <span style={{ flex: "none", width: "44px", height: "44px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", background: "var(--color-brand-tint)", color: "var(--color-brand)" }}>

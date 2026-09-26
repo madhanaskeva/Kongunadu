@@ -1,4 +1,5 @@
 import React from 'react';
+import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import { Button } from '../components/ds';
 
 export const SupervisorProfile = ({ v }) => (
@@ -100,7 +101,7 @@ export const SupervisorProfile = ({ v }) => (
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", borderRadius: "var(--radius-md)", background: "var(--surface-muted)" }}>
-        <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-body)" }}>Enroute Vehicles</span>
+        <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-body)" }}>{ENROUTE_LABEL} Vehicles</span>
         <span style={{ fontSize: "14px", fontWeight: "800", color: "var(--color-brand)" }}>{v.activeCount} active</span>
       </div>
 

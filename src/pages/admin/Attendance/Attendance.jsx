@@ -15,6 +15,18 @@ import {
   Search,
   CheckCircle2,
 } from 'lucide-react';
+import { Select } from 'antd';
+import './attendance.css';
+
+// The filter dropdowns render through antd so the open list is themed too —
+// a native <select> popup is drawn by the OS and cannot be styled.
+const filterSelectStyle = { width: '100%', height: '40px' };
+const filterSelectProps = {
+  size: 'middle',
+  popupMatchSelectWidth: true,
+  className: 'att-filter-select',
+  classNames: { popup: { root: 'att-filter-popup' } },
+};
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -605,27 +617,13 @@ export const Attendance = () => {
                 <Building2 size={13} style={{ color: 'var(--text-muted)' }} />
                 Branch
               </label>
-              <select
+              <Select
                 value={filterForm.branch}
-                onChange={e => setFilterForm({ ...filterForm, branch: e.target.value })}
-                style={{
-                  height: '40px',
-                  padding: '0 10px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--border-strong, #cbd5e1)',
-                  fontSize: '13px',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  background: '#fff',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">All branches</option>
-                {branchOpts.map(b => (
-                  <option key={b.value} value={b.value}>{b.label}</option>
-                ))}
-              </select>
+                onChange={val => setFilterForm({ ...filterForm, branch: val })}
+                options={[{ value: '', label: 'All branches' }, ...branchOpts]}
+                style={filterSelectStyle}
+                {...filterSelectProps}
+              />
             </div>
 
             {/* Vehicle Number Dropdown */}
@@ -634,27 +632,21 @@ export const Attendance = () => {
                 <Truck size={13} style={{ color: 'var(--text-muted)' }} />
                 Vehicle Number
               </label>
-              <select
+              <Select
+                showSearch
                 value={filterForm.vehicle}
-                onChange={e => setFilterForm({ ...filterForm, vehicle: e.target.value })}
-                style={{
-                  height: '40px',
-                  padding: '0 10px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--border-strong, #cbd5e1)',
-                  fontSize: '13px',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  background: '#fff',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="">All vehicles</option>
-                {vehicleOptions.map(veh => (
-                  <option key={veh} value={veh}>{veh}</option>
-                ))}
-              </select>
+                onChange={val => setFilterForm({ ...filterForm, vehicle: val })}
+                options={[
+                  { value: '', label: 'All vehicles' },
+                  ...vehicleOptions.map(veh => ({ value: veh, label: veh })),
+                ]}
+                filterOption={(input, opt) =>
+                  String(opt?.label ?? '').replace(/\s+/g, '').toLowerCase()
+                    .includes(input.replace(/\s+/g, '').toLowerCase())
+                }
+                style={filterSelectStyle}
+                {...filterSelectProps}
+              />
             </div>
 
             {/* Marked / Not Marked Status Filter */}
@@ -663,26 +655,17 @@ export const Attendance = () => {
                 <Clock size={13} style={{ color: 'var(--text-muted)' }} />
                 Attendance Status
               </label>
-              <select
+              <Select
                 value={filterForm.status}
-                onChange={e => setFilterForm({ ...filterForm, status: e.target.value })}
-                style={{
-                  height: '40px',
-                  padding: '0 10px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--border-strong, #cbd5e1)',
-                  fontSize: '13px',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  background: '#fff',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option value="all">All statuses</option>
-                <option value="marked">Marked</option>
-                <option value="not_marked">Not marked</option>
-              </select>
+                onChange={val => setFilterForm({ ...filterForm, status: val })}
+                options={[
+                  { value: 'all', label: 'All status' },
+                  { value: 'marked', label: 'Marked' },
+                  { value: 'not_marked', label: 'Not marked' },
+                ]}
+                style={filterSelectStyle}
+                {...filterSelectProps}
+              />
             </div>
           </div>
 

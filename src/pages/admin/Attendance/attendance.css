@@ -1,0 +1,84 @@
+/* Attendance filter dropdowns.
+   A native <select> popup is drawn by the operating system, so its list cannot be
+   styled — that is why these are antd Selects. This file dresses the closed field
+   and the open panel to match the rest of the filter bar. */
+
+.att-filter-select .ant-select-selector {
+  height: 40px !important;
+  border-radius: var(--radius-md, 8px) !important;
+  border: 1px solid var(--border-strong, #c2c2bb) !important;
+  background: #fff !important;
+  padding: 0 12px !important;
+  transition: border-color var(--dur-fast, 0.15s), box-shadow var(--dur-fast, 0.15s);
+}
+
+.att-filter-select .ant-select-selection-item,
+.att-filter-select .ant-select-selection-placeholder,
+.att-filter-select .ant-select-selection-search-input {
+  line-height: 38px !important;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-heading);
+}
+
+.att-filter-select .ant-select-selection-placeholder {
+  color: var(--kr-grey-500);
+}
+
+.att-filter-select:hover .ant-select-selector {
+  border-color: var(--color-brand, #00623f) !important;
+}
+
+.att-filter-select.ant-select-focused .ant-select-selector,
+.att-filter-select.ant-select-open .ant-select-selector {
+  border-color: var(--color-brand, #00623f) !important;
+  box-shadow: 0 0 0 3px rgba(0, 98, 63, 0.12) !important;
+}
+
+.att-filter-select .ant-select-arrow {
+  color: var(--kr-grey-700);
+  transition: transform var(--dur-fast, 0.15s);
+}
+
+.att-filter-select.ant-select-open .ant-select-arrow {
+  transform: rotate(180deg);
+}
+
+/* The open list */
+.att-filter-popup {
+  padding: 6px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--border-default, #dcdcd6);
+  box-shadow: var(--shadow-lg, 0 12px 32px rgba(20, 32, 43, 0.14)) !important;
+}
+
+.att-filter-popup .ant-select-item-option {
+  min-height: 36px;
+  padding: 8px 10px !important;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text-heading);
+}
+
+.att-filter-popup .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: var(--kr-green-50, #edf8f3) !important;
+}
+
+/* Brand tint for the chosen row, instead of the OS blue bar */
+.att-filter-popup .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: var(--color-brand-soft, #daf1e7) !important;
+  color: var(--kr-green-900, #003021) !important;
+  font-weight: 700;
+}
+
+.att-filter-popup .ant-select-item-empty {
+  padding: 16px 10px !important;
+  font-size: 13px;
+  color: var(--kr-grey-700);
+}
+
+/* The vehicle list can run long, so it scrolls rather than filling the screen */
+.att-filter-popup .rc-virtual-list-holder {
+  max-height: 264px !important;
+  overscroll-behavior: contain;
+}
