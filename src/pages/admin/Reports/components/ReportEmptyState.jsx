@@ -33,19 +33,19 @@ export const ReportEmptyState = ({ activeFilterLabels = [], onResetFilters }) =>
 
       <div style={{ maxWidth: '520px' }}>
         <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700, color: 'var(--text-heading, #1e293b)' }}>
-          No records found for the selected filters
+          No information found matching your choices
         </h4>
         <div style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)', lineHeight: 1.5 }}>
           {activeFilterLabels.length > 0 ? (
             <>
-              No data in the current database matches all conditions:{' '}
+              No records match your selected choices:{' '}
               <strong style={{ color: 'var(--kr-grey-800, #1e293b)' }}>
-                {activeFilterLabels.join(' + ')}
+                {activeFilterLabels.join(' and ')}
               </strong>
-              . Try relaxing one or more filter conditions or expanding the date range.
+              . Try removing one of your choices or choosing a wider time period.
             </>
           ) : (
-            'There are no records in the current database for this module.'
+            'There are currently no records for this report.'
           )}
         </div>
       </div>
@@ -70,7 +70,7 @@ export const ReportEmptyState = ({ activeFilterLabels = [], onResetFilters }) =>
           }}
         >
           <RotateCcw size={14} />
-          Reset All Filters
+          Clear all choices
         </button>
       )}
     </div>

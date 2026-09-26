@@ -76,70 +76,70 @@ export const REPORT_MODULES = [
   {
     id: 'driver',
     label: 'Driver',
-    description: 'Driver profiles, vehicle mappings, trip activity, attendance, fuel consumption & advances',
+    description: 'Driver trips, attendance, vehicles and related details',
     category: 'Personnel',
     available: true,
   },
   {
     id: 'vehicle',
     label: 'Vehicles',
-    description: 'Fleet inventory, active driver mappings, status, GPS health, odometer & trip history',
+    description: 'Vehicle trips, drivers, branch and activity details',
     category: 'Fleet',
     available: true,
   },
   {
     id: 'trip',
     label: 'Trips',
-    description: 'Trip register, business & non-business dispatches, routes, distance, diesel & financials',
+    description: 'Trip details, status, driver, vehicle and route information',
     category: 'Operations',
     available: true,
   },
   {
     id: 'branch',
     label: 'Branch',
-    description: 'Branch-level aggregated fleet, driver pool, active trips, fuel costs, advances & deviations',
+    description: 'Trips, drivers, vehicles and activity for a branch',
     category: 'Structure',
     available: true,
   },
   {
     id: 'diesel',
     label: 'Diesel',
-    description: 'Fuel transactions linked to trips & vehicles, authorized bunks, rates, litres & efficiency',
+    description: 'Diesel filled for vehicles and related trips',
     category: 'Expenses',
     available: true,
   },
   {
     id: 'advance',
     label: 'Advances & Expenses',
-    description: 'Trip advance disbursements, driver/cleaner bata, toll receipts and total expense settlements',
+    description: 'Trip-related advances and expenses',
     category: 'Financials',
     available: true,
   },
   {
     id: 'client',
     label: 'Clients',
-    description: 'Client contracts, dedicated vehicle allotments, dispatch history, billing & customer hubs',
+    description: 'Client trips, vehicles and related details',
     category: 'Commercial',
     available: true,
   },
   {
     id: 'deviation',
-    label: 'Deviation & Route Variance',
-    description: 'Audited route diversions, distance threshold breaches (>5%), corridor departures & off-route km',
+    label: 'Route Changes',
+    description: 'Route changes and distance differences',
     category: 'Compliance',
     available: true,
   },
   {
     id: 'attendance',
     label: 'Attendance',
-    description: 'Daily supervisor-submitted driver presence/absence, monthly totals and fleet utilisation %',
+    description: 'Driver attendance and presence details',
     category: 'Personnel',
     available: true,
   },
   {
     id: 'location',
     label: 'Loading Locations',
-    description: 'Cryogenic hubs, client terminals, geofence radius settings & outbound trip dispatches',
+    description: 'Trips and activity by loading location',
     category: 'Operations',
     available: true,
   },
@@ -151,7 +151,7 @@ export const REPORT_MODULES = [
     description: 'Tyre serial inventory, tread depth & rotation records',
     category: 'Maintenance',
     available: false,
-    unavailableReason: 'No tyre inventory or maintenance tracking dataset exists in the project.',
+    unavailableReason: 'No tyre inventory or maintenance records exist in the system.',
   },
   {
     id: 'battery',
@@ -159,7 +159,7 @@ export const REPORT_MODULES = [
     description: 'Battery health monitoring, voltage telemetry & replacement logs',
     category: 'Maintenance',
     available: false,
-    unavailableReason: 'No battery telemetry or tracking dataset exists in the project.',
+    unavailableReason: 'No battery telemetry or tracking records exist in the system.',
   },
   {
     id: 'maintenance',
@@ -185,24 +185,24 @@ export const REPORT_MODULES = [
 
 export const MODULE_FIELDS = {
   driver: [
-    { key: 'driver', label: 'Driver Name', type: 'select', entity: 'drivers' },
+    { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
-    { key: 'vehicle', label: 'Assigned Vehicle', type: 'select', entity: 'vehicles' },
+    { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
     { key: 'type', label: 'Driver Type', type: 'select', options: ['Regular', 'Supporting'] },
-    { key: 'status', label: 'Driver Status', type: 'select', options: ['Active', 'Inactive', 'Pending'] },
+    { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive', 'Pending'] },
     { key: 'approval', label: 'Approval Status', type: 'select', options: ['Approved', 'Pending approval'] },
-    { key: 'attendance', label: 'Attendance Filter', type: 'select', options: ['Present', 'Absent', 'High Absence (>3 days)'] },
-    { key: 'date', label: 'Date Range', type: 'dateRange' },
+    { key: 'attendance', label: 'Attendance', type: 'select', options: ['Present', 'Absent', 'High Absence (>3 days)'] },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   vehicle: [
-    { key: 'vehicle', label: 'Vehicle Number', type: 'select', entity: 'vehicles' },
+    { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
-    { key: 'driver', label: 'Mapped Driver', type: 'select', entity: 'drivers' },
-    { key: 'status', label: 'Vehicle Status', type: 'select', options: ['Running', 'Idle', 'Maintenance'] },
+    { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
+    { key: 'status', label: 'Status', type: 'select', options: ['Running', 'Idle', 'Maintenance'] },
     { key: 'gps', label: 'GPS Status', type: 'select', options: ['OK', 'Weak', 'Failed'] },
-    { key: 'client', label: 'Dedicated Client', type: 'select', entity: 'clients' },
+    { key: 'client', label: 'Client', type: 'select', entity: 'clients' },
     { key: 'vtype', label: 'Vehicle Body Type', type: 'select', options: ['Reefer container 20ft', 'Reefer trailer 32ft', 'Closed body 19ft', 'Closed body 24ft'] },
-    { key: 'date', label: 'Trip Activity Date Range', type: 'dateRange' },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   trip: [
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
@@ -213,33 +213,33 @@ export const MODULE_FIELDS = {
     { key: 'status', label: 'Trip Status', type: 'select', options: ['Enroute', 'Closed', 'Long open'] },
     { key: 'loading', label: 'Loading Location', type: 'select', entity: 'locations' },
     { key: 'supervisor', label: 'Supervisor', type: 'select', entity: 'supervisors' },
-    { key: 'date', label: 'Trip Date Range', type: 'dateRange' },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   branch: [
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'state', label: 'State', type: 'select', options: ['Tamil Nadu', 'Telangana', 'Karnataka', 'Maharashtra', 'Andhra Pradesh'] },
-    { key: 'status', label: 'Branch Status', type: 'select', options: ['Active', 'Inactive'] },
-    { key: 'date', label: 'Metrics Date Range', type: 'dateRange' },
+    { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   diesel: [
     { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
     { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'bunk', label: 'Fuel Bunk', type: 'select', entity: 'bunks' },
-    { key: 'date', label: 'Fill / Trip Date Range', type: 'dateRange' },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   advance: [
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
     { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'status', label: 'Trip Status', type: 'select', options: ['Closed', 'Enroute'] },
-    { key: 'date', label: 'Advance / Trip Date Range', type: 'dateRange' },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   client: [
-    { key: 'client', label: 'Client Name', type: 'select', entity: 'clients' },
+    { key: 'client', label: 'Client', type: 'select', entity: 'clients' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
-    { key: 'status', label: 'Client Status', type: 'select', options: ['Active', 'On hold'] },
-    { key: 'date', label: 'Activity Date Range', type: 'dateRange' },
+    { key: 'status', label: 'Status', type: 'select', options: ['Active', 'On hold'] },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   deviation: [
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
@@ -247,17 +247,17 @@ export const MODULE_FIELDS = {
     { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'severity', label: 'Severity', type: 'select', options: ['High', 'Medium', 'Low'] },
     { key: 'status', label: 'Status', type: 'select', options: ['Open', 'Under review', 'Resolved'] },
-    { key: 'date', label: 'Incident Date Range', type: 'dateRange' },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   attendance: [
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
-    { key: 'driver', label: 'Driver Name', type: 'select', entity: 'drivers' },
+    { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
-    { key: 'status', label: 'Attendance Mark', type: 'select', options: ['Present', 'Absent', 'Not marked'] },
-    { key: 'date', label: 'Attendance Date Range', type: 'dateRange' },
+    { key: 'status', label: 'Attendance', type: 'select', options: ['Present', 'Absent', 'Not marked'] },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
   location: [
-    { key: 'location', label: 'Location Name', type: 'select', entity: 'locations' },
+    { key: 'location', label: 'Loading Location', type: 'select', entity: 'locations' },
     { key: 'client', label: 'Client', type: 'select', entity: 'clients' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
@@ -389,6 +389,56 @@ export const evaluateCondition = (recordVal, operator, filterVal) => {
   }
 };
 
+/**
+ * Universal entity & text matcher for equals, not_equals, contains.
+ * Accurately matches against both technical ID (e.g., 'B01', 'V01')
+ * and display text (e.g., 'Chennai HO', 'TN 28 AQ 4521').
+ */
+export const matchesEntityOrText = (idVal, textVal, op = 'equals', filterVal) => {
+  if (filterVal === undefined || filterVal === null || filterVal === '') return true;
+
+  const clean = v => (v == null ? '' : String(v).trim().toLowerCase());
+  const fVal = clean(filterVal);
+  const id = clean(idVal);
+  const text = clean(textVal);
+
+  // Exact or prefix match checking against ID or Text
+  const isExactOrPrefixMatch =
+    (id && id === fVal) ||
+    (text && text === fVal) ||
+    (fVal.length > 2 && text && (text.startsWith(fVal) || fVal.startsWith(text))) ||
+    (fVal.length > 2 && id && (id.startsWith(fVal) || fVal.startsWith(id)));
+
+  switch (op) {
+    case 'equals':
+    case 'eq':
+      return isExactOrPrefixMatch;
+
+    case 'not_equals':
+    case 'neq':
+      return !isExactOrPrefixMatch;
+
+    case 'contains': {
+      const textHasFilter = text && text.includes(fVal);
+      const idHasFilter = id && id.includes(fVal);
+      const filterHasText = text && fVal.length > 2 && fVal.includes(text);
+      const filterHasId = id && fVal.length > 1 && fVal.includes(id);
+      return Boolean(textHasFilter || idHasFilter || filterHasText || filterHasId);
+    }
+
+    case 'greater_than':
+    case 'gt':
+      return Number(textVal ?? idVal) > Number(filterVal);
+
+    case 'less_than':
+    case 'lt':
+      return Number(textVal ?? idVal) < Number(filterVal);
+
+    default:
+      return isExactOrPrefixMatch;
+  }
+};
+
 export const evaluateDateRange = (timestamp, range) => {
   if (!range || (!range.from && !range.to)) return true;
   if (!timestamp) return false;
@@ -504,11 +554,11 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'driver') {
-          rows = rows.filter(r => r.driverId === f.value || evaluateCondition(r.driver, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'vehicle') {
-          rows = rows.filter(r => r.vehicleId === f.value || evaluateCondition(r.vehicle, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'type') {
           rows = rows.filter(r => evaluateCondition(r.type, f.op || 'equals', f.value));
         } else if (f.field === 'status') {
@@ -516,9 +566,15 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'approval') {
           rows = rows.filter(r => evaluateCondition(r.approval, f.op || 'equals', f.value));
         } else if (f.field === 'attendance') {
-          if (f.value === 'Present') rows = rows.filter(r => r.presentDays > 0);
-          else if (f.value === 'Absent') rows = rows.filter(r => r.absentDays > 0);
-          else if (f.value === 'High Absence (>3 days)') rows = rows.filter(r => r.absentDays > 3);
+          if (f.op === 'not_equals') {
+            if (f.value === 'Present') rows = rows.filter(r => r.presentDays === 0);
+            else if (f.value === 'Absent') rows = rows.filter(r => r.absentDays === 0);
+            else if (f.value === 'High Absence (>3 days)') rows = rows.filter(r => r.absentDays <= 3);
+          } else {
+            if (f.value === 'Present') rows = rows.filter(r => r.presentDays > 0);
+            else if (f.value === 'Absent') rows = rows.filter(r => r.absentDays > 0);
+            else if (f.value === 'High Absence (>3 days)') rows = rows.filter(r => r.absentDays > 3);
+          }
         }
       });
 
@@ -593,11 +649,11 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'vehicle') {
-          rows = rows.filter(r => r.vehicleId === f.value || evaluateCondition(r.vehicle, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'driver') {
-          rows = rows.filter(r => r.driverId === f.value || evaluateCondition(r.driver, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'status') {
           rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
         } else if (f.field === 'gps') {
@@ -605,7 +661,10 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'vtype') {
           rows = rows.filter(r => evaluateCondition(r.vtype, f.op || 'equals', f.value));
         } else if (f.field === 'client') {
-          rows = rows.filter(r => r.clientsList.includes(f.value) || evaluateCondition(r.client, f.op || 'contains', f.value));
+          rows = rows.filter(r => {
+            const hasClient = (r.clientsList || []).includes(f.value) || matchesEntityOrText(null, r.client, 'contains', f.value);
+            return f.op === 'not_equals' ? !hasClient : hasClient;
+          });
         }
       });
 
@@ -688,21 +747,21 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'vehicle') {
-          rows = rows.filter(r => r.vehicleId === f.value || evaluateCondition(r.vehicle, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'driver') {
-          rows = rows.filter(r => r.driverId === f.value || evaluateCondition(r.driver, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'client') {
-          rows = rows.filter(r => r.clientId === f.value || evaluateCondition(r.client, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.clientId, r.client, f.op, f.value));
         } else if (f.field === 'type') {
           rows = rows.filter(r => evaluateCondition(r.type, f.op || 'equals', f.value));
         } else if (f.field === 'status') {
           rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
         } else if (f.field === 'loading') {
-          rows = rows.filter(r => r.loadingId === f.value || evaluateCondition(r.from, f.op || 'contains', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.loadingId, r.from, f.op, f.value));
         } else if (f.field === 'supervisor') {
-          rows = rows.filter(r => r.supervisor === f.value);
+          rows = rows.filter(r => matchesEntityOrText(r.supervisor, null, f.op, f.value));
         }
       });
 
@@ -772,7 +831,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'state') {
           rows = rows.filter(r => evaluateCondition(r.state, f.op || 'equals', f.value));
         } else if (f.field === 'status') {
@@ -849,13 +908,13 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'vehicle') {
-          rows = rows.filter(r => r.vehicleId === f.value || evaluateCondition(r.vehicle, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'driver') {
-          rows = rows.filter(r => r.driverId === f.value || evaluateCondition(r.driver, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'bunk') {
-          rows = rows.filter(r => evaluateCondition(r.bunk, f.op || 'contains', f.value));
+          rows = rows.filter(r => matchesEntityOrText(null, r.bunk, f.op, f.value));
         }
       });
 
@@ -932,11 +991,11 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'vehicle') {
-          rows = rows.filter(r => r.vehicleId === f.value || evaluateCondition(r.vehicle, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'driver') {
-          rows = rows.filter(r => r.driverId === f.value || evaluateCondition(r.driver, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'status') {
           rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
         }
@@ -1003,9 +1062,9 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'client') {
-          rows = rows.filter(r => r.clientId === f.value || evaluateCondition(r.client, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.clientId, r.client, f.op, f.value));
         } else if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'status') {
           rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
         }
@@ -1092,11 +1151,11 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'vehicle') {
-          rows = rows.filter(r => r.vehicleId === f.value || evaluateCondition(r.vehicle, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'driver') {
-          rows = rows.filter(r => r.driverId === f.value || evaluateCondition(r.driver, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'status') {
           rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
         }
@@ -1158,14 +1217,21 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value || f.field === 'date') return;
         if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'driver') {
-          rows = rows.filter(r => r.driverId === f.value || evaluateCondition(r.driver, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'vehicle') {
-          rows = rows.filter(r => r.vehicleId === f.value || evaluateCondition(r.vehicle, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'status') {
-          if (f.value === 'Present') rows = rows.filter(r => r.present > 0);
-          else if (f.value === 'Absent') rows = rows.filter(r => r.absent > 0);
+          if (f.op === 'not_equals') {
+            if (f.value === 'Present') rows = rows.filter(r => r.present === 0);
+            else if (f.value === 'Absent') rows = rows.filter(r => r.absent === 0);
+            else rows = rows.filter(r => evaluateCondition(r.status, f.op, f.value));
+          } else {
+            if (f.value === 'Present') rows = rows.filter(r => r.present > 0);
+            else if (f.value === 'Absent') rows = rows.filter(r => r.absent > 0);
+            else rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
+          }
         }
       });
 
@@ -1219,11 +1285,11 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       activeFilters.forEach(f => {
         if (!f.value) return;
         if (f.field === 'location') {
-          rows = rows.filter(r => r.id === f.value || evaluateCondition(r.name, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.id, r.name, f.op, f.value));
         } else if (f.field === 'client') {
-          rows = rows.filter(r => r.clientId === f.value || evaluateCondition(r.client, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.clientId, r.client, f.op, f.value));
         } else if (f.field === 'branch') {
-          rows = rows.filter(r => r.branchId === f.value || evaluateCondition(r.branch, f.op || 'equals', f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'status') {
           rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
         }
@@ -1253,7 +1319,8 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       if (f.field === 'date' && f.value) {
         return `${fieldLabel}: ${f.value.from || 'Start'} to ${f.value.to || 'Present'}`;
       }
-      return `${fieldLabel} = ${f.value}`;
+      const opText = f.op === 'not_equals' ? 'is not' : f.op === 'contains' ? 'includes' : 'is';
+      return `${fieldLabel} ${opText} ${f.value}`;
     });
 
   return {

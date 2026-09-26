@@ -45,11 +45,14 @@ export const ReportModuleSelector = ({ activeModuleId, onSelectModule }) => {
       {/* Column 1 Header */}
       <div className="reports-col-header">
         <div>
-          <span className="reports-col-kicker">Step 1 · Select Module</span>
+          <span className="reports-col-kicker">Step 1 · Choose Report</span>
           <h3 className="reports-col-title">
             <Layers size={18} color="var(--color-brand, #00623f)" />
-            Choose Dataset
+            What would you like to see?
           </h3>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
+            Choose the type of information you want to see.
+          </div>
         </div>
         <span
           style={{
@@ -62,7 +65,7 @@ export const ReportModuleSelector = ({ activeModuleId, onSelectModule }) => {
             border: '1px solid var(--kr-green-100, #daf1e7)',
           }}
         >
-          {activeModules.length} Active
+          {activeModules.length} Reports
         </span>
       </div>
 

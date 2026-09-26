@@ -184,7 +184,7 @@ export const ReportResultView = ({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-brand, #00623f)' }}>
-              Report Generated
+              Report View
             </span>
             <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)' }}>
               · {generatedAt ? generatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -196,7 +196,7 @@ export const ReportResultView = ({
           </h2>
 
           <div style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)' }}>
-            Showing <strong>{processedRows.length}</strong> of <strong>{recordCount}</strong> verified records from current project data.
+            Your report is based on the choices you selected (showing <strong>{processedRows.length}</strong> of <strong>{recordCount}</strong> records).
           </div>
         </div>
 
@@ -277,7 +277,7 @@ export const ReportResultView = ({
       {activeFilterLabels.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '10px 14px', background: 'var(--surface-muted, #f8fafc)', borderRadius: '8px' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--kr-grey-700, #334155)' }}>
-            Active Conditions:
+            Selected choices:
           </span>
           {activeFilterLabels.map((lbl, idx) => (
             <span
@@ -320,7 +320,7 @@ export const ReportResultView = ({
           <Search size={14} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--kr-grey-400, #94a3b8)' }} />
           <input
             type="text"
-            placeholder="Search within report results…"
+            placeholder="Search in this report…"
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
             style={{
@@ -421,103 +421,114 @@ export const ReportResultView = ({
       ) : (
         <div
           style={{
-            overflowX: 'auto',
             border: '1px solid var(--border-default, #e2e8f0)',
             borderRadius: 'var(--radius-md, 8px)',
+            background: '#ffffff',
+            overflow: 'hidden',
           }}
         >
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: 'var(--surface-muted, #f8fafc)', borderBottom: '1px solid var(--border-default, #e2e8f0)' }}>
-                {activeColumns.map(col => (
-                  <th
-                    key={col.key}
-                    onClick={() => handleSort(col.key)}
-                    style={{
-                      padding: '10px 14px',
-                      textAlign: col.kind === 'num' ? 'right' : 'left',
-                      fontFamily: 'var(--font-display, sans-serif)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      color: 'var(--kr-grey-700, #475569)',
-                      whiteSpace: 'nowrap',
-                      cursor: 'pointer',
-                      userSelect: 'none',
-                    }}
-                  >
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span>{col.label} {col.unit ? `(${col.unit})` : ''}</span>
-                      <ArrowUpDown size={12} style={{ opacity: sortConfig.key === col.key ? 1 : 0.4 }} />
-                    </div>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pagination.rows.map((row, rIdx) => (
-                <tr
-                  key={row.id || rIdx}
-                  style={{
-                    borderTop: '1px solid var(--border-default, #e2e8f0)',
-                    background: rIdx % 2 === 0 ? '#ffffff' : 'var(--kr-grey-50, #fcfcfb)',
-                    transition: 'background 0.12s ease',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--kr-green-50, #edf8f3)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = rIdx % 2 === 0 ? '#ffffff' : 'var(--kr-grey-50, #fcfcfb)'; }}
-                >
-                  {activeColumns.map(col => {
-                    const rawVal = row[col.key];
-
-                    return (
-                      <td
-                        key={col.key}
-                        style={{
-                          padding: '10px 14px',
-                          textAlign: col.kind === 'num' ? 'right' : 'left',
-                          color: 'var(--text-body, #334155)',
-                          whiteSpace: 'nowrap',
-                          maxWidth: '280px',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          fontWeight: col.key === activeColumns[0].key ? 700 : 400,
-                        }}
-                      >
-                        {col.kind === 'badge' ? (
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              ...getStatusBadgeStyle(rawVal),
-                            }}
-                          >
-                            {rawVal || '—'}
-                          </span>
-                        ) : col.kind === 'num' ? (
-                          <span>
-                            {rawVal == null || rawVal === '' || rawVal === '—'
-                              ? '—'
-                              : typeof rawVal === 'number'
-                              ? rawVal.toLocaleString('en-IN')
-                              : rawVal}
-                          </span>
-                        ) : (
-                          <span>{rawVal == null || rawVal === '' ? '—' : String(rawVal)}</span>
-                        )}
-                      </td>
-                    );
-                  })}
+          <div style={{ overflowX: 'auto', width: '100%' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: 'var(--surface-muted, #f8fafc)', borderBottom: '1px solid var(--border-default, #e2e8f0)' }}>
+                  {activeColumns.map(col => (
+                    <th
+                      key={col.key}
+                      onClick={() => handleSort(col.key)}
+                      style={{
+                        padding: '10px 14px',
+                        textAlign: col.kind === 'num' ? 'right' : 'left',
+                        fontFamily: 'var(--font-display, sans-serif)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                        color: 'var(--kr-grey-700, #475569)',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span>{col.label} {col.unit ? `(${col.unit})` : ''}</span>
+                        <ArrowUpDown size={12} style={{ opacity: sortConfig.key === col.key ? 1 : 0.4 }} />
+                      </div>
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pagination.rows.map((row, rIdx) => (
+                  <tr
+                    key={row.id || rIdx}
+                    style={{
+                      borderTop: '1px solid var(--border-default, #e2e8f0)',
+                      background: rIdx % 2 === 0 ? '#ffffff' : 'var(--kr-grey-50, #fcfcfb)',
+                      transition: 'background 0.12s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--kr-green-50, #edf8f3)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = rIdx % 2 === 0 ? '#ffffff' : 'var(--kr-grey-50, #fcfcfb)'; }}
+                  >
+                    {activeColumns.map(col => {
+                      const rawVal = row[col.key];
 
-          {/* Pagination */}
-          <Pagination {...pagination} noun="records" style={{ padding: '12px 14px', borderTop: '1px solid var(--border-default, #e2e8f0)' }} />
+                      return (
+                        <td
+                          key={col.key}
+                          style={{
+                            padding: '10px 14px',
+                            textAlign: col.kind === 'num' ? 'right' : 'left',
+                            color: 'var(--text-body, #334155)',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '280px',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontWeight: col.key === activeColumns[0].key ? 700 : 400,
+                          }}
+                        >
+                          {col.kind === 'badge' ? (
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                ...getStatusBadgeStyle(rawVal),
+                              }}
+                            >
+                              {rawVal || '—'}
+                            </span>
+                          ) : col.kind === 'num' ? (
+                            <span>
+                              {rawVal == null || rawVal === '' || rawVal === '—'
+                                ? '—'
+                                : typeof rawVal === 'number'
+                                ? rawVal.toLocaleString('en-IN')
+                                : rawVal}
+                            </span>
+                          ) : (
+                            <span>{rawVal == null || rawVal === '' ? '—' : String(rawVal)}</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination (stable outside the horizontal scrolling table) */}
+          <Pagination
+            {...pagination}
+            noun="records"
+            style={{
+              padding: '12px 16px',
+              borderTop: '1px solid var(--border-default, #e2e8f0)',
+              background: '#ffffff',
+            }}
+          />
         </div>
       )}
     </div>

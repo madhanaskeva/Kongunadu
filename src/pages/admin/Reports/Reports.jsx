@@ -84,7 +84,7 @@ export const Reports = () => {
     // Regenerate unfiltered
     const res = generateReportData(activeModuleId, [], tms, attStore);
     setReportResult(res);
-    showToast('info', 'Filters Reset', `Showing all records for ${res.moduleMeta?.label || activeModuleId}.`);
+    showToast('info', 'Choices Cleared', `Showing all records for ${res.moduleMeta?.label || activeModuleId}.`);
   };
 
   // Handler: Remove filter chip from results view
@@ -105,13 +105,13 @@ export const Reports = () => {
         setLoading(false);
         showToast(
           'success',
-          'Report Generated',
-          `${res.recordCount} verified records compiled for ${res.moduleMeta?.label || activeModuleId}.`
+          'Report Ready',
+          `${res.recordCount} records ready for ${res.moduleMeta?.label || activeModuleId}.`
         );
       } catch (err) {
         console.error('Error generating report:', err);
         setLoading(false);
-        showToast('warning', 'Generation Issue', 'Could not compile report. Check filter values.');
+        showToast('warning', 'Notice', 'Could not load report. Please verify your selected choices.');
       }
     }, 280);
   };
@@ -155,7 +155,7 @@ export const Reports = () => {
         rows: dataRows,
       },
     ]);
-    showToast('success', 'Excel Downloaded', `${filename} (${exportRows.length} rows)`);
+    showToast('success', 'Report Downloaded', `${filename} (${exportRows.length} rows)`);
   };
 
   return (
@@ -190,10 +190,10 @@ export const Reports = () => {
               color: 'var(--text-heading, #1e293b)',
             }}
           >
-            Dynamic Reports & Data Export
+            Reports & Data Export
           </h1>
           <div style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
-            Workflow: <strong>MODULE</strong> → <strong>FILTERS</strong> → <strong>COMBINE CONDITIONS</strong> → <strong>GENERATE REPORT</strong>
+            <strong>Step 1: Choose Report</strong> → <strong>Step 2: Choose Details</strong> → <strong>Step 3: View & Download Report</strong>
           </div>
         </div>
 
@@ -284,15 +284,15 @@ export const Reports = () => {
         >
           <div>
             <div style={{ fontFamily: 'var(--font-display, sans-serif)', fontWeight: 800, fontSize: '15px', color: 'var(--text-heading, #1e293b)' }}>
-              Ready-Made Standard Export Profiles ({readyReports.length})
+              Ready-Made Standard Reports ({readyReports.length})
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
-              Standard one-click full Excel downloads with preconfigured column templates.
+              Download standard preconfigured reports with one click.
             </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--color-brand, #00623f)' }}>
-            <span>{templatesOpen ? 'Hide Profiles' : 'Show Profiles'}</span>
+            <span>{templatesOpen ? 'Hide Standard Reports' : 'Show Standard Reports'}</span>
             {templatesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
         </button>
@@ -354,7 +354,7 @@ export const Reports = () => {
                     }}
                   >
                     <Download size={13} />
-                    Export
+                    Download Report
                   </button>
                 </div>
               </div>

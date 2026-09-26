@@ -39,7 +39,25 @@ export const ReportFilterRow = ({
   };
 
   const handleOpChange = (newOp) => {
-    onUpdateFilter(index, { ...filter, op: newOp });
+    let nextVal = filter.value;
+    // When changing to 'contains', convert ID to readable name if available so user can edit search keyword
+    if (newOp === 'contains' && nextVal && availableOptions.length > 0) {
+      const match = availableOptions.find(o => o.value === nextVal);
+      if (match) {
+        nextVal = match.label.replace(/\s*\([^)]*\)$/, '');
+      }
+    } else if (newOp !== 'contains' && nextVal && availableOptions.length > 0) {
+      // If switching from contains to equals/not_equals, find matching option value
+      const match = availableOptions.find(o =>
+        o.value === nextVal ||
+        o.label.toLowerCase() === String(nextVal).toLowerCase() ||
+        o.label.toLowerCase().includes(String(nextVal).toLowerCase())
+      );
+      if (match) {
+        nextVal = match.value;
+      }
+    }
+    onUpdateFilter(index, { ...filter, op: newOp, value: nextVal });
   };
 
   const handleValueChange = (newVal) => {
@@ -96,9 +114,9 @@ export const ReportFilterRow = ({
           <option value="between">between</option>
         ) : (
           <>
-            <option value="equals">equals</option>
-            <option value="not_equals">not equals</option>
-            <option value="contains">contains</option>
+            <option value="equals">is</option>
+            <option value="not_equals">is not</option>
+            <option value="contains">includes</option>
           </>
         )}
       </select>
@@ -143,6 +161,36 @@ export const ReportFilterRow = ({
               }}
             />
           </div>
+        ) : operator === 'contains' ? (
+          <>
+            <input
+              type="text"
+              list={`filter-options-${index}-${fieldKey}`}
+              placeholder={`Type to search ${currentFieldDef?.label || ''}...`}
+              value={val || ''}
+              onChange={(e) => handleValueChange(e.target.value)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                height: '36px',
+                padding: '0 8px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-strong, #cbd5e1)',
+                fontSize: '12px',
+                color: 'var(--text-heading, #1e293b)',
+                outline: 'none',
+              }}
+            />
+            {availableOptions.length > 0 && (
+              <datalist id={`filter-options-${index}-${fieldKey}`}>
+                {availableOptions.map(opt => (
+                  <option key={opt.value} value={opt.label.replace(/\s*\([^)]*\)$/, '')} label={opt.label}>
+                    {opt.label}
+                  </option>
+                ))}
+              </datalist>
+            )}
+          </>
         ) : availableOptions.length > 0 ? (
           <select
             value={val || ''}
@@ -160,7 +208,7 @@ export const ReportFilterRow = ({
               outline: 'none',
             }}
           >
-            <option value="">— Select {currentFieldDef?.label || 'Option'} —</option>
+            <option value="">— Select {currentFieldDef?.label || 'Choice'} —</option>
             {availableOptions.map(opt => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -170,7 +218,7 @@ export const ReportFilterRow = ({
         ) : (
           <input
             type="text"
-            placeholder={`Enter ${currentFieldDef?.label || 'value'}...`}
+            placeholder={`Enter ${currentFieldDef?.label || ''}...`}
             value={val || ''}
             onChange={(e) => handleValueChange(e.target.value)}
             style={{
@@ -191,7 +239,7 @@ export const ReportFilterRow = ({
       {/* 4. Remove Button */}
       <button
         type="button"
-        title="Remove condition"
+        title="Remove"
         onClick={() => onRemoveFilter(index)}
         style={{
           all: 'unset',
