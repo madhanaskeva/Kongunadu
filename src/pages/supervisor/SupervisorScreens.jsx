@@ -26,6 +26,7 @@ import RequestDriver from './Drivers/RequestDriver';
 import RequestSent from './Drivers/RequestSent';
 import GpsPermission from './Home/GpsPermission';
 import Offline from './Home/Offline';
+import SupervisorProfile from './Profile/SupervisorProfile';
 
 export const SupervisorScreens = ({ v }) => (
     <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", background: "#fff", fontFamily: "var(--font-body)", color: "var(--text-body)", position: "relative" }}>
@@ -48,7 +49,7 @@ export const SupervisorScreens = ({ v }) => (
       {/* ============ APP SHELL ============ */}
       {v.isApp ? (
         <>
-          <header style={{ padding: "calc(12px + env(safe-area-inset-top)) 16px 12px", display: "flex", alignItems: "center", gap: "12px", borderBottom: "1px solid var(--border-default)", background: "#fff", position: "sticky", top: "0", zIndex: "5" }}>
+          <header style={{ padding: "calc(12px + env(safe-area-inset-top)) 16px 12px", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border-default)", background: "#fff", position: "sticky", top: "0", zIndex: "5" }}>
             {v.showBack ? (
               <>
                 <button onClick={v.back} aria-label="Back" style={{ all: "unset", cursor: "pointer", width: "44px", height: "44px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", color: "var(--text-heading)" }} className="sv-h2">
@@ -83,9 +84,149 @@ export const SupervisorScreens = ({ v }) => (
                 ) : null}
               </button>
             </div>
+            {/* Profile Avatar Pill & Dropdown */}
+            <div style={{ position: "relative", flex: "none" }}>
+              <button
+                type="button"
+                onClick={v.toggleProfileMenu}
+                aria-label="Profile menu"
+                aria-expanded={v.profileMenuOpen}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "4px 8px 4px 4px",
+                  borderRadius: "var(--radius-pill, 9999px)",
+                  background: "var(--color-brand-tint, #f0fdf4)",
+                  border: "1px solid var(--border-default)",
+                }}
+                className="sv-h2"
+              >
+                <span
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    borderRadius: "50%",
+                    background: "var(--color-brand, #006039)",
+                    color: "#fff",
+                    display: "grid",
+                    placeItems: "center",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: "800",
+                    fontSize: "11px",
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {v.supInitials || "SV"}
+                </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{
+                    transform: v.profileMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.15s ease",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {/* Profile Dropdown Popup */}
+              {v.profileMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: "0",
+                    top: "calc(100% + 8px)",
+                    zIndex: "60",
+                    background: "#fff",
+                    border: "1px solid var(--border-default)",
+                    borderTop: "4px solid var(--color-brand)",
+                    borderRadius: "var(--radius-lg)",
+                    boxShadow: "var(--shadow-lg)",
+                    minWidth: "220px",
+                    padding: "12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  <div style={{ paddingBottom: "8px", borderBottom: "1px solid var(--border-default)" }}>
+                    <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "14px", color: "var(--text-heading)" }}>
+                      {v.supFullName || v.supName || "Supervisor"}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", marginTop: "2px" }}>
+                      {v.supRoleText}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={v.goProfile}
+                    style={{
+                      all: "unset",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "var(--text-heading)",
+                      padding: "6px 8px",
+                      borderRadius: "var(--radius-md)",
+                    }}
+                    className="sv-h2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    Supervisor Profile
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={v.onSignOut}
+                    style={{
+                      all: "unset",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      color: "var(--status-danger, #dc2626)",
+                      padding: "6px 8px",
+                      borderRadius: "var(--radius-md)",
+                      borderTop: "1px solid var(--border-default)",
+                      paddingTop: "10px",
+                    }}
+                    className="sv-h14"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </header>
           {/* HOME */}
           {v.is.home && <Home v={v} />}
+          {/* PROFILE */}
+          {v.is.profile && <SupervisorProfile v={v} />}
           {/* OPEN TRIP FORM */}
           {v.is.open && <OpenTrip v={v} />}
           {/* OPEN TRIP REVIEW */}
