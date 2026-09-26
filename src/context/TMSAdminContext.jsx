@@ -79,7 +79,7 @@ export const TMSAdminProvider = ({ children }) => {
   const DASH_ALL = {
     cards: ['trips', 'enroute', 'exceptions', 'hiddenKm', 'nonBiz', 'attendance', 'longOpen', 'gpsNoFix', 'distance', 'diversions', 'radius', 'fleetRunning', 'driverApprovals', 'deviceApprovals'],
     charts: ['branchTrips', 'tripsTrend', 'gpsHealth', 'excByType', 'vehStatus', 'distVariance'],
-    lists: ['openExceptions', 'longOpenTrips', 'distAlerts', 'driverQueue', 'deviceRequests', 'recentTrips']
+    lists: []
   };
 
   const dashItem = (group, src, f = {}) => {

@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
-import { MapPin, Clock, ChevronDown } from 'lucide-react';
+import { MapPin, Clock, ChevronDown, TriangleAlert } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
+import { Pagination, usePagination } from '../../../components/common/Pagination';
+
+// Card edge + status chip colours, one entry per vehicle status.
+const FLEET_TONES = {
+  Running: { edge: 'var(--kr-green-600)', bg: 'var(--kr-green-100)', fg: 'var(--kr-green-800)' },
+  Idle: { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
+  Maintenance: { edge: 'var(--st-enroute-edge)', bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-fg)' },
+  default: { edge: 'var(--kr-grey-300)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
+};
 
 export const FleetMonitor = () => {
   const { T, fleetFilter, setFleetFilter, navTo, deleted } = useTMSAdmin();
@@ -30,6 +39,9 @@ export const FleetMonitor = () => {
       branchName: (tms.B[v.branch] || {}).name,
       driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
       gpsColor: v.gps === 'OK' ? 'var(--kr-green-600)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
+      gpsBg: v.gps === 'OK' ? 'var(--kr-green-100)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
+      // Each card is edged and chipped in its own status colour.
+      tone: FLEET_TONES[v.status] || FLEET_TONES.default,
       radiusAlert: v.id === 'V04'
         ? 'Left Ambattur Cold Store 100 m radius at 02:14 without an open trip.'
         : v.id === 'V05'
@@ -51,6 +63,9 @@ export const FleetMonitor = () => {
 
     return matchesCategory && matchesDuration;
   });
+
+  // A branch can run hundreds of vehicles, so the grid is paged like every other list.
+  const fleetPg = usePagination(fleetCards, [ff, idleDurationFilter], 20);
 
   const gpsTone = g => g === 'OK' ? 'var(--kr-green-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
@@ -173,10 +188,11 @@ export const FleetMonitor = () => {
       awayColor: a.awayM >= 1000 ? 'var(--kr-red-700)' : 'var(--text-muted)',
     };
   });
+  // Every card in this view is an open breach, so they carry a tint by default.
   const rbTiles = [
-    { label: 'Active alerts', value: rbCards.length, color: 'var(--kr-red-700)' },
-    { label: 'Vehicles', value: (tms.radiusAlerts || []).filter(a => a.kind === 'vehicle').length, color: 'var(--text-heading)' },
-    { label: 'Supervisors', value: (tms.radiusAlerts || []).filter(a => a.kind === 'supervisor').length, color: 'var(--text-heading)' },
+    { label: 'Active alerts', value: rbCards.length, color: 'var(--kr-red-700)', bg: 'var(--kr-red-100)', edge: 'var(--kr-red-600)' },
+    { label: 'Vehicles', value: (tms.radiusAlerts || []).filter(a => a.kind === 'vehicle').length, color: 'var(--text-heading)', bg: 'var(--st-enroute-bg)', edge: 'var(--st-enroute-edge)' },
+    { label: 'Supervisors', value: (tms.radiusAlerts || []).filter(a => a.kind === 'supervisor').length, color: 'var(--text-heading)', bg: 'var(--color-brand-tint)', edge: 'var(--color-brand)' },
   ];
 
   // Filters & Tiles
@@ -328,8 +344,9 @@ export const FleetMonitor = () => {
             No idle vehicles match the selected duration filter {idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: '16px' }}>
-            {fleetCards.map(v => (
+          <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '16px', alignItems: 'stretch' }}>
+            {fleetPg.rows.map(v => (
               <div
                 key={v.id}
                 role="button"
@@ -341,81 +358,122 @@ export const FleetMonitor = () => {
                 style={{
                   background: '#fff',
                   border: '1px solid var(--border-default)',
+                  borderLeft: `4px solid ${v.tone.edge}`,
                   borderRadius: 'var(--radius-lg)',
-                  padding: '16px',
+                  padding: '14px 16px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
                   cursor: 'pointer',
-                  transition: 'border-color var(--dur-fast), box-shadow var(--dur-fast)',
+                  boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
+                  transition: 'border-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast)',
                 }}
               >
+                {/* Plate + GPS state */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-display)',
-                      fontWeight: 800,
-                      fontSize: '16px',
-                      color: 'var(--text-heading)',
-                    }}
-                  >
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
                     {v.number}
                   </span>
                   <span
+                    title={`GPS ${v.gps}`}
                     style={{
+                      flex: 'none',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '6px',
+                      gap: '5px',
+                      padding: '3px 8px',
+                      borderRadius: 'var(--radius-pill, 999px)',
+                      background: v.gpsBg,
                       fontFamily: 'var(--font-display)',
-                      fontSize: '11px',
+                      fontSize: '10.5px',
                       fontWeight: 700,
-                      letterSpacing: '0.1em',
+                      letterSpacing: '0.08em',
                       textTransform: 'uppercase',
                       color: v.gpsColor,
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: v.gpsColor }}></span>
-                    GPS {v.gps}
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: v.gpsColor }} />
+                    {v.gps}
                   </span>
                 </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+
+                <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {v.type} · {v.branchName}
                 </div>
-                <div style={{ fontSize: '14px', color: 'var(--text-heading)' }}>{v.route}</div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                    fontSize: '13px',
-                    color: 'var(--text-muted)',
-                    borderTop: '1px solid var(--border-default)',
-                    paddingTop: '10px',
-                  }}
-                >
-                  <span>{v.status} · {v.driverName}</span>
-                  <span style={{ whiteSpace: 'nowrap' }}>{v.lastSeen}</span>
-                </div>
-                {v.radiusAlert && (
+
+                {/* Body takes the slack, so every footer in a row lines up */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '46px' }}>
                   <div
+                    title={v.route}
                     style={{
-                      fontSize: '13px',
-                      padding: '8px 10px',
-                      background: 'var(--color-hazard-soft)',
-                      borderRadius: 'var(--radius-md)',
-                      color: '#7A4300',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      fontSize: '14px',
+                      lineHeight: 1.4,
+                      fontWeight: 600,
+                      color: 'var(--text-heading)',
                     }}
                   >
-                    {v.radiusAlert}
+                    {v.route}
                   </div>
-                )}
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-brand)', marginTop: 'auto' }}>
+                  {v.radiusAlert && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '7px',
+                        alignItems: 'flex-start',
+                        fontSize: '12.5px',
+                        lineHeight: 1.45,
+                        padding: '8px 10px',
+                        background: 'var(--color-hazard-soft)',
+                        border: '1px solid var(--kr-saffron-500)',
+                        borderRadius: 'var(--radius-md)',
+                        color: '#7A4300',
+                      }}
+                    >
+                      <TriangleAlert size={13} style={{ flex: 'none', marginTop: '2px' }} />
+                      <span>{v.radiusAlert}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Status, driver and last fix, on one aligned line */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--border-default)', paddingTop: '10px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                  <span
+                    style={{
+                      flex: 'none',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-pill, 999px)',
+                      background: v.tone.bg,
+                      color: v.tone.fg,
+                      fontFamily: 'var(--font-display)',
+                      fontSize: '10.5px',
+                      fontWeight: 700,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {v.status}
+                  </span>
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.driverName}</span>
+                  <span style={{ marginLeft: 'auto', flex: 'none', whiteSpace: 'nowrap' }}>{v.lastSeen}</span>
+                </div>
+
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-brand)' }}>
                   <MapPin size={13} /> Track on map
                 </div>
               </div>
             ))}
-            <style>{`.tms-fleet-card:hover, .tms-fleet-card:focus-visible { border-color: var(--color-brand) !important; box-shadow: 0 6px 18px rgba(0, 60, 40, 0.10); outline: none; }`}</style>
+            <style>{`.tms-fleet-card:hover, .tms-fleet-card:focus-visible { box-shadow: 0 8px 20px rgba(0, 60, 40, 0.12) !important; transform: translateY(-2px); outline: none; }`}</style>
           </div>
+          <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+            <Pagination {...fleetPg} noun="vehicles" sizes={[20, 40, 80]} />
+          </div>
+          </>
         )
       )}
 
@@ -778,8 +836,8 @@ export const FleetMonitor = () => {
               <div
                 key={idx}
                 style={{
-                  background: '#fff',
-                  border: '1px solid var(--border-default)',
+                  background: k.bg,
+                  border: `1px solid ${k.edge}`,
                   borderRadius: 'var(--radius-lg)',
                   padding: '14px 16px',
                 }}
@@ -797,13 +855,15 @@ export const FleetMonitor = () => {
               <div
                 key={r.id}
                 style={{
-                  background: '#fff',
-                  border: '1px solid var(--border-default)',
+                  background: 'var(--kr-red-50, #fdf3f3)',
+                  border: '1px solid var(--kr-red-100)',
+                  borderLeft: '4px solid var(--kr-red-600)',
                   borderRadius: 'var(--radius-lg)',
                   padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
+                  boxShadow: '0 1px 3px rgba(120, 20, 20, 0.06)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>

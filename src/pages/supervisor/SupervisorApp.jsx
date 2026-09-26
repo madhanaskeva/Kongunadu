@@ -223,13 +223,15 @@ export class SupervisorApp extends React.Component {
     const isoDaysAgo = n => { const d = new Date(TD); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${pd(d.getMonth() + 1)}-${pd(d.getDate())}`; };
     const loginPhone = s.loginPhone ?? (s.account ? s.account.phone.slice(0, 5) + ' ' + s.account.phone.slice(5) : '98410 22314');
     const loginPassword = s.loginPassword ?? (s.account ? '' : this.DEMO_PASSWORD);
+    // Only the clients Head Office mapped to this supervisor under "Clients handled".
+    // Branch is NOT a fallback: two supervisors in one branch can hold different clients,
+    // so falling back to the branch would show everyone every client in it.
     const myClients = T.clients.filter(c => {
       const idMatch = (sup.clientIds || []).includes(c.id);
       const nameMatch = (sup.clientIds || []).includes(c.name) ||
-        (typeof sup.clients === 'string' && sup.clients.toLowerCase().includes(c.name.toLowerCase())) ||
+        (typeof sup.clients === 'string' && sup.clients.split(',').some(n => n.trim().toLowerCase() === c.name.toLowerCase())) ||
         (Array.isArray(sup.clients) && (sup.clients.includes(c.name) || sup.clients.includes(c.id)));
-      const branchMatch = c.branch === this.BR;
-      return idMatch || nameMatch || branchMatch;
+      return idMatch || nameMatch;
     });
     const clientOptions = myClients.map(c => ({ value: c.id, label: c.name + (c.status === 'Active' ? '' : ' · ' + c.status) }));
     const branchVeh = T.vehicles.filter(v => v.branch === this.BR);
@@ -719,7 +721,13 @@ export class SupervisorApp extends React.Component {
       },
       // open trip
       form: { ...f, startKm: startKmVal, driver: driverVal }, clientOptions, vehicleOptions, locationOptions, remarksCount: (f.remarks || '').length,
-      clientHint: !needsLoad ? 'Non-business movement has no client, so this list is empty.' : f.client ? `${clientCust.length} predefined ${clientCust.length === 1 ? 'customer' : 'customers'} · ${mappedVeh.length} ${me.branch} ${mappedVeh.length === 1 ? 'vehicle' : 'vehicles'} mapped to this client.` : `${myClients.length} clients are mapped to you. One vehicle can run for several clients.`,
+      clientHint: !needsLoad
+        ? 'Non-business movement has no client, so this list is empty.'
+        : f.client
+        ? `${clientCust.length} predefined ${clientCust.length === 1 ? 'customer' : 'customers'} · ${mappedVeh.length} ${me.branch} ${mappedVeh.length === 1 ? 'vehicle' : 'vehicles'} mapped to this client.`
+        : myClients.length
+        ? `${myClients.length} ${myClients.length === 1 ? 'client is' : 'clients are'} mapped to you. One vehicle can run for several clients.`
+        : 'No clients are mapped to you yet. Ask Head Office to assign your clients under Clients handled.',
       vehicleHint: veh && (s.idle[veh.id] || {}).on ? `Marked idle${s.idle[veh.id].reason ? ': ' + s.idle[veh.id].reason : ''}. Opening this trip clears the idle record.` : (f.client ? `${availVeh.length} of ${mappedVeh.length} vehicles mapped to ${(T.C[f.client] || {}).name} are idle.` : `${availVeh.length} of ${branchVeh.length} ${me.branch} vehicles available.`) + (onTripVeh.length ? ` ${onTripVeh.map(v => v.number).join(', ')} ${onTripVeh.length === 1 ? 'has an unclosed trip' : 'have unclosed trips'}.` : '') + (busyVeh.length ? ` Hidden: ${busyVeh.join(', ')}.` : ''),
       loadingHint: 'Predefined points are geofenced to 100 m. Add a new point from where you are standing if it is missing.',
       dc, driverErrText, pickList, pickSub, pickEmpty: !pickList.length, drvPickOpen: s.drvPickOpen, customerOptions, hasCustomers: customerOptions.length > 0, noCustomers: !customerOptions.length,

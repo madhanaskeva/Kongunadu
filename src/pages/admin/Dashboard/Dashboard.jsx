@@ -4,6 +4,40 @@ import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import { getDashModules, buildCustomWidget, DEFAULT_PALETTE } from '../../../utils/dashboard-custom';
 import { RowActions } from '../../../components/common/RowActions';
 import { DynamicChart, CHART_TYPES, CHART_LABELS } from '../../../components/charts';
+import {
+  Truck, Navigation, TriangleAlert, EyeOff, Tag, UserCheck, Clock,
+  SatelliteDish, Ruler, Route, Radar, Smartphone, Gauge,
+} from 'lucide-react';
+
+// One icon per KPI, so a card is recognisable before you read its label.
+const CARD_ICONS = {
+  trips: Truck,
+  enroute: Navigation,
+  exceptions: TriangleAlert,
+  hiddenKm: EyeOff,
+  nonBiz: Tag,
+  attendance: UserCheck,
+  longOpen: Clock,
+  gpsNoFix: SatelliteDish,
+  distance: Ruler,
+  diversions: Route,
+  radius: Radar,
+  fleetRunning: Gauge,
+  driverApprovals: UserCheck,
+  deviceApprovals: Smartphone,
+};
+
+// The accent at card-fill strength, keyed off the edge colour each KPI already carries.
+const EDGE_TINTS = {
+  'var(--color-brand)': 'var(--color-brand-tint)',
+  'var(--kr-green-700)': 'var(--kr-green-100)',
+  'var(--kr-green-600)': 'var(--kr-green-100)',
+  'var(--kr-red-600)': 'var(--kr-red-100)',
+  'var(--kr-saffron-500)': 'var(--kr-saffron-100)',
+  'var(--st-enroute-edge)': 'var(--st-enroute-bg)',
+  'var(--kr-grey-300)': 'var(--kr-grey-100)',
+  'var(--kr-grey-500)': 'var(--kr-grey-100)',
+};
 
 export const Dashboard = () => {
   const {
@@ -50,7 +84,6 @@ export const Dashboard = () => {
   });
   const distFlagged = distAll.filter(d => d.flagged).length;
   const distOpenCount = distAll.filter(d => d.review === 'Open').length;
-  const distAlerts = distAll.filter(d => d.review === 'Open' || d.review === 'Under review').sort((a, b) => b.pct - a.pct);
 
   const pendingDrivers = [...drvReqs.filter(r => r.status === 'Pending'), ...(tms.drivers || []).filter(d => (approvals[d.id] || d.approval) === 'Pending approval')];
   const devPending = devReqs.filter(r => r.status === 'Pending');
@@ -77,7 +110,7 @@ export const Dashboard = () => {
       { id: 'enroute', label: `${ENROUTE_LABEL} now`, value: enroute.length * 47, sub: enroute.filter(t => t.hoursOpen > 24).length + ' open over 24 h', subColor: '#7A4300', edge: 'var(--color-brand)', route: 'trips' },
       { id: 'exceptions', label: 'Open exceptions', value: openExc.length, sub: openExc.filter(x => x.severity === 'High').length + ' high severity', subColor: 'var(--kr-red-700)', edge: 'var(--kr-red-600)', route: 'exceptions' },
       { id: 'hiddenKm', label: 'Hidden km · month', value: '412', sub: '6 unaccounted distance alerts', subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'exceptions' },
-      { id: 'nonBiz', label: 'Non-business', value: Math.round((nonBiz.length / (trips.length || 1)) * 100) + '%', sub: 'of movements · all recorded', subColor: 'var(--text-muted)', edge: 'var(--kr-green-100)', route: 'analytics' },
+      { id: 'nonBiz', label: 'Non-business', value: Math.round((nonBiz.length / (trips.length || 1)) * 100) + '%', sub: 'of movements · all recorded', subColor: 'var(--text-muted)', edge: 'var(--kr-green-600)', route: 'analytics' },
       { id: 'attendance', label: 'Attendance', value: '86%', sub: '3 branches incomplete today', subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'attendance' },
       { id: 'longOpen', label: 'Long open trips', value: longOpen.length, sub: `${ENROUTE_LABEL} for more than 24 h`, subColor: '#7A4300', edge: 'var(--kr-saffron-500)', route: 'trips' },
       { id: 'gpsNoFix', label: 'GPS · no fix', value: gpsFail, sub: gpsWeak + ' weak signal · ' + gpsOk + ' tracking', subColor: 'var(--kr-red-700)', edge: 'var(--kr-red-600)', route: 'fleet' },
@@ -199,14 +232,7 @@ export const Dashboard = () => {
         valueSuffix: '%',
       }
     ],
-    lists: [
-      { id: 'openExceptions', title: 'Open exceptions', desc: 'Newest open exceptions with branch', linkLabel: 'All exceptions →', route: 'exceptions', items: openExc.slice(0, 5).map(x => ({ kind: 'exc', id: x.id, dot: x.severity === 'High' ? 'var(--kr-red-600)' : x.severity === 'Medium' ? 'var(--kr-saffron-500)' : 'var(--kr-grey-500)', title: x.type + ' · ' + ((tms.V[x.vehicle] || {}).number || '—'), detail: x.detail, meta: (tms.B[x.branch] || {}).name })) },
-      { id: 'longOpenTrips', title: 'Long open trips', desc: `${ENROUTE_LABEL} for more than 24 hours`, linkLabel: 'Over 24 h', route: 'trips', items: longOpen.map(t => ({ kind: 'trip', id: t.id, dot: 'var(--kr-saffron-500)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.B[t.branch] || {}).name || ''}`, meta: t.hoursOpen + ' h', metaColor: 'var(--kr-saffron-600)' })) },
-      { id: 'distAlerts', title: 'Distance variance alerts', desc: 'Flagged trips waiting for review', linkLabel: 'Distance variation →', route: 'distance', items: distAlerts.slice(0, 5).map(d => ({ kind: d.trip ? 'trip' : 'route', id: d.trip, route: 'distance', dot: 'var(--kr-red-600)', title: `${(tms.V[d.vehicle] || {}).number || d.number} · ${d.pctText}`, detail: (d.route || 'Corridor'), meta: d.review, metaColor: 'var(--kr-red-800)' })) },
-      { id: 'driverQueue', title: 'Driver approvals', desc: 'New and pending drivers to approve', linkLabel: 'Driver master →', route: 'drivers', items: pendingDrivers.slice(0, 5).map(q => ({ kind: 'drv', id: q.id, dot: 'var(--kr-saffron-500)', title: q.name, detail: `${(tms.B[q.branch] || {}).name} · ${q.licence}`, meta: 'Review', metaColor: 'var(--text-brand)' })) },
-      { id: 'deviceRequests', title: 'Device approvals', desc: 'Supervisor phones asking to register', linkLabel: 'Device approvals →', route: 'deviceApprovals', items: devPending.slice(0, 5).map(r => ({ kind: 'route', route: 'deviceApprovals', id: r.id, dot: 'var(--kr-saffron-500)', title: '+91 ' + r.phone, detail: `IMEI ${r.imei} · ${r.device || 'Android phone'}`, meta: r.requestedAt || 'Pending' })) },
-      { id: 'recentTrips', title: 'Recently closed trips', desc: 'Latest trips closed by supervisors', linkLabel: 'All trips →', route: 'trips', items: trips.filter(t => t.status === 'Closed').slice(0, 5).map(t => ({ kind: 'trip', id: t.id, dot: (t.flags || []).length ? 'var(--st-flagged-edge)' : 'var(--st-closed-edge)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.C[t.client] || {}).name || ''}`, meta: t.status, metaColor: 'var(--st-closed-fg)' })) }
-    ]
+    lists: [],
   };
 
   const cat = {
@@ -263,16 +289,6 @@ export const Dashboard = () => {
     return { ...w, ...it, title: it.title || w.title, chartType: selectedType };
   }).filter(Boolean);
 
-  const dashLists = (currentCfg.lists || []).map(it => {
-    if (it.module) {
-      const m = modulesMap[it.module];
-      if (!m) return null;
-      return buildCustomWidget.lists(it, m);
-    }
-    const w = cat.lists[it.src];
-    if (!w) return null;
-    return { ...w, ...it, title: it.title || w.title };
-  }).filter(Boolean);
 
   const openDashItem = (item) => {
     if (item.kind === 'exc') {
@@ -322,8 +338,12 @@ export const Dashboard = () => {
 
       {/* DASHBOARD CARDS */}
       {dashCards.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(140px, calc((100% - 120px) / 6)), 1fr))', gap: 'clamp(12px, 2vw, 24px)' }}>
-          {dashCards.map((k, i) => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '16px', alignItems: 'stretch' }}>
+          {dashCards.map((k, i) => {
+            const edge = k.edge || 'var(--color-brand)';
+            const tint = EDGE_TINTS[edge] || 'var(--kr-grey-100)';
+            const Icon = CARD_ICONS[k.src] || CARD_ICONS[k.id];
+            return (
             <button
               key={k.uid || i}
               onClick={() => navTo(k.route || 'dashboard')}
@@ -334,28 +354,37 @@ export const Dashboard = () => {
                 flexDirection: 'column',
                 boxSizing: 'border-box',
                 background: '#fff',
-                border: '1px solid var(--border-default)',
+                // The whole card carries its accent, not just the top bar.
+                border: `1px solid ${edge}`,
+                borderTop: `4px solid ${edge}`,
                 borderRadius: 'var(--radius-lg)',
-                padding: '16px 18px',
-                borderTop: `4px solid ${k.edge || 'var(--color-brand)'}`,
+                padding: '14px 16px',
+                boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
                 transition: 'box-shadow var(--dur-base), transform var(--dur-base)',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 60, 40, 0.12)';
                 e.currentTarget.style.transform = 'translateY(-2px)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 48, 33, 0.05)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                {k.label}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: edge, lineHeight: 1.35 }}>
+                  {k.label}
+                </div>
+                {Icon && (
+                  <span style={{ flex: 'none', width: '30px', height: '30px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: tint, color: edge }}>
+                    <Icon size={16} strokeWidth={2.2} />
+                  </span>
+                )}
               </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '32px', letterSpacing: '-0.02em', color: 'var(--text-heading)', marginTop: '6px', lineHeight: 1 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '32px', letterSpacing: '-0.02em', color: 'var(--text-heading)', marginTop: '8px', lineHeight: 1 }}>
                 {k.value}
               </div>
-              <div style={{ fontSize: '13px', color: k.subColor || 'var(--text-muted)', marginTop: '6px' }}>
+              <div style={{ fontSize: '12.5px', lineHeight: 1.4, color: k.subColor || 'var(--text-muted)', marginTop: 'auto', paddingTop: '8px' }}>
                 {k.sub}
               </div>
               {k.hasStats && k.stats && (
@@ -392,13 +421,14 @@ export const Dashboard = () => {
                 </div>
               )}
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* DASHBOARD CHARTS */}
       {dashCharts.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(320px, calc((100% - 48px) / 3)), 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(320px, calc((100% - 48px) / 3)), 1fr))', gap: '24px', alignItems: 'stretch' }}>
           {dashCharts.map((c, i) => (
             <section
               key={c.uid || i}
@@ -409,9 +439,10 @@ export const Dashboard = () => {
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
+                boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', background: 'var(--surface-muted, #f7faf9)', gap: '8px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                   <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {c.title}
@@ -476,154 +507,6 @@ export const Dashboard = () => {
         </div>
       )}
 
-      {/* DASHBOARD LISTS */}
-      {dashLists.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(320px, calc((100% - 24px) / 2)), 1fr))', gap: '24px' }}>
-          {dashLists.map((l, i) => (
-            <section
-              key={l.uid || i}
-              style={{
-                background: '#fff',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-lg)',
-                overflow: 'hidden',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', gap: '8px' }}>
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                  {l.title}
-                </h2>
-                <button
-                  onClick={() => navTo(l.route || 'dashboard')}
-                  style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', whiteSpace: 'nowrap' }}
-                >
-                  {l.linkLabel || 'Open →'}
-                </button>
-              </div>
-
-              {/* Custom Table View for Custom Lists */}
-              {l.isTable && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                        {l.cols && l.cols.map((h, hi) => (
-                          <th
-                            key={hi}
-                            style={{
-                              padding: '10px 14px',
-                              fontFamily: 'var(--font-display)',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              letterSpacing: '0.1em',
-                              textTransform: 'uppercase',
-                              color: 'var(--text-muted)',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                        <th
-                          style={{
-                            padding: '10px 14px',
-                            fontFamily: 'var(--font-display)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '0.1em',
-                            textTransform: 'uppercase',
-                            color: 'var(--text-muted)',
-                            whiteSpace: 'nowrap',
-                            textAlign: 'center',
-                          }}
-                        >
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {l.tRows && l.tRows.map((r, ri) => (
-                        <tr
-                          key={ri}
-                          style={{ borderTop: '1px solid var(--border-default)' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          {r.cells && r.cells.map((c, ci) => (
-                            <td
-                              key={ci}
-                              style={{
-                                padding: '10px 14px',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '260px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                fontWeight: c.weight,
-                                color: c.color,
-                              }}
-                            >
-                              {c.v}
-                            </td>
-                          ))}
-                          <td style={{ padding: '8px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            <RowActions
-                              onView={() => openDashItem(r)}
-                              viewLabel="View details"
-                              buttonAriaLabel="Actions"
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Standard List Items */}
-              {!l.isTable && l.items && l.items.map((x, xi) => (
-                <button
-                  key={xi}
-                  onClick={() => openDashItem(x)}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    display: 'grid',
-                    gridTemplateColumns: '8px 1fr auto',
-                    gap: '12px',
-                    alignItems: 'center',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '12px 18px',
-                    borderBottom: '1px solid var(--border-default)',
-                    textAlign: 'left',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: x.dot || 'var(--color-brand)' }} />
-                  <span style={{ minWidth: 0 }}>
-                    <span style={{ display: 'block', fontWeight: 700, fontSize: '14px', color: 'var(--text-heading)', fontFamily: x.mono ? 'var(--font-mono)' : 'inherit' }}>
-                      {x.title}
-                    </span>
-                    <span style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {x.detail}
-                    </span>
-                  </span>
-                  <span style={{ whiteSpace: 'nowrap', fontSize: x.metaColor ? '14px' : '12px', fontWeight: 700, color: x.metaColor || 'var(--text-muted)' }}>
-                    {x.meta}
-                  </span>
-                </button>
-              ))}
-
-              {((!l.isTable && (!l.items || l.items.length === 0)) || (l.isTable && (!l.tRows || l.tRows.length === 0))) && (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  {l.empty || 'No records.'}
-                </div>
-              )}
-            </section>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
