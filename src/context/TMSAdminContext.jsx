@@ -118,6 +118,8 @@ export const TMSAdminProvider = ({ children }) => {
   const [attBranch, setAttBranch] = useState('');
   const [anTab, setAnTab] = useState('trips');
   const [range, setRange] = useState('30d');
+  const [customFrom, setCustomFrom] = useState('2026-09-01');
+  const [customTo, setCustomTo] = useState('2026-09-14');
   const [userTab, setUserTab] = useState('users');
   const [distQ, setDistQ] = useState('');
   const [distReview, setDistReview] = usePersisted(DIST_KEY, {});
@@ -910,6 +912,8 @@ export const TMSAdminProvider = ({ children }) => {
         attBranch, setAttBranch,
         anTab, setAnTab,
         range, setRange,
+        customFrom, setCustomFrom,
+        customTo, setCustomTo,
         userTab, setUserTab,
         distQ, setDistQ,
         distReview, setDistReview,
