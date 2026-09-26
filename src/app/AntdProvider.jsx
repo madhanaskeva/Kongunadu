@@ -99,15 +99,32 @@ const TMS_THEME = {
       activeBorderColor: '#00623f',   // --color-brand
       activeShadow: '0 0 0 3px rgba(0, 98, 63, 0.35)', // --focus-ring
     },
+    /* One dropdown spec for the whole portal (see .ant-select-dropdown in
+       global.css for the panel border/shadow and the selected-row check mark):
+       trigger 42px like Input, 1px --border-strong, brand border + focus ring;
+       rows 40px, brand-tint hover, selected row brand tint + bold green text. */
     Select: {
       controlHeight: 42,
       borderRadius: 8,
-      colorBorder: '#c2c2bb',
+      borderRadiusSM: 6,              // option rows
+      borderRadiusLG: 12,             // open panel
+      colorBorder: '#c2c2bb',         // --border-strong
       colorBgContainer: '#ffffff',
+      hoverBorderColor: '#00623f',    // --color-brand
       activeBorderColor: '#00623f',
-      activeShadow: '0 0 0 3px rgba(0, 98, 63, 0.35)',
-      optionSelectedBg: '#edf8f3',
-      optionActiveBg: '#f6f6f4',
+      activeOutlineColor: 'rgba(0, 98, 63, 0.35)', // --focus-ring
+      controlOutlineWidth: 3,
+      colorTextPlaceholder: '#7c7c76', // --text-muted
+      colorText: '#1c1c1a',           // --text-heading
+      optionHeight: 40,
+      optionPadding: '9px 12px',
+      optionFontSize: 14,
+      optionActiveBg: '#edf8f3',      // --color-brand-tint (hover / keyboard)
+      optionSelectedBg: '#edf8f3',    // --color-brand-tint
+      optionSelectedColor: '#003021', // --kr-green-900
+      optionSelectedFontWeight: 700,
+      controlItemBgActiveHover: '#daf1e7', // --kr-green-100 (selected + hover)
+      boxShadowSecondary: '0 12px 32px rgba(20, 32, 43, 0.14)', // --shadow-lg
     },
     Table: {
       borderRadius: 14,

@@ -72,11 +72,13 @@ export const FormSelect = ({
         style={{
           width: '100%',
           height: '42px',
+          '--ant-select-height': '42px',
           fontSize: '14px',
           fontFamily: 'var(--font-body)',
           borderRadius: 'var(--radius-md)',
         }}
         popupMatchSelectWidth={true}
+        className="tms-select"
       />
 
       {error && (

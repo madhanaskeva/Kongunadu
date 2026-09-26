@@ -310,6 +310,11 @@ export const MasterManager = ({ type }) => {
   };
 
   const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+  // One active supervisor per branch: a branch that already has one is not offered again,
+  // except to the supervisor being edited, who keeps their own branch.
+  const freeBranchOpts = (self) => branchOpts.filter(o =>
+    (self && self.branch === o.value) ||
+    !(tms.supervisors || []).some(s => s.status === 'Active' && s.branch === o.value && (!self || s.id !== self.id)));
   const clientList = mdata('clients', tms.clients || []);
   const clientOpts = clientList.map(c => ({ value: c.id, label: c.name }));
   // Loading locations are owned by exactly one client, so both masters read the same list.
@@ -700,7 +705,7 @@ export const MasterManager = ({ type }) => {
       title: m.addLabel,
       saveLabel: 'Create ' + m.singular,
       required: m.required || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
-      fields: m.fields,
+      fields: fieldsFor(null),
       validate: m.validate ? f => m.validate(f, true) : null,
     });
     setForm(
@@ -715,6 +720,11 @@ export const MasterManager = ({ type }) => {
     setFormError('');
   };
 
+  // Supervisor branch dropdown drops branches that already have an active supervisor.
+  const fieldsFor = (rec) => type === 'supervisors'
+    ? m.fields.map(f => (f[0] === 'branch' ? [f[0], f[1], freeBranchOpts(rec), ...f.slice(3)] : f))
+    : m.fields;
+
   const handleEditRecord = (rec) => {
     setDrawer({
       isForm: true,
@@ -724,7 +734,7 @@ export const MasterManager = ({ type }) => {
       title: rec.name || rec.number,
       saveLabel: 'Save changes',
       required: m.required || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
-      fields: m.fields,
+      fields: fieldsFor(rec),
       validate: m.validate ? f => m.validate(f, false) : null,
     });
     let initialClients = rec.clientIds || [];
@@ -762,11 +772,59 @@ export const MasterManager = ({ type }) => {
   };
 
   // Import from Excel / CSV: first row holds the headings (field label or key), one record per row.
-  // A row whose first field matches an existing record updates it; otherwise it is added.
+  // A row whose key (code, registration, licence, GSTIN, ...) matches an existing record updates it;
+  // otherwise it is added. Rows go through normalizeRecord + saveMasterMany, the same path as the
+  // Add / Edit drawer, so they show in the lists, dropdowns and the Supervisor App.
   const importRef = useRef(null);
-  const importFields = () => m.fields.filter(f => f[2] !== 'section' && f[2] !== 'upload' && f[2] !== 'textarea');
-  const squash = x => String(x || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const importFields = () => m.fields.filter(f => f[2] !== 'section' && f[2] !== 'upload');
+  const squash = x => String(x || '').toLowerCase().replace(/[^a-z0-9஀-௿]/g, '');
+  const digits = x => String(x || '').replace(/\D/g, '');
+  const importRequired = () => m.required || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]);
 
+  // Which column identifies a record, so re-importing an exported / edited sheet updates instead of duplicating.
+  const importKey = (r) => {
+    switch (type) {
+      case 'branches': return squash(r.code) || squash(r.name);
+      case 'supervisors': return digits(r.phone).slice(-10) || squash(r.name);
+      case 'vehicles': return squash(r.number);
+      case 'drivers': return squash(r.licence) || digits(r.phone).slice(-10);
+      case 'clients': return squash(r.gst) || squash(r.name);
+      case 'locations': return (r.clientId || r.client || '') + '|' + squash(r.name);
+      case 'routes': return (r.from || '') + '|' + squash(r.to);
+      default: return squash(r.name || r.id);
+    }
+  };
+
+  // Options offered by a dropdown / checkbox field, as [{ value, label }].
+  const optionsOf = (f, rec) => {
+    let o = Array.isArray(f[2]) ? f[2] : f[2] === 'checkbox-select' && f[4] ? f[4].options : null;
+    if (typeof o === 'function') o = o(rec || {});
+    return Array.isArray(o) ? o.map(x => (typeof x === 'string' ? { value: x, label: x } : x)) : null;
+  };
+  const matchOption = (opts, v) => {
+    const s = squash(v);
+    return opts.find(o => squash(o.value) === s || squash(o.label) === s || squash(String(o.label).replace(/\s*\(.*\)\s*$/, '')) === s);
+  };
+
+  const handleDownloadTemplate = () => {
+    const fs = importFields(), req = importRequired();
+    const allowed = fs.map(f => {
+      const opts = optionsOf(f, {});
+      const hint = opts ? opts.map(o => o.label).join(', ')
+        : f[2] === 'bunks-input' || f[2] === 'locations-input' ? 'Several names separated by commas'
+        : (f[3] && typeof f[3] === 'string' ? 'e.g. ' + f[3].replace(/^e\.g\.\s*/i, '') : '');
+      return [f[1], req.includes(f[0]) ? 'Required' : 'Optional', f[2] === 'checkbox-select' ? 'Several names separated by commas: ' + hint : hint];
+    });
+    try {
+      downloadXlsx(`${m.title.replace(/[^A-Za-z0-9]+/g, '_')}_template.xlsx`, [
+        { name: m.title.replace(/ Master$/, ''), columns: fs.map(f => f[1]), rows: [] },
+        { name: 'How to fill', columns: ['Column', 'Required', 'Allowed values / example'], rows: allowed },
+      ]);
+      showToast('success', 'Template downloaded', `Fill one ${m.singular} per row under the headings, then use Import from Excel.`);
+    } catch (err) {
+      showToast('warning', 'Download failed', (err && err.message) || 'Could not create the template.');
+    }
+  };
 
   const handleImportFile = async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -774,39 +832,102 @@ export const MasterManager = ({ type }) => {
     if (!file) return;
     let rows;
     try { rows = await readSheet(file); } catch (err) {
-      showToast('warning', 'Could not read file', 'Upload an .xlsx or .csv file with headings in the first row.');
+      showToast('warning', 'Could not read file', (err && err.message) || 'Upload an .xlsx or .csv file with headings in the first row.');
       return;
     }
     const fs = importFields();
     const cols = (rows[0] || []).map(h => fs.find(f => squash(f[1]) === squash(h) || squash(f[0]) === squash(h)));
     if (!cols.some(Boolean)) {
-      showToast('warning', 'No matching headings', `Use the headings: ${fs.map(f => f[1]).join(', ')}.`);
+      showToast('warning', 'No matching headings', `The first row must hold the headings: ${fs.map(f => f[1]).join(', ')}. Use Download template to get them.`);
       return;
     }
-    const required = fs.slice(0, 2).map(f => f[0]), key = required[0];
-    const optionValue = (f, v) => {
-      if (!Array.isArray(f[2])) return v;
-      const o = f[2].find(x => typeof x === 'string' ? squash(x) === squash(v) : squash(x.label) === squash(v) || squash(x.value) === squash(v));
-      return o == null ? v : typeof o === 'string' ? o : o.value;
-    };
-    const items = [];
-    let skipped = 0;
-    rows.slice(1).forEach(r => {
-      const f = {};
-      cols.forEach((c, i) => { if (c && r[i] !== undefined && r[i] !== '') f[c[0]] = optionValue(c, r[i]); });
-      if (required.some(k => !String(f[k] || '').trim())) { skipped++; return; }
-      const existing = m.data.find(x => squash(x[key]) === squash(f[key]));
-      const isNew = !existing;
-      items.push({ rec: normalizeRecord(type, isNew ? f : { ...f, id: existing.id }, isNew), isNew });
+    const required = importRequired();
+    const missingCols = required.filter(k => !cols.some(c => c && c[0] === k));
+    if (missingCols.length) {
+      showToast('warning', 'Missing columns', `Add the column${missingCols.length > 1 ? 's' : ''}: ${missingCols.map(k => (fs.find(f => f[0] === k) || [k, k])[1]).join(', ')}.`);
+      return;
+    }
+    if (rows.length < 2) {
+      showToast('warning', 'Nothing imported', 'The sheet has headings but no rows below them.');
+      return;
+    }
+
+    const existingByKey = new Map(m.data.filter(r => !deleted.includes(r.id)).map(r => [importKey(r), r]));
+    const pending = new Map(); // key -> { f, existing, line }
+    const problems = [];
+    rows.slice(1).forEach((r, idx) => {
+      const line = idx + 2, f = {}, errs = [];
+      cols.forEach((c, i) => {
+        if (!c) return;
+        let v = r[i] === undefined ? '' : String(r[i]).trim();
+        if (v === '' || v === '—') return;
+        const opt = c[4] || {};
+        if (opt.clean === 'phone') { const d = digits(v); v = d.length > 10 && d.startsWith('91') ? d.slice(-10) : d; if (v.length !== 10) errs.push(`${c[1]} must be 10 digits`); }
+        else if (opt.clean === 'gstin' || opt.clean === 'ifsc' || opt.clean === 'licence') v = v.toUpperCase();
+        else if (opt.clean === 'litres' || opt.clean === 'account') v = digits(v);
+        if (c[2] === 'bunks-input') { f[c[0]] = v.split(/[,;\n]/).map(s => s.trim()).filter(Boolean); return; }
+        if (c[2] === 'checkbox-select') {
+          const opts = optionsOf(c, f) || [];
+          const names = v.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+          const bad = names.filter(n => opts.length && !matchOption(opts, n));
+          if (bad.length) errs.push(`${c[1]}: "${bad.join(', ')}" not found`);
+          f[c[0]] = names.map(n => { const o = matchOption(opts, n); return o ? o.value : n; });
+          return;
+        }
+        const opts = optionsOf(c, f);
+        if (opts) {
+          const o = matchOption(opts, v);
+          if (!o) { errs.push(`${c[1]} "${v}" is not one of: ${opts.slice(0, 6).map(x => x.label).join(', ')}${opts.length > 6 ? ', …' : ''}`); return; }
+          v = o.value;
+        }
+        f[c[0]] = v;
+      });
+      if (type === 'locations' && f.client) f.clientId = f.client;
+      const miss = required.filter(k => !String(Array.isArray(f[k]) ? f[k].join('') : f[k] || '').trim());
+      if (miss.length) errs.push('missing ' + miss.map(k => (fs.find(x => x[0] === k) || [k, k])[1]).join(', '));
+      const key = importKey(f);
+      const prev = pending.get(key);
+      const existing = prev ? prev.existing : existingByKey.get(key);
+      const merged = { ...(existing || {}), ...(prev ? prev.f : {}), ...f };
+      fs.forEach(c => { if ((c[4] || {}).clean === 'phone' && merged[c[0]]) merged[c[0]] = digits(merged[c[0]]).slice(-10); });
+      if (!errs.length && m.validate) {
+        Object.entries(m.validate(merged, false) || {}).forEach(([k, msg]) => { if (msg) errs.push(msg.replace(/\.$/, '')); });
+      }
+      if (!errs.length && type === 'supervisors' && (merged.status || 'Active') === 'Active' && merged.branch) {
+        const selfId = existing && existing.id;
+        const clash = (tms.supervisors || []).find(s => s.status === 'Active' && s.branch === merged.branch && s.id !== selfId)
+          || [...pending.values()].find(p => p.f !== (prev && prev.f) && (p.f.status || 'Active') === 'Active' && p.f.branch === merged.branch);
+        if (clash) errs.push(`${bn(merged.branch)} already has an active supervisor`);
+      }
+      if (errs.length) { problems.push(`Row ${line}: ${errs.join('; ')}`); return; }
+      pending.set(key, { f: prev ? { ...prev.f, ...f } : f, existing, line });
     });
+
+    const items = [...pending.values()].map(({ f, existing }) => {
+      if (!existing) return { rec: normalizeRecord(type, f, true), isNew: true };
+      const rec = { ...f, id: existing.id };
+      // Keep links the sheet did not mention, so an update cannot silently unassign them.
+      if (type === 'clients' && f.supervisors === undefined) rec.supervisors = (existing.supervisorIds && existing.supervisorIds.length) ? existing.supervisorIds : existing.supervisors;
+      if (type === 'supervisors' && f.clients === undefined) rec.clients = (existing.clientIds && existing.clientIds.length) ? existing.clientIds : existing.clients;
+      if (type === 'routes' && f.authorizedBunks === undefined && existing.authorizedBunks) rec.authorizedBunks = existing.authorizedBunks;
+      return { rec: normalizeRecord(type, rec, false), isNew: false };
+    });
+
     if (!items.length) {
-      showToast('warning', 'Nothing imported', `No rows had ${fs.slice(0, 2).map(f => f[1]).join(' and ')} filled in.`);
+      showToast('warning', 'Nothing imported', problems.length ? `${problems.length} row${problems.length > 1 ? 's' : ''} skipped. ${problems.slice(0, 3).join(' · ')}` : 'No usable rows found.');
+      if (problems.length) console.warn(`[${m.title} import] skipped rows:\n` + problems.join('\n'));
       return;
     }
     saveMasterMany(type, items);
     items.forEach(({ rec }) => { if (type === 'vehicles' && rec.tank) setVehTank(rec.id, rec.tank); });
     const added = items.filter(x => x.isNew).length;
-    showToast('success', 'Import complete', `${added} added · ${items.length - added} updated${skipped ? ` · ${skipped} skipped (missing ${fs.slice(0, 2).map(f => f[1]).join(' or ')})` : ''}.`);
+    const summary = `${added} added · ${items.length - added} updated`;
+    if (problems.length) {
+      console.warn(`[${m.title} import] skipped rows:\n` + problems.join('\n'));
+      showToast('warning', 'Import finished with skipped rows', `${summary} · ${problems.length} skipped. ${problems.slice(0, 3).join(' · ')}${problems.length > 3 ? ' · …' : ''}`);
+    } else {
+      showToast('success', 'Import complete', `${summary}.`);
+    }
   };
 
   const handleDeleteRecord = (rec) => {
@@ -1142,11 +1263,35 @@ export const MasterManager = ({ type }) => {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv" onChange={handleImportFile} style={{ display: 'none' }} />}
+            {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
             {canAdd && (
-              // Shown for now without the import; wire onClick={() => importRef.current && importRef.current.click()} back to enable it.
               <button
                 type="button"
+                onClick={handleDownloadTemplate}
+                title={`Download an Excel sheet with the ${m.singular} columns to fill in`}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  padding: '0 14px',
+                  height: '32px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-strong)',
+                  background: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'var(--text-heading)',
+                }}
+              >
+                Download template
+              </button>
+            )}
+            {canAdd && (
+              <button
+                type="button"
+                onClick={() => importRef.current && importRef.current.click()}
+                title="Import .xlsx or .csv — headings in the first row"
                 style={{
                   all: 'unset',
                   cursor: 'pointer',

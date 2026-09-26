@@ -194,11 +194,23 @@ export const FormCheckboxSelect = ({
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-disabled={disabled || undefined}
+        className="kr-select-trigger"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
           if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
             setIsOpen(!isOpen);
+          } else if (!disabled && e.key === 'ArrowDown' && !isOpen) {
+            e.preventDefault();
+            setIsOpen(true);
+          } else if (e.key === 'Escape' && isOpen) {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsOpen(false);
           }
         }}
         style={{
@@ -214,9 +226,7 @@ export const FormCheckboxSelect = ({
               ? 'var(--color-brand, #00623f)'
               : 'var(--border-strong, #cbd5e1)'
           }`,
-          boxShadow: isOpen
-            ? '0 0 0 2px rgba(0, 98, 63, 0.18)'
-            : 'none',
+          boxShadow: isOpen ? 'var(--focus-ring)' : 'none',
           background: disabled ? 'var(--surface-muted, #f8fafc)' : '#ffffff',
           cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
@@ -241,7 +251,7 @@ export const FormCheckboxSelect = ({
           {selectedLabels.length === 0 ? (
             <span
               style={{
-                color: 'var(--text-muted, #94a3b8)',
+                color: 'var(--text-muted, #7c7c76)',
                 fontSize: '14px',
                 fontFamily: 'var(--font-body, inherit)',
               }}
@@ -336,9 +346,9 @@ export const FormCheckboxSelect = ({
             right: 0,
             zIndex: 1100,
             background: '#ffffff',
-            borderRadius: 'var(--radius-md, 8px)',
-            border: '1px solid var(--border-default, #e2e8f0)',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+            borderRadius: 'var(--radius-lg, 12px)',
+            border: '1px solid var(--border-default, #dcdcd6)',
+            boxShadow: 'var(--shadow-lg)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
@@ -436,10 +446,13 @@ export const FormCheckboxSelect = ({
 
           {/* Option List */}
           <div
+            role="listbox"
+            aria-multiselectable="true"
             style={{
-              maxHeight: '210px',
+              maxHeight: '240px',
               overflowY: 'auto',
-              padding: '4px 0',
+              overscrollBehavior: 'contain',
+              padding: '6px',
             }}
           >
             {filteredOptions.length === 0 ? (
@@ -459,21 +472,27 @@ export const FormCheckboxSelect = ({
                 return (
                   <div
                     key={opt.value}
+                    role="option"
+                    aria-selected={isSelected}
+                    tabIndex={0}
+                    className="kr-check-row"
                     onClick={() => handleToggle(opt)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggle(opt); }
+                      else if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.nextElementSibling?.focus(); }
+                      else if (e.key === 'ArrowUp') { e.preventDefault(); e.currentTarget.previousElementSibling?.focus(); }
+                      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setIsOpen(false); }
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '10px',
                       padding: '8px 12px',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      outline: 'none',
                       cursor: 'pointer',
                       background: isSelected ? 'var(--color-brand-tint, rgba(0, 98, 63, 0.05))' : 'transparent',
                       transition: 'background 0.12s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.background = 'var(--surface-muted, #f8fafc)';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) e.currentTarget.style.background = 'transparent';
                     }}
                   >
                     {/* Custom Checkbox */}
@@ -499,8 +518,8 @@ export const FormCheckboxSelect = ({
                     <span
                       style={{
                         fontSize: '13px',
-                        fontWeight: isSelected ? 600 : 400,
-                        color: isSelected ? 'var(--color-brand, #00623f)' : 'var(--text-heading, #1e293b)',
+                        fontWeight: isSelected ? 700 : 400,
+                        color: isSelected ? 'var(--kr-green-900, #003021)' : 'var(--text-heading, #1c1c1a)',
                         lineHeight: 1.4,
                       }}
                     >

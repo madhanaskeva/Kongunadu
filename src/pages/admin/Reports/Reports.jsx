@@ -147,14 +147,22 @@ export const Reports = () => {
     const colHeaders = res.columns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
     const dataRows = exportRows.map(r => res.columns.map(c => (r[c.key] == null ? '' : r[c.key])));
 
-    downloadXlsx(filename, [
-      {
-        name: item.name,
-        columns: colHeaders,
-        rows: dataRows,
-      },
-    ]);
-    showToast('success', 'Report Downloaded', `${filename} (${exportRows.length} rows)`);
+    if (!exportRows.length) {
+      showToast('warning', 'Nothing to export', `${item.name} has no rows right now.`);
+      return;
+    }
+    try {
+      downloadXlsx(filename, [
+        {
+          name: item.name,
+          columns: colHeaders,
+          rows: dataRows,
+        },
+      ]);
+      showToast('success', 'Report Downloaded', `${filename} (${exportRows.length} rows)`);
+    } catch (e) {
+      showToast('warning', 'Export failed', (e && e.message) || 'Could not create the Excel file.');
+    }
   };
 
   return (

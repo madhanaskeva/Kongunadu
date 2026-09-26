@@ -582,33 +582,14 @@ export const Settings = () => {
           </div>
         </section>
 
-        {/* Trip Numbering & Security */}
+        {/* Non-business trip purposes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
               <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                Trip numbering
+                Non-business trips
               </h2>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Vehicle Number / Month / Serial. Generated on save only.</div>
-            </div>
-
-            <div style={{ padding: '12px 14px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)', fontFamily: 'var(--font-mono)', fontSize: '15px', color: 'var(--text-heading)' }}>
-              TN28AQ4521 / 09 / 014
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600 }}>Serial resets</label>
-              <SelectField
-                value={st.serial || 'monthly'}
-                onChange={(v) => setSt({ ...st, serial: v })}
-                options={[
-                  { value: 'monthly', label: 'Every month (recommended)' },
-                  { value: 'yearly', label: 'Every year' },
-                  { value: 'never', label: 'Never' },
-                ]}
-                ariaLabel="Serial resets"
-                height={38}
-              />
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Purposes a supervisor may pick when the trip is not billable.</div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -621,45 +602,6 @@ export const Settings = () => {
               />
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Comma separated. Shown to supervisors when trip type is Non-Business.</span>
             </div>
-          </section>
-
-          <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-              Security and alerts
-            </h2>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600 }}>Session timeout (h)</label>
-              <input
-                type="number"
-                value={st.session || '12'}
-                onChange={(e) => setSt({ ...st, session: e.target.value })}
-                style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-              />
-            </div>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={!!st.attReminder}
-                onChange={(e) => setSt({ ...st, attReminder: e.target.checked })}
-              />
-              Daily attendance reminder to supervisors at 20:00
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={!!st.excEmail}
-                onChange={(e) => setSt({ ...st, excEmail: e.target.checked })}
-              />
-              Email exception report when both GPS and odometer fail
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: 'var(--text-muted)' }}>
-              <input type="checkbox" disabled checked={false} />
-              OTP login (planned, not yet available)
-            </label>
           </section>
         </div>
       </div>

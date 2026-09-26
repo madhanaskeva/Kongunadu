@@ -5,14 +5,22 @@
  * - PDF / Printable document generation with company header & styling
  */
 
+import { downloadXlsx, downloadCsv, cellValue } from './spreadsheet.js';
+
+const valueOf = (row, key) => (typeof key === 'function' ? key(row) : typeof key === 'string' ? row[key] : '');
+const escHtml = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 /**
- * Export tabular data to an Excel-compatible CSV file.
+ * Export tabular data to Excel.
+ * Writes a real .xlsx workbook by default; pass format: 'csv' for a UTF-8 CSV (with BOM, so
+ * Excel shows ₹ and Tamil text correctly).
  * @param {Object} options
  * @param {Array<Object>} options.data - Array of row objects
  * @param {Array<string>} options.headers - Array of column headers
- * @param {Array<string>|Function} options.keys - Keys in data object or value getter function
+ * @param {Array<string|Function>} options.keys - Keys in data object or value getter functions
  * @param {string} options.filename - Name of exported file (without extension)
- * @param {string} [options.title] - Optional title for metadata
+ * @param {string} [options.title] - Sheet name
+ * @param {'xlsx'|'csv'} [options.format]
  */
 export const exportToExcel = ({
   data = [],
@@ -20,45 +28,24 @@ export const exportToExcel = ({
   keys = [],
   filename = 'export',
   title = '',
+  format = 'xlsx',
 }) => {
   if (!data || !data.length) {
     return { success: false, message: 'No data available to export' };
   }
-
-  // Format headers
-  const headerRow = headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',');
-
-  // Format data rows
-  const dataRows = data.map(row => {
-    return (keys || []).map(key => {
-      let val = '';
-      if (typeof key === 'function') {
-        val = key(row);
-      } else if (typeof key === 'string') {
-        val = row[key];
-      }
-      if (val == null) val = '';
-      return `"${String(val).replace(/"/g, '""')}"`;
-    }).join(',');
-  });
-
-  // Construct CSV content with UTF-8 BOM for Excel compatibility
-  const BOM = '\uFEFF';
-  const csvContent = BOM + [headerRow, ...dataRows].join('\r\n');
-
-  // Create downloadable blob
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', `${filename}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-
-  return { success: true, count: data.length, filename: `${filename}.csv` };
+  const rows = data.map(row => (keys || []).map(key => cellValue(valueOf(row, key))));
+  const base = String(filename).replace(/\.(xlsx|csv)$/i, '');
+  try {
+    const name = format === 'csv'
+      ? downloadCsv(`${base}.csv`, headers, rows)
+      : downloadXlsx(`${base}.xlsx`, [{ name: title || 'Export', columns: headers, rows }]);
+    return { success: true, count: data.length, filename: name };
+  } catch (e) {
+    return { success: false, message: (e && e.message) || 'Could not create the file' };
+  }
 };
+
+export const exportToCSV = (opts) => exportToExcel({ ...opts, format: 'csv' });
 
 /**
  * Export data to a printable PDF document with Kongunadu TMS branding.
@@ -89,20 +76,15 @@ export const exportToPDF = ({
 
   const rowsHtml = data.map((row, idx) => {
     const cells = keys.map(key => {
-      let val = '';
-      if (typeof key === 'function') {
-        val = key(row);
-      } else if (typeof key === 'string') {
-        val = row[key];
-      }
-      return `<td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 12px; color: #1e293b;">${val ?? '—'}</td>`;
+      const val = cellValue(valueOf(row, key));
+      return `<td style="padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 12px; color: #1e293b;">${val === '' ? '—' : escHtml(val)}</td>`;
     }).join('');
     const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
     return `<tr style="background-color: ${bg};">${cells}</tr>`;
   }).join('');
 
   const headersHtml = headers.map(h => 
-    `<th style="padding: 10px 12px; background: #00623f; color: #ffffff; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; font-weight: 700;">${h}</th>`
+    `<th style="padding: 10px 12px; background: #00623f; color: #ffffff; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; font-weight: 700;">${escHtml(h)}</th>`
   ).join('');
 
   const html = `

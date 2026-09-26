@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+import { useListbox } from '../../../components/common/Listbox';
 
 // Form and feedback controls from the Kongunadu Road Lines design system, as used by the Supervisor App prototype.
 
@@ -70,8 +72,11 @@ const fieldLabel = {
   color: 'var(--text-heading)',
 };
 
-export const Input = ({ label, hint, error, prefix, suffix, size = 'md', disabled, style, value, ...rest }) => {
+export const Input = ({ label, hint, error, prefix, suffix, size = 'md', disabled, style, value, type, ...rest }) => {
   const [focused, setFocused] = useState(false);
+  // Password fields carry a show/hide toggle inside the field on the right.
+  const isPassword = type === 'password';
+  const [reveal, setReveal] = useState(false);
   const h = size === 'sm' ? 36 : 44;
   const bd = error ? 'var(--status-danger)' : focused ? 'var(--color-brand)' : 'var(--border-strong)';
   return (
@@ -92,6 +97,7 @@ export const Input = ({ label, hint, error, prefix, suffix, size = 'md', disable
         {prefix && <span style={{ padding: '0 0 0 12px', color: 'var(--text-muted)', display: 'flex' }}>{prefix}</span>}
         <input
           disabled={disabled}
+          type={isPassword ? (reveal ? 'text' : 'password') : type}
           value={value ?? ''}
           readOnly={!rest.onChange}
           onFocus={() => setFocused(true)}
@@ -111,6 +117,19 @@ export const Input = ({ label, hint, error, prefix, suffix, size = 'md', disable
           {...rest}
         />
         {suffix && <span style={{ padding: '0 12px 0 0', color: 'var(--text-muted)', display: 'flex' }}>{suffix}</span>}
+        {isPassword && (
+          <button
+            type="button"
+            className="tms-pw-toggle"
+            onClick={() => setReveal(r => !r)}
+            aria-label={reveal ? 'Hide password' : 'Show password'}
+            aria-pressed={reveal}
+            disabled={disabled}
+            style={{ marginRight: 4 }}
+          >
+            {reveal ? <EyeOff size={20} /> : <Eye size={20} />}
+          </button>
+        )}
       </span>
       {(error || hint) && (
         <span style={{ fontSize: 13, color: error ? 'var(--status-danger)' : 'var(--text-muted)' }}>{error || hint}</span>
@@ -119,58 +138,90 @@ export const Input = ({ label, hint, error, prefix, suffix, size = 'md', disable
   );
 };
 
-export const Select = ({ label, options = [], placeholder, emptyLabel, value, onChange, disabled, style }) => {
-  // With nothing to choose, the control showed only its placeholder and looked broken.
+export const Select = ({ label, options = [], placeholder, emptyLabel, value, onChange, disabled, error, hint, name, id, style }) => {
+  // A designed list instead of the native <select>, whose open list is drawn by
+  // the OS (plain list, blue highlight). Same contract as before: options are
+  // [{ value, label }], and onChange receives an event-like object so callers
+  // keep reading e.target.value (always a string, as a native select gave).
   const isEmpty = !options.length;
+  // With nothing to choose, the control showed only its placeholder and looked broken.
   const locked = disabled || isEmpty;
   const [focused, setFocused] = useState(false);
+  const autoId = useId();
+  const triggerId = id || `${autoId}-trigger`;
+  const labelId = `${autoId}-label`;
+  const lb = useListbox({
+    options,
+    value,
+    disabled: locked,
+    touch: true,
+    labelledBy: label ? labelId : undefined,
+    onSelect: (o) => {
+      if (!onChange) return;
+      const target = { value: o.value == null ? '' : String(o.value), name };
+      onChange({ target, currentTarget: target, preventDefault() {}, stopPropagation() {}, persist() {} });
+    },
+  });
+  const active = focused || lb.open;
+  const bd = error ? 'var(--status-danger)' : active ? 'var(--color-brand)' : 'var(--border-strong)';
+  const text = isEmpty ? (emptyLabel || 'None available') : lb.selected ? lb.selected.label : placeholder || 'Select';
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'var(--font-body)', ...style }}>
-      {label && <span style={fieldLabel}>{label}</span>}
-      <span style={{ position: 'relative', display: 'flex' }}>
-        <select
-          disabled={locked}
-          value={value ?? ''}
-          onChange={onChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={{
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            width: '100%',
-            height: 44,
-            padding: '0 40px 0 12px',
-            fontSize: 16,
-            fontFamily: 'inherit',
-            color: value ? 'var(--text-heading)' : 'var(--text-muted)',
-            background: locked ? 'var(--surface-muted)' : '#fff',
-            border: `2px solid ${focused ? 'var(--color-brand)' : 'var(--border-strong)'}`,
-            borderRadius: 'var(--radius-md)',
-            outline: 0,
-            boxShadow: focused ? 'var(--focus-ring)' : 'none',
-            cursor: locked ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {isEmpty
-            ? <option value="">{emptyLabel || 'None available'}</option>
-            : <>
-                {placeholder && <option value="">{placeholder}</option>}
-                {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </>}
-        </select>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontFamily: 'var(--font-body)', ...style }}>
+      {label && <label id={labelId} htmlFor={triggerId} style={fieldLabel}>{label}</label>}
+      <button
+        {...lb.triggerProps}
+        id={triggerId}
+        aria-invalid={error ? true : undefined}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          width: '100%',
+          height: 44,
+          boxSizing: 'border-box',
+          margin: 0,
+          padding: '0 12px',
+          fontSize: 16,
+          fontFamily: 'inherit',
+          textAlign: 'left',
+          color: lb.selected ? 'var(--text-heading)' : 'var(--text-muted)',
+          fontWeight: lb.selected ? 600 : 400,
+          background: locked ? 'var(--surface-muted)' : '#fff',
+          border: `2px solid ${bd}`,
+          borderRadius: 'var(--radius-md)',
+          outline: 0,
+          boxShadow: active && !locked ? 'var(--focus-ring)' : 'none',
+          cursor: locked ? 'not-allowed' : 'pointer',
+          transition: 'box-shadow var(--dur-fast),border-color var(--dur-fast)',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+      >
+        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{text}</span>
         <svg
-          width="16"
-          height="16"
+          width="18"
+          height="18"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
           strokeWidth="2.5"
-          style={{ position: 'absolute', right: 12, top: 14, pointerEvents: 'none', color: 'var(--text-heading)' }}
+          aria-hidden="true"
+          style={{
+            flex: 'none',
+            color: locked ? 'var(--text-muted)' : 'var(--text-heading)',
+            transform: lb.open ? 'rotate(180deg)' : 'none',
+            transition: 'transform var(--dur-fast)',
+          }}
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
-      </span>
-    </label>
+      </button>
+      {lb.popover}
+      {(error || hint) && (
+        <span style={{ fontSize: 13, color: error ? 'var(--status-danger)' : 'var(--text-muted)' }}>{error || hint}</span>
+      )}
+    </div>
   );
 };
 

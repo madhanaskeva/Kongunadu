@@ -158,7 +158,14 @@ export const TripDetail = () => {
   /* --------------------------------------------------------------------- */
   const thr = Number(st.variance) || 5;
   const fixedKm = Number(rawTrip.fixedKm) || 0;
-  const gpsKm = rawTrip.gpsKm;
+  // Trips opened from the supervisor app start with gpsKm: 0 and keep it when no
+  // device track ever arrives. Once the odometer shows the truck actually moved, a
+  // zero GPS figure means "no GPS track", not "drove 0 km" — reading it as a
+  // measurement produced a phantom −100% that swamped the real odometer variance.
+  const gpsKm =
+    rawTrip.gpsKm == null || (Number(rawTrip.gpsKm) === 0 && computedOdo > 0)
+      ? null
+      : Number(rawTrip.gpsKm);
   const hasBaseline = fixedKm > 0;
 
   const delta = km => (!hasBaseline || km == null ? null : Math.round(((km - fixedKm) / fixedKm) * 1000) / 10);
@@ -172,6 +179,10 @@ export const TripDetail = () => {
   const [srcName, srcKm] =
     Math.abs(odoDelta ?? 0) >= Math.abs(gpsDelta ?? 0) ? ['Odometer', computedOdo] : ['GPS', gpsKm];
   const srcDiff = hasBaseline && srcKm != null ? srcKm - fixedKm : null;
+  // Signed variance of the source that sets the headline (e.g. −95.4%), for the
+  // trip record — `pct` above is the unsigned magnitude used for the threshold.
+  const srcDelta = srcName === 'Odometer' ? odoDelta : gpsDelta;
+  const fmtDelta = dl => (dl == null ? null : `${dl > 0 ? '+' : dl < 0 ? '−' : ''}${Math.abs(dl).toFixed(1)}%`);
 
   const maxKm = Math.max(1, fixedKm, gpsKm || 0, computedOdo || 0);
   const distBars = [
@@ -658,58 +669,99 @@ export const TripDetail = () => {
     </div>
   );
 
-  const tripRecords = [
-    ['Branch', (b || {}).name || rawTrip.branchName || '—'],
-    ['Supervisor', (s || {}).name || rawTrip.supervisorName || '—'],
-    ['Client', (c || {}).name || rawTrip.clientName || '—'],
-    [
-      'Customer(s)',
-      rawTrip.unloading ||
-        (Array.isArray(rawTrip.customers)
-          ? rawTrip.customers.map(cid => (tms.U[cid] || {}).name).filter(Boolean).join(', ')
-          : '—'),
-    ],
-    ['Vehicle', (v || {}).number || rawTrip.vehicleNumber || rawTrip.vehicle || '—'],
-    ['Vehicle type', (v || {}).type || rawTrip.vehicleType || '—'],
-    ['Driver', (d || {}).name || rawTrip.driverName || '—'],
-    ['Trip type', rawTrip.type + (rawTrip.reason ? ' · ' + rawTrip.reason : '')],
-    ['Loading location', (tms.L[rawTrip.loading] || {}).name || rawTrip.loading || '—'],
-    ['Opened at', rawTrip.opened || '—'],
-    ['Start KM', rawTrip.startKm != null ? fmtKm(rawTrip.startKm) : '—'],
-    ['Closing KM', rawTrip.closeKm != null ? fmtKm(rawTrip.closeKm) : isClosed ? '—' : 'Pending'],
-    ['Trip distance', tripDist != null ? fmtKm(tripDist) : isClosed ? '—' : 'Pending'],
-    [
-      'Variance vs fixed',
-      !hasBaseline ? 'Not applicable' : isClosed ? `${pct.toFixed(1)}%` : 'Pending verification at close',
-      flagged ? { bg: 'var(--color-hazard-soft)', color: '#7A4300' } : null,
-    ],
-    ['Loading invoice', rawTrip.invoice || (isClosed ? '—' : 'Pending')],
-    ['LR number', rawTrip.lr || '—'],
-    ['Advance given', fmtMoney(rawTrip.advance) || (isClosed ? '—' : 'Pending')],
-    ['Bunk name', rawTrip.bunk || (isClosed ? '—' : 'Pending')],
-    ['Diesel rate', dieselRate ? '₹' + dieselRate.toFixed(2) + '/L' : isClosed ? '—' : 'Pending'],
-    [
-      'Diesel quantity',
-      dieselLitres
-        ? dieselLitres.toLocaleString('en-IN') + ' L'
-        : rawTrip.diesel || (isClosed ? '—' : 'Pending'),
-    ],
-    ['Diesel amount', dieselAmount ? fmtMoney(dieselAmount) : isClosed ? '—' : 'Pending'],
-    ['Total expense', fmtMoney(rawTrip.totalExpense) || (isClosed ? '—' : 'Pending')],
-    ['Loading qty', rawTrip.qtyLoad || '—'],
-    ['Unloading qty', rawTrip.qtyUnload || (isClosed ? '—' : 'Pending')],
-    ['Open remarks', rawTrip.remarks || '—'],
-    ['Close remarks', rawTrip.closeRemarks || (isClosed ? '—' : 'Pending')],
-    ['Closed at', rawTrip.closed || (isClosed ? '—' : 'Pending')],
-    [
-      'Verification status',
-      rawTrip.status === 'Closed'
-        ? flagged
-          ? 'Variance flagged'
-          : 'Within threshold'
-        : rawTrip.status === 'Enroute' ? ENROUTE_LABEL : rawTrip.status || ENROUTE_LABEL,
-      flagged ? { bg: 'var(--color-hazard-soft)', color: '#7A4300' } : null,
-    ],
+  // Trip record, grouped the way the trip is lived: who it is for, what ran it,
+  // when and how far, the paperwork, the money, and the closing notes.
+  // Each row: [label, value, tone?, wide?]. A tone renders the value as a pill.
+  const pending = isClosed ? '—' : 'Pending';
+  const verificationText =
+    rawTrip.status === 'Closed'
+      ? flagged
+        ? 'Variance flagged'
+        : 'Within threshold'
+      : rawTrip.status === 'Enroute' ? ENROUTE_LABEL : rawTrip.status || ENROUTE_LABEL;
+  const recordGroups = [
+    {
+      title: 'Trip & client',
+      rows: [
+        ['Branch', (b || {}).name || rawTrip.branchName || '—'],
+        ['Supervisor', (s || {}).name || rawTrip.supervisorName || '—'],
+        ['Client', (c || {}).name || rawTrip.clientName || '—'],
+        ['Trip type', rawTrip.type + (rawTrip.reason ? ' · ' + rawTrip.reason : '')],
+        [
+          'Customer(s)',
+          rawTrip.unloading ||
+            (Array.isArray(rawTrip.customers)
+              ? rawTrip.customers.map(cid => (tms.U[cid] || {}).name).filter(Boolean).join(', ')
+              : '—'),
+          null,
+          true,
+        ],
+        ['Loading location', (tms.L[rawTrip.loading] || {}).name || rawTrip.loading || '—', null, true],
+      ],
+    },
+    {
+      title: 'Vehicle & crew',
+      rows: [
+        ['Vehicle', (v || {}).number || rawTrip.vehicleNumber || rawTrip.vehicle || '—'],
+        ['Vehicle type', (v || {}).type || rawTrip.vehicleType || '—'],
+        ['Driver', (d || {}).name || rawTrip.driverName || '—', null, true],
+      ],
+    },
+    {
+      title: 'Timeline & distance',
+      rows: [
+        ['Opened at', rawTrip.opened || '—'],
+        ['Closed at', rawTrip.closed || pending],
+        ['Start KM', rawTrip.startKm != null ? fmtKm(rawTrip.startKm) : '—'],
+        ['Closing KM', rawTrip.closeKm != null ? fmtKm(rawTrip.closeKm) : pending],
+        ['Trip distance', tripDist != null ? fmtKm(tripDist) : pending],
+        [
+          'Variance vs fixed',
+          !hasBaseline
+            ? 'Not applicable'
+            : !isClosed
+            ? 'Pending verification at close'
+            : fmtDelta(srcDelta) || '—',
+          hasBaseline && isClosed && srcDelta != null ? (flagged ? 'bad' : 'good') : null,
+        ],
+      ],
+    },
+    {
+      title: 'Documents & quantities',
+      rows: [
+        ['Loading invoice', rawTrip.invoice || pending],
+        ['LR number', rawTrip.lr || '—'],
+        ['Loading qty', rawTrip.qtyLoad || '—'],
+        ['Unloading qty', rawTrip.qtyUnload || pending],
+      ],
+    },
+    {
+      title: 'Diesel & expense',
+      rows: [
+        ['Advance given', fmtMoney(rawTrip.advance) || pending],
+        ['Bunk name', rawTrip.bunk || pending],
+        ['Diesel rate', dieselRate ? '₹' + dieselRate.toFixed(2) + '/L' : pending],
+        [
+          'Diesel quantity',
+          dieselLitres ? dieselLitres.toLocaleString('en-IN') + ' L' : rawTrip.diesel || pending,
+        ],
+        ['Diesel amount', dieselAmount ? fmtMoney(dieselAmount) : pending],
+        ['Total expense', fmtMoney(rawTrip.totalExpense) || pending],
+      ],
+    },
+    {
+      title: 'Remarks & verification',
+      rows: [
+        ['Open remarks', rawTrip.remarks || '—', null, true],
+        ['Close remarks', rawTrip.closeRemarks || pending, null, true],
+        [
+          'Verification status',
+          verificationText,
+          rawTrip.status === 'Closed' ? (flagged ? 'bad' : 'good') : 'neutral',
+          true,
+        ],
+      ],
+    },
   ];
 
   const lifecycle = [
@@ -1052,18 +1104,29 @@ export const TripDetail = () => {
         </section>
       )}
 
-      {/* Full-width trip record: 4 columns on desktop, 2 on tablet, 1 on mobile */}
+      {/* Full-width trip record: grouped panels, 3 across on desktop, 2 on tablet, 1 on mobile */}
       <section style={{ ...cardStyle, overflow: 'hidden' }}>
         <h2 style={{ ...sectionTitle, padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
           Trip record
         </h2>
-        <div className="td-record-grid">
-          {tripRecords.map(([k, val, styleObj], i) => (
-            <div key={i} style={{ background: styleObj?.bg || '#fff' }}>
-              <div className="td-record-label">{k}</div>
-              <div className="td-record-value" style={styleObj?.color ? { color: styleObj.color } : undefined}>
-                {val || '—'}
-              </div>
+        <div className="td-rec-groups">
+          {recordGroups.map(group => (
+            <div key={group.title} className="td-rec-group">
+              <h3 className="td-verify-head">{group.title}</h3>
+              <dl className="td-rec-fields">
+                {group.rows.map(([k, val, tone, wide]) => (
+                  <div key={k} className={wide ? 'td-rec-field td-rec-field--wide' : 'td-rec-field'}>
+                    <dt className="td-rec-label">{k}</dt>
+                    <dd className="td-rec-value">
+                      {tone ? (
+                        <span className={`td-rec-pill td-rec-pill--${tone}`}>{val || '—'}</span>
+                      ) : (
+                        val || '—'
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           ))}
         </div>

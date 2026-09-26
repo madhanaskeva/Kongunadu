@@ -177,67 +177,248 @@ button {
 }
 
 
-/* ---------------------------------------------------------------------------
-   SelectField — the app's dropdown. antd draws the popup as real DOM, so the
-   list can carry the brand tokens a native <select> popup never could.
---------------------------------------------------------------------------- */
-.tms-select .ant-select-selector {
-  border: 1px solid #d5dfda !important;
-  border-radius: 10px !important;
-  background: #fff !important;
-  height: 100% !important;
-  padding: 0 12px !important;
+/* ===========================================================================
+   DROPDOWN SPEC — one look for every select / list box in the product.
+
+   Trigger : same height as the neighbouring text inputs (42px portal forms,
+             40px drawer, 44px filter bars + Supervisor app), 1px --border-strong
+             (2px in the Supervisor app, like its inputs), --radius-md,
+             placeholder in --text-muted, chevron vertically centred,
+             brand border + --focus-ring when focused or open.
+   Panel   : white card, 1px --border-default, --shadow-lg, --radius-lg,
+             6px inset, max-height with its own scroll.
+   Rows    : 40px (44px touch), --radius-md, hover / keyboard row in
+             --color-brand-tint, selected row brand tint + bold green text +
+             check mark on the right.
+
+   antd Select (SelectField, FormSelect, Attendance) gets this through the
+   theme tokens in AntdProvider plus the rules below. The hand-built lists
+   (Supervisor `Select`, Reports) use the .kr-listbox classes via
+   components/common/Listbox.jsx.
+=========================================================================== */
+
+/* ---- antd Select: trigger -------------------------------------------------- */
+/* antd v6 renders the bordered box on .ant-select itself (there is no
+   .ant-select-selector any more) and derives its vertical padding from
+   --ant-select-height, which SelectField / FormSelect set to their height. */
+.tms-select.ant-select {
+  box-sizing: border-box;
+  align-items: center;
+  padding-block: 0;
+  padding-inline: 12px;
   font-size: 14px;
+}
+
+.tms-select-has-icon.ant-select {
+  padding-inline-start: 38px;
+}
+
+.tms-select .ant-select-content {
+  align-items: center;
+  line-height: 20px;
+}
+
+.tms-select .ant-select-placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.tms-select .ant-select-suffix {
+  align-self: center;
+  display: inline-flex;
+}
+
+/* Filter-bar variant (SelectField at 44px): matches the filter bar's search
+   box and MultiSelect trigger — 1px #d5dfda, 10px radius. An "All …" label is
+   a real choice there, so it reads in heading colour, and a narrowing value
+   reads bold like a narrowed MultiSelect. */
+.tms-select--bar.ant-select {
+  border-radius: 10px;
+  --ant-select-border-color: #d5dfda;
+}
+
+.tms-select--all .ant-select-placeholder {
   color: var(--text-heading);
 }
 
-.tms-select-has-icon .ant-select-selector {
-  padding-left: 38px !important;
+.tms-select--bar .ant-select-content-has-value {
+  font-weight: 700;
+  color: var(--text-heading);
 }
 
-.tms-select .ant-select-selection-item,
-.tms-select .ant-select-selection-placeholder {
+.ant-select .ant-select-suffix {
+  color: var(--kr-grey-700);
+  transition: transform var(--dur-fast, 0.15s);
+}
+
+.ant-select.ant-select-open .ant-select-suffix {
+  transform: rotate(180deg);
+}
+
+/* ---- antd Select: open panel ---------------------------------------------- */
+body .ant-select-dropdown {
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+body .ant-select-dropdown .ant-select-item-option {
+  align-items: center;
+  border-radius: var(--radius-md);
+  color: var(--text-heading);
+}
+
+/* Single-select rows carry a check mark on the selected row (multi-select rows
+   already draw antd's own state icon). */
+body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-item-option-state))::after {
+  content: '';
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-inline-start: 8px;
+  background: currentColor;
+  color: var(--color-brand);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ---- Hand-built list box (components/common/Listbox.jsx) ------------------ */
+.kr-listbox {
+  box-sizing: border-box;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-body);
+  animation: kr-listbox-in 0.12s var(--ease-out, ease-out);
+}
+
+@keyframes kr-listbox-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.kr-listbox-option {
   display: flex;
   align-items: center;
-  font-size: 14px;
-}
-
-.tms-select .ant-select-selection-placeholder {
-  color: var(--text-muted);
-}
-
-.tms-select:not(.ant-select-disabled):hover .ant-select-selector {
-  border-color: var(--color-brand) !important;
-}
-
-.tms-select.ant-select-focused .ant-select-selector {
-  border-color: var(--color-brand) !important;
-  box-shadow: 0 0 0 3px rgba(0, 98, 63, 0.14) !important;
-}
-
-/* The popup list */
-.tms-select-popup {
-  border-radius: 12px;
-  border: 1px solid var(--border-default);
-  box-shadow: 0 12px 28px rgba(20, 32, 43, 0.14);
-  padding: 6px;
-}
-
-.tms-select-popup .ant-select-item {
-  border-radius: 8px;
+  gap: 10px;
+  min-height: 40px;
   padding: 8px 12px;
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
   font-size: 14px;
+  line-height: 1.35;
   color: var(--text-heading);
-  min-height: auto;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-fast, 0.15s);
 }
 
-.tms-select-popup .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+.kr-listbox--touch .kr-listbox-option {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.kr-listbox-option.is-active,
+.kr-listbox-option:hover {
+  background: var(--color-brand-tint);
+}
+
+.kr-listbox-option.is-selected {
   background: var(--color-brand-tint);
   color: var(--kr-green-900);
+  font-weight: 700;
 }
 
-.tms-select-popup .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: var(--color-brand);
-  color: #fff;
-  font-weight: 700;
+.kr-listbox-option.is-selected.is-active,
+.kr-listbox-option.is-selected:hover {
+  background: var(--color-brand-soft);
+}
+
+.kr-listbox-option.is-disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.kr-listbox-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kr-listbox-check {
+  flex: none;
+  color: var(--color-brand);
+}
+
+.kr-listbox-empty {
+  padding: 14px 12px;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Hand-built triggers that reset their own styling (all: unset) still need a
+   visible keyboard focus ring. */
+.kr-select-trigger:focus-visible {
+  border-color: var(--color-brand) !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+.kr-select-trigger:not(:disabled):hover {
+  border-color: var(--color-brand) !important;
+}
+
+/* Tick-list rows in the multi-select pickers (MultiSelect, FormCheckboxSelect,
+   ReportMultiSelect) follow the same row spec. */
+.kr-check-row {
+  min-height: 40px;
+  box-sizing: border-box;
+  transition: background-color var(--dur-fast, 0.15s);
+}
+
+.kr-check-row:hover,
+.kr-check-row:focus-within {
+  background: var(--color-brand-tint) !important;
+}
+
+/* ---- Password show / hide toggle ------------------------------------------ */
+.tms-pw-toggle {
+  all: unset;
+  box-sizing: border-box;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--dur-fast, 0.15s), background-color var(--dur-fast, 0.15s);
+}
+
+.tms-pw-toggle:hover:not(:disabled) {
+  color: var(--text-heading);
+  background: var(--surface-muted);
+}
+
+.tms-pw-toggle:focus-visible {
+  color: var(--color-brand);
+  box-shadow: var(--focus-ring);
+}
+
+.tms-pw-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* antd affix inputs: the toggle sits in the suffix slot, flush right. */
+.ant-input-affix-wrapper .ant-input-suffix .tms-pw-toggle {
+  margin-inline-end: -6px;
 }

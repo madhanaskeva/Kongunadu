@@ -125,23 +125,30 @@ export const ReportMultiSelect = ({
         type="button"
         disabled={disabled}
         onClick={handleToggleOpen}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); }
+          else if (e.key === 'ArrowDown' && !open) { e.preventDefault(); handleToggleOpen(); }
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="kr-select-trigger"
         style={{
           all: 'unset',
           boxSizing: 'border-box',
           width: '100%',
           height: '36px',
           padding: '0 8px 0 10px',
-          background: '#ffffff',
-          border: `1px solid ${open ? 'var(--color-brand, #00623f)' : 'var(--border-strong, #cbd5e1)'}`,
-          borderRadius: '6px',
+          background: disabled ? 'var(--surface-muted)' : '#ffffff',
+          border: `1px solid ${open ? 'var(--color-brand, #00623f)' : 'var(--border-strong, #c2c2bb)'}`,
+          borderRadius: 'var(--radius-md, 8px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '6px',
           cursor: disabled ? 'not-allowed' : 'pointer',
-          boxShadow: open ? '0 0 0 3px rgba(0, 98, 63, 0.12)' : 'none',
-          transition: 'all 0.15s ease',
-          fontSize: '12px',
+          boxShadow: open ? 'var(--focus-ring)' : 'none',
+          transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+          fontSize: '13px',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1 }}>
@@ -179,7 +186,7 @@ export const ReportMultiSelect = ({
               )}
             </>
           ) : (
-            <span style={{ color: 'var(--text-muted, #94a3b8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span style={{ color: 'var(--text-muted, #7c7c76)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {placeholder}
             </span>
           )}
@@ -213,9 +220,10 @@ export const ReportMultiSelect = ({
           )}
 
           <ChevronDown
-            size={14}
+            size={15}
+            aria-hidden="true"
             style={{
-              color: open ? 'var(--color-brand, #00623f)' : 'var(--kr-grey-500, #64748b)',
+              color: open ? 'var(--color-brand, #00623f)' : 'var(--kr-grey-700, #4a4a46)',
               transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
               transition: 'transform 0.18s ease',
             }}
@@ -234,9 +242,9 @@ export const ReportMultiSelect = ({
             right: 0,
             minWidth: '240px',
             background: '#ffffff',
-            border: '1px solid var(--border-default, #e2e8f0)',
-            borderRadius: '8px',
-            boxShadow: '0 10px 25px -4px rgba(0, 0, 0, 0.14), 0 4px 8px -2px rgba(0, 0, 0, 0.08)',
+            border: '1px solid var(--border-default, #dcdcd6)',
+            borderRadius: 'var(--radius-lg, 12px)',
+            boxShadow: 'var(--shadow-lg)',
             zIndex: 9999,
             overflow: 'hidden',
             display: 'flex',
@@ -275,12 +283,12 @@ export const ReportMultiSelect = ({
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
-                  height: '26px',
+                  height: '32px',
                   paddingLeft: '24px',
                   paddingRight: searchQuery ? '20px' : '6px',
-                  borderRadius: '4px',
-                  border: '1px solid var(--border-strong, #cbd5e1)',
-                  fontSize: '11.5px',
+                  borderRadius: 'var(--radius-md, 8px)',
+                  border: '1px solid var(--border-strong, #c2c2bb)',
+                  fontSize: '13px',
                   outline: 'none',
                   color: 'var(--text-heading, #1e293b)',
                 }}
@@ -360,10 +368,13 @@ export const ReportMultiSelect = ({
 
           {/* Reduced-height Options List with Checkboxes */}
           <div
+            role="listbox"
+            aria-multiselectable="true"
             style={{
-              maxHeight: '135px',
+              maxHeight: '240px',
               overflowY: 'auto',
-              padding: '3px',
+              overscrollBehavior: 'contain',
+              padding: '6px',
               display: 'flex',
               flexDirection: 'column',
               gap: '1px',
@@ -386,10 +397,21 @@ export const ReportMultiSelect = ({
                 return (
                   <div
                     key={opt.value}
+                    role="option"
+                    aria-selected={isChecked}
+                    tabIndex={0}
+                    className="kr-check-row"
                     onClick={() => handleToggleOption(opt.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleToggleOption(opt.value); }
+                      else if (e.key === 'ArrowDown') { e.preventDefault(); e.currentTarget.nextElementSibling?.focus(); }
+                      else if (e.key === 'ArrowUp') { e.preventDefault(); e.currentTarget.previousElementSibling?.focus(); }
+                      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setOpen(false); }
+                    }}
                     style={{
-                      padding: '5px 7px',
-                      borderRadius: '4px',
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-md, 8px)',
+                      outline: 'none',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px',
@@ -397,18 +419,12 @@ export const ReportMultiSelect = ({
                       background: isChecked ? 'var(--kr-green-50, #edf8f3)' : 'transparent',
                       transition: 'background 0.12s ease',
                     }}
-                    onMouseEnter={(e) => {
-                      if (!isChecked) e.currentTarget.style.background = 'var(--surface-muted, #f8fafc)';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isChecked) e.currentTarget.style.background = 'transparent';
-                    }}
                   >
                     {/* Custom Checkbox Square */}
                     <div
                       style={{
-                        width: '15px',
-                        height: '15px',
+                        width: '16px',
+                        height: '16px',
                         borderRadius: '3.5px',
                         border: `1.5px solid ${isChecked ? 'var(--color-brand, #00623f)' : '#cbd5e1'}`,
                         background: isChecked ? 'var(--color-brand, #00623f)' : '#ffffff',
@@ -424,9 +440,9 @@ export const ReportMultiSelect = ({
                     {/* Option Label */}
                     <span
                       style={{
-                        fontSize: '11.5px',
-                        fontWeight: isChecked ? 600 : 400,
-                        color: isChecked ? 'var(--kr-green-900, #003021)' : 'var(--text-body, #334155)',
+                        fontSize: '13px',
+                        fontWeight: isChecked ? 700 : 400,
+                        color: isChecked ? 'var(--kr-green-900, #003021)' : 'var(--text-heading, #1c1c1a)',
                         lineHeight: 1.25,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',

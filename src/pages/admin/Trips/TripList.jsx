@@ -12,6 +12,8 @@ import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
 import { SelectField } from '../../../components/common/SelectField';
 import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
+// Scoped filter-bar styles (.tl-filters) live with the other Trips page CSS.
+import './tripDetail.css';
 
 // Tab id for the exception filter — not a trip status, so it is matched separately.
 const PENDING_TAB = 'pending';
@@ -171,8 +173,12 @@ export const TripList = () => {
       ['Pending closure', t => (t.pendingClose ? t.pendingCloseDetail : '')],
     ];
     const name = `Trips_${fileDate()}.xlsx`;
-    downloadXlsx(name, [{ name: 'Trips', columns: cols.map(c => c[0]), rows: tripRows.map(t => cols.map(c => { const v = c[1](t); return v == null ? '' : v; })) }]);
-    showToast('success', 'Excel downloaded', `${name} · ${tripRows.length} trips`);
+    try {
+      downloadXlsx(name, [{ name: 'Trips', columns: cols.map(c => c[0]), rows: tripRows.map(t => cols.map(c => { const v = c[1](t); return v == null ? '' : v; })) }]);
+      showToast('success', 'Excel downloaded', `${name} · ${tripRows.length} trips`);
+    } catch (e) {
+      showToast('warning', 'Export failed', (e && e.message) || 'Could not create the Excel file.');
+    }
   };
 
   const openTrip = (id) => {
@@ -233,7 +239,7 @@ export const TripList = () => {
       </div>
 
       {/* Filters Bar */}
-      <div className="tms-card" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end', padding: '18px 20px' }}>
+      <div className="tms-card tl-filters" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end', padding: '18px 20px' }}>
         <FilterSelect
           label="Branch"
           icon={Building2}
@@ -260,7 +266,7 @@ export const TripList = () => {
           onChange={setVehicles}
         />
         <FilterSelect label="Type" icon={Tag} width="160px" value={tf.type} allLabel="All types" options={typeOptions} onChange={(v) => setTf({ ...tf, type: v })} />
-        <FilterSelect label="Flags" icon={Flag} width="160px" value={tf.flag} allLabel="All" options={flagOptions} onChange={(v) => setTf({ ...tf, flag: v })} />
+        <FilterSelect label="Flags" icon={Flag} width="160px" value={tf.flag} allLabel="All flags" options={flagOptions} onChange={(v) => setTf({ ...tf, flag: v })} />
 
         <form
           onSubmit={(e) => { e.preventDefault(); runSearch(); }}
@@ -279,14 +285,14 @@ export const TripList = () => {
           </div>
           <button
             type="submit"
-            style={{ all: 'unset', cursor: 'pointer', height: '44px', padding: '0 24px', borderRadius: '10px', background: 'var(--kr-green-700)', color: '#fff', fontSize: '14px', fontWeight: 700 }}
+            style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none', height: '44px', boxSizing: 'border-box', padding: '0 24px', borderRadius: '10px', background: 'var(--kr-green-700)', color: '#fff', fontSize: '14px', fontWeight: 700 }}
           >
             Search
           </button>
           <button
             type="button"
             onClick={clearTf}
-            style={{ all: 'unset', cursor: 'pointer', height: '44px', boxSizing: 'border-box', padding: '0 20px', borderRadius: '10px', border: '1px solid #d5dfda', background: '#fff', fontSize: '14px', fontWeight: 700, color: 'var(--text-heading)' }}
+            style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none', height: '44px', boxSizing: 'border-box', padding: '0 20px', borderRadius: '10px', border: '1px solid #d5dfda', background: '#fff', fontSize: '14px', fontWeight: 700, color: 'var(--text-heading)' }}
           >
             Clear
           </button>
@@ -448,9 +454,10 @@ export const TripList = () => {
               )}
             </span>
             {can('trips', 'export') && (
-              // Shown for now without the export; wire onClick={exportTrips} back to enable it.
+              // Exports the trips matching the current filters and search.
               <button
                 type="button"
+                onClick={exportTrips}
                 style={{
                   all: 'unset',
                   cursor: 'pointer',

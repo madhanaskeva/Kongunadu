@@ -101,8 +101,7 @@ export const TMSAdminProvider = ({ children }) => {
   const [confirm, setConfirm] = useState(null);
   const ST_DEFAULT = {
     variance: '5', radius: '100', longOpen: '8', idle: '15', gpsFail: '30',
-    serial: 'monthly', reasons: 'Maintenance, Internal Movement, Empty Return, Driver Testing',
-    session: '12', attReminder: true, excEmail: true
+    reasons: 'Maintenance, Internal Movement, Empty Return, Driver Testing',
   };
   // Settings are edited live; Save settings / Reset write them to storage.
   const [st, setSt] = useState(() => {
@@ -277,7 +276,9 @@ export const TMSAdminProvider = ({ children }) => {
         branch: t.branch,
         route: ((out.L[t.loading] || {}).name || t.loading || '—') + ' → ' + (t.unloading || '—'),
         fixedKm: Number(t.fixedKm),
-        gpsKm: t.gpsKm ?? null,
+        // Trips opened in the Supervisor App start at gpsKm 0; if the truck moved and no track
+        // ever arrived that is "no GPS", not a 0 km reading (which would read as −100%).
+        gpsKm: Number(t.gpsKm) === 0 && Number(t.odoKm) > 0 ? null : t.gpsKm ?? null,
         odoKm: t.odoKm ?? null,
         closed: t.closed,
         review: t.distReview || null,
@@ -635,9 +636,12 @@ export const TMSAdminProvider = ({ children }) => {
   const saveMaster = (route, rec, isNew) => saveMasterMany(route, [{ rec, isNew }]);
 
   const setVehTank = (id, litres) => {
-    const next = { ...vehTanks, [id]: litres };
-    setVehTanks(next);
-    try { localStorage.setItem(TANK_KEY, JSON.stringify(next)); } catch (e) {}
+    // Functional update so several calls in one tick (an Excel import) all land.
+    setVehTanks(prev => {
+      const next = { ...prev, [id]: litres };
+      try { localStorage.setItem(TANK_KEY, JSON.stringify(next)); } catch (e) {}
+      return next;
+    });
   };
 
   const normalizeRecord = (route, formObj, isNew) => {

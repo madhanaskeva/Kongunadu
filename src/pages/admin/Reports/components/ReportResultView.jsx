@@ -11,12 +11,14 @@ import {
 import { Pagination, usePagination } from '../../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
 import { ReportEmptyState } from './ReportEmptyState';
+import { useTMSAdmin } from '../../../../context/TMSAdminContext';
 
 export const ReportResultView = ({
   result,
   onResetFilters,
   onRemoveFilterChip,
 }) => {
+  const { showToast } = useTMSAdmin();
   if (!result) return null;
 
   const {
@@ -92,12 +94,15 @@ export const ReportResultView = ({
 
   // Export to Excel (.xlsx)
   const handleExportXlsx = () => {
-    if (!processedRows.length) return;
+    if (!processedRows.length) {
+      showToast('warning', 'Nothing to export', 'No rows match the current choices and search.');
+      return;
+    }
     const name = `${(moduleMeta?.label || 'Report').replace(/[^a-zA-Z0-9]/g, '_')}_${fileDate()}.xlsx`;
     const colHeaders = activeColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
     const dataRows = processedRows.map(r => activeColumns.map(c => (r[c.key] == null ? '' : r[c.key])));
 
-    downloadXlsx(name, [
+    const sheets = [
       {
         name: moduleMeta?.label || 'Report',
         columns: colHeaders,
@@ -113,7 +118,13 @@ export const ReportResultView = ({
           ['Total Rows', String(processedRows.length)],
         ],
       },
-    ]);
+    ];
+    try {
+      downloadXlsx(name, sheets);
+      showToast('success', 'Report Downloaded', `${name} (${processedRows.length} rows)`);
+    } catch (e) {
+      showToast('warning', 'Export failed', (e && e.message) || 'Could not create the Excel file.');
+    }
   };
 
   const getStatusBadgeStyle = (val) => {
@@ -299,7 +310,7 @@ export const ReportResultView = ({
               }}
             >
               <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', padding: '4px 6px', color: 'var(--text-muted)' }}>
-                Toggle Columns
+                Customize Column
               </div>
               {columns.map(c => {
                 const on = visibleColKeys.includes(c.key);

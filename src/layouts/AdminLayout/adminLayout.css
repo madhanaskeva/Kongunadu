@@ -43,7 +43,7 @@
 }
 
 .tms-topbar-brand img {
-  width: 100%;
+  width: clamp(118px, 36vw, 200px);
   max-width: 200px;
   height: auto;
   display: block;
@@ -420,10 +420,6 @@
     padding: 0 6px;
   }
 
-  .tms-topbar-brand img {
-    width: 150px;
-  }
-
   .tms-topbar-scene {
     visibility: hidden;
   }
@@ -433,10 +429,6 @@
   .tms-topbar {
     gap: 2px;
     padding-right: 8px;
-  }
-
-  .tms-topbar-brand img {
-    width: 118px;
   }
 
   .tms-topbar-account {
@@ -597,10 +589,6 @@
 @media (max-width: 400px) {
   .tms-topbar {
     padding-right: 6px;
-  }
-
-  .tms-topbar-brand img {
-    width: 100px;
   }
 
   .tms-topbar-actions {

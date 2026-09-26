@@ -426,7 +426,7 @@ var NOW = new Date(2026, 8, 14, 11, 32).getTime();
     var end = new Uint8Array([].concat(u32(0x06054b50), u16(0), u16(0), u16(files.length), u16(files.length), u32(size), u32(offset), u16(0)));
     return new Blob(parts.concat(central, [end]), { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   }
-  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[ --]/g, ''); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, ''); }
   function colName(i) { var s = ''; i++; while (i) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
   function sheetXml(columns, rows) {
     var widths = columns.map(function (c, i) { return Math.min(60, Math.max(10, String(c).length + 2, rows.reduce(function (m, r) { return Math.max(m, String(r[i] == null ? '' : r[i]).length + 2); }, 0))); });
@@ -439,7 +439,7 @@ var NOW = new Date(2026, 8, 14, 11, 32).getTime();
       rows.map(function (r, ri) { return '<row r="' + (ri + 2) + '">' + r.map(function (v, i) { return cell(v, colName(i) + (ri + 2), 0); }).join('') + '</row>'; }).join('');
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
       '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' +
-      '<cols>' + widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols>' +
+      (widths.length ? '<cols>' + widths.map(function (w, i) { return '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>'; }).join('') + '</cols>' : '') +
       '<sheetData>' + body + '</sheetData></worksheet>';
   }
   // sheets: [{ name, columns: [header], rows: [[value]] }]

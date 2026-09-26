@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Input as AntInput } from 'antd';
+import { Eye, EyeOff } from 'lucide-react';
 
 /**
  * Input — antd-backed drop-in replacement.
@@ -26,8 +27,23 @@ export const Input = ({
   style = {},
   ...props
 }) => {
-  /* antd Input.Password for password fields, otherwise standard Input */
-  const InputComponent = type === 'password' ? AntInput.Password : AntInput;
+  /* Password fields get a real show/hide button (lucide Eye / EyeOff) in the
+     suffix slot, so it sits inside the field on the right, vertically centred,
+     and the affix wrapper reserves room for it so typed text never runs under it. */
+  const isPassword = type === 'password';
+  const [reveal, setReveal] = useState(false);
+  const eyeToggle = isPassword ? (
+    <button
+      type="button"
+      className="tms-pw-toggle"
+      onClick={() => setReveal(r => !r)}
+      aria-label={reveal ? 'Hide password' : 'Show password'}
+      aria-pressed={reveal}
+      disabled={disabled}
+    >
+      {reveal ? <EyeOff size={18} /> : <Eye size={18} />}
+    </button>
+  ) : undefined;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', ...style }}>
@@ -48,15 +64,16 @@ export const Input = ({
         </label>
       )}
 
-      <InputComponent
+      <AntInput
         name={name}
-        type={type !== 'password' ? type : undefined}
+        type={isPassword ? (reveal ? 'text' : 'password') : type}
         value={value ?? ''}
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
         status={error ? 'error' : undefined}
         prefix={Icon ? <Icon size={18} style={{ color: 'var(--text-muted)' }} /> : undefined}
+        suffix={eyeToggle}
         style={{
           height: '42px',
           fontSize: '14px',

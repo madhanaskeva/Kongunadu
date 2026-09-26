@@ -59,9 +59,11 @@ export const SelectField = ({
         popupMatchSelectWidth={false}
         optionFilterProp="label"
         suffixIcon={<ChevronDown size={17} style={{ color: 'var(--kr-grey-700)' }} />}
-        style={{ width: '100%', height: `${height}px` }}
+        // antd v6 derives its vertical padding from --ant-select-height, so the
+        // height is set through the variable to keep the text vertically centred.
+        style={{ width: '100%', height: `${height}px`, '--ant-select-height': `${height}px` }}
         classNames={{ popup: { root: 'tms-select-popup' } }}
-        className={Icon ? 'tms-select tms-select-has-icon' : 'tms-select'}
+        className={['tms-select', Icon && 'tms-select-has-icon', height >= 44 && 'tms-select--bar', allLabel && 'tms-select--all'].filter(Boolean).join(' ')}
       />
     </div>
   );

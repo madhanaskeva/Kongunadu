@@ -95,11 +95,19 @@ export const DeviceApprovals = () => {
   const [approveBranch, setApproveBranch] = useState('');
   const [approveErr, setApproveErr] = useState('');
   const branchOpts = (T().branches || []).filter(b => b.status === 'Active');
+  // One active supervisor per branch: only branches without one are offered, plus the
+  // branch of the supervisor this phone already belongs to (a re-registered device).
+  const approveBranchOpts = (r) => {
+    const self = r ? findSupervisor(r) : null;
+    return branchOpts.filter(b => (self && self.branch === b.id) ||
+      !(T().supervisors || []).some(s => s.status === 'Active' && s.branch === b.id && (!self || s.id !== self.id)));
+  };
 
   const openApprove = (r) => {
     const existing = findSupervisor(r);
     setApproving(r);
-    setApproveBranch(r.branchId || (existing && existing.branch) || '');
+    const pre = r.branchId || (existing && existing.branch) || '';
+    setApproveBranch(approveBranchOpts(r).some(b => b.id === pre) ? pre : '');
     setApproveErr('');
   };
 
@@ -419,7 +427,7 @@ export const DeviceApprovals = () => {
               <SelectField
                 value={approveBranch}
                 onChange={(v) => { setApproveBranch(v); setApproveErr(''); }}
-                options={branchOpts.map(b => ({ value: b.id, label: b.name }))}
+                options={approveBranchOpts(approving).map(b => ({ value: b.id, label: b.name }))}
                 placeholder="Select branch"
                 error={approveErr ? ' ' : undefined}
                 ariaLabel="Branch"

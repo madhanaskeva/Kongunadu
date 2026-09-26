@@ -90,8 +90,8 @@ export const MultiSelect = ({
               top: 'calc(100% + 6px)',
               left: 0,
               width: 'max(100%, 280px)',
-              border: '1px solid #d5dfda',
-              borderRadius: '10px',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-lg)',
               boxShadow: 'var(--shadow-lg)',
             }),
         background: '#fff',
@@ -151,9 +151,8 @@ export const MultiSelect = ({
               key={o.value}
               role="option"
               aria-selected={on}
-              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid #f2f5f4' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f5faf7')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              className="kr-check-row"
+              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid #f2f5f4', background: on ? 'var(--color-brand-tint)' : 'transparent' }}
             >
               <input
                 type="checkbox"
@@ -193,6 +192,7 @@ export const MultiSelect = ({
           aria-haspopup="listbox"
           aria-expanded={open}
           aria-labelledby={labelledBy}
+          className="kr-select-trigger"
           style={{
             all: 'unset',
             boxSizing: 'border-box',

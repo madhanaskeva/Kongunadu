@@ -364,10 +364,12 @@ export const Attendance = () => {
       headers: ['Driver Name', 'Vehicle Number', 'Branch', 'Status', 'Date'],
       keys: ['name', 'vehicle', 'branchName', 'status', r => formatDate(r.date)],
       filename: `Driver_Attendance_${appliedFilters.fromDate}_to_${appliedFilters.toDate}`,
-      title: 'Kongunadu Road Lines · Driver Attendance',
+      title: 'Driver Attendance',
     });
     if (res.success) {
       showToast('success', 'Excel Export Ready', `Exported ${attRows.length} attendance records to ${res.filename}.`);
+    } else {
+      showToast('warning', 'Export failed', res.message || 'Could not create the Excel file.');
     }
   };
 
@@ -859,14 +861,14 @@ export const Attendance = () => {
 
             {/* Action Bar */}
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Export Excel Option (Temporarily Disabled) */}
+              {/* Export Excel: the filtered records shown below */}
               <button
                 type="button"
-                disabled
-                title="Excel export is temporarily disabled"
+                onClick={handleExportExcel}
+                title="Download these attendance records as an Excel workbook"
                 style={{
                   all: 'unset',
-                  cursor: 'not-allowed',
+                  cursor: 'pointer',
                   padding: '0 14px',
                   height: '34px',
                   display: 'inline-flex',
@@ -878,8 +880,6 @@ export const Attendance = () => {
                   fontSize: '13px',
                   fontWeight: 600,
                   color: '#059669',
-                  opacity: 0.55,
-                  userSelect: 'none',
                 }}
               >
                 <FileSpreadsheet size={16} color="#059669" />
