@@ -28,7 +28,8 @@ export class SupervisorApp extends React.Component {
     localTrips: [], closedIds: [],
     att: { D01: 'P', D02: '', D07: '', D09: '' }, attVeh: { D01: 'V01' }, attVehStatus: {}, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
     am: { vehicle: '', driver: '', status: '' },
-    idle: this.seedIdle(), idleFilter: 'all', showIdleErrors: false
+    idle: this.seedIdle(), idleFilter: 'all', showIdleErrors: false,
+    profileMenuOpen: false
   };
   // The signed-in supervisor and their branch, set at login from the Supervisor Master.
   get SUP() { return (this.state && this.state.supId) || 'S01'; }
@@ -209,7 +210,7 @@ export class SupervisorApp extends React.Component {
     const obStepIdx = { approval: 0, otp: 1, register: 2 }[s.screen] || 0;
     const otpBad = !!s.obOtpErr;
     const regBad = { name: !s.reg.name.trim() ? 'Enter your full name.' : undefined, password: s.reg.password.length < 6 ? 'Use at least 6 characters.' : undefined };
-    const titles = { home: 'Kongunadu Road Lines', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance', attMonth: 'Monthly attendance', reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
+    const titles = { home: 'Kongunadu Road Lines', profile: 'Supervisor profile', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance', attMonth: 'Monthly attendance', reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
     // Open trip options
     const activeVeh = new Set(this.active().map(t => t.vehicle)), activeDrv = new Set(this.active().map(t => t.driver));
     const sup = T.S[this.SUP] || {}, me = this.me();
@@ -1041,7 +1042,18 @@ export class SupervisorApp extends React.Component {
         this.toast('warning', 'Sent for approval', `${name} is set as the driver. Head Office must approve the driver record.`);
       },
       grantGps: () => { this.setState({ gpsGranted: true }); this.go('open'); },
-      notifOpen: s.notifOpen, toast: s.toast, hideToast: () => this.setState({ toast: null })
+      notifOpen: s.notifOpen, toast: s.toast, hideToast: () => this.setState({ toast: null }),
+      profileMenuOpen: !!s.profileMenuOpen,
+      toggleProfileMenu: () => this.setState(st => ({ profileMenuOpen: !st.profileMenuOpen })),
+      goProfile: () => this.go('profile', { profileMenuOpen: false }),
+      onSignOut: () => {
+        this.setState({ screen: 'login', profileMenuOpen: false, supId: '', loginState: 'idle' });
+        this.toast('info', 'Signed out', 'You have been signed out successfully.');
+      },
+      supFullName: sup.name || 'R. Senthil Kumar',
+      supRoleText: 'Branch Supervisor · ' + me.branch,
+      supInitials: (sup.name || 'Supervisor R. Senthil Kumar').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'SK',
+      supId: this.SUP,
     };
   }
   pickAm(patch) {
