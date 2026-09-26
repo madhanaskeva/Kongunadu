@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { UserCheck, Eye, Pencil, Trash2, X, Plus, Fuel } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
-import { downloadXlsx, readSheet } from '../../../utils/spreadsheet';
+import { readSheet } from '../../../utils/spreadsheet';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
@@ -806,26 +806,6 @@ export const MasterManager = ({ type }) => {
     return opts.find(o => squash(o.value) === s || squash(o.label) === s || squash(String(o.label).replace(/\s*\(.*\)\s*$/, '')) === s);
   };
 
-  const handleDownloadTemplate = () => {
-    const fs = importFields(), req = importRequired();
-    const allowed = fs.map(f => {
-      const opts = optionsOf(f, {});
-      const hint = opts ? opts.map(o => o.label).join(', ')
-        : f[2] === 'bunks-input' || f[2] === 'locations-input' ? 'Several names separated by commas'
-        : (f[3] && typeof f[3] === 'string' ? 'e.g. ' + f[3].replace(/^e\.g\.\s*/i, '') : '');
-      return [f[1], req.includes(f[0]) ? 'Required' : 'Optional', f[2] === 'checkbox-select' ? 'Several names separated by commas: ' + hint : hint];
-    });
-    try {
-      downloadXlsx(`${m.title.replace(/[^A-Za-z0-9]+/g, '_')}_template.xlsx`, [
-        { name: m.title.replace(/ Master$/, ''), columns: fs.map(f => f[1]), rows: [] },
-        { name: 'How to fill', columns: ['Column', 'Required', 'Allowed values / example'], rows: allowed },
-      ]);
-      showToast('success', 'Template downloaded', `Fill one ${m.singular} per row under the headings, then use Import from Excel.`);
-    } catch (err) {
-      showToast('warning', 'Download failed', (err && err.message) || 'Could not create the template.');
-    }
-  };
-
   const handleImportFile = async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
@@ -838,7 +818,7 @@ export const MasterManager = ({ type }) => {
     const fs = importFields();
     const cols = (rows[0] || []).map(h => fs.find(f => squash(f[1]) === squash(h) || squash(f[0]) === squash(h)));
     if (!cols.some(Boolean)) {
-      showToast('warning', 'No matching headings', `The first row must hold the headings: ${fs.map(f => f[1]).join(', ')}. Use Download template to get them.`);
+      showToast('warning', 'No matching headings', `The first row must hold the headings: ${fs.map(f => f[1]).join(', ')}.`);
       return;
     }
     const required = importRequired();
@@ -1264,29 +1244,6 @@ export const MasterManager = ({ type }) => {
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
-            {canAdd && (
-              <button
-                type="button"
-                onClick={handleDownloadTemplate}
-                title={`Download an Excel sheet with the ${m.singular} columns to fill in`}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  padding: '0 14px',
-                  height: '32px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-strong)',
-                  background: '#fff',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text-heading)',
-                }}
-              >
-                Download template
-              </button>
-            )}
             {canAdd && (
               <button
                 type="button"
