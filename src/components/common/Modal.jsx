@@ -34,7 +34,7 @@ export const Modal = ({
       footer={null}
       destroyOnClose
       centered
-      maskClosable
+      mask={{ closable: true }}
       styles={{
         mask: {
           backdropFilter: 'blur(3px)',

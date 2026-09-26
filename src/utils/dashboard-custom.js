@@ -351,7 +351,7 @@ export const getDashModules = (tms = {}, ctx = {}) => {
 
   const modules = [
     { id: 'trips', label: 'Trips', route: 'trips', kind: 'trip', cols: ['Trip number', 'Branch', 'Vehicle', 'Driver', 'Client · unloading', 'Type', 'Opened', 'Status', 'Flags'], rows: tripsRows },
-    { id: 'exceptions', label: 'Exceptions', route: 'exceptions', kind: 'exc', cols: ['Severity', 'Type', 'Vehicle / trip', 'Detail', 'Branch', 'Raised', 'Assignee', 'Status'], rows: exceptionsRows },
+    { id: 'exceptions', label: 'Exceptions', route: null, kind: 'exc', cols: ['Severity', 'Type', 'Vehicle / trip', 'Detail', 'Branch', 'Raised', 'Assignee', 'Status'], rows: exceptionsRows },
     { id: 'fleet', label: 'Fleet & GPS', route: 'fleet', kind: 'route', cols: ['Vehicle', 'Type', 'Branch', 'Driver', 'Status', 'GPS', 'Odometer', 'Last seen', 'Route'], rows: fleetRows },
     { id: 'distance', label: 'Distance variation', route: 'distance', kind: 'route', cols: ['Trip', 'Vehicle', 'Route', 'Branch', 'Fixed KM', 'GPS KM', 'Odometer KM', 'Variance', 'Review'], rows: distanceRows },
     { id: 'attendance', label: 'Attendance', route: 'attendance', kind: 'drv', cols: ['Driver', 'Branch', 'Type', 'Present', 'Absent', 'Utilisation', 'Status'], rows: attendanceRows },
@@ -376,6 +376,7 @@ export const buildCustomWidget = {
     const fields = (it.fields || []).filter(h => m.cols.includes(h));
     const title = (it.title || '').trim() || m.label;
     const count = m.rows.length;
+    const isExc = it.module === 'exceptions' || m.id === 'exceptions';
     return {
       uid: it.uid,
       module: it.module,
@@ -385,7 +386,8 @@ export const buildCustomWidget = {
       sub: count === 1 ? '1 record in ' + m.label : count + ' records in ' + m.label,
       subColor: 'var(--text-muted)',
       edge: 'var(--color-brand)',
-      route: m.route,
+      route: isExc ? null : m.route,
+      noLink: isExc,
       stats: fields.map(h => ({ h, text: headingStat(m, h).text })),
       hasStats: fields.length > 0,
     };
@@ -446,6 +448,7 @@ export const buildCustomWidget = {
       };
     });
 
+    const isExc = it.module === 'exceptions' || m.id === 'exceptions';
     return {
       uid: it.uid,
       module: it.module,
@@ -453,7 +456,8 @@ export const buildCustomWidget = {
       chartType: it.chartType || it.style || 'bar',
       title,
       meta: m.rows.length + ' records',
-      route: m.route,
+      route: isExc ? null : m.route,
+      noLink: isExc,
       isGroups: true,
       isHbar: false,
       isColumn: false,
@@ -475,22 +479,25 @@ export const buildCustomWidget = {
     const fields = (it.fields && it.fields.length ? it.fields : m.cols.slice(0, 4)).filter(h => m.cols.includes(h));
     const shown = m.rows.slice(0, 8);
     const title = (it.title || '').trim() || m.label;
+    const isExc = it.module === 'exceptions' || m.id === 'exceptions';
     return {
       uid: it.uid,
       module: it.module,
       fields: it.fields,
       title,
-      linkLabel: 'Open ' + m.label + ' →',
-      route: m.route,
+      linkLabel: isExc ? null : ('Open ' + m.label + ' →'),
+      route: isExc ? null : m.route,
+      noActions: isExc,
+      noLink: isExc,
       isTable: true,
       items: [],
       empty: 'No records in ' + m.label + ' yet.',
       isEmpty: !m.rows.length,
       cols: fields,
       tRows: shown.map(r => ({
-        kind: m.kind || 'route',
+        kind: isExc ? null : (m.kind || 'route'),
         id: r._id,
-        route: m.route,
+        route: isExc ? null : m.route,
         cells: fields.map((h, i) => ({
           v: txtOf(r[h]) || '—',
           weight: i === 0 ? 700 : 400,

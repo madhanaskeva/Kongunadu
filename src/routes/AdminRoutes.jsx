@@ -4,7 +4,7 @@ import AdminLayout from '../layouts/AdminLayout/AdminLayout';
 import Dashboard from '../pages/admin/Dashboard/Dashboard';
 import TripList from '../pages/admin/Trips/TripList';
 import TripDetail from '../pages/admin/Trips/TripDetail';
-import Exceptions from '../pages/admin/Exceptions/Exceptions';
+// import Exceptions from '../pages/admin/Exceptions/Exceptions';
 import FleetMonitor from '../pages/admin/Fleet/FleetMonitor';
 import DistanceVariation from '../pages/admin/Distance/DistanceVariation';
 import {
@@ -32,7 +32,7 @@ export const AdminRoutes = (
     <Route path="dashboard" element={<Dashboard />} />
     <Route path="trips" element={<TripList />} />
     <Route path="trips/:id" element={<TripDetail />} />
-    <Route path="exceptions" element={<Exceptions />} />
+    {/* <Route path="exceptions" element={<Exceptions />} /> */}
     <Route path="fleet" element={<FleetMonitor />} />
     <Route path="distance" element={<DistanceVariation />} />
     <Route path="attendance" element={<Attendance />} />

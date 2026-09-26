@@ -27,7 +27,7 @@ export const AdminConfirmDialog = () => {
       onOk={handleOk}
       width={440}
       centered
-      maskClosable
+      mask={{ closable: true }}
       title={null}
       closable={false}
       okText={confirm?.okLabel || 'Confirm'}
