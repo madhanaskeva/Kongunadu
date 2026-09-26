@@ -129,7 +129,7 @@ export const TripList = () => {
 
   const branchOptions = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
   const typeOptions = [{ value: 'Business', label: 'Business' }, { value: 'Non-Business', label: 'Non-Business' }];
-  const flagOptions = [{ value: 'flagged', label: 'Flagged only' }, { value: 'clean', label: 'No flags' }];
+  const flagOptions = [{ value: 'flagged', label: 'Flagged' }, { value: 'clean', label: 'No flagged' }];
 
   // Vehicles narrow to the branch already chosen, and each carries its trip count
   // so the list says how much picking it would actually show.
@@ -261,7 +261,7 @@ export const TripList = () => {
           onChange={setVehicles}
         />
         <FilterSelect label="Type" icon={Tag} width="160px" value={tf.type} allLabel="All types" options={typeOptions} onChange={(v) => setTf({ ...tf, type: v })} />
-        <FilterSelect label="Flags" icon={Flag} width="160px" value={tf.flag} allLabel="Any" options={flagOptions} onChange={(v) => setTf({ ...tf, flag: v })} />
+        <FilterSelect label="Flags" icon={Flag} width="160px" value={tf.flag} allLabel="All" options={flagOptions} onChange={(v) => setTf({ ...tf, flag: v })} />
 
         <form
           onSubmit={(e) => { e.preventDefault(); runSearch(); }}
