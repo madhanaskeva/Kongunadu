@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
 
 /**
- * Premium custom multi-choice dropdown with checkboxes, live search,
- * select-all/clear shortcuts, and visual counter badges.
+ * Premium compact custom multi-choice dropdown with checkboxes, live search,
+ * select-all/clear shortcuts, auto-positioning, and reduced list height.
  */
 export const ReportMultiSelect = ({
   values = [],
@@ -15,6 +15,7 @@ export const ReportMultiSelect = ({
   disabled = false,
 }) => {
   const [open, setOpen] = useState(false);
+  const [openUpwards, setOpenUpwards] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef(null);
 
@@ -46,6 +47,18 @@ export const ReportMultiSelect = ({
       document.removeEventListener('mousedown', handleOutsideClick);
     };
   }, [open]);
+
+  // Toggle open and auto-detect if menu should open upwards or downwards
+  const handleToggleOpen = () => {
+    if (disabled) return;
+    if (!open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 230px space below, flip upwards
+      setOpenUpwards(spaceBelow < 230 && rect.top > 210);
+    }
+    setOpen(prev => !prev);
+  };
 
   // Filter options based on live search
   const filteredOptions = useMemo(() => {
@@ -111,7 +124,7 @@ export const ReportMultiSelect = ({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen(prev => !prev)}
+        onClick={handleToggleOpen}
         style={{
           all: 'unset',
           boxSizing: 'border-box',
@@ -210,19 +223,20 @@ export const ReportMultiSelect = ({
         </div>
       </button>
 
-      {/* Floating Popover Menu */}
+      {/* Floating Popover Menu (Reduced Size & Auto Positioned) */}
       {open && (
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
+            top: openUpwards ? 'auto' : 'calc(100% + 4px)',
+            bottom: openUpwards ? 'calc(100% + 4px)' : 'auto',
             left: 0,
             right: 0,
-            minWidth: '260px',
+            minWidth: '240px',
             background: '#ffffff',
             border: '1px solid var(--border-default, #e2e8f0)',
             borderRadius: '8px',
-            boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.14), 0 6px 12px -2px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 10px 25px -4px rgba(0, 0, 0, 0.14), 0 4px 8px -2px rgba(0, 0, 0, 0.08)',
             zIndex: 9999,
             overflow: 'hidden',
             display: 'flex',
@@ -232,7 +246,7 @@ export const ReportMultiSelect = ({
           {/* Search Header */}
           <div
             style={{
-              padding: '8px 10px',
+              padding: '6px 8px',
               borderBottom: '1px solid var(--border-default, #e2e8f0)',
               background: '#ffffff',
             }}
@@ -245,10 +259,10 @@ export const ReportMultiSelect = ({
               }}
             >
               <Search
-                size={13}
+                size={12}
                 style={{
                   position: 'absolute',
-                  left: '8px',
+                  left: '7px',
                   color: 'var(--kr-grey-400, #94a3b8)',
                 }}
               />
@@ -261,12 +275,12 @@ export const ReportMultiSelect = ({
                 style={{
                   width: '100%',
                   boxSizing: 'border-box',
-                  height: '30px',
-                  paddingLeft: '28px',
-                  paddingRight: searchQuery ? '24px' : '8px',
-                  borderRadius: '5px',
+                  height: '26px',
+                  paddingLeft: '24px',
+                  paddingRight: searchQuery ? '20px' : '6px',
+                  borderRadius: '4px',
                   border: '1px solid var(--border-strong, #cbd5e1)',
-                  fontSize: '12px',
+                  fontSize: '11.5px',
                   outline: 'none',
                   color: 'var(--text-heading, #1e293b)',
                 }}
@@ -287,7 +301,7 @@ export const ReportMultiSelect = ({
                     color: 'var(--kr-grey-400)',
                   }}
                 >
-                  <X size={12} />
+                  <X size={11} />
                 </button>
               )}
             </div>
@@ -296,16 +310,16 @@ export const ReportMultiSelect = ({
           {/* Quick Actions Bar */}
           <div
             style={{
-              padding: '6px 10px',
+              padding: '4px 8px',
               background: 'var(--surface-muted, #f8fafc)',
               borderBottom: '1px solid var(--border-default, #e2e8f0)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              fontSize: '11px',
+              fontSize: '10.5px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 type="button"
                 onClick={handleSelectAll}
@@ -344,23 +358,23 @@ export const ReportMultiSelect = ({
             </span>
           </div>
 
-          {/* Options List with Checkboxes */}
+          {/* Reduced-height Options List with Checkboxes */}
           <div
             style={{
-              maxHeight: '230px',
+              maxHeight: '135px',
               overflowY: 'auto',
-              padding: '4px',
+              padding: '3px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '2px',
+              gap: '1px',
             }}
           >
             {filteredOptions.length === 0 ? (
               <div
                 style={{
-                  padding: '16px 12px',
+                  padding: '12px 8px',
                   textAlign: 'center',
-                  fontSize: '12px',
+                  fontSize: '11.5px',
                   color: 'var(--text-muted, #94a3b8)',
                 }}
               >
@@ -374,11 +388,11 @@ export const ReportMultiSelect = ({
                     key={opt.value}
                     onClick={() => handleToggleOption(opt.value)}
                     style={{
-                      padding: '7px 8px',
-                      borderRadius: '5px',
+                      padding: '5px 7px',
+                      borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '9px',
+                      gap: '8px',
                       cursor: 'pointer',
                       background: isChecked ? 'var(--kr-green-50, #edf8f3)' : 'transparent',
                       transition: 'background 0.12s ease',
@@ -393,9 +407,9 @@ export const ReportMultiSelect = ({
                     {/* Custom Checkbox Square */}
                     <div
                       style={{
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '4px',
+                        width: '15px',
+                        height: '15px',
+                        borderRadius: '3.5px',
                         border: `1.5px solid ${isChecked ? 'var(--color-brand, #00623f)' : '#cbd5e1'}`,
                         background: isChecked ? 'var(--color-brand, #00623f)' : '#ffffff',
                         display: 'grid',
@@ -404,16 +418,16 @@ export const ReportMultiSelect = ({
                         transition: 'all 0.14s ease',
                       }}
                     >
-                      {isChecked && <Check size={11} strokeWidth={3} style={{ color: '#ffffff' }} />}
+                      {isChecked && <Check size={10} strokeWidth={3} style={{ color: '#ffffff' }} />}
                     </div>
 
                     {/* Option Label */}
                     <span
                       style={{
-                        fontSize: '12px',
+                        fontSize: '11.5px',
                         fontWeight: isChecked ? 600 : 400,
                         color: isChecked ? 'var(--kr-green-900, #003021)' : 'var(--text-body, #334155)',
-                        lineHeight: 1.3,
+                        lineHeight: 1.25,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -430,7 +444,7 @@ export const ReportMultiSelect = ({
           {/* Footer with Apply / Close */}
           <div
             style={{
-              padding: '6px 10px',
+              padding: '4px 8px',
               borderTop: '1px solid var(--border-default, #e2e8f0)',
               background: '#ffffff',
               display: 'flex',
@@ -443,11 +457,11 @@ export const ReportMultiSelect = ({
               style={{
                 all: 'unset',
                 cursor: 'pointer',
-                padding: '4px 14px',
-                borderRadius: '5px',
+                padding: '3px 12px',
+                borderRadius: '4px',
                 background: 'var(--color-brand, #00623f)',
                 color: '#ffffff',
-                fontSize: '11.5px',
+                fontSize: '11px',
                 fontWeight: 700,
                 textAlign: 'center',
                 boxShadow: '0 1px 2px rgba(0, 98, 63, 0.15)',
@@ -461,4 +475,5 @@ export const ReportMultiSelect = ({
     </div>
   );
 };
+
 export default ReportMultiSelect;

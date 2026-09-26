@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
 /**
- * Modern, attractive custom single-select dropdown.
+ * Modern, attractive, compact custom single-select dropdown.
  */
 export const ReportCustomSelect = ({
   value,
@@ -14,6 +14,7 @@ export const ReportCustomSelect = ({
   disabled = false,
 }) => {
   const [open, setOpen] = useState(false);
+  const [openUpwards, setOpenUpwards] = useState(false);
   const containerRef = useRef(null);
 
   // Close when clicking outside
@@ -30,6 +31,18 @@ export const ReportCustomSelect = ({
       document.removeEventListener('mousedown', handleOutsideClick);
     };
   }, [open]);
+
+  // Toggle open and auto-detect if menu should open upwards or downwards
+  const handleToggleOpen = () => {
+    if (disabled) return;
+    if (!open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 200px space below, flip upwards
+      setOpenUpwards(spaceBelow < 200 && rect.top > 180);
+    }
+    setOpen(prev => !prev);
+  };
 
   // Normalize options to [{ value, label }]
   const normalizedOptions = options.map(opt =>
@@ -52,14 +65,14 @@ export const ReportCustomSelect = ({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen(prev => !prev)}
+        onClick={handleToggleOpen}
         style={{
           all: 'unset',
           boxSizing: 'border-box',
           width: '100%',
           height: '36px',
           padding: '0 10px',
-          background: open ? '#ffffff' : '#ffffff',
+          background: '#ffffff',
           border: `1px solid ${open ? 'var(--color-brand, #00623f)' : 'var(--border-strong, #cbd5e1)'}`,
           borderRadius: '6px',
           display: 'flex',
@@ -95,23 +108,24 @@ export const ReportCustomSelect = ({
         />
       </button>
 
-      {/* Floating Menu Popover */}
+      {/* Floating Menu Popover (Compact & Auto-Positioned) */}
       {open && (
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
+            top: openUpwards ? 'auto' : 'calc(100% + 4px)',
+            bottom: openUpwards ? 'calc(100% + 4px)' : 'auto',
             left: 0,
             minWidth: '100%',
             width: 'max-content',
-            maxWidth: '300px',
+            maxWidth: '280px',
             background: '#ffffff',
             border: '1px solid var(--border-default, #e2e8f0)',
             borderRadius: '8px',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
-            padding: '4px',
+            boxShadow: '0 10px 24px -4px rgba(0, 0, 0, 0.12), 0 4px 8px -2px rgba(0, 0, 0, 0.06)',
+            padding: '3px',
             zIndex: 9999,
-            maxHeight: '260px',
+            maxHeight: '160px',
             overflowY: 'auto',
           }}
         >
@@ -125,9 +139,9 @@ export const ReportCustomSelect = ({
                   setOpen(false);
                 }}
                 style={{
-                  padding: '7px 10px',
-                  borderRadius: '5px',
-                  fontSize: '12px',
+                  padding: '5px 8px',
+                  borderRadius: '4px',
+                  fontSize: '11.5px',
                   fontWeight: isSelected ? 700 : 500,
                   color: isSelected ? 'var(--color-brand, #00623f)' : 'var(--text-body, #334155)',
                   background: isSelected ? 'var(--kr-green-50, #edf8f3)' : 'transparent',
@@ -146,7 +160,7 @@ export const ReportCustomSelect = ({
                 }}
               >
                 <span>{opt.label}</span>
-                {isSelected && <Check size={14} style={{ color: 'var(--color-brand, #00623f)', flexShrink: 0 }} />}
+                {isSelected && <Check size={13} style={{ color: 'var(--color-brand, #00623f)', flexShrink: 0 }} />}
               </div>
             );
           })}
@@ -155,4 +169,5 @@ export const ReportCustomSelect = ({
     </div>
   );
 };
+
 export default ReportCustomSelect;

@@ -17,7 +17,6 @@ export const ReportFilterRow = ({
   const currentFieldDef = fields.find(f => f.key === filter.field) || fields[0];
 
   const fieldKey = filter.field || (fields[0] ? fields[0].key : '');
-  const operator = filter.op || 'equals';
   const val = filter.value;
 
   // Resolve options dynamically using relationship awareness
@@ -26,11 +25,10 @@ export const ReportFilterRow = ({
   const handleFieldChange = (newField) => {
     const nextDef = fields.find(f => f.key === newField);
     let defaultVal = [];
-    let defaultOp = 'equals';
+    let defaultOp = nextDef?.type === 'dateRange' ? 'between' : 'equals';
 
     if (nextDef?.type === 'dateRange') {
       defaultVal = { from: '', to: '' };
-      defaultOp = 'between';
     }
 
     onUpdateFilter(index, {
@@ -40,12 +38,13 @@ export const ReportFilterRow = ({
     });
   };
 
-  const handleOpChange = (newOp) => {
-    onUpdateFilter(index, { ...filter, op: newOp });
-  };
-
   const handleValueChange = (newVal) => {
-    onUpdateFilter(index, { ...filter, value: newVal });
+    const isDate = currentFieldDef?.type === 'dateRange';
+    onUpdateFilter(index, {
+      ...filter,
+      op: isDate ? 'between' : 'equals',
+      value: newVal,
+    });
   };
 
   const isDateRange = currentFieldDef?.type === 'dateRange' || filter.op === 'between';
@@ -55,15 +54,6 @@ export const ReportFilterRow = ({
     value: f.key,
     label: f.label,
   }));
-
-  // Operator options for custom dropdown
-  const operatorSelectOptions = isDateRange
-    ? [{ value: 'between', label: 'between' }]
-    : [
-        { value: 'equals', label: 'is' },
-        { value: 'not_equals', label: 'is not' },
-        { value: 'contains', label: 'includes' },
-      ];
 
   return (
     <div
@@ -81,16 +71,7 @@ export const ReportFilterRow = ({
         placeholder="Select Field"
       />
 
-      {/* 2. Operator Selector */}
-      <ReportCustomSelect
-        value={operator}
-        options={operatorSelectOptions}
-        onChange={handleOpChange}
-        placeholder="Rule"
-        buttonStyle={{ background: 'var(--surface-muted, #f8fafc)' }}
-      />
-
-      {/* 3. Value Selector */}
+      {/* 2. Direct Value / Multi-Select Selector (without intermediate operator) */}
       <div style={{ minWidth: 0, width: '100%' }}>
         {isDateRange ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -170,7 +151,7 @@ export const ReportFilterRow = ({
         )}
       </div>
 
-      {/* 4. Remove Button */}
+      {/* 3. Remove Button */}
       <button
         type="button"
         title="Remove"

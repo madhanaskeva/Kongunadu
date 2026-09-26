@@ -1351,7 +1351,6 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       if (f.field === 'date' && f.value) {
         return `${fieldLabel}: ${f.value.from || 'Start'} to ${f.value.to || 'Present'}`;
       }
-      const opText = f.op === 'not_equals' ? 'is not' : f.op === 'contains' ? 'includes' : 'is';
       if (Array.isArray(f.value)) {
         const resolvedLabels = f.value.map(val => {
           if (f.field === 'driver') return D[val]?.name || val;
@@ -1361,7 +1360,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           if (f.field === 'loading') return L[val]?.name || val;
           return val;
         });
-        return `${fieldLabel} ${opText} ${resolvedLabels.join(', ')}`;
+        return `${fieldLabel}: ${resolvedLabels.join(', ')}`;
       }
       let displayVal = f.value;
       if (f.field === 'driver') displayVal = D[f.value]?.name || f.value;
@@ -1369,7 +1368,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       else if (f.field === 'branch') displayVal = B[f.value]?.name || f.value;
       else if (f.field === 'client') displayVal = C[f.value]?.name || f.value;
       else if (f.field === 'loading') displayVal = L[f.value]?.name || f.value;
-      return `${fieldLabel} ${opText} ${displayVal}`;
+      return `${fieldLabel}: ${displayVal}`;
     });
 
   return {
