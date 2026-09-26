@@ -158,3 +158,5 @@ export const exportToPDF = ({
 
   return { success: true };
 };
+
+export const exportToPdf = exportToPDF;

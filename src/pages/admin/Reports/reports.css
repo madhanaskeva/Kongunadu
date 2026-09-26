@@ -1,0 +1,196 @@
+/* ==========================================================================
+   Kongunadu Road Lines - Reports & Export Module Styles
+   Two-Column Grid Layout with Independent Scrollable Columns & Responsive Engine
+   ========================================================================== */
+
+/* Main 2-Column Grid Container */
+.reports-two-col-grid {
+  display: grid;
+  grid-template-columns: minmax(340px, 1fr) minmax(380px, 1.2fr);
+  gap: 20px;
+  align-items: stretch;
+  width: 100%;
+}
+
+/* Individual Column Container */
+.reports-grid-col {
+  background: #ffffff;
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: var(--radius-lg, 12px);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  min-width: 0; /* Prevents flex/grid overflow */
+  height: 560px; /* Uniform height for desktop side-by-side alignment */
+  box-sizing: border-box;
+}
+
+/* Header inside each grid column */
+.reports-col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-default, #e2e8f0);
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.reports-col-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kr-grey-600, #475569);
+  display: block;
+}
+
+.reports-col-title {
+  margin: 3px 0 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-heading, #1e293b);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Scrollable Body inside each grid column */
+.reports-col-scrollable {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Custom Sleek Scrollbar */
+.reports-col-scrollable::-webkit-scrollbar {
+  width: 5px;
+}
+
+.reports-col-scrollable::-webkit-scrollbar-track {
+  background: var(--kr-grey-100, #f1f5f9);
+  border-radius: 4px;
+}
+
+.reports-col-scrollable::-webkit-scrollbar-thumb {
+  background: var(--kr-grey-300, #cbd5e1);
+  border-radius: 4px;
+}
+
+.reports-col-scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--kr-grey-500, #94a3b8);
+}
+
+/* Footer / Action bar inside grid column */
+.reports-col-footer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-default, #e2e8f0);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Module Cards in Left Column */
+.reports-module-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.reports-module-card {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  padding: 12px 10px;
+  border-radius: var(--radius-md, 8px);
+  background: #ffffff;
+  border: 1px solid var(--border-default, #e2e8f0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  transition: all 0.16s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.reports-module-card:hover {
+  border-color: var(--color-brand, #00623f);
+  box-shadow: 0 2px 6px rgba(0, 98, 63, 0.1);
+  transform: translateY(-1px);
+}
+
+.reports-module-card.selected {
+  background: var(--color-brand-tint, #edf8f3);
+  border: 2px solid var(--color-brand, #00623f);
+  box-shadow: 0 2px 8px rgba(0, 98, 63, 0.15);
+}
+
+/* Filter Row inside Right Column */
+.report-filter-row-container {
+  display: grid;
+  grid-template-columns: 140px 110px 1fr 34px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid var(--border-default, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  box-sizing: border-box;
+}
+
+@media (max-width: 1280px) {
+  .report-filter-row-container {
+    grid-template-columns: 130px 100px 1fr 34px;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  .report-filter-row-container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+}
+
+/* Responsive Media Queries */
+@media (max-width: 991px) {
+  .reports-two-col-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .reports-grid-col {
+    height: auto;
+    max-height: 520px;
+  }
+}
+
+@media (max-width: 640px) {
+  .reports-grid-col {
+    padding: 14px;
+    height: auto;
+    max-height: 480px;
+  }
+
+  .reports-module-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reports-col-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
