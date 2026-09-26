@@ -1,7 +1,7 @@
 import React from 'react';
 import SupervisorScreens from './SupervisorScreens';
 import { TMS, formatPhone } from '../../utils';
-import { isPendingClose, pendingCloseDetail, ENROUTE_LABEL } from '../../utils/tripStatus';
+import { isPendingClose, pendingCloseDetail, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../utils/tripStatus';
 import './supervisorStates.css';
 import './supervisorApp.css';
 
@@ -194,7 +194,7 @@ export class SupervisorApp extends React.Component {
   decorate(t) {
     const T = this.T(); const v = T.V[t.vehicle], d = this.drv(t.driver), c = T.C[t.client];
     const long = t.hoursOpen > 24, gpsBad = (t.flags || []).some(f => /GPS/.test(f));
-    const badge = long ? 'Long open' : gpsBad ? 'GPS issue' : t.stage || t.status;
+    const badge = long ? 'Long open' : gpsBad ? 'GPS issue' : t.stage || (t.status === 'Enroute' ? ENROUTE_LABEL : t.status);
     const tone = this.statusTone(badge);
     const fixed = t.fixedKm || 0, prog = fixed ? Math.min(100, Math.round((t.gpsKm || 0) / fixed * 100)) : 0;
     const vNum = v ? v.number : '—', locName = (this.loc(t.loading) || {}).name || '—';
@@ -773,7 +773,7 @@ export class SupervisorApp extends React.Component {
             window.dispatchEvent(new CustomEvent('tms-master-change', { detail: { key: 'trips' } }));
           } catch (e) {}
           this.setState(st => ({ saving: false, screen: 'openDone', localTrips: [...st.localTrips, t], newTrip: t, form: this.blankForm(), showErrors: false, idle: { ...st.idle, [f.vehicle]: { on: false, reason: '', note: '' } } }));
-          this.toast('success', 'Trip saved', num + ' is enroute. GPS monitoring started.');
+          this.toast('success', 'Trip saved', num + ` is ${ENROUTE_LABEL_LOWER}. GPS monitoring started.`);
           this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', ENROUTE_LABEL]], link: { trip: t.id }, linkLabel: 'View trip' });
           this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by ${me.name} (${me.branch}).`, time: 'Just now' });
         }, 1200);

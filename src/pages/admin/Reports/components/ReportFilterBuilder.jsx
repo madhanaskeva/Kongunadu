@@ -39,11 +39,14 @@ export const ReportFilterBuilder = ({
       {/* Column 2 Header */}
       <div className="reports-col-header">
         <div>
-          <span className="reports-col-kicker">Step 2 · Combine Conditions</span>
+          <span className="reports-col-kicker">Step 2 · Refine Your Report</span>
           <h3 className="reports-col-title">
             <Filter size={18} color="var(--color-brand, #00623f)" />
-            Filter Engine (AND)
+            Choose the details you want
           </h3>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
+            Add one or more choices to narrow down your report.
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -51,7 +54,7 @@ export const ReportFilterBuilder = ({
             <button
               type="button"
               onClick={onResetFilters}
-              title="Reset all filter conditions"
+              title="Clear all choices"
               style={{
                 all: 'unset',
                 cursor: 'pointer',
@@ -67,7 +70,7 @@ export const ReportFilterBuilder = ({
               }}
             >
               <RotateCcw size={12} />
-              Reset
+              Clear all
             </button>
           )}
 
@@ -91,7 +94,7 @@ export const ReportFilterBuilder = ({
             }}
           >
             <Plus size={13} />
-            Add Filter
+            + Add another choice
           </button>
         </div>
       </div>
@@ -128,10 +131,10 @@ export const ReportFilterBuilder = ({
               <Filter size={18} />
             </div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-heading, #1e293b)' }}>
-              No conditions applied yet
+              No choices selected yet
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', maxWidth: '340px', lineHeight: 1.4 }}>
-              Click <strong>Add Filter</strong> to combine multiple real conditions (e.g. Branch = Chennai AND Vehicle = TN 28 AQ 4521), or click <strong>Generate Report</strong> to query all records.
+              Click <strong>+ Add another choice</strong> to pick specific details (like Branch or Vehicle), or click <strong>Show Report</strong> to see all information.
             </div>
             <button
               type="button"
@@ -152,7 +155,7 @@ export const ReportFilterBuilder = ({
               }}
             >
               <Plus size={13} />
-              Add First Condition
+              + Add a choice
             </button>
           </div>
         ) : (
@@ -178,10 +181,10 @@ export const ReportFilterBuilder = ({
         <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)' }}>
           {filters.length > 0 ? (
             <span>
-              <strong>{filters.length}</strong> {filters.length === 1 ? 'condition' : 'conditions'} active (AND)
+              <strong>{filters.length}</strong> {filters.length === 1 ? 'choice' : 'choices'} selected
             </span>
           ) : (
-            <span>Full dataset query ready</span>
+            <span>Showing all records</span>
           )}
         </div>
 
@@ -210,11 +213,11 @@ export const ReportFilterBuilder = ({
           }}
         >
           {loading ? (
-            <span>Filtering records…</span>
+            <span>Loading report…</span>
           ) : (
             <>
               <Play size={14} fill="#ffffff" />
-              <span>Generate Report</span>
+              <span>Show Report</span>
             </>
           )}
         </button>

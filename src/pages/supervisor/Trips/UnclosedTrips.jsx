@@ -1,4 +1,5 @@
 import React from 'react';
+import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 
 export const UnclosedTrips = ({ v }) => (
   <>
@@ -33,7 +34,7 @@ export const UnclosedTrips = ({ v }) => (
               </svg>
             </div>
             <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", color: "var(--text-heading)" }}>All trips closed</div>
-            <p style={{ margin: "8px 0 0", fontSize: "14px", color: "var(--text-muted)" }}>Nothing is enroute for {v.branchName}. Trips you open will appear here until they are closed.</p>
+            <p style={{ margin: "8px 0 0", fontSize: "14px", color: "var(--text-muted)" }}>Nothing is {ENROUTE_LABEL_LOWER} for {v.branchName}. Trips you open will appear here until they are closed.</p>
           </div>
         </>
       ) : null}

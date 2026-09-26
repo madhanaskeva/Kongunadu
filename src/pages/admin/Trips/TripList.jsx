@@ -208,13 +208,14 @@ export const TripList = () => {
               style={{
                 font: 'inherit', textAlign: 'left', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
                 display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '10px', padding: '16px 18px',
+                // The whole card carries its own colour, not just the top bar.
+                border: `1px solid ${k.fg}`,
                 borderTop: `4px solid ${k.fg}`,
-                borderColor: k.on ? k.fg : undefined,
-                boxShadow: k.on ? `inset 0 0 0 1px ${k.fg}, 0 2px 8px rgba(0, 48, 33, 0.08)` : undefined,
+                boxShadow: k.on ? `inset 0 0 0 1px ${k.fg}, 0 2px 10px rgba(0, 48, 33, 0.10)` : '0 1px 3px rgba(0, 48, 33, 0.05)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: '12.5px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: k.fg, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {k.label}
                 </span>
                 <span style={{ flex: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: k.bg, color: k.fg }}>
