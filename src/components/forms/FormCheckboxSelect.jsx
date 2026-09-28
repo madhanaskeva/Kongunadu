@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
+import { useDebounce } from '../../utils/debounce';
 
 /**
  * FormCheckboxSelect — Reusable Multi-Select Dropdown with Checkboxes.
@@ -34,6 +35,7 @@ export const FormCheckboxSelect = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 250);
   const containerRef = useRef(null);
 
   const noun = itemNoun || (name === 'supervisors' || (label && label.toLowerCase().includes('supervisor')) ? 'supervisor' : 'client');
@@ -80,14 +82,14 @@ export const FormCheckboxSelect = ({
 
   // Filtered options based on search input
   const filteredOptions = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = debouncedSearch.trim().toLowerCase();
     if (!q) return normalizedOptions;
     return normalizedOptions.filter(
       (opt) =>
         opt.label.toLowerCase().includes(q) ||
         opt.value.toLowerCase().includes(q)
     );
-  }, [normalizedOptions, search]);
+  }, [normalizedOptions, debouncedSearch]);
 
   // Close dropdown on outside click
   useEffect(() => {

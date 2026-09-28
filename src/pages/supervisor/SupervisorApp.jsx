@@ -80,7 +80,14 @@ export class SupervisorApp extends React.Component {
       return { att, attVeh, attVehStatus, attSaved: [...days.map(day => ({ day, ...mine[day] })), ...st.attSaved.filter(r => !mine[r.day])] };
     });
   }
-  writeAttDay(rec) { const store = this.readAttStore(), { day, ...rest } = rec; store[this.BR] = { ...(store[this.BR] || {}), [day]: rest }; try { localStorage.setItem(this.ATT_KEY, JSON.stringify(store)); } catch (e) { /* storage blocked: kept on this device only */ } }
+  writeAttDay(rec) {
+    const store = this.readAttStore(), { day, ...rest } = rec;
+    store[this.BR] = { ...(store[this.BR] || {}), [day]: rest };
+    try {
+      localStorage.setItem(this.ATT_KEY, JSON.stringify(store));
+      window.dispatchEvent(new Event('kr-tms-attendance-changed'));
+    } catch (e) { /* storage blocked: kept on this device only */ }
+  }
   syncTanks() { let m; try { m = JSON.parse(localStorage.getItem(this.TANK_KEY) || '{}') || {}; } catch (e) { return; } const json = JSON.stringify(m); if (json === this._tankJson) return; this._tankJson = json; this.setState({ vehTanks: m }); }
   // Head Office edits the purposes in Settings; the trip form follows within a second.
   syncSettings() {
@@ -253,7 +260,7 @@ export class SupervisorApp extends React.Component {
     const obStepIdx = { approval: 0, otp: 1, register: 2 }[s.screen] || 0;
     const otpBad = !!s.obOtpErr;
     const regBad = { name: !s.reg.name.trim() ? 'Enter your full name.' : undefined, password: s.reg.password.length < 6 ? 'Use at least 6 characters.' : undefined };
-    const titles = { home: 'Kongunadu Road Lines', profile: 'Supervisor profile', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance', attMonth: 'Monthly attendance', reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
+    const titles = { home: 'Kongunadu Road Lines', profile: 'Supervisor profile', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance',  reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
     // Open trip options
     const activeVeh = new Set(this.active().map(t => t.vehicle)), activeDrv = new Set(this.active().map(t => t.driver));
     const sup = T.S[this.SUP] || {}, me = this.me();
@@ -1084,7 +1091,15 @@ export class SupervisorApp extends React.Component {
       removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; delete attVeh[id]; delete attVehStatus[id]; return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
       saveAmEntry: () => { if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance saved for ${attendanceMarked} drivers by ${me.name} (${me.branch}).`, time: 'Just now' }); },
       markDriver: e => this.set(['att', e.currentTarget.dataset.id], e.currentTarget.dataset.v),
-      saveAttendance: () => { this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayDM}.`); this.logActivity({ title: `Attendance saved · ${todayShort}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance marked for ${attendanceMarked} drivers for ${todayDM}.`, time: 'Just now' }); this.go('home'); },
+      saveAttendance: () => {
+        const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries };
+        this.writeAttDay(rec);
+        this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)] }));
+        this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayDM}.`);
+        this.logActivity({ title: `Attendance saved · ${todayShort}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' });
+        this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance marked for ${attendanceMarked} drivers for ${todayDM}.`, time: 'Just now' });
+        this.go('home');
+      },
       weekdays, monthCells, pickDay: e => { const d = Number(e.currentTarget.dataset.day); if (d && d <= TD.getDate()) this.go('attendance'); },
       // driver request
       reqSent: (() => { const r = s.drvReqs.find(x => x.id === s.reqSentId) || { status: 'Pending', name: rf.name }; const t = { Pending: ['Pending approval', 'var(--color-hazard-soft)', '#7A4300', 'Waiting for Head Office. This updates here as soon as they decide.'], Approved: ['Approved', 'var(--kr-green-100)', 'var(--kr-green-800)', `${r.name} is in the ${me.branch} driver list and can be assigned to trips.`], Rejected: ['Rejected', 'var(--kr-red-100)', 'var(--kr-red-800)', `Head Office rejected the request${r.reason ? ': ' + r.reason : '.'}`] }[r.status] || []; return { label: t[0], bg: t[1], fg: t[2], note: t[3], when: r.decidedAt ? 'Decided ' + r.decidedAt : r.requestedAt ? 'Sent ' + r.requestedAt : 'Sent just now' }; })(),

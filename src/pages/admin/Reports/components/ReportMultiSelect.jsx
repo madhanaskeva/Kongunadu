@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Check, Search, X } from 'lucide-react';
+import { useDebounce } from '../../../../utils/debounce';
 
 /**
  * Premium compact custom multi-choice dropdown with checkboxes, live search,
@@ -17,6 +18,7 @@ export const ReportMultiSelect = ({
   const [open, setOpen] = useState(false);
   const [openUpwards, setOpenUpwards] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 250);
   const containerRef = useRef(null);
 
   // Normalize selected values to an array
@@ -62,12 +64,12 @@ export const ReportMultiSelect = ({
 
   // Filter options based on live search
   const filteredOptions = useMemo(() => {
-    if (!searchQuery.trim()) return normalizedOptions;
-    const q = searchQuery.trim().toLowerCase();
+    if (!debouncedSearchQuery.trim()) return normalizedOptions;
+    const q = debouncedSearchQuery.trim().toLowerCase();
     return normalizedOptions.filter(o =>
       String(o.label).toLowerCase().includes(q) || String(o.value).toLowerCase().includes(q)
     );
-  }, [normalizedOptions, searchQuery]);
+  }, [normalizedOptions, debouncedSearchQuery]);
 
   // Toggle a single option
   const handleToggleOption = (val) => {

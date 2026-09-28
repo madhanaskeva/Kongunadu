@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { MapPin, Clock, TriangleAlert } from 'lucide-react';
+import { MapPin, Clock, TriangleAlert, Search, X } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { SelectField } from '../../../components/common/SelectField';
+import { useDebounce } from '../../../utils/debounce';
 
 // Card edge + status chip colours, one entry per vehicle status.
 const FLEET_TONES = {
@@ -18,6 +19,8 @@ export const FleetMonitor = () => {
   const tms = T();
   const [trackId, setTrackId] = useState(null);
   const [idleDurationFilter, setIdleDurationFilter] = useState('all');
+  const [fleetQ, setFleetQ] = useState('');
+  const debouncedFleetQ = useDebounce(fleetQ, 300);
 
   const ff = fleetFilter;
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id));
@@ -62,11 +65,24 @@ export const FleetMonitor = () => {
     const targetMinHours = (ff === 'idle' && idleDurationFilter !== 'all') ? Number(idleDurationFilter) : 0;
     const matchesDuration = ff !== 'idle' || idleDurationFilter === 'all' || v.idleHours > targetMinHours;
 
-    return matchesCategory && matchesDuration;
+    const q = debouncedFleetQ.trim().toLowerCase();
+    const matchesSearch = !q || (
+      (v.number && v.number.toLowerCase().includes(q)) ||
+      (v.type && v.type.toLowerCase().includes(q)) ||
+      (v.branchName && v.branchName.toLowerCase().includes(q)) ||
+      (v.route && v.route.toLowerCase().includes(q)) ||
+      (v.driverName && v.driverName.toLowerCase().includes(q)) ||
+      (v.status && v.status.toLowerCase().includes(q)) ||
+      (v.gps && v.gps.toLowerCase().includes(q)) ||
+      (v.radiusAlert && v.radiusAlert.toLowerCase().includes(q)) ||
+      (v.lastSeen && v.lastSeen.toLowerCase().includes(q))
+    );
+
+    return matchesCategory && matchesDuration && matchesSearch;
   });
 
-  // A branch can run hundreds of vehicles, so the grid is paged like every other list.
-  const fleetPg = usePagination(fleetCards, [ff, idleDurationFilter], 20);
+  // A branch can run hundreds of vehicles, so the grid is paged like every other list (default 10 / page).
+  const fleetPg = usePagination(fleetCards, [ff, idleDurationFilter, debouncedFleetQ], 10);
 
   const gpsTone = g => g === 'OK' ? 'var(--kr-green-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
@@ -109,6 +125,21 @@ export const FleetMonitor = () => {
         gpsColor: gpsTone(v.gps),
       };
     });
+  const filteredDivCards = divCards.filter(d => {
+    if (!debouncedFleetQ.trim()) return true;
+    const q = debouncedFleetQ.trim().toLowerCase();
+    return (
+      (d.number && d.number.toLowerCase().includes(q)) ||
+      (d.crewLine && d.crewLine.toLowerCase().includes(q)) ||
+      (d.routeLine && d.routeLine.toLowerCase().includes(q)) ||
+      (d.state && d.state.toLowerCase().includes(q)) ||
+      (d.expected && d.expected.toLowerCase().includes(q)) ||
+      (d.actual && d.actual.toLowerCase().includes(q)) ||
+      (d.at && d.at.toLowerCase().includes(q))
+    );
+  });
+  const divPg = usePagination(filteredDivCards, [ff, debouncedFleetQ], 10);
+
   const divSummary = {
     count: divCards.length,
     live: divCards.filter(d => d.state === 'Off route now').length,
@@ -154,6 +185,20 @@ export const FleetMonitor = () => {
       lastFix: tr.lastFix || '—',
     };
   });
+
+  const filteredNbCards = nbCards.filter(n => {
+    if (!debouncedFleetQ.trim()) return true;
+    const q = debouncedFleetQ.trim().toLowerCase();
+    return (
+      (n.number && n.number.toLowerCase().includes(q)) ||
+      (n.reason && n.reason.toLowerCase().includes(q)) ||
+      (n.status && n.status.toLowerCase().includes(q)) ||
+      (n.crewLine && n.crewLine.toLowerCase().includes(q)) ||
+      (n.fromTo && n.fromTo.toLowerCase().includes(q))
+    );
+  });
+  const nbPg = usePagination(filteredNbCards, [ff, debouncedFleetQ], 10);
+
   const nbReasons = Object.entries(
     nbTrips.reduce((m, t) => {
       const r = t.reason || 'Other';
@@ -189,6 +234,20 @@ export const FleetMonitor = () => {
       awayColor: a.awayM >= 1000 ? 'var(--kr-red-700)' : 'var(--text-muted)',
     };
   });
+
+  const filteredRbCards = rbCards.filter(r => {
+    if (!debouncedFleetQ.trim()) return true;
+    const q = debouncedFleetQ.trim().toLowerCase();
+    return (
+      (r.name && r.name.toLowerCase().includes(q)) ||
+      (r.kindLabel && r.kindLabel.toLowerCase().includes(q)) ||
+      (r.place && r.place.toLowerCase().includes(q)) ||
+      (r.zoneText && r.zoneText.toLowerCase().includes(q)) ||
+      (r.away && r.away.toLowerCase().includes(q))
+    );
+  });
+  const rbPg = usePagination(filteredRbCards, [ff, debouncedFleetQ], 10);
+
   // Every card in this view is an open breach, so they carry a tint by default.
   const rbTiles = [
     { label: 'Active alerts', value: rbCards.length, color: 'var(--kr-red-700)', bg: 'var(--kr-red-100)', edge: 'var(--kr-red-600)' },
@@ -238,6 +297,93 @@ export const FleetMonitor = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <style>{`
+        .tms-fleet-card:hover, .tms-fleet-card:focus-visible {
+          box-shadow: 0 8px 20px rgba(0, 60, 40, 0.12) !important;
+          transform: translateY(-2px);
+          outline: none;
+        }
+        .tms-fleet-search-wrap {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          height: 34px;
+          background: #ffffff;
+          border: 1.5px solid #d5dfda;
+          border-radius: var(--radius-pill, 9999px);
+          padding: 0 10px 0 34px;
+          min-width: 250px;
+          max-width: 360px;
+          flex: 1 1 250px;
+          box-shadow: 0 1px 3px rgba(0, 48, 33, 0.05);
+          transition: border-color var(--dur-fast, 0.15s), box-shadow var(--dur-fast, 0.15s);
+          box-sizing: border-box;
+        }
+        .tms-fleet-search-wrap:hover {
+          border-color: #b5c7bf;
+        }
+        .tms-fleet-search-wrap:focus-within {
+          border-color: var(--kr-green-700, #006241) !important;
+          box-shadow: 0 0 0 3px rgba(0, 98, 65, 0.14) !important;
+        }
+        .tms-fleet-search-icon {
+          position: absolute;
+          left: 11px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: var(--text-muted, #7c9489);
+          pointer-events: none;
+          transition: color var(--dur-fast, 0.15s);
+        }
+        .tms-fleet-search-wrap:focus-within .tms-fleet-search-icon {
+          color: var(--kr-green-700, #006241) !important;
+        }
+        .tms-fleet-search-input {
+          all: unset;
+          width: 100%;
+          height: 100%;
+          font-family: var(--font-body, inherit);
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--text-heading, #0f2d24);
+          box-sizing: border-box;
+        }
+        .tms-fleet-search-input::placeholder {
+          color: var(--text-muted, #8a9e96);
+          font-size: 12.5px;
+        }
+        .tms-fleet-search-clear {
+          all: unset;
+          cursor: pointer;
+          display: inline-grid;
+          place-items: center;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          color: var(--text-muted, #7c9489);
+          background: #f1f5f3;
+          margin-left: 4px;
+          flex: none;
+          transition: background 0.15s, color 0.15s;
+        }
+        .tms-fleet-search-clear:hover {
+          background: #e1e9e5;
+          color: var(--text-heading, #0f2d24);
+        }
+        @media (max-width: 768px) {
+          .tms-fleet-search-wrap {
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
+            margin-top: 4px;
+            height: 38px !important;
+          }
+          .tms-fleet-duration-wrap {
+            width: 100%;
+            margin-left: 0 !important;
+          }
+        }
+      `}</style>
       {/* 5 KPI Tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: '12px' }}>
         {fleetTiles.map((k, idx) => (
@@ -268,9 +414,9 @@ export const FleetMonitor = () => {
         ))}
       </div>
 
-      {/* Filter Pills and Right Side Duration Filter Option */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Filter Pills, Search Bar, and Right Side Duration Filter Option */}
+      <div className="tms-fleet-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="tms-fleet-pills-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', flex: '1 1 auto' }}>
           {fleetFilters.map(f => (
             <button
               key={f.id}
@@ -296,16 +442,100 @@ export const FleetMonitor = () => {
                 border: `2px solid ${f.border}`,
                 background: f.bg,
                 color: f.color,
+                transition: 'all 0.15s ease',
               }}
             >
               {f.label}
             </button>
           ))}
+
+          {/* Unique & Mobile Responsive Search Bar on the Right Side of Radius alert tab */}
+          <div
+            className="tms-fleet-search-wrap"
+            style={{
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              height: '34px',
+              background: '#ffffff',
+              border: '1.5px solid #d5dfda',
+              borderRadius: 'var(--radius-pill, 9999px)',
+              padding: '0 10px 0 34px',
+              minWidth: '250px',
+              maxWidth: '360px',
+              flex: '1 1 250px',
+              boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
+              boxSizing: 'border-box',
+            }}
+          >
+            <Search
+              size={15}
+              className="tms-fleet-search-icon"
+              style={{
+                position: 'absolute',
+                left: '11px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted, #7c9489)',
+                pointerEvents: 'none',
+              }}
+            />
+            <input
+              type="text"
+              className="tms-fleet-search-input"
+              style={{
+                all: 'unset',
+                width: '100%',
+                height: '100%',
+                fontFamily: 'var(--font-body, inherit)',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: 'var(--text-heading, #0f2d24)',
+                boxSizing: 'border-box',
+              }}
+              placeholder={
+                ff === 'diversion'
+                  ? 'Search route diversions...'
+                  : ff === 'nonbill'
+                  ? 'Search non-billable trips...'
+                  : ff === 'radius'
+                  ? 'Search radius alerts...'
+                  : 'Search vehicles, drivers, routes...'
+              }
+              value={fleetQ}
+              onChange={(e) => setFleetQ(e.target.value)}
+              aria-label="Search fleet vehicles and GPS health"
+            />
+            {fleetQ && (
+              <button
+                type="button"
+                className="tms-fleet-search-clear"
+                onClick={() => setFleetQ('')}
+                aria-label="Clear search"
+                title="Clear search"
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  display: 'inline-grid',
+                  placeItems: 'center',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  color: 'var(--text-muted, #7c9489)',
+                  background: '#f1f5f3',
+                  marginLeft: '4px',
+                  flex: 'none',
+                }}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Right side duration filter option — ONLY shown in IDLE section */}
         {ff === 'idle' && (
-          <div style={{ marginLeft: 'auto' }}>
+          <div className="tms-fleet-duration-wrap" style={{ marginLeft: 'auto' }}>
             <SelectField
               value={idleDurationFilter}
               onChange={setIdleDurationFilter}
@@ -329,7 +559,23 @@ export const FleetMonitor = () => {
       {fleetShowVehicles && (
         fleetCards.length === 0 ? (
           <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
-            No idle vehicles match the selected duration filter {idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.
+            {fleetQ ? (
+              <div>
+                <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
+                  No vehicles matching "{fleetQ}"
+                </div>
+                <div style={{ fontSize: '13px' }}>Try searching by registration number, driver, branch, or route.</div>
+                <button
+                  type="button"
+                  onClick={() => setFleetQ('')}
+                  style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
+                >
+                  Clear search &rarr;
+                </button>
+              </div>
+            ) : (
+              `No idle vehicles match the selected duration filter ${idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.`
+            )}
           </div>
         ) : (
           <>
@@ -456,10 +702,9 @@ export const FleetMonitor = () => {
                 </div>
               </div>
             ))}
-            <style>{`.tms-fleet-card:hover, .tms-fleet-card:focus-visible { box-shadow: 0 8px 20px rgba(0, 60, 40, 0.12) !important; transform: translateY(-2px); outline: none; }`}</style>
           </div>
           <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-            <Pagination {...fleetPg} noun="vehicles" sizes={[20, 40, 80]} />
+            <Pagination {...fleetPg} noun="vehicles" sizes={[10, 20, 50, 100]} />
           </div>
           </>
         )
@@ -490,134 +735,160 @@ export const FleetMonitor = () => {
               Alert fires when a vehicle leaves its fixed corridor by more than 10 km
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: '16px' }}>
-            {divCards.map(d => (
-              <div
-                key={d.id}
-                style={{
-                  background: '#fff',
-                  border: '1px solid var(--border-default)',
-                  borderLeft: `4px solid ${d.edge}`,
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                    {d.number}
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: d.stateBg,
-                      color: d.stateFg,
-                    }}
-                  >
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: d.stateFg, animation: d.pulse }}></span>
-                    {d.state}
-                  </span>
-                </div>
+          {filteredDivCards.length === 0 ? (
+            <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
+              {fleetQ ? (
                 <div>
-                  <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>{d.crewLine}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{d.routeLine}</div>
-                </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '18px 88px minmax(0,1fr)',
-                    gap: '8px 10px',
-                    alignItems: 'baseline',
-                    padding: '12px',
-                    background: 'var(--surface-muted)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '14px',
-                  }}
-                >
-                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--color-brand)', alignSelf: 'center' }}></span>
-                  <span style={{ color: 'var(--text-muted)' }}>Expected</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{d.expected}</span>
-                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--kr-red-600)', alignSelf: 'center' }}></span>
-                  <span style={{ color: 'var(--text-muted)' }}>Actual</span>
-                  <span style={{ fontWeight: 600, color: 'var(--kr-red-800)' }}>{d.actual}</span>
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="var(--text-muted)"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    style={{ alignSelf: 'center' }}
-                  >
-                    <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"></path>
-                    <circle cx="12" cy="10" r="2.5"></circle>
-                  </svg>
-                  <span style={{ color: 'var(--text-muted)' }}>Left at</span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{d.at}</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '8px' }}>
-                  <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Off corridor</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: d.offColor }}>
-                      {d.offKm}
-                    </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
+                    No route diversions matching "{fleetQ}"
                   </div>
-                  <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Duration</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)' }}>
-                      {d.minutes}
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Extra distance</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)' }}>
-                      {d.extraKm}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '8px',
-                    paddingTop: '10px',
-                    borderTop: '1px solid var(--border-default)',
-                    fontSize: '13px',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <span>Detected {d.detected} · <span style={{ color: d.gpsColor, fontWeight: 700 }}>GPS {d.gps}</span></span>
                   <button
-                    onClick={() => navTo('trip', { selectedTrip: d.id })}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color: 'var(--text-brand)',
-                      whiteSpace: 'nowrap',
-                    }}
+                    type="button"
+                    onClick={() => setFleetQ('')}
+                    style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
                   >
-                    View trip &rarr;
+                    Clear search &rarr;
                   </button>
                 </div>
+              ) : (
+                'No active route diversions detected.'
+              )}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: '16px' }}>
+                {divPg.rows.map(d => (
+                  <div
+                    key={d.id}
+                    style={{
+                      background: '#fff',
+                      border: '1px solid var(--border-default)',
+                      borderLeft: `4px solid ${d.edge}`,
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: 'var(--text-heading)' }}>
+                        {d.number}
+                      </span>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontFamily: 'var(--font-display)',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          letterSpacing: '0.1em',
+                          textTransform: 'uppercase',
+                          padding: '3px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: d.stateBg,
+                          color: d.stateFg,
+                        }}
+                      >
+                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: d.stateFg, animation: d.pulse }}></span>
+                        {d.state}
+                      </span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>{d.crewLine}</div>
+                      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{d.routeLine}</div>
+                    </div>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '18px 88px minmax(0,1fr)',
+                        gap: '8px 10px',
+                        alignItems: 'baseline',
+                        padding: '12px',
+                        background: 'var(--surface-muted)',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '14px',
+                      }}
+                    >
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--color-brand)', alignSelf: 'center' }}></span>
+                      <span style={{ color: 'var(--text-muted)' }}>Expected</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{d.expected}</span>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--kr-red-600)', alignSelf: 'center' }}></span>
+                      <span style={{ color: 'var(--text-muted)' }}>Actual</span>
+                      <span style={{ fontWeight: 600, color: 'var(--kr-red-800)' }}>{d.actual}</span>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="var(--text-muted)"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ alignSelf: 'center' }}
+                      >
+                        <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"></path>
+                        <circle cx="12" cy="10" r="2.5"></circle>
+                      </svg>
+                      <span style={{ color: 'var(--text-muted)' }}>Left at</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{d.at}</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '8px' }}>
+                      <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Off corridor</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: d.offColor }}>
+                          {d.offKm}
+                        </div>
+                      </div>
+                      <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Duration</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)' }}>
+                          {d.minutes}
+                        </div>
+                      </div>
+                      <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Extra distance</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)' }}>
+                          {d.extraKm}
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '8px',
+                        paddingTop: '10px',
+                        borderTop: '1px solid var(--border-default)',
+                        fontSize: '13px',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      <span>Detected {d.detected} · <span style={{ color: d.gpsColor, fontWeight: 700 }}>GPS {d.gps}</span></span>
+                      <button
+                        onClick={() => navTo('trip', { selectedTrip: d.id })}
+                        style={{
+                          all: 'unset',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: 'var(--text-brand)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        View trip &rarr;
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                <Pagination {...divPg} noun="flagged routes" sizes={[10, 20, 50, 100]} />
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -632,157 +903,183 @@ export const FleetMonitor = () => {
               Not invoiced. Tracked for utilisation and hidden-km checks.
             </span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: '16px' }}>
-            {nbCards.map(n => (
-              <div
-                key={n.id}
-                style={{
-                  background: '#fff',
-                  border: '1px solid var(--border-default)',
-                  borderLeft: '4px solid var(--kr-grey-500)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                    {n.number}
-                  </span>
-                  <span style={{ display: 'flex', gap: '6px' }}>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                        padding: '3px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'var(--kr-grey-100)',
-                        color: 'var(--kr-grey-700)',
-                      }}
-                    >
-                      {n.reason}
-                    </span>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                        padding: '3px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: n.badgeBg,
-                        color: n.badgeFg,
-                      }}
-                    >
-                      {n.status}
-                    </span>
-                  </span>
-                </div>
+          {filteredNbCards.length === 0 ? (
+            <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
+              {fleetQ ? (
                 <div>
-                  <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>{n.crewLine}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{n.fromTo}</div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: '8px' }}>
-                  <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>GPS</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                      {n.gpsKm}
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                        {n.gpsUnit}
-                      </span>
-                    </div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
+                    No non-billable movements matching "{fleetQ}"
                   </div>
-                  <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Odometer</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                      {n.odoKm}
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                        {n.odoUnit}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Top speed</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                      {n.maxSpeed}
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                        {n.speedUnit}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Idle</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                      {n.idle}
-                      <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                        {n.idleUnit}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    GPS timeline
-                  </div>
-                  {n.points.map((p, pIdx) => (
-                    <div
-                      key={pIdx}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '48px 16px minmax(0,1fr) auto',
-                        gap: '8px',
-                        alignItems: 'start',
-                        minHeight: '34px',
-                      }}
-                    >
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-muted)', paddingTop: '1px' }}>
-                        {p.t}
-                      </span>
-                      <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
-                        <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: p.dot, marginTop: '5px', flex: 'none' }}></span>
-                        <span style={{ flex: 1, width: '2px', background: p.line }}></span>
-                      </span>
-                      <span style={{ fontSize: '14px', color: 'var(--text-heading)', paddingBottom: '8px' }}>{p.ev}</span>
-                      <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.km} km</span>
-                    </div>
-                  ))}
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '8px',
-                    paddingTop: '10px',
-                    borderTop: '1px solid var(--border-default)',
-                    fontSize: '13px',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <span>{n.when} · <span style={{ color: n.gpsColor, fontWeight: 700 }}>GPS {n.gps}</span> · last fix {n.lastFix}</span>
                   <button
-                    onClick={() => navTo('trip', { selectedTrip: n.id })}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color: 'var(--text-brand)',
-                      whiteSpace: 'nowrap',
-                    }}
+                    type="button"
+                    onClick={() => setFleetQ('')}
+                    style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
                   >
-                    View trip &rarr;
+                    Clear search &rarr;
                   </button>
                 </div>
+              ) : (
+                'No non-billable movements recorded.'
+              )}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: '16px' }}>
+                {nbPg.rows.map(n => (
+                  <div
+                    key={n.id}
+                    style={{
+                      background: '#fff',
+                      border: '1px solid var(--border-default)',
+                      borderLeft: '4px solid var(--kr-grey-500)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: 'var(--text-heading)' }}>
+                        {n.number}
+                      </span>
+                      <span style={{ display: 'flex', gap: '6px' }}>
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-display)',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            padding: '3px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'var(--kr-grey-100)',
+                            color: 'var(--kr-grey-700)',
+                          }}
+                        >
+                          {n.reason}
+                        </span>
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-display)',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            padding: '3px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: n.badgeBg,
+                            color: n.badgeFg,
+                          }}
+                        >
+                          {n.status}
+                        </span>
+                      </span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>{n.crewLine}</div>
+                      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{n.fromTo}</div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: '8px' }}>
+                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>GPS</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                          {n.gpsKm}
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
+                            {n.gpsUnit}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Odometer</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                          {n.odoKm}
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
+                            {n.odoUnit}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Top speed</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                          {n.maxSpeed}
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
+                            {n.speedUnit}
+                          </span>
+                        </div>
+                      </div>
+                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Idle</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                          {n.idle}
+                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
+                            {n.idleUnit}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                        GPS timeline
+                      </div>
+                      {n.points.map((p, pIdx) => (
+                        <div
+                          key={pIdx}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '48px 16px minmax(0,1fr) auto',
+                            gap: '8px',
+                            alignItems: 'start',
+                            minHeight: '34px',
+                          }}
+                        >
+                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-muted)', paddingTop: '1px' }}>
+                            {p.t}
+                          </span>
+                          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
+                            <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: p.dot, marginTop: '5px', flex: 'none' }}></span>
+                            <span style={{ flex: 1, width: '2px', background: p.line }}></span>
+                          </span>
+                          <span style={{ fontSize: '14px', color: 'var(--text-heading)', paddingBottom: '8px' }}>{p.ev}</span>
+                          <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.km} km</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '8px',
+                        paddingTop: '10px',
+                        borderTop: '1px solid var(--border-default)',
+                        fontSize: '13px',
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      <span>{n.when} · <span style={{ color: n.gpsColor, fontWeight: 700 }}>GPS {n.gps}</span> · last fix {n.lastFix}</span>
+                      <button
+                        onClick={() => navTo('trip', { selectedTrip: n.id })}
+                        style={{
+                          all: 'unset',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          color: 'var(--text-brand)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        View trip &rarr;
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                <Pagination {...nbPg} noun="movements" sizes={[10, 20, 50, 100]} />
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -838,80 +1135,106 @@ export const FleetMonitor = () => {
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: '12px' }}>
-            {rbCards.map(r => (
-              <div
-                key={r.id}
-                style={{
-                  background: 'var(--kr-red-50, #fdf3f3)',
-                  border: '1px solid var(--kr-red-100)',
-                  borderLeft: '4px solid var(--kr-red-600)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  boxShadow: '0 1px 3px rgba(120, 20, 20, 0.06)',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                  <div style={{ minWidth: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)' }}>
-                    {r.kindLabel}: <span style={{ fontFamily: r.nameFont }}>{r.name}</span>
+          {filteredRbCards.length === 0 ? (
+            <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
+              {fleetQ ? (
+                <div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
+                    No radius alerts matching "{fleetQ}"
                   </div>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }}>
-                    <span
-                      style={{
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        padding: '3px 10px',
-                        borderRadius: 'var(--radius-pill)',
-                        background: 'var(--kr-red-100)',
-                        color: 'var(--kr-red-800)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Outside radius
-                    </span>
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="var(--kr-red-700)"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                      style={{ flex: 'none' }}
-                    >
-                      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
-                      <path d="M12 9v4"></path>
-                      <path d="M12 17h.01"></path>
-                    </svg>
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFleetQ('')}
+                    style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
+                  >
+                    Clear search &rarr;
+                  </button>
                 </div>
-                <div style={{ fontSize: '14px', color: 'var(--text-body)' }}>
-                  {r.place} · {r.zoneText}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '18px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="9"></circle>
-                      <path d="M12 7v5l3 2"></path>
-                    </svg>
-                    {r.time}
-                  </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: r.awayColor }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="9"></circle>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    {r.away}
-                  </span>
-                </div>
+              ) : (
+                'No active radius breaches right now.'
+              )}
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: '12px' }}>
+                {rbPg.rows.map(r => (
+                  <div
+                    key={r.id}
+                    style={{
+                      background: 'var(--kr-red-50, #fdf3f3)',
+                      border: '1px solid var(--kr-red-100)',
+                      borderLeft: '4px solid var(--kr-red-600)',
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      boxShadow: '0 1px 3px rgba(120, 20, 20, 0.06)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ minWidth: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)' }}>
+                        {r.kindLabel}: <span style={{ fontFamily: r.nameFont }}>{r.name}</span>
+                      </div>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }}>
+                        <span
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            padding: '3px 10px',
+                            borderRadius: 'var(--radius-pill)',
+                            background: 'var(--kr-red-100)',
+                            color: 'var(--kr-red-800)',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Outside radius
+                        </span>
+                        <svg
+                          width="20"
+                          height="20"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="var(--kr-red-700)"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                          style={{ flex: 'none' }}
+                        >
+                          <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
+                          <path d="M12 9v4"></path>
+                          <path d="M12 17h.01"></path>
+                        </svg>
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '14px', color: 'var(--text-body)' }}>
+                      {r.place} · {r.zoneText}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '18px', fontSize: '14px', color: 'var(--text-muted)' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="9"></circle>
+                          <path d="M12 7v5l3 2"></path>
+                        </svg>
+                        {r.time}
+                      </span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: r.awayColor }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="9"></circle>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        {r.away}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+                <Pagination {...rbPg} noun="alerts" sizes={[10, 20, 50, 100]} />
+              </div>
+            </>
+          )}
         </div>
       )}
 

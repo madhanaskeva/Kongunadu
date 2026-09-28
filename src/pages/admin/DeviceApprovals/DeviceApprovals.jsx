@@ -95,12 +95,12 @@ export const DeviceApprovals = () => {
   const [approveBranch, setApproveBranch] = useState('');
   const [approveErr, setApproveErr] = useState('');
   const branchOpts = (T().branches || []).filter(b => b.status === 'Active');
-  // One active supervisor per branch: only branches without one are offered, plus the
+  // One supervisor per branch: only branches without an assigned supervisor are offered, plus the
   // branch of the supervisor this phone already belongs to (a re-registered device).
   const approveBranchOpts = (r) => {
     const self = r ? findSupervisor(r) : null;
-    return branchOpts.filter(b => (self && self.branch === b.id) ||
-      !(T().supervisors || []).some(s => s.status === 'Active' && s.branch === b.id && (!self || s.id !== self.id)));
+    return branchOpts.filter(b => (self && (self.branch === b.id || self.branch === b.name)) ||
+      !(T().supervisors || []).some(s => (s.branch === b.id || s.branch === b.name || (T().B[s.branch] || {}).name === b.name) && (!self || s.id !== self.id)));
   };
 
   const openApprove = (r) => {

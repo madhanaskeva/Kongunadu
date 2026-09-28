@@ -5,7 +5,7 @@ import { exportToExcel } from '../../../utils';
 import {
   Filter,
   RotateCcw,
-  FileSpreadsheet,
+  Download,
   AlertTriangle,
   Bell,
   Calendar,
@@ -66,8 +66,13 @@ const useAttStore = () => {
     };
     const onStorage = e => { if (e.key === ATT_KEY) sync(); };
     window.addEventListener('storage', onStorage);
+    window.addEventListener('kr-tms-attendance-changed', sync);
     const poll = setInterval(sync, 1000);
-    return () => { window.removeEventListener('storage', onStorage); clearInterval(poll); };
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('kr-tms-attendance-changed', sync);
+      clearInterval(poll);
+    };
   }, []);
   return store;
 };
@@ -271,27 +276,42 @@ export const Attendance = () => {
 
     return dates.flatMap(date =>
       attDrivers.map(d => {
-        const [mark = '', vehicleId = ''] = (((attStore[d.branch] || {})[date] || {}).entries || {})[d.id] || [];
-        const actualVehicle = (tms.V[vehicleId] || {}).number;
-        const assignedVehicle = actualVehicle || driverVehicleMap[d.id] || 'TN 28 AQ 4521';
+        const branchKey = d.branch;
+        const branchObj = tms.B[d.branch] || {};
+        const branchName = branchObj.name || d.branch;
+        const branchStore = attStore[branchKey] || (branchObj.name ? attStore[branchObj.name] : null) || {};
+        const dayData = branchStore[date] || {};
+        const dayEntries = dayData.entries || {};
+        const entry = dayEntries[d.id] || dayEntries[d.name];
 
-        // Check if attendance is explicitly marked in attStore
-        const isStoreMarked = mark === 'P' || mark === 'A';
-
-        // Status logic:
-        // If filter is set to 'not_marked' and driver is not marked in store, status is 'Not marked'
-        // If driver is marked in store, status is 'Present' (Marked)
-        // If default/mock view ('all' or 'marked'), status defaults to 'Present' (Marked)
-        let status = 'Present';
-        if (appliedFilters.status === 'not_marked') {
-          status = isStoreMarked ? 'Present' : 'Not marked';
-        } else if (isStoreMarked) {
-          status = 'Present';
-        } else {
-          status = 'Present'; // mock default
+        let mark = '';
+        let vehicleId = '';
+        if (Array.isArray(entry)) {
+          mark = entry[0] || '';
+          vehicleId = entry[1] || '';
+        } else if (entry && typeof entry === 'object') {
+          mark = entry.mark || entry.status || '';
+          vehicleId = entry.vehicleId || entry.vehicle || '';
+        } else if (typeof entry === 'string') {
+          mark = entry;
         }
 
-        const vehicle = status === 'Not marked' ? '—' : assignedVehicle;
+        // Live connection from app side:
+        // Only show 'Present' if the driver was actually marked 'P' / 'Present' in the app side.
+        // If marked 'A' / 'Absent', show 'Absent'.
+        // If the particular driver is NOT marked in the app side, show 'Not marked'.
+        let status = 'Not marked';
+        if (mark === 'P' || mark === 'Present') {
+          status = 'Present';
+        } else if (mark === 'A' || mark === 'Absent') {
+          status = 'Absent';
+        } else {
+          status = 'Not marked';
+        }
+
+        const actualVehicle = vehicleId ? (tms.V[vehicleId] || {}).number || vehicleId : '';
+        const assignedVehicle = actualVehicle || driverVehicleMap[d.id] || (tms.V[d.vehicle] || {}).number || '—';
+        const vehicle = (status === 'Not marked' || status === 'Absent') ? '—' : assignedVehicle;
 
         return {
           key: `${d.id}-${date}`,
@@ -299,7 +319,7 @@ export const Attendance = () => {
           name: d.name,
           vehicle,
           branch: d.branch,
-          branchName: (tms.B[d.branch] || {}).name || d.branch,
+          branchName,
           status,
           date,
         };
@@ -869,21 +889,25 @@ export const Attendance = () => {
                 style={{
                   all: 'unset',
                   cursor: 'pointer',
-                  padding: '0 14px',
-                  height: '34px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid #d1fae5',
-                  background: '#f0fdf4',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: '#059669',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  boxSizing: 'border-box',
+                  borderRadius: '10px',
+                  color: 'var(--kr-green-800, #004d32)',
+                  border: '1px solid var(--kr-green-700, #00623f)',
+                  background: '#ffffff',
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  transition: 'background 0.15s ease',
                 }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--kr-green-50, #f0fdf4)')}
+                onMouseLeave={e => (e.currentTarget.style.background = '#ffffff')}
               >
-                <FileSpreadsheet size={16} color="#059669" />
-                Export Excel (.xlsx)
+                <Download size={17} />
+                Export Excel
               </button>
             </div>
           </div>

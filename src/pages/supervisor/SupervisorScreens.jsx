@@ -21,7 +21,7 @@ import Notifications from './Notifications/Notifications';
 import NotificationDetail from './Notifications/NotificationDetail';
 import MarkAttendance from './Attendance/MarkAttendance';
 import DailyAttendance from './Attendance/DailyAttendance';
-import MonthlyAttendance from './Attendance/MonthlyAttendance';
+// import MonthlyAttendance from './Attendance/MonthlyAttendance';
 import RequestDriver from './Drivers/RequestDriver';
 import RequestSent from './Drivers/RequestSent';
 import GpsPermission from './Home/GpsPermission';
@@ -260,7 +260,7 @@ export const SupervisorScreens = ({ v }) => (
           {/* ATTENDANCE DAILY */}
           {v.is.attendance && <DailyAttendance v={v} />}
           {/* ATTENDANCE MONTH */}
-          {v.is.attMonth && <MonthlyAttendance v={v} />}
+          {/* {v.is.attMonth && <MonthlyAttendance v={v} />} */}
           {/* REQUEST DRIVER */}
           {v.is.reqDriver && <RequestDriver v={v} />}
           {v.is.reqDone && <RequestSent v={v} />}

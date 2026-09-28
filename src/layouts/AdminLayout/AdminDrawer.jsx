@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { Eye, EyeOff, X } from 'lucide-react';
 import { FormCheckboxSelect, FormBunksInput, FormLocationsInput } from '../../components/forms';
@@ -56,6 +56,12 @@ export const AdminDrawer = () => {
     navTo,
     T,
   } = useTMSAdmin();
+
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  useEffect(() => {
+    setFieldErrors({});
+  }, [drawer]);
 
   if (!drawer) return null;
 
@@ -162,19 +168,38 @@ export const AdminDrawer = () => {
 
   // Save form handling
   const handleSaveForm = () => {
-    if (drawer.validate) {
-      const errs = drawer.validate(form);
-      const bad = Object.values(errs).filter(Boolean).length;
-      if (bad) {
-        setFormError(`${bad} ${bad === 1 ? 'field' : 'fields'} to fix. Check highlighted fields below.`);
-        return;
-      }
-    }
-    const missing = requiredOf(form).filter(k => !String(form[k] || '').trim());
+    const reqList = requiredOf(form);
+    const isValMissing = (k) => {
+      const val = form[k];
+      if (val === undefined || val === null) return true;
+      if (typeof val === 'string') return !val.trim();
+      if (Array.isArray(val)) return val.length === 0;
+      if (typeof val === 'object') return false;
+      return false;
+    };
+    const missing = reqList.filter(isValMissing);
     if (missing.length) {
+      const missingErrs = {};
+      missing.forEach(k => {
+        missingErrs[k] = 'This field is required.';
+      });
+      setFieldErrors(missingErrs);
       setFormError(`${missing.length} required ${missing.length > 1 ? 'fields are' : 'field is'} missing.`);
       return;
     }
+
+    if (drawer.validate) {
+      const errs = drawer.validate(form) || {};
+      const badKeys = Object.keys(errs).filter(k => !!errs[k]);
+      if (badKeys.length > 0) {
+        setFieldErrors(errs);
+        setFormError(errs[badKeys[0]]);
+        return;
+      }
+    }
+
+    setFieldErrors({});
+    setFormError('');
 
     if (drawer.onSave) {
       drawer.onSave(form);
@@ -622,8 +647,16 @@ export const AdminDrawer = () => {
                         label={label}
                         value={raw}
                         placeholder={typeof hint === 'string' ? hint : 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'}
-                        onChange={(nextVal) => setForm(prev => ({ ...prev, [key]: nextVal }))}
+                        onChange={(nextVal) => {
+                          setForm(prev => ({ ...prev, [key]: nextVal }));
+                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                        }}
                       />
+                      {fieldErrors[key] && (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '2px', display: 'block' }}>
+                          {fieldErrors[key]}
+                        </span>
+                      )}
                     </div>
                   );
                 }
@@ -636,8 +669,16 @@ export const AdminDrawer = () => {
                         value={raw}
                         placeholder={typeof hint === 'string' ? hint : undefined}
                         hint={extra.hint}
-                        onChange={(nextVal) => setForm(prev => ({ ...prev, [key]: nextVal }))}
+                        onChange={(nextVal) => {
+                          setForm(prev => ({ ...prev, [key]: nextVal }));
+                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                        }}
                       />
+                      {fieldErrors[key] && (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '2px', display: 'block' }}>
+                          {fieldErrors[key]}
+                        </span>
+                      )}
                     </div>
                   );
                 }
@@ -651,6 +692,7 @@ export const AdminDrawer = () => {
                         name={key}
                         value={raw}
                         options={options}
+                        error={fieldErrors[key]}
                         placeholder={hint && typeof hint === 'string' ? hint : `Select ${label.toLowerCase()}`}
                         itemNoun={extra.itemNoun || (key === 'supervisors' ? 'supervisor' : 'client')}
                         searchPlaceholder={extra.searchPlaceholder || (key === 'supervisors' ? 'Search supervisors...' : 'Search clients...')}
@@ -664,8 +706,14 @@ export const AdminDrawer = () => {
                             ...(key === 'clients' ? { clientIds: val } : {}),
                             ...(key === 'supervisors' ? { supervisorIds: val } : {}),
                           }));
+                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
                         }}
                       />
+                      {fieldErrors[key] && (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '2px', display: 'block' }}>
+                          {fieldErrors[key]}
+                        </span>
+                      )}
                     </div>
                   );
                 }
@@ -699,15 +747,21 @@ export const AdminDrawer = () => {
                       </label>
                       <SelectField
                         value={raw ?? ''}
-                        onChange={(v) => setForm({ ...form, [key]: v })}
+                        onChange={(v) => {
+                          setForm({ ...form, [key]: v });
+                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                        }}
                         options={options}
                         placeholder="Select"
                         ariaLabel={label}
                         height={40}
+                        error={!!fieldErrors[key]}
                       />
-                      {hint && typeof hint === 'string' && (
+                      {fieldErrors[key] ? (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
+                      ) : hint && typeof hint === 'string' ? (
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{hint}</span>
-                      )}
+                      ) : null}
                     </div>
                   );
                 }
@@ -727,7 +781,10 @@ export const AdminDrawer = () => {
                             <button
                               type="button"
                               key={o.value}
-                              onClick={() => toggleFormCheck(key, o.value)}
+                              onClick={() => {
+                                toggleFormCheck(key, o.value);
+                                if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                              }}
                               style={{
                                 all: 'unset',
                                 cursor: 'pointer',
@@ -737,7 +794,7 @@ export const AdminDrawer = () => {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '8px',
-                                border: `2px solid ${on ? 'var(--color-brand)' : 'var(--border-strong)'}`,
+                                border: `2px solid ${on ? 'var(--color-brand)' : fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
                                 borderRadius: 'var(--radius-md)',
                                 background: on ? 'var(--color-brand-tint)' : '#fff',
                                 color: 'var(--text-heading)',
@@ -745,7 +802,7 @@ export const AdminDrawer = () => {
                                 fontWeight: 600,
                               }}
                             >
-                              <span style={{ width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${on ? 'var(--color-brand)' : 'var(--border-strong)'}`, background: on ? 'var(--color-brand)' : '#fff', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '10px' }}>
+                              <span style={{ width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${on ? 'var(--color-brand)' : fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`, background: on ? 'var(--color-brand)' : '#fff', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '10px' }}>
                                 {on ? '✓' : ''}
                               </span>
                               {o.label}
@@ -753,6 +810,9 @@ export const AdminDrawer = () => {
                           );
                         })}
                       </div>
+                      {fieldErrors[key] && (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
+                      )}
                     </div>
                   );
                 }
@@ -775,7 +835,7 @@ export const AdminDrawer = () => {
                             gap: '14px',
                             minHeight: '64px',
                             padding: '12px 14px',
-                            border: '2px dashed var(--border-strong)',
+                            border: `2px dashed ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
                             borderRadius: 'var(--radius-md)',
                             background: 'var(--surface-muted)',
                             cursor: 'pointer',
@@ -784,10 +844,13 @@ export const AdminDrawer = () => {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) => pickFormUpload(e, key)}
+                            onChange={(e) => {
+                              pickFormUpload(e, key);
+                              if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                            }}
                             style={{ display: 'none' }}
                           />
-                          <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-heading)' }}>
+                          <span style={{ fontWeight: 700, fontSize: '14px', color: fieldErrors[key] ? 'var(--kr-red-700)' : 'var(--text-heading)' }}>
                             Upload photo (JPG / PNG)
                           </span>
                         </label>
@@ -805,6 +868,11 @@ export const AdminDrawer = () => {
                           </button>
                         </div>
                       )}
+                      {fieldErrors[key] && (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '4px', display: 'block' }}>
+                          {fieldErrors[key]}
+                        </span>
+                      )}
                     </div>
                   );
                 }
@@ -819,9 +887,15 @@ export const AdminDrawer = () => {
                         rows={4}
                         placeholder={hint || ''}
                         value={raw ?? ''}
-                        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontFamily: 'inherit' }}
+                        onChange={(e) => {
+                          setForm({ ...form, [key]: e.target.value });
+                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                        }}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`, fontFamily: 'inherit' }}
                       />
+                      {fieldErrors[key] && (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
+                      )}
                     </div>
                   );
                 }
@@ -832,8 +906,15 @@ export const AdminDrawer = () => {
                       <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
                         {label}
                       </label>
-                      <PasswordField value={raw ?? ''} placeholder={hint || ''} onChange={v => setForm({ ...form, [key]: v })} />
-                      {extra.hint && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>}
+                      <PasswordField value={raw ?? ''} placeholder={hint || ''} onChange={v => {
+                        setForm({ ...form, [key]: v });
+                        if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                      }} />
+                      {fieldErrors[key] ? (
+                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
+                      ) : extra.hint ? (
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>
+                      ) : null}
                     </div>
                   );
                 }
@@ -852,7 +933,7 @@ export const AdminDrawer = () => {
                             alignItems: 'center',
                             padding: '0 12px',
                             background: 'var(--surface-muted)',
-                            border: '1px solid var(--border-strong)',
+                            border: `1px solid ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
                             borderRight: 'none',
                             borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
                             fontSize: '13px',
@@ -867,19 +948,26 @@ export const AdminDrawer = () => {
                         type={extra.clean === 'account' || extra.clean === 'litres' ? 'number' : 'text'}
                         placeholder={hint || ''}
                         value={raw ?? ''}
-                        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                        onChange={(e) => {
+                          setForm({ ...form, [key]: e.target.value });
+                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+                        }}
                         style={{
                           width: '100%',
                           height: '40px',
                           padding: '0 10px',
                           borderRadius: extra.prefix ? '0 var(--radius-md) var(--radius-md) 0' : 'var(--radius-md)',
-                          border: '1px solid var(--border-strong)',
+                          border: `1px solid ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
                           fontFamily: 'inherit',
                           outline: 'none',
                         }}
                       />
                     </div>
-                    {extra.hint && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>}
+                    {fieldErrors[key] ? (
+                      <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
+                    ) : extra.hint ? (
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>
+                    ) : null}
                   </div>
                 );
               })}

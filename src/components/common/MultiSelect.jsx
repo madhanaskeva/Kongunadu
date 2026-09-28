@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 import { matchesSearch } from '../../utils/search';
+import { useDebounce } from '../../utils/debounce';
 
 /**
  * MultiSelect — tick-list picker for a field that holds several values at once.
@@ -31,6 +32,7 @@ export const MultiSelect = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounce(q, 250);
   const wrapRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -53,7 +55,7 @@ export const MultiSelect = ({
   // Opening lands the caret in the search box so a long list can be typed down.
   useEffect(() => { if (open && searchable) searchRef.current?.focus(); if (!open) setQ(''); }, [open, searchable]);
 
-  const shown = options.filter(o => matchesSearch(q, o.label, o.sub));
+  const shown = options.filter(o => matchesSearch(debouncedQ, o.label, o.sub));
   const shownValues = shown.map(o => o.value);
   const allShownOn = shownValues.length > 0 && shownValues.every(v => value.includes(v));
 

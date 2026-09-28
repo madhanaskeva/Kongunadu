@@ -8,7 +8,7 @@
 // created, approved or rejected is ever overwritten. Clear site data to reseed.
 import { TMS } from './tms-data';
 
-const SEED_VERSION = 'v2';
+const SEED_VERSION = 'v3';
 const SEED_FLAG = 'kr-tms-mock-seed';
 
 const KEYS = {
@@ -33,17 +33,14 @@ const doc = (name, size) => ({ name, size, url: '' });
 const DEVICE_REQUESTS = [
   { id: 'AR-seed-1', name: 'K. Muthukumar', phone: '9003145678', imei: '356938035643809', device: 'Android phone', branchId: '', branch: '', requestedAt: '15 Sep 08:42', status: 'Pending', otp: '' },
   { id: 'AR-seed-2', name: 'S. Revathi', phone: '9840056123', imei: '352099001761481', device: 'Android phone', branchId: '', branch: '', requestedAt: '14 Sep 17:15', status: 'Pending', otp: '' },
-  { id: 'AR-seed-3', name: 'V. Harish', phone: '9677012345', imei: '359881030314356', device: 'Android phone', branchId: 'B04', branch: 'Bengaluru', requestedAt: '14 Sep 11:05', status: 'Approved', otp: '4829', decidedAt: '14 Sep 11:20' },
+  { id: 'AR-seed-3', name: 'V. Harish', phone: '9677012345', imei: '359881030314356', device: 'Android phone', branchId: 'B06', branch: 'Visakhapatnam', requestedAt: '14 Sep 11:05', status: 'Approved', otp: '4829', decidedAt: '14 Sep 11:20' },
   { id: 'AR-seed-4', name: 'A. Deshmukh', phone: '9820065430', imei: '354826090212748', device: 'Android phone', branchId: 'B05', branch: 'Mumbai', requestedAt: '13 Sep 09:30', status: 'Verified', otp: '7310', decidedAt: '13 Sep 09:48', verifiedAt: '13 Sep 09:52' },
-  { id: 'AR-seed-5', name: 'K. Vijayalakshmi', phone: '9940087621', imei: '351756051523999', device: 'Android phone', branchId: 'B01', branch: 'Chennai HO', requestedAt: '12 Sep 18:02', status: 'Registered', otp: '2651', decidedAt: '12 Sep 18:15', verifiedAt: '12 Sep 18:17', registeredAt: '12 Sep 18:19' },
+  { id: 'AR-seed-5', name: 'R. Senthil Kumar', phone: '9841022314', imei: '351756051523999', device: 'Android phone', branchId: 'B01', branch: 'Chennai HO', requestedAt: '12 Sep 18:02', status: 'Registered', otp: '2651', decidedAt: '12 Sep 18:15', verifiedAt: '12 Sep 18:17', registeredAt: '12 Sep 18:19' },
   { id: 'AR-seed-6', name: 'T. Rajesh', phone: '9500011223', imei: '490154203237518', device: 'Android phone', branchId: '', branch: '', requestedAt: '12 Sep 22:40', status: 'Rejected', otp: '', decidedAt: '13 Sep 08:05' },
 ];
 
 // Approving a phone adds it to the Supervisor Master (DeviceApprovals › addToSupervisorMaster).
-// AR-seed-3 is approved but new, so its supervisor row is seeded the same way.
-const APPROVED_DEVICE_SUPERVISORS = [
-  { id: 'SUAR-seed-3', name: 'V. Harish', phone: '96770 12345', branch: 'B04', clients: '', clientIds: [], status: 'Active', lastLogin: 'Never', deviceImei: '359881030314356', joinedVia: 'App request' },
-];
+const APPROVED_DEVICE_SUPERVISORS = [];
 
 // New-driver requests from the Supervisor App · pending, approved and rejected.
 const DRIVER_REQUESTS = [
@@ -101,8 +98,8 @@ const EXCEPTION_OVERRIDES = {
 
 const BUNK_REQUESTS = [
   { id: 'BR-seed-1', bunkName: 'IOC – Salem Highway Hub', routeId: 'R01', routeName: 'Sriperumbudur → Hyderabad', tripId: 'T01', tripNumber: 'TN28AQ4521/09/014', supervisorName: 'R. Senthil Kumar', branch: 'B01', status: 'Pending', requestedAt: 'Today 09:30' },
-  { id: 'BR-seed-2', bunkName: 'BPCL – Dindigul Bypass', routeId: 'R07', routeName: 'Ambattur → Madurai', tripId: 'T12', tripNumber: 'TN28BC1180/09/026', supervisorName: 'K. Vijayalakshmi', branch: 'B01', status: 'Approved', requestedAt: '13 Sep 14:20', decidedAt: '13 Sep 16:10' },
-  { id: 'BR-seed-3', bunkName: 'Sri Balaji Fuels – Ongole', routeId: 'R05', routeName: 'Ambattur → Vijayawada', tripId: 'T07', tripNumber: 'TN28BC1180/09/008', supervisorName: 'K. Vijayalakshmi', branch: 'B01', status: 'Rejected', requestedAt: '11 Sep 07:15', decidedAt: '11 Sep 10:40' },
+  { id: 'BR-seed-2', bunkName: 'BPCL – Dindigul Bypass', routeId: 'R07', routeName: 'Ambattur → Madurai', tripId: 'T12', tripNumber: 'TN28BC1180/09/026', supervisorName: 'R. Senthil Kumar', branch: 'B01', status: 'Approved', requestedAt: '13 Sep 14:20', decidedAt: '13 Sep 16:10' },
+  { id: 'BR-seed-3', bunkName: 'Sri Balaji Fuels – Ongole', routeId: 'R05', routeName: 'Ambattur → Vijayawada', tripId: 'T07', tripNumber: 'TN28BC1180/09/008', supervisorName: 'R. Senthil Kumar', branch: 'B01', status: 'Rejected', requestedAt: '11 Sep 07:15', decidedAt: '11 Sep 10:40' },
 ];
 
 // Notices Head Office pushed to supervisors as the workflows above were decided.
@@ -147,7 +144,7 @@ const buildAttendance = () => {
   const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const skip = { B01: [4], B02: [3, 9], B04: [2, 6, 11] };
-  const markedToday = ['B02', 'B03', 'B05']; // B01 today comes from seedTodayAttendance; B04 stays unmarked
+  const markedToday = []; // Other branches start unmarked for today; only supervisor saved branches show marked
   const vehicleOf = Object.fromEntries(TMS.vehicles.filter((v) => v.driver).map((v) => [v.driver, v]));
   const store = {};
 
@@ -221,8 +218,137 @@ const mergeMasterSupervisors = () => {
   write(KEYS.master, { ...m, supervisors: { ...cur, added: [...added, ...add] } });
 };
 
+const migrateSingleSupervisorPerBranch = () => {
+  const m = read(KEYS.master, {});
+  let changed = false;
+
+  if (m.supervisors) {
+    if (Array.isArray(m.supervisors.added)) {
+      const origLen = m.supervisors.added.length;
+      m.supervisors.added = m.supervisors.added.filter(s =>
+        s.id !== 'SUAR-seed-3' &&
+        s.id !== 'S03' &&
+        !/harish/i.test(s.name || '')
+      );
+      if (m.supervisors.added.length !== origLen) changed = true;
+    }
+
+    const s03Edit = m.supervisors.edited?.['S03'];
+    const s01Edit = m.supervisors.edited?.['S01'];
+
+    let s03Clients = [];
+    let s03ClientIds = [];
+    if (s03Edit) {
+      if (Array.isArray(s03Edit.clientIds)) s03ClientIds.push(...s03Edit.clientIds);
+      if (s03Edit.clients) {
+        const names = String(s03Edit.clients).split(',').map(s => s.trim()).filter(Boolean);
+        s03Clients.push(...names);
+      }
+      delete m.supervisors.edited['S03'];
+      changed = true;
+    }
+
+    const baseS01Clients = ['INOX Air Products', 'Linde India', 'Suguna Foods'];
+    const baseS01Ids = ['C01', 'C02', 'C05'];
+    if (s01Edit || s03Clients.length > 0 || !m.supervisors.edited?.['S01']?.clientIds?.includes('C01')) {
+      const curS01 = s01Edit || {
+        id: 'S01',
+        name: 'R. Senthil Kumar',
+        phone: '98410 22314',
+        branch: 'B01',
+        clients: 'INOX Air Products, Linde India, Suguna Foods',
+        clientIds: ['C01', 'C02', 'C05'],
+        status: 'Active',
+      };
+      const existingNames = curS01.clients ? (Array.isArray(curS01.clients) ? curS01.clients : String(curS01.clients).split(',').map(s => s.trim()).filter(Boolean)) : [];
+      const mergedNames = Array.from(new Set([...existingNames, ...s03Clients, ...baseS01Clients]));
+      const existingIds = Array.isArray(curS01.clientIds) ? curS01.clientIds : [];
+      const mergedIds = Array.from(new Set([...existingIds, ...s03ClientIds, ...baseS01Ids]));
+
+      m.supervisors.edited = {
+        ...(m.supervisors.edited || {}),
+        S01: {
+          ...curS01,
+          clients: mergedNames.join(', '),
+          clientIds: mergedIds,
+        },
+      };
+      changed = true;
+    }
+  }
+
+  if (m.clients) {
+    const updateClient = (cli) => {
+      let curIds = Array.isArray(cli.supervisorIds) ? [...cli.supervisorIds] : [];
+      let curNames = cli.supervisors ? String(cli.supervisors).split(',').map(s => s.trim()).filter(Boolean) : [];
+      let modified = false;
+
+      if (curIds.includes('S03') || curIds.includes('SUAR-seed-3')) {
+        curIds = curIds.filter(id => id !== 'S03' && id !== 'SUAR-seed-3');
+        if (!curIds.includes('S01') && (cli.branch === 'B01' || /chennai/i.test(cli.branch || ''))) {
+          curIds.push('S01');
+        }
+        modified = true;
+      }
+      if (curNames.some(n => /vijayalakshmi/i.test(n) || /harish/i.test(n))) {
+        curNames = curNames.filter(n => !/vijayalakshmi/i.test(n) && !/harish/i.test(n));
+        if (!curNames.includes('R. Senthil Kumar') && (cli.branch === 'B01' || /chennai/i.test(cli.branch || ''))) {
+          curNames.push('R. Senthil Kumar');
+        }
+        modified = true;
+      }
+      if (modified) {
+        return {
+          ...cli,
+          supervisorIds: curIds,
+          supervisors: curNames.join(', '),
+        };
+      }
+      return cli;
+    };
+
+    if (Array.isArray(m.clients.added)) {
+      m.clients.added = m.clients.added.map(updateClient);
+      changed = true;
+    }
+    if (m.clients.edited) {
+      Object.keys(m.clients.edited).forEach(cid => {
+        m.clients.edited[cid] = updateClient(m.clients.edited[cid]);
+      });
+      changed = true;
+    }
+  }
+
+  const devs = read(KEYS.devices, []);
+  if (Array.isArray(devs)) {
+    let devChanged = false;
+    const nextDevs = devs.map(d => {
+      if (d.id === 'AR-seed-3' && d.branchId === 'B04') {
+        devChanged = true;
+        return { ...d, branchId: 'B06', branch: 'Visakhapatnam' };
+      }
+      if (d.id === 'AR-seed-5' && /vijayalakshmi/i.test(d.name || '')) {
+        devChanged = true;
+        return { ...d, name: 'R. Senthil Kumar', phone: '9841022314' };
+      }
+      return d;
+    });
+    if (devChanged) write(KEYS.devices, nextDevs);
+  }
+
+  const delList = read('kr-tms-deleted', []);
+  if (!delList.includes('S03')) {
+    write('kr-tms-deleted', [...delList, 'S03']);
+  }
+
+  if (changed) {
+    write(KEYS.master, m);
+  }
+};
+
 export const seedMockData = () => {
   if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
+  migrateSingleSupervisorPerBranch();
   try {
     if (localStorage.getItem(SEED_FLAG) === SEED_VERSION) return;
   } catch (e) {
@@ -251,20 +377,16 @@ export const seedMockData = () => {
 // Karthik R. is left unmarked (free in the picker, keeps the "attendance pending" alert);
 // Ravi T. is absent, so he is kept out of the picker.
 // Applied once per calendar day, driver by driver: a driver the supervisor already marked today,
-// or a vehicle someone is already present on, is left as the supervisor saved it.
+// Chennai HO supervisor default saved attendance for *today*:
+// Murugan S. (D01) assigned to TN 28 AQ 4521 (V01)
+// Karthik R. (D02) assigned to TN 28 BC 1180 (V02)
+// Other drivers start as unmarked by default. If supervisor changes vehicle or adds drivers,
+// it is persisted and supported seamlessly.
 const TODAY_B01 = {
-  D10: ['P', 'V04', 'Idle'],
-  D11: ['P', 'V02', 'Idle'],
-  'DR-seed-3': ['P', 'V10', 'Idle'],
-  D01: ['P', 'V01', 'On trip'],
-  D12: ['P', 'V11', 'On trip'],
-  D13: ['P', 'V12', 'On trip'],
-  D14: ['P', 'V13', 'On trip'],
-  D15: ['P', 'V14', 'On trip'],
-  D16: ['P', 'V15', 'On trip'],
-  D09: ['A', '', ''],
+  D01: ['P', 'V01', 'Running'],
+  D02: ['P', 'V02', 'Idle'],
 };
-const TODAY_FLAG = 'kr-tms-mock-att-day';
+const TODAY_FLAG = 'kr-tms-mock-att-day-v4';
 
 export const seedTodayAttendance = () => {
   if (typeof window === 'undefined' || typeof localStorage === 'undefined') return;
@@ -283,15 +405,28 @@ export const seedTodayAttendance = () => {
     savedAt: '08:15',
     entries: {},
   };
-  const entries = { ...(day.entries || {}) };
-  const taken = new Set(Object.values(entries).filter((e) => e && e[0] === 'P' && e[1]).map((e) => e[1]));
-  Object.entries(TODAY_B01).forEach(([id, e]) => {
-    if (entries[id] || (e[0] === 'P' && taken.has(e[1]))) return;
-    entries[id] = e;
-    if (e[0] === 'P') taken.add(e[1]);
+
+  // Set default saved attendance for Murugan S. (D01) and Karthik R. (D02)
+  const entries = {
+    D01: ['P', 'V01', 'Running'],
+    D02: ['P', 'V02', 'Idle'],
+  };
+
+  // Clean out any automatic today entries from other branches so they start as Not marked today
+  const nextStore = { ...store };
+  Object.keys(nextStore).forEach((brId) => {
+    if (brId !== 'B01' && nextStore[brId] && nextStore[brId][iso]) {
+      const copy = { ...nextStore[brId] };
+      delete copy[iso];
+      nextStore[brId] = copy;
+    }
   });
-  write(KEYS.attendance, { ...store, B01: { ...branch, [iso]: { ...day, entries } } });
-  try { localStorage.setItem(TODAY_FLAG, iso); } catch (e) {}
+
+  write(KEYS.attendance, { ...nextStore, B01: { ...branch, [iso]: { ...day, entries } } });
+  try {
+    localStorage.setItem(TODAY_FLAG, iso);
+    window.dispatchEvent(new Event('kr-tms-attendance-changed'));
+  } catch (e) {}
 };
 
 seedMockData();

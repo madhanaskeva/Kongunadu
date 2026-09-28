@@ -2,11 +2,12 @@ import React from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { CircleCheck, SearchCheck } from 'lucide-react';
-import { RowActions } from '../../../components/common/RowActions';
 import { matchesSearch } from '../../../utils/search';
+import { useDebounce } from '../../../utils/debounce';
 
 export const DistanceVariation = () => {
   const { T, st, distQ, setDistQ, distReview, setDistReview, navTo, showToast } = useTMSAdmin();
+  const debouncedDistQ = useDebounce(distQ, 300);
   const setReview = (r, status) => {
     setDistReview(prev => ({ ...prev, [r.id]: status }));
     showToast(status === 'Reviewed' ? 'success' : 'info', status === 'Reviewed' ? 'Marked reviewed' : 'Marked under review', `${r.vehicleNumber} · ${r.number || r.route || ''}`.trim());
@@ -80,9 +81,9 @@ export const DistanceVariation = () => {
 
   const distFlagged = distAll.filter(d => d.flagged).length;
   const distRows = distAll
-    .filter(d => matchesSearch(distQ, d.vehicleNumber, d.number, d.route, d.branchName))
+    .filter(d => matchesSearch(debouncedDistQ, d.vehicleNumber, d.number, d.route, d.branchName))
     .sort((a, b) => b.pct - a.pct);
-  const distPg = usePagination(distRows, [distQ]);
+  const distPg = usePagination(distRows, [debouncedDistQ]);
   const distAlerts = distAll.filter(d => d.canClose).sort((a, b) => b.pct - a.pct);
   const distAvg = distAll.reduce((t, d) => t + d.pct, 0) / (distAll.length || 1);
 

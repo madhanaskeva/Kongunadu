@@ -10,6 +10,7 @@ import { MultiSelect } from '../../../components/common/MultiSelect';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
+import { useDebounce } from '../../../utils/debounce';
 import { SelectField } from '../../../components/common/SelectField';
 import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 // Scoped filter-bar styles (.tl-filters) live with the other Trips page CSS.
@@ -149,11 +150,20 @@ export const TripList = () => {
   const tripEnrouteCount = tripRows.filter(t => t.status === 'Enroute').length;
 
   const [draftQ, setDraftQ] = useState(tf.q || '');
+  const debouncedDraftQ = useDebounce(draftQ, 350);
   // Only the first few ticked vehicles get a chip; the rest stay behind a "+n more".
   const [allChips, setAllChips] = useState(false);
   const CHIP_CAP = 5;
 
   useEffect(() => { setDraftQ(tf.q || ''); }, [tf.q]);
+
+  useEffect(() => {
+    setTf(prev => {
+      const trimmed = debouncedDraftQ.trim();
+      return prev.q === trimmed ? prev : { ...prev, q: trimmed };
+    });
+  }, [debouncedDraftQ]);
+
   const tripPg = usePagination(tripRows, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
 
 

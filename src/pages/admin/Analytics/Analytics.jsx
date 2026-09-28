@@ -5,6 +5,20 @@ import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const toISODate = (d) => {
+  if (!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const parseISODate = (iso) => {
+  if (!iso) return new Date();
+  const [y, m, d] = String(iso).split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
 const formatShortDate = (iso) => {
   if (!iso) return '';
   const parts = String(iso).split('-');
@@ -25,14 +39,25 @@ const formatFullDate = (iso) => {
 };
 
 export const Analytics = () => {
+  const today = useMemo(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }, []);
+  const todayISO = useMemo(() => toISODate(today), [today]);
+
+  const defaultFrom30d = useMemo(() => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+    return toISODate(d);
+  }, [today]);
+
   const {
     anTab = 'trips',
     setAnTab,
     range = '30d',
     setRange,
-    customFrom = '2026-09-01',
+    customFrom = defaultFrom30d,
     setCustomFrom,
-    customTo = '2026-09-14',
+    customTo = todayISO,
     setCustomTo,
     drvReqs = [],
     approvals = {},
@@ -57,89 +82,100 @@ export const Analytics = () => {
 
   const ranges = [
     { id: '7d', label: '7 days' },
+    { id: '14d', label: '14 days' },
     { id: '30d', label: '30 days' },
     { id: 'q', label: 'Quarter' },
     { id: 'custom', label: 'Custom' },
   ];
 
-  const presetOptions = [
-    { label: 'Last 7 Days', from: '2026-09-08', to: '2026-09-14' },
-    { label: 'Last 14 Days', from: '2026-09-01', to: '2026-09-14' },
-    { label: 'Last 30 Days', from: '2026-08-16', to: '2026-09-14' },
-    { label: 'Sep 2026', from: '2026-09-01', to: '2026-09-30' },
-    { label: 'Q3 2026', from: '2026-07-01', to: '2026-09-30' },
-  ];
+  const presetOptions = useMemo(() => {
+    const d7 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+    const d14 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 13);
+    const d30 = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthLabel = `${MONTHS_SHORT[today.getMonth()]} ${today.getFullYear()}`;
+
+    const qNum = Math.floor(today.getMonth() / 3) + 1;
+    const qStart = new Date(today.getFullYear(), (qNum - 1) * 3, 1);
+    const qEnd = new Date(today.getFullYear(), qNum * 3, 0);
+    const qLabel = `Q${qNum} ${today.getFullYear()}`;
+
+    return [
+      { label: 'Last 7 Days', from: toISODate(d7), to: todayISO },
+      { label: 'Last 14 Days', from: toISODate(d14), to: todayISO },
+      { label: 'Last 30 Days', from: toISODate(d30), to: todayISO },
+      { label: monthLabel, from: toISODate(monthStart), to: todayISO },
+      { label: qLabel, from: toISODate(qStart), to: toISODate(qEnd) },
+    ];
+  }, [today, todayISO]);
 
   // Resolve days, factor, and date labels
-  const { effectiveDays, factor, periodInfo } = useMemo(() => {
+  const { effectiveDays, factor, periodInfo, startDateObj, endDateObj } = useMemo(() => {
     let days = 30;
-    let pInfo = {
-      badgeText: 'Last 30 Days',
-      chartSubSuffix: 'last 30 days',
-      startLabel: '16 Aug',
-      midLabel: '1 Sep',
-      endLabel: '14 Sep',
-      summary: '16 Aug 2026 – 14 Sep 2026 (30 days)',
-    };
+    let sObj = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+    let eObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    let badgeText = '30 Days';
+    let chartSubSuffix = 'last 30 days';
 
     if (range === '7d') {
       days = 7;
-      pInfo = {
-        badgeText: '7 Days',
-        chartSubSuffix: 'last 7 days',
-        startLabel: '8 Sep',
-        midLabel: '11 Sep',
-        endLabel: '14 Sep',
-        summary: '8 Sep 2026 – 14 Sep 2026 (7 days)',
-      };
+      sObj = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+      eObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      badgeText = '7 Days';
+      chartSubSuffix = 'last 7 days';
+    } else if (range === '14d') {
+      days = 14;
+      sObj = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 13);
+      eObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      badgeText = '14 Days';
+      chartSubSuffix = 'last 14 days';
     } else if (range === '30d') {
       days = 30;
-      pInfo = {
-        badgeText: '30 Days',
-        chartSubSuffix: 'last 30 days',
-        startLabel: '16 Aug',
-        midLabel: '1 Sep',
-        endLabel: '14 Sep',
-        summary: '16 Aug 2026 – 14 Sep 2026 (30 days)',
-      };
+      sObj = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29);
+      eObj = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      badgeText = '30 Days';
+      chartSubSuffix = 'last 30 days';
     } else if (range === 'q') {
-      days = 90;
-      pInfo = {
-        badgeText: 'Quarter (Q3)',
-        chartSubSuffix: 'Q3 2026 (last 90 days)',
-        startLabel: '1 Jul',
-        midLabel: '15 Aug',
-        endLabel: '30 Sep',
-        summary: '1 Jul 2026 – 30 Sep 2026 (90 days)',
-      };
+      const qNum = Math.floor(today.getMonth() / 3) + 1;
+      sObj = new Date(today.getFullYear(), (qNum - 1) * 3, 1);
+      eObj = new Date(today.getFullYear(), qNum * 3, 0);
+      const diffMs = eObj.getTime() - sObj.getTime();
+      days = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
+      badgeText = `Quarter (Q${qNum})`;
+      chartSubSuffix = `Q${qNum} ${today.getFullYear()} (${days} days)`;
     } else if (range === 'custom') {
-      const fromObj = new Date(`${customFrom || '2026-09-01'}T00:00:00`);
-      const toObj = new Date(`${customTo || '2026-09-14'}T00:00:00`);
+      const fromObj = parseISODate(customFrom || toISODate(sObj));
+      const toObj = parseISODate(customTo || todayISO);
+      sObj = fromObj;
+      eObj = toObj;
       const diffMs = toObj.getTime() - fromObj.getTime();
       const calcDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
       days = calcDays;
-
-      const sLabel = formatShortDate(customFrom);
-      const eLabel = formatShortDate(customTo);
-
-      // Calculate middle date
-      const midTime = fromObj.getTime() + diffMs / 2;
-      const midObj = new Date(midTime);
-      const mLabel = `${midObj.getDate()} ${MONTHS_SHORT[midObj.getMonth()]}`;
-
-      pInfo = {
-        badgeText: `${days} Day${days !== 1 ? 's' : ''}`,
-        chartSubSuffix: `${sLabel} – ${eLabel} (${days} days)`,
-        startLabel: sLabel,
-        midLabel: mLabel,
-        endLabel: eLabel,
-        summary: `${formatFullDate(customFrom)} – ${formatFullDate(customTo)} (${days} day${days !== 1 ? 's' : ''})`,
-      };
+      badgeText = `${days} Day${days !== 1 ? 's' : ''}`;
+      chartSubSuffix = `${formatShortDate(toISODate(fromObj))} – ${formatShortDate(toISODate(toObj))} (${days} days)`;
     }
 
+    const sLabel = `${sObj.getDate()} ${MONTHS_SHORT[sObj.getMonth()]}`;
+    const eLabel = `${eObj.getDate()} ${MONTHS_SHORT[eObj.getMonth()]}`;
+    const midTime = sObj.getTime() + (eObj.getTime() - sObj.getTime()) / 2;
+    const midObj = new Date(midTime);
+    const mLabel = `${midObj.getDate()} ${MONTHS_SHORT[midObj.getMonth()]}`;
+
+    const summary = `${formatFullDate(toISODate(sObj))} – ${formatFullDate(toISODate(eObj))} (${days} day${days !== 1 ? 's' : ''})`;
+
+    const pInfo = {
+      badgeText,
+      chartSubSuffix,
+      startLabel: sLabel,
+      midLabel: mLabel,
+      endLabel: eLabel,
+      summary,
+    };
+
     const f = days / 30;
-    return { effectiveDays: days, factor: f, periodInfo: pInfo };
-  }, [range, customFrom, customTo]);
+    return { effectiveDays: days, factor: f, periodInfo: pInfo, startDateObj: sObj, endDateObj: eObj };
+  }, [range, customFrom, customTo, today, todayISO]);
 
   // Generate series data for chart
   const seriesData = useMemo(() => {
@@ -148,6 +184,8 @@ export const Analytics = () => {
 
     if (range === '7d') {
       barCount = 7;
+    } else if (range === '14d') {
+      barCount = 14;
     } else if (range === '30d') {
       barCount = 14;
     } else if (range === 'q') {
@@ -185,31 +223,23 @@ export const Analytics = () => {
     }
 
     const items = [];
-    const fromObj = range === 'custom' ? new Date(`${customFrom}T00:00:00`) : new Date('2026-09-14T00:00:00');
+    const startTime = startDateObj.getTime();
 
     for (let i = 0; i < barCount; i++) {
       let val = pattern[i % pattern.length];
       let barLabel = '';
 
-      if (range === '7d') {
-        const d = new Date('2026-09-08T00:00:00');
-        d.setDate(d.getDate() + i);
+      if (effectiveDays <= 14) {
+        const d = new Date(startTime + i * 86400000);
         barLabel = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
-        val = pattern[7 + (i % 7)] || val;
-      } else if (range === 'custom') {
-        if (effectiveDays <= 14) {
-          const d = new Date(fromObj.getTime() + i * 86400000);
-          barLabel = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
-        } else {
-          const step = (effectiveDays - 1) / (barCount - 1 || 1);
-          const d = new Date(fromObj.getTime() + i * step * 86400000);
-          barLabel = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+        if (range === '7d') {
+          val = pattern[7 + (i % 7)] || val;
         }
       } else if (range === 'q') {
         barLabel = `W${i + 1}`;
       } else {
-        const d = new Date('2026-08-16T00:00:00');
-        d.setDate(d.getDate() + Math.round(i * (30 / barCount)));
+        const step = (effectiveDays - 1) / (barCount - 1 || 1);
+        const d = new Date(startTime + i * step * 86400000);
         barLabel = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
       }
 
@@ -230,7 +260,7 @@ export const Analytics = () => {
     }
 
     return items;
-  }, [anTab, range, effectiveDays, customFrom]);
+  }, [anTab, range, effectiveDays, startDateObj, endDateObj]);
 
   // Compute Definition for current tab & range
   const ad = useMemo(() => {
@@ -415,6 +445,29 @@ export const Analytics = () => {
     }
   };
 
+  const handleRangeClick = (rId) => {
+    setRange(rId);
+    if (rId === '7d') {
+      const f = toISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6));
+      if (setCustomFrom) setCustomFrom(f);
+      if (setCustomTo) setCustomTo(todayISO);
+    } else if (rId === '14d') {
+      const f = toISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 13));
+      if (setCustomFrom) setCustomFrom(f);
+      if (setCustomTo) setCustomTo(todayISO);
+    } else if (rId === '30d') {
+      const f = toISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29));
+      if (setCustomFrom) setCustomFrom(f);
+      if (setCustomTo) setCustomTo(todayISO);
+    } else if (rId === 'q') {
+      const qNum = Math.floor(today.getMonth() / 3) + 1;
+      const qStart = new Date(today.getFullYear(), (qNum - 1) * 3, 1);
+      const qEnd = new Date(today.getFullYear(), qNum * 3, 0);
+      if (setCustomFrom) setCustomFrom(toISODate(qStart));
+      if (setCustomTo) setCustomTo(toISODate(qEnd));
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* 6 Category Tabs */}
@@ -451,7 +504,7 @@ export const Analytics = () => {
               return (
                 <button
                   key={r.id}
-                  onClick={() => setRange(r.id)}
+                  onClick={() => handleRangeClick(r.id)}
                   style={{
                     all: 'unset',
                     cursor: 'pointer',

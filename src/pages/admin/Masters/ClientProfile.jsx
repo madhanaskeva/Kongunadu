@@ -7,6 +7,7 @@ import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
+import { useDebounce } from '../../../utils/debounce';
 
 // Seed rows merged with admin additions/edits (same rule as MasterManager)
 const mergeEdits = (edits, seed) => {
@@ -84,6 +85,7 @@ export const ClientProfile = () => {
   const navigate = useNavigate();
   const { T, masterEdits, deleted, setDeleted, setDrawer, setForm, setFormError, setConfirm, showToast } = useTMSAdmin();
   const [q, setQ] = useState('');
+  const debouncedQ = useDebounce(q, 300);
   const { can } = useModuleAccess();
   const tms = T();
 
@@ -93,8 +95,8 @@ export const ClientProfile = () => {
   const client = mergeEdits(clientEdits, tms.clients || []).find(c => c.id === id);
   const customers = mergeEdits(customerEdits, tms.customers || []).filter(u => u.client === id && !delList.includes(u.id));
   const routeName = rid => (tms.R[rid] || {}).name || rid || '—';
-  const rows = customers.filter(u => matchesSearch(q, u.name, u.city, routeName(u.route), u.billing, u.status));
-  const pg = usePagination(rows, [id, q]);
+  const rows = customers.filter(u => matchesSearch(debouncedQ, u.name, u.city, routeName(u.route), u.billing, u.status));
+  const pg = usePagination(rows, [id, debouncedQ]);
 
   if (!client || deleted.includes(id)) {
     return (
@@ -111,6 +113,7 @@ export const ClientProfile = () => {
   const supervisors = (tms.supervisors || []).filter(s =>
     (s.clientIds || []).includes(id) ||
     (client.supervisorIds || []).includes(s.id) ||
+    (s.clients && typeof s.clients === 'string' && s.clients.toLowerCase().includes(client.name.toLowerCase())) ||
     (client.supervisors && typeof client.supervisors === 'string' && client.supervisors.toLowerCase().includes(s.name.toLowerCase()))
   );
   const activeCust = customers.filter(u => u.status === 'Active').length;
@@ -144,7 +147,7 @@ export const ClientProfile = () => {
       kicker: 'Edit client',
       title: client.name,
       saveLabel: 'Save changes',
-      required: ['name', 'gst', 'branch'],
+      required: ['name', 'gst', 'branch', 'phone', 'supervisors', 'status'],
       fields: [
         ['name', 'Client name', null, 'e.g. Linde India or INOX Air Products'],
         ['gst', 'GSTIN', null, '33AAACL0123M1Z2', { clean: 'gstin', hint: '15-character GST identification number' }],
@@ -159,17 +162,36 @@ export const ClientProfile = () => {
         ['status', 'Status', ['Active', 'On hold']],
       ],
       validate: (f) => {
+        const errs = {};
         const dg = x => String(x || '').replace(/\D/g, '');
-        return {
-          name: !String(f.name || '').trim() ? 'Enter the client name.' : undefined,
-          gst: !String(f.gst || '').trim()
-            ? 'Enter the GSTIN.'
-            : String(f.gst || '').replace(/\s/g, '').length !== 15
-            ? 'GSTIN must be 15 characters.'
-            : undefined,
-          branch: !f.branch ? 'Select a branch for this client.' : undefined,
-          phone: f.phone && dg(f.phone).length !== 10 ? 'Enter a 10-digit mobile number.' : undefined,
-        };
+        const norm = s => String(s || '').trim().toLowerCase();
+        const cleanGst = s => String(s || '').replace(/[\s-]/g, '').toUpperCase();
+        const others = (tms.clients || []).filter(c => c.id !== client.id && !delList.includes(c.id));
+
+        if (!f.name || !String(f.name).trim()) {
+          errs.name = 'Enter the client name.';
+        } else if (others.some(c => norm(c.name) === norm(f.name))) {
+          errs.name = 'Client name already exists.';
+        }
+
+        const rawGst = cleanGst(f.gst);
+        if (!rawGst) {
+          errs.gst = 'Enter the GSTIN.';
+        } else if (rawGst.length !== 15) {
+          errs.gst = 'GSTIN must be 15 characters.';
+        } else if (others.some(c => cleanGst(c.gst) === rawGst)) {
+          errs.gst = 'GSTIN already exists.';
+        }
+
+        if (!f.branch) errs.branch = 'Select a branch for this client.';
+        if (!f.phone || dg(f.phone).length !== 10) errs.phone = 'Enter a 10-digit mobile number.';
+
+        const sups = Array.isArray(f.supervisors) ? f.supervisors : String(f.supervisors || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (!sups || sups.length === 0) errs.supervisors = 'Select at least one supervisor.';
+
+        if (!f.status) errs.status = 'Select the status.';
+
+        return errs;
       },
     });
     setForm({

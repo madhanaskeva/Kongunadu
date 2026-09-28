@@ -333,7 +333,7 @@ export const CloseTrip = ({ v }) => (
                 </button>
               </div>
             ))}
-            <Button variant="secondary" size="sm" onClick={v.addOtherExpense}>+ Add another box</Button>
+            <Button variant="secondary" size="sm" onClick={v.addOtherExpense}>Add more expenses</Button>
           </div>
         </section>
 

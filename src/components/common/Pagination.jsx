@@ -81,16 +81,19 @@ const pageList = (cur, count) => {
 export const Pagination = ({
   page,
   pageCount,
-  pageSize,
+  pageSize = 10,
   total,
   setPage,
   setPageSize,
   noun = 'records',
-  sizes = [10, 25, 50],
+  sizes = [10, 20, 50, 100],
   style,
 }) => {
-  const first = total ? (page - 1) * pageSize + 1 : 0;
-  const last = Math.min(page * pageSize, total);
+  const rawSizes = Array.isArray(sizes) && sizes.length > 0 ? sizes : [10, 20, 50, 100];
+  const pageSizes = Array.from(new Set([10, ...rawSizes])).sort((a, b) => a - b);
+  const effectiveSize = pageSize || 10;
+  const first = total ? (page - 1) * effectiveSize + 1 : 0;
+  const last = Math.min(page * effectiveSize, total);
   return (
     <div
       style={{
@@ -125,9 +128,9 @@ export const Pagination = ({
         </button>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginLeft: '12px' }}>
           <SelectField
-            value={pageSize}
+            value={effectiveSize}
             onChange={(v) => setPageSize(Number(v))}
-            options={sizes.map(n => ({ value: n, label: `${n} / page` }))}
+            options={pageSizes.map(n => ({ value: n, label: `${n} / page` }))}
             ariaLabel="Rows per page"
             width="128px"
             height={36}

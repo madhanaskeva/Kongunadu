@@ -12,7 +12,7 @@
  * 5. Deterministic AND-logic filter evaluation.
  */
 
-import { ENROUTE_LABEL } from '../../../utils/tripStatus';
+import { ENROUTE_LABEL } from '../../../utils/tripStatus.js';
 
 // Helper: parse date strings like "14 Sep 2026 05:40", "2026-09-14", "14 Sep 2026"
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -335,12 +335,33 @@ export const getDependentOptions = (moduleId, fieldKey, currentFilters, tms) => 
   if (fieldKey === 'loading' || fieldKey === 'location') {
     let list = locations;
     if (branchFilters) list = list.filter(l => branchFilters.includes(l.branch));
-    if (clientFilters) list = list.filter(l => clientFilters.includes(l.client) || clientFilters.includes(l.clientId));
+    if (clientFilters) {
+      list = list.filter(l => {
+        const cIds = [l.client, l.clientId, ...(l.clientIds || [])].filter(Boolean);
+        const tripClients = trips.filter(t => t.loading === l.id).map(t => t.client).filter(Boolean);
+        const allC = [...cIds, ...tripClients];
+        return allC.some(c => clientFilters.includes(c));
+      });
+    }
     return list.map(l => ({ value: l.id, label: l.name }));
   }
 
   if (fieldKey === 'bunk') {
-    let list = bunks;
+    let list = (bunks && bunks.length > 0) ? [...bunks] : [];
+    if (!list.length) {
+      const seen = new Set();
+      trips.forEach(t => {
+        if (t.bunk) {
+          const names = String(t.bunk).split(',').map(s => s.trim()).filter(Boolean);
+          names.forEach(name => {
+            if (!seen.has(name)) {
+              seen.add(name);
+              list.push({ id: name, name, branch: t.branch, rate: t.rate });
+            }
+          });
+        }
+      });
+    }
     if (branchFilters) list = list.filter(b => branchFilters.includes(b.branch));
     return list.map(b => ({ value: b.name, label: `${b.name} (${b.rate ? '₹' + b.rate + '/L' : 'Active'})` }));
   }
@@ -365,6 +386,15 @@ export const getDependentOptions = (moduleId, fieldKey, currentFilters, tms) => 
 // ============================================================================
 // 4. FILTER EVALUATION LOGIC
 // ============================================================================
+
+export const isFilterEmpty = (val) => {
+  if (val === undefined || val === null || val === '') return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  if (typeof val === 'object' && !Array.isArray(val)) {
+    return !val.from && !val.to;
+  }
+  return false;
+};
 
 export const evaluateCondition = (recordVal, operator, filterVal) => {
   if (filterVal === undefined || filterVal === null || filterVal === '') return true;
@@ -519,7 +549,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'vehicle', label: 'Assigned Vehicle', kind: 'text' },
         { key: 'type', label: 'Type', kind: 'badge' },
         { key: 'status', label: 'Status', kind: 'badge' },
-        { key: 'tripsCount', label: 'Trips (Real)', kind: 'num' },
+        { key: 'tripsCount', label: 'Trips', kind: 'num' },
         { key: 'completedTrips', label: 'Completed', kind: 'num' },
         { key: 'totalDistance', label: 'Total Distance', kind: 'num', unit: 'km' },
         { key: 'totalDiesel', label: 'Diesel Consumed', kind: 'num', unit: 'L' },
@@ -554,6 +584,16 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         const absentDays = d.absent != null ? d.absent : 0;
         const util = d.util || (presentDays + absentDays > 0 ? Math.round((presentDays / (presentDays + absentDays)) * 100) + '%' : '—');
 
+        const todayDate = new Date().toISOString().slice(0, 10);
+        const branchStore = attStore[d.branch] || (B[d.branch]?.name ? attStore[B[d.branch]?.name] : null) || {};
+        const todayEntry = branchStore[todayDate]?.entries?.[d.id] || branchStore[todayDate]?.entries?.[d.name];
+        let todayStatus = '';
+        if (Array.isArray(todayEntry)) todayStatus = todayEntry[0] === 'P' ? 'Present' : todayEntry[0] === 'A' ? 'Absent' : '';
+        else if (todayEntry && typeof todayEntry === 'object') todayStatus = todayEntry.mark === 'P' || todayEntry.status === 'Present' ? 'Present' : todayEntry.mark === 'A' || todayEntry.status === 'Absent' ? 'Absent' : '';
+        else if (typeof todayEntry === 'string') todayStatus = todayEntry === 'P' || todayEntry === 'Present' ? 'Present' : todayEntry === 'A' || todayEntry === 'Absent' ? 'Absent' : '';
+
+        const dutyStatus = todayStatus || (presentDays > 0 ? 'Present' : absentDays > 0 ? 'Absent' : 'Not marked');
+
         return {
           id: d.id,
           driver: d.name,
@@ -572,6 +612,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           totalAdvance,
           presentDays,
           absentDays,
+          dutyStatus,
           util,
           variances,
         };
@@ -579,7 +620,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
 
       // Apply dynamic AND filters
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'driver') {
           rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'branch') {
@@ -593,14 +634,17 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'approval') {
           rows = rows.filter(r => evaluateCondition(r.approval, f.op || 'equals', f.value));
         } else if (f.field === 'attendance') {
-          if (f.op === 'not_equals') {
-            if (f.value === 'Present') rows = rows.filter(r => r.presentDays === 0);
-            else if (f.value === 'Absent') rows = rows.filter(r => r.absentDays === 0);
-            else if (f.value === 'High Absence (>3 days)') rows = rows.filter(r => r.absentDays <= 3);
-          } else {
-            if (f.value === 'Present') rows = rows.filter(r => r.presentDays > 0);
-            else if (f.value === 'Absent') rows = rows.filter(r => r.absentDays > 0);
-            else if (f.value === 'High Absence (>3 days)') rows = rows.filter(r => r.absentDays > 3);
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(val => {
+                if (val === 'High Absence (>3 days)') return r.absentDays > 3;
+                if (val === 'Present') return r.presentDays > 0 || r.dutyStatus === 'Present';
+                if (val === 'Absent') return r.absentDays > 0 || r.dutyStatus === 'Absent';
+                return false;
+              });
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
           }
         }
       });
@@ -608,7 +652,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       // Summary KPIs derived strictly from filtered rows
       summaries = [
         { label: 'Total Drivers', value: rows.length, unit: '' },
-        { label: 'Total Real Trips', value: rows.reduce((a, r) => a + r.tripsCount, 0), unit: '' },
+        { label: 'Total Trips', value: rows.reduce((a, r) => a + r.tripsCount, 0), unit: '' },
         { label: 'Total Distance', value: rows.reduce((a, r) => a + r.totalDistance, 0).toLocaleString('en-IN'), unit: 'km' },
         { label: 'Total Diesel Consumed', value: rows.reduce((a, r) => a + r.totalDiesel, 0).toLocaleString('en-IN'), unit: 'L' },
         { label: 'Total Advances', value: '₹' + rows.reduce((a, r) => a + r.totalAdvance, 0).toLocaleString('en-IN'), unit: '' },
@@ -630,7 +674,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'gps', label: 'GPS Status', kind: 'badge' },
         { key: 'odometer', label: 'Odometer KM', kind: 'num', unit: 'km' },
         { key: 'tank', label: 'Tank Capacity', kind: 'num', unit: 'L' },
-        { key: 'tripsCount', label: 'Trips (Real)', kind: 'num' },
+        { key: 'tripsCount', label: 'Trips', kind: 'num' },
         { key: 'totalDistance', label: 'Total Distance', kind: 'num', unit: 'km' },
         { key: 'totalDiesel', label: 'Diesel Consumed', kind: 'num', unit: 'L' },
         { key: 'exceptionsCount', label: 'Exceptions', kind: 'num' },
@@ -639,7 +683,10 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       rows = vehicles.map(v => {
         const vBranch = B[v.branch]?.name || v.branch;
         const vDriver = D[v.driver]?.name || (v.driver ? v.driver : 'No driver');
-        const vClients = (v.clients || []).map(cid => C[cid]?.name || cid).join(', ') || 'General Fleet';
+        const vehTripClientIds = trips.filter(t => t.vehicle === v.id).map(t => t.client).filter(Boolean);
+        const allClientIds = Array.from(new Set([...(v.clients || []), ...vehTripClientIds]));
+        const allClientNames = allClientIds.map(cid => C[cid]?.name || cid).filter(Boolean);
+        const vClients = allClientNames.join(', ') || 'General Fleet';
 
         let vTrips = trips.filter(t => t.vehicle === v.id);
         if (dateFilter && dateFilter.value) {
@@ -662,6 +709,8 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           driverId: v.driver,
           client: vClients,
           clientsList: v.clients || [],
+          clientIds: allClientIds,
+          clientNames: allClientNames,
           status: v.status || 'Running',
           gps: v.gps || 'OK',
           odometer: v.odometer || 0,
@@ -674,7 +723,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       });
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'vehicle') {
           rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'branch') {
@@ -688,10 +737,19 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'vtype') {
           rows = rows.filter(r => evaluateCondition(r.vtype, f.op || 'equals', f.value));
         } else if (f.field === 'client') {
-          rows = rows.filter(r => {
-            const hasClient = (r.clientsList || []).includes(f.value) || matchesEntityOrText(null, r.client, 'contains', f.value);
-            return f.op === 'not_equals' ? !hasClient : hasClient;
-          });
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(val => {
+                const cVal = String(val).trim().toLowerCase();
+                const idMatch = (r.clientIds || r.clientsList || []).some(cid => String(cid).toLowerCase() === cVal);
+                const nameMatch = (r.clientNames || []).some(cn => String(cn).toLowerCase().includes(cVal) || cVal.includes(String(cn).toLowerCase()));
+                const textMatch = r.client && String(r.client).toLowerCase().includes(cVal);
+                return idMatch || nameMatch || textMatch;
+              });
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
+          }
         }
       });
 
@@ -763,7 +821,11 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           diesel: t.dieselLitres || parseMoney(t.diesel) || 0,
           advance: parseMoney(t.advance),
           status: statusLabel,
+          rawStatus: t.status,
+          hoursOpen: t.hoursOpen || 0,
           supervisor: t.supervisor,
+          supervisorId: t.supervisor,
+          supervisorName: tms.S?.[t.supervisor]?.name || (tms.supervisors || []).find(s => s.id === t.supervisor)?.name || t.supervisor,
         };
       });
 
@@ -772,7 +834,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       }
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'branch') {
           rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'vehicle') {
@@ -784,11 +846,31 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'type') {
           rows = rows.filter(r => evaluateCondition(r.type, f.op || 'equals', f.value));
         } else if (f.field === 'status') {
-          rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(val => {
+                const cVal = String(val).trim().toLowerCase();
+                const rStat = String(r.status || '').trim().toLowerCase();
+                const rRaw = String(r.rawStatus || '').trim().toLowerCase();
+                if (cVal === 'enroute' || cVal === 'on road') {
+                  return rRaw === 'enroute' || rStat === 'on road' || rStat === 'enroute';
+                }
+                if (cVal === 'closed') {
+                  return rRaw === 'closed' || rStat === 'closed';
+                }
+                if (cVal === 'long open') {
+                  return rStat === 'long open' || (r.hoursOpen > 24 && rRaw !== 'closed');
+                }
+                return rStat === cVal || rRaw === cVal;
+              });
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
+          }
         } else if (f.field === 'loading') {
           rows = rows.filter(r => matchesEntityOrText(r.loadingId, r.from, f.op, f.value));
         } else if (f.field === 'supervisor') {
-          rows = rows.filter(r => matchesEntityOrText(r.supervisor, null, f.op, f.value));
+          rows = rows.filter(r => matchesEntityOrText(r.supervisorId, r.supervisorName, f.op, f.value));
         }
       });
 
@@ -814,7 +896,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'status', label: 'Status', kind: 'badge' },
         { key: 'vehiclesCount', label: 'Vehicles', kind: 'num' },
         { key: 'driversCount', label: 'Drivers', kind: 'num' },
-        { key: 'tripsCount', label: 'Trips (Real)', kind: 'num' },
+        { key: 'tripsCount', label: 'Trips', kind: 'num' },
         { key: 'totalDistance', label: 'Total Distance', kind: 'num', unit: 'km' },
         { key: 'dieselLitres', label: 'Diesel Consumed', kind: 'num', unit: 'L' },
         { key: 'dieselCost', label: 'Diesel Cost', kind: 'num', unit: '₹' },
@@ -856,7 +938,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       });
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'branch') {
           rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'state') {
@@ -892,7 +974,6 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'totalCost', label: 'Total Diesel Cost', kind: 'num', unit: '₹' },
         { key: 'distance', label: 'Trip Distance', kind: 'num', unit: 'km' },
         { key: 'mileage', label: 'Fuel Efficiency', kind: 'num', unit: 'km/L' },
-        { key: 'paymentMode', label: 'Payment Mode', kind: 'badge' },
       ];
 
       // Derived strictly from trips containing real diesel entries
@@ -933,7 +1014,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       }
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'vehicle') {
           rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'driver') {
@@ -941,7 +1022,13 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'branch') {
           rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'bunk') {
-          rows = rows.filter(r => matchesEntityOrText(null, r.bunk, f.op, f.value));
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(v => matchesEntityOrText(null, r.bunk, 'contains', v));
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
+          }
         }
       });
 
@@ -1016,7 +1103,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       }
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'branch') {
           rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'vehicle') {
@@ -1024,7 +1111,23 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'driver') {
           rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
         } else if (f.field === 'status') {
-          rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(val => {
+                const cVal = String(val).trim().toLowerCase();
+                const rStat = String(r.status || '').trim().toLowerCase();
+                if (cVal === 'enroute' || cVal === 'on road') {
+                  return rStat === 'enroute' || rStat === 'on road';
+                }
+                if (cVal === 'closed') {
+                  return rStat === 'closed';
+                }
+                return rStat === cVal;
+              });
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
+          }
         }
       });
 
@@ -1049,7 +1152,6 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'client', label: 'Client Name', kind: 'text' },
         { key: 'gst', label: 'GST Number', kind: 'text' },
         { key: 'branch', label: 'Branch', kind: 'text' },
-        { key: 'contact', label: 'Desk / Contact', kind: 'text' },
         { key: 'supervisors', label: 'Assigned Supervisors', kind: 'text' },
         { key: 'customersCount', label: 'Delivery Points', kind: 'num' },
         { key: 'vehiclesCount', label: 'Dedicated Vehicles', kind: 'num' },
@@ -1087,7 +1189,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       });
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'client') {
           rows = rows.filter(r => matchesEntityOrText(r.clientId, r.client, f.op, f.value));
         } else if (f.field === 'branch') {
@@ -1124,6 +1226,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'fixedKm', label: 'Fixed KM', kind: 'num', unit: 'km' },
         { key: 'gpsKm', label: 'GPS KM', kind: 'num', unit: 'km' },
         { key: 'variancePct', label: 'Variance %', kind: 'num', unit: '%' },
+        { key: 'severity', label: 'Severity', kind: 'badge' },
         { key: 'status', label: 'Status', kind: 'badge' },
       ];
 
@@ -1146,6 +1249,16 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           variancePct = Math.round((Math.abs(gps - fixed) / fixed) * 1000) / 10;
         }
 
+        const exc = exceptions.find(x => x.trip === t.id);
+        const offKmNum = Number(div.offKm || div.extraKm) || 0;
+        const vPctNum = Number(variancePct) || 0;
+        const severity = exc?.severity || (offKmNum > 20 || vPctNum > 10 ? 'High' : offKmNum > 10 || vPctNum > 5 ? 'Medium' : 'Low');
+
+        let normStatus = 'Open';
+        if (div.state === 'Reviewed' || t.status === 'Closed') normStatus = 'Resolved';
+        else if (div.state === 'Rejoined' || (exc && exc.status === 'Under review')) normStatus = 'Under review';
+        else normStatus = 'Open';
+
         const expectedCorridor = div.expected || ((L[t.loading]?.name || 'Origin') + ' → ' + (t.unloading || 'Destination'));
         const actualPath = div.actual || (t.flags || []).find(f => /diversion|variance/i.test(f)) || 'Distance variance detected';
 
@@ -1167,6 +1280,8 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           fixedKm: fixed || '—',
           gpsKm: gps || '—',
           variancePct: variancePct != null ? variancePct : '—',
+          severity,
+          statusGroup: normStatus,
           status: div.state || (t.status === 'Closed' ? 'Reviewed' : 'Active diversion'),
         };
       });
@@ -1176,15 +1291,37 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       }
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'branch') {
           rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'vehicle') {
           rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'driver') {
           rows = rows.filter(r => matchesEntityOrText(r.driverId, r.driver, f.op, f.value));
+        } else if (f.field === 'severity') {
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(v => String(v).toLowerCase() === String(r.severity || '').toLowerCase());
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
+          }
         } else if (f.field === 'status') {
-          rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(v => {
+                const cv = String(v).toLowerCase();
+                const st = String(r.status || '').toLowerCase();
+                const sg = String(r.statusGroup || '').toLowerCase();
+                if (cv === 'open') return sg === 'open' || st.includes('active') || st.includes('off route');
+                if (cv === 'under review') return sg === 'under review' || st.includes('rejoined') || st.includes('review');
+                if (cv === 'resolved') return sg === 'resolved' || st.includes('reviewed') || st.includes('closed');
+                return st === cv || sg === cv;
+              });
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
+          }
         }
       });
 
@@ -1206,12 +1343,10 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'branch', label: 'Branch', kind: 'text' },
         { key: 'vehicle', label: 'Assigned Vehicle', kind: 'text' },
         { key: 'dtype', label: 'Driver Type', kind: 'badge' },
-        { key: 'status', label: 'Duty Status', kind: 'badge' },
         { key: 'present', label: 'Present Days', kind: 'num' },
         { key: 'absent', label: 'Absent Days', kind: 'num' },
         { key: 'util', label: 'Fleet Utilisation', kind: 'text' },
         { key: 'tripsMonth', label: 'Trips Assigned', kind: 'num' },
-        { key: 'note', label: 'Attendance Audit Note', kind: 'text' },
       ];
 
       rows = drivers.map(d => {
@@ -1223,6 +1358,27 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         if (d.status === 'Inactive') note = 'Continuous absence / Inactive';
         else if (absent >= 6) note = `Absent ${absent} days this month`;
 
+        const todayDate = new Date().toISOString().slice(0, 10);
+        const branchStore = attStore[d.branch] || (B[d.branch]?.name ? attStore[B[d.branch]?.name] : null) || {};
+        const todayEntry = branchStore[todayDate]?.entries?.[d.id] || branchStore[todayDate]?.entries?.[d.name];
+        let todayStatus = '';
+        if (Array.isArray(todayEntry)) todayStatus = todayEntry[0] === 'P' ? 'Present' : todayEntry[0] === 'A' ? 'Absent' : '';
+        else if (todayEntry && typeof todayEntry === 'object') todayStatus = todayEntry.mark === 'P' || todayEntry.status === 'Present' ? 'Present' : todayEntry.mark === 'A' || todayEntry.status === 'Absent' ? 'Absent' : '';
+        else if (typeof todayEntry === 'string') todayStatus = todayEntry === 'P' || todayEntry === 'Present' ? 'Present' : todayEntry === 'A' || todayEntry === 'Absent' ? 'Absent' : '';
+
+        let dutyStatus = 'Not marked';
+        if (todayStatus) {
+          dutyStatus = todayStatus;
+        } else if (d.status === 'Inactive') {
+          dutyStatus = 'Absent';
+        } else if (d.status === 'Pending') {
+          dutyStatus = 'Not marked';
+        } else if (present > 0) {
+          dutyStatus = 'Present';
+        } else if (absent > 0) {
+          dutyStatus = 'Absent';
+        }
+
         return {
           id: d.id,
           driver: d.name,
@@ -1232,7 +1388,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           vehicle: assignedVeh ? assignedVeh.number : '—',
           vehicleId: assignedVeh ? assignedVeh.id : '',
           dtype: d.type || 'Regular',
-          status: d.status || 'Active',
+          status: dutyStatus,
           present,
           absent,
           util: d.util || (present + absent > 0 ? Math.round((present / (present + absent)) * 100) + '%' : '—'),
@@ -1242,7 +1398,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       });
 
       activeFilters.forEach(f => {
-        if (!f.value || f.field === 'date') return;
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
         if (f.field === 'branch') {
           rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'driver') {
@@ -1250,14 +1406,19 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         } else if (f.field === 'vehicle') {
           rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
         } else if (f.field === 'status') {
-          if (f.op === 'not_equals') {
-            if (f.value === 'Present') rows = rows.filter(r => r.present === 0);
-            else if (f.value === 'Absent') rows = rows.filter(r => r.absent === 0);
-            else rows = rows.filter(r => evaluateCondition(r.status, f.op, f.value));
-          } else {
-            if (f.value === 'Present') rows = rows.filter(r => r.present > 0);
-            else if (f.value === 'Absent') rows = rows.filter(r => r.absent > 0);
-            else rows = rows.filter(r => evaluateCondition(r.status, f.op || 'equals', f.value));
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(v => {
+                const cv = String(v).toLowerCase();
+                const st = String(r.status || '').toLowerCase();
+                if (cv === 'present') return st === 'present' || r.present > 0;
+                if (cv === 'absent') return st === 'absent' || r.absent > 0;
+                if (cv === 'not marked') return st === 'not marked' || (r.present === 0 && r.absent === 0);
+                return st === cv;
+              });
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
           }
         }
       });
@@ -1292,13 +1453,26 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
 
       rows = locations.map(l => {
         const outTrips = trips.filter(t => t.loading === l.id);
+        const tripClientIds = outTrips.map(t => t.client).filter(Boolean);
+        const staticClientIds = [l.client, l.clientId, ...(l.clientIds || [])].filter(Boolean);
+        const knownTermClients = {
+          L01: ['C01'],
+          L02: ['C02', 'C05'],
+          L03: ['C03'],
+          L04: ['C04'],
+          L05: ['C06'],
+          L06: ['C01'],
+        };
+        const allClientIds = Array.from(new Set([...staticClientIds, ...tripClientIds, ...(knownTermClients[l.id] || [])]));
+        const clientNames = allClientIds.map(cid => C[cid]?.name || cid).filter(Boolean);
         const uniqueVehicles = new Set(outTrips.map(t => t.vehicle)).size;
 
         return {
           id: l.id,
           name: l.name,
-          client: C[l.client || l.clientId]?.name || '—',
-          clientId: l.client || l.clientId,
+          client: clientNames.join(', ') || '—',
+          clientIds: allClientIds,
+          clientId: allClientIds[0] || '',
           branch: B[l.branch]?.name || l.branch,
           branchId: l.branch,
           address: l.address || '—',
@@ -1310,11 +1484,22 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       });
 
       activeFilters.forEach(f => {
-        if (!f.value) return;
+        if (isFilterEmpty(f.value)) return;
         if (f.field === 'location') {
           rows = rows.filter(r => matchesEntityOrText(r.id, r.name, f.op, f.value));
         } else if (f.field === 'client') {
-          rows = rows.filter(r => matchesEntityOrText(r.clientId, r.client, f.op, f.value));
+          const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+          if (vals.length > 0) {
+            rows = rows.filter(r => {
+              const isMatch = vals.some(v => {
+                const cv = String(v).toLowerCase();
+                const idMatch = (r.clientIds || []).some(cid => String(cid).toLowerCase() === cv);
+                const textMatch = r.client && String(r.client).toLowerCase().includes(cv);
+                return idMatch || textMatch;
+              });
+              return (f.op === 'not_equals' || f.op === 'neq') ? !isMatch : isMatch;
+            });
+          }
         } else if (f.field === 'branch') {
           rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
         } else if (f.field === 'status') {

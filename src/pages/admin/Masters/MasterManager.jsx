@@ -7,6 +7,7 @@ import { readSheet } from '../../../utils/spreadsheet';
 import { RowActions } from '../../../components/common/RowActions';
 import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
+import { useDebounce } from '../../../utils/debounce';
 import { SelectField } from '../../../components/common/SelectField';
 
 const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
@@ -279,6 +280,7 @@ export const MasterManager = ({ type }) => {
   } = useTMSAdmin();
 
   const [masterQ, setMasterQ] = useState('');
+  const debouncedMasterQ = useDebounce(masterQ, 300);
   const [activeBunksPopover, setActiveBunksPopover] = useState(null);
   // Loading Location Master: pick the client first — locations belong to one client,
   // so there is nothing sensible to add until we know whose location it is.
@@ -310,11 +312,22 @@ export const MasterManager = ({ type }) => {
   };
 
   const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
-  // One active supervisor per branch: a branch that already has one is not offered again,
+  const isBranchEqual = (bVal, bOpt) => {
+    if (!bVal || !bOpt) return false;
+    const optVal = typeof bOpt === 'string' ? bOpt : bOpt.value;
+    const optLabel = typeof bOpt === 'string' ? bOpt : bOpt.label;
+    if (bVal === optVal || bVal === optLabel) return true;
+    const bName = (tms.B[bVal] || {}).name;
+    if (bName && (bName === optLabel || bName === optVal)) return true;
+    const bId = (tms.B[optVal] || {}).id;
+    if (bId && bVal === bId) return true;
+    return false;
+  };
+  // One supervisor per branch: a branch that already has an assigned supervisor is not offered again,
   // except to the supervisor being edited, who keeps their own branch.
   const freeBranchOpts = (self) => branchOpts.filter(o =>
-    (self && self.branch === o.value) ||
-    !(tms.supervisors || []).some(s => s.status === 'Active' && s.branch === o.value && (!self || s.id !== self.id)));
+    (self && isBranchEqual(self.branch, o)) ||
+    !(tms.supervisors || []).some(s => isBranchEqual(s.branch, o) && (!self || s.id !== self.id)));
   const clientList = mdata('clients', tms.clients || []);
   const clientOpts = clientList.map(c => ({ value: c.id, label: c.name }));
   // Loading locations are owned by exactly one client, so both masters read the same list.
@@ -386,6 +399,31 @@ export const MasterManager = ({ type }) => {
         ['state', 'State'],
         ['status', 'Status', ['Active', 'Inactive']],
       ],
+      required: ['code', 'name', 'state', 'status'],
+      validate: (f, isNew, self) => {
+        const errs = {};
+        const selfId = (self && self.id) || (!isNew && f.id);
+        const norm = s => String(s || '').trim().toLowerCase();
+        const allBranches = mdata('branches', tms.branches || []);
+        const others = allBranches.filter(b => b.id !== selfId && !deleted.includes(b.id));
+
+        if (!f.code || !String(f.code).trim()) {
+          errs.code = 'Enter the branch code.';
+        } else if (others.some(b => norm(b.code) === norm(f.code))) {
+          errs.code = 'Branch code already exists.';
+        }
+
+        if (!f.name || !String(f.name).trim()) {
+          errs.name = 'Enter the branch name.';
+        } else if (others.some(b => norm(b.name) === norm(f.name))) {
+          errs.name = 'Branch name already exists.';
+        }
+
+        if (!f.state || !String(f.state).trim()) errs.state = 'Enter the state.';
+        if (!f.status || !String(f.status).trim()) errs.status = 'Select the status.';
+
+        return errs;
+      },
     },
     supervisors: {
       title: 'Supervisor Master',
@@ -393,7 +431,20 @@ export const MasterManager = ({ type }) => {
       plural: 'supervisors',
       addLabel: 'Add supervisor',
       searchPh: 'Search name or phone',
-      data: mdata('supervisors', tms.supervisors || []),
+      data: mdata('supervisors', tms.supervisors || []).map(s => {
+        const supsClients = clientList.filter(c =>
+          (s.clientIds || []).includes(c.id) ||
+          (c.supervisorIds || []).includes(s.id) ||
+          (s.clients && typeof s.clients === 'string' && s.clients.toLowerCase().includes(c.name.toLowerCase())) ||
+          (c.supervisors && typeof c.supervisors === 'string' && c.supervisors.toLowerCase().includes(s.name.toLowerCase()))
+        );
+        const clientNames = supsClients.map(c => c.name).join(', ') || s.clients || '—';
+        return {
+          ...s,
+          clients: clientNames,
+          clientIds: supsClients.map(c => c.id),
+        };
+      }),
       cols: ['Name', 'Phone', 'Branch', 'Clients handled', 'Last login', 'Status'],
       cells: s => [
         txtCell(s.name, true),
@@ -403,6 +454,31 @@ export const MasterManager = ({ type }) => {
         txtCell(s.lastLogin),
         statusBadge(s.status),
       ],
+      required: ['name', 'phone', 'email', 'branch', 'clients', 'status'],
+      validate: (f, isNew, self) => {
+        const errs = {};
+        const dg = x => String(x || '').replace(/\D/g, '');
+        const selfId = (self && self.id) || (!isNew && f.id);
+        const allSupervisors = mdata('supervisors', tms.supervisors || []);
+        const others = allSupervisors.filter(s => s.id !== selfId && !deleted.includes(s.id));
+
+        if (!f.name || !String(f.name).trim()) errs.name = 'Enter the full name.';
+        if (!f.phone || dg(f.phone).length !== 10) errs.phone = 'Enter a 10-digit mobile number.';
+        if (!f.email || !String(f.email).trim()) errs.email = 'Enter the sign-in email.';
+
+        if (!f.branch) {
+          errs.branch = 'Select a branch.';
+        } else {
+          const clash = others.find(s => isBranchEqual(s.branch, f.branch));
+          if (clash) errs.branch = 'A supervisor is already assigned to this branch.';
+        }
+
+        const hasClients = Array.isArray(f.clients) ? f.clients.length > 0 : !!String(f.clients || '').trim();
+        if (!hasClients) errs.clients = 'Select at least one client handled.';
+        if (!f.status) errs.status = 'Select the status.';
+
+        return errs;
+      },
       fields: [
         ['name', 'Full name'],
         ['phone', 'Mobile number', null, '90031 55012', { clean: 'phone', prefix: '+91' }],
@@ -437,15 +513,34 @@ export const MasterManager = ({ type }) => {
         ['tank', 'Tank capacity', null, 'e.g. 400', { suffix: 'L', clean: 'litres', hint: 'Diesel tank size. Supervisors cannot enter a fill larger than this.' }],
         ['status', 'Status', ['Idle', 'Running', 'Maintenance', 'Inactive']],
       ],
-      validate: f => {
+      required: ['number', 'type', 'branch', 'odometer', 'tank', 'status'],
+      validate: (f, isNew, self) => {
+        const errs = {};
+        const selfId = (self && self.id) || (!isNew && f.id);
+        const cleanNo = s => String(s || '').replace(/[\s-]/g, '').toLowerCase();
+        const allVehicles = mdata('vehicles', tms.vehicles || []);
+        const others = allVehicles.filter(v => v.id !== selfId && !deleted.includes(v.id));
+
+        if (!f.number || !String(f.number).trim()) {
+          errs.number = 'Enter the registration number.';
+        } else if (others.some(v => cleanNo(v.number) === cleanNo(f.number))) {
+          errs.number = 'Vehicle registration number already exists.';
+        }
+
+        if (!f.type) errs.type = 'Select the vehicle type.';
+        if (!f.branch) errs.branch = 'Select a branch.';
+        if (f.odometer === undefined || f.odometer === null || String(f.odometer).trim() === '') errs.odometer = 'Enter the current odometer.';
+
         const n = Number(f.tank);
-        return {
-          tank: !String(f.tank || '').trim()
-            ? 'Enter the tank capacity.'
-            : !(n >= 50 && n <= 1500)
-            ? 'Enter a size between 50 and 1,500 L.'
-            : undefined,
-        };
+        if (!String(f.tank || '').trim()) {
+          errs.tank = 'Enter the tank capacity.';
+        } else if (isNaN(n) || n < 50 || n > 1500) {
+          errs.tank = 'Enter a size between 50 and 1,500 L.';
+        }
+
+        if (!f.status) errs.status = 'Select the status.';
+
+        return errs;
       },
     },
     drivers: {
@@ -501,22 +596,69 @@ export const MasterManager = ({ type }) => {
         ['family', 'Family contact number', null, 'Emergency contact', { prefix: '+91', clean: 'phone' }],
         ['reference', 'Reference', 'textarea', 'Who referred this driver', { max: 250, optional: true }],
       ],
-      validate: (f, isNew) => {
+      required: (isNew) => isNew
+        ? ['name', 'licence', 'phone', 'branch', 'type', 'status', 'licImg', 'aadhaarImg', 'holder', 'account', 'ifsc', 'family']
+        : ['name', 'licence', 'phone', 'branch', 'type', 'status'],
+      validate: (f, isNew, self) => {
+        const errs = {};
         const dg = x => String(x || '').replace(/\D/g, '');
         const has = x => !!String(x || '').trim();
-        const need = isNew;
-        return {
-          name: !has(f.name) ? 'Enter the name as on the licence.' : undefined,
-          licence: String(f.licence || '').replace(/\s/g, '').length < 10 ? 'Enter the full licence number.' : undefined,
-          phone: dg(f.phone).length !== 10 ? 'Enter a 10-digit mobile number.' : undefined,
-          branch: !f.branch ? 'Choose the branch.' : undefined,
-          licImg: need && !f.licImg ? 'Upload a clear photo of the driving licence.' : undefined,
-          aadhaarImg: need && !f.aadhaarImg ? 'Upload a clear photo of the Aadhaar card.' : undefined,
-          holder: need && !has(f.holder) ? 'Enter the account holder name.' : undefined,
-          account: (need || has(f.account)) && !/^\d{9,18}$/.test(dg(f.account)) ? 'Enter a 9 to 18 digit account number.' : undefined,
-          ifsc: (need || has(f.ifsc)) && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(f.ifsc || '') ? 'Enter a valid IFSC, e.g. SBIN0001234.' : undefined,
-          family: (need || has(f.family)) && dg(f.family).length !== 10 ? 'Enter a 10-digit family contact number.' : has(f.family) && dg(f.family) === dg(f.phone) ? 'Use a family member’s number, not the driver’s.' : undefined,
-        };
+        const selfId = (self && self.id) || (!isNew && f.id);
+        const allDrivers = mdata('drivers', [...drvReqs, ...(tms.drivers || [])]);
+        const others = allDrivers.filter(d => d.id !== selfId && !deleted.includes(d.id));
+        const cleanLic = s => String(s || '').replace(/[\s-]/g, '').toLowerCase();
+
+        if (!has(f.name)) {
+          errs.name = 'Enter the name as on the licence.';
+        }
+
+        if (!has(f.licence)) {
+          errs.licence = 'Enter the licence number.';
+        } else if (cleanLic(f.licence).length < 8) {
+          errs.licence = 'Enter the full licence number.';
+        } else if (others.some(d => cleanLic(d.licence) === cleanLic(f.licence))) {
+          errs.licence = 'License number already exists.';
+        }
+
+        const phoneDigits = dg(f.phone).slice(-10);
+        if (phoneDigits.length !== 10) {
+          errs.phone = 'Enter a 10-digit mobile number.';
+        } else if (others.some(d => dg(d.phone).slice(-10) === phoneDigits)) {
+          errs.phone = 'Mobile number already exists.';
+        }
+
+        if (!f.branch) errs.branch = 'Choose the branch.';
+        if (!f.type) errs.type = 'Select driver type.';
+        if (!f.status) errs.status = 'Select status.';
+
+        const needDocs = isNew;
+        if (needDocs && !f.licImg) errs.licImg = 'Upload a clear photo of the driving licence.';
+        if (needDocs && !f.aadhaarImg) errs.aadhaarImg = 'Upload a clear photo of the Aadhaar card.';
+        if ((needDocs || has(f.holder)) && !has(f.holder)) errs.holder = 'Enter the account holder name.';
+
+        const accDigits = dg(f.account);
+        if (needDocs && !accDigits) {
+          errs.account = 'Enter a 9 to 18 digit account number.';
+        } else if ((needDocs || accDigits) && !/^\d{9,18}$/.test(accDigits)) {
+          errs.account = 'Enter a 9 to 18 digit account number.';
+        } else if (accDigits && others.some(d => dg(d.account) === accDigits)) {
+          errs.account = 'Account number already exists.';
+        }
+
+        if ((needDocs || has(f.ifsc)) && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(String(f.ifsc || '').trim().toUpperCase())) {
+          errs.ifsc = 'Enter a valid IFSC, e.g. SBIN0001234.';
+        }
+
+        const familyDigits = dg(f.family).slice(-10);
+        if (needDocs && !familyDigits) {
+          errs.family = 'Enter a 10-digit family contact number.';
+        } else if ((needDocs || familyDigits) && familyDigits.length !== 10) {
+          errs.family = 'Enter a 10-digit family contact number.';
+        } else if (familyDigits && phoneDigits && familyDigits === phoneDigits) {
+          errs.family = "Family mobile number must be different from the driver's mobile number.";
+        }
+
+        return errs;
       },
     },
     clients: {
@@ -570,19 +712,44 @@ export const MasterManager = ({ type }) => {
         }],
         ['status', 'Status', ['Active', 'On hold']],
       ],
-      required: ['name', 'gst', 'branch'],
-      validate: (f) => {
+      required: ['name', 'gst', 'branch', 'loadingLocations', 'phone', 'supervisors', 'status'],
+      validate: (f, isNew, self) => {
+        const errs = {};
         const dg = x => String(x || '').replace(/\D/g, '');
-        return {
-          name: !String(f.name || '').trim() ? 'Enter the client name.' : undefined,
-          gst: !String(f.gst || '').trim()
-            ? 'Enter the GSTIN.'
-            : String(f.gst || '').replace(/\s/g, '').length !== 15
-            ? 'GSTIN must be 15 characters.'
-            : undefined,
-          branch: !f.branch ? 'Select a branch for this client.' : undefined,
-          phone: f.phone && dg(f.phone).length !== 10 ? 'Enter a 10-digit mobile number.' : undefined,
-        };
+        const norm = s => String(s || '').trim().toLowerCase();
+        const cleanGst = s => String(s || '').replace(/[\s-]/g, '').toUpperCase();
+        const selfId = (self && self.id) || (!isNew && f.id);
+        const allClients = mdata('clients', tms.clients || []);
+        const others = allClients.filter(c => c.id !== selfId && !deleted.includes(c.id));
+
+        if (!f.name || !String(f.name).trim()) {
+          errs.name = 'Enter the client name.';
+        } else if (others.some(c => norm(c.name) === norm(f.name))) {
+          errs.name = 'Client name already exists.';
+        }
+
+        const rawGst = cleanGst(f.gst);
+        if (!rawGst) {
+          errs.gst = 'Enter the GSTIN.';
+        } else if (rawGst.length !== 15) {
+          errs.gst = 'GSTIN must be 15 characters.';
+        } else if (others.some(c => cleanGst(c.gst) === rawGst)) {
+          errs.gst = 'GSTIN already exists.';
+        }
+
+        if (!f.branch) errs.branch = 'Select a branch for this client.';
+
+        const locs = Array.isArray(f.loadingLocations) ? f.loadingLocations : String(f.loadingLocations || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (!locs || locs.length === 0) errs.loadingLocations = 'Add at least one loading location.';
+
+        if (!f.phone || dg(f.phone).length !== 10) errs.phone = 'Enter a 10-digit mobile number.';
+
+        const sups = Array.isArray(f.supervisors) ? f.supervisors : String(f.supervisors || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (!sups || sups.length === 0) errs.supervisors = 'Select at least one supervisor.';
+
+        if (!f.status) errs.status = 'Select the status.';
+
+        return errs;
       },
     },
     locations: {
@@ -621,11 +788,32 @@ export const MasterManager = ({ type }) => {
         ['lng', 'Longitude', null, '79.9412'],
         ['status', 'Status', ['Active', 'Inactive']],
       ],
-      required: ['client', 'name'],
-      validate: (f) => ({
-        client: !f.client ? 'Select the client this loading location belongs to.' : undefined,
-        name: !String(f.name || '').trim() ? 'Enter the location name.' : undefined,
-      }),
+      required: ['client', 'name', 'branch', 'address', 'radius', 'lat', 'lng', 'status'],
+      validate: (f, isNew, self) => {
+        const errs = {};
+        const norm = s => String(s || '').trim().toLowerCase();
+        const selfId = (self && self.id) || (!isNew && f.id);
+        const targetClient = f.clientId || f.client;
+        const allLocations = mdata('locations', tms.locations || []);
+        const others = allLocations.filter(l => l.id !== selfId && !deleted.includes(l.id) && (l.clientId || l.client) === targetClient);
+
+        if (!f.client) errs.client = 'Select the client this loading location belongs to.';
+
+        if (!f.name || !String(f.name).trim()) {
+          errs.name = 'Enter the location name.';
+        } else if (others.some(l => norm(l.name) === norm(f.name))) {
+          errs.name = 'Location name already exists for this client.';
+        }
+
+        if (!f.branch) errs.branch = 'Select a branch.';
+        if (!f.address || !String(f.address).trim()) errs.address = 'Enter the address.';
+        if (f.radius === undefined || f.radius === null || String(f.radius).trim() === '') errs.radius = 'Enter the safe radius.';
+        if (f.lat === undefined || f.lat === null || String(f.lat).trim() === '') errs.lat = 'Enter latitude.';
+        if (f.lng === undefined || f.lng === null || String(f.lng).trim() === '') errs.lng = 'Enter longitude.';
+        if (!f.status) errs.status = 'Select the status.';
+
+        return errs;
+      },
     },
     routes: {
       title: 'Route Master',
@@ -658,6 +846,36 @@ export const MasterManager = ({ type }) => {
         ['authorizedBunks', 'Authorized fuel bunks', 'bunks-input', 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'],
         ['status', 'Status', ['Active', 'Under review']],
       ],
+      required: ['from', 'to', 'km', 'hours', 'toll', 'dieselLimit', 'authorizedBunks', 'status'],
+      validate: (f, isNew, self) => {
+        const errs = {};
+        const norm = s => String(s || '').trim().toLowerCase();
+        const selfId = (self && self.id) || (!isNew && f.id);
+        const allRoutes = mdata('routes', tms.routes || []);
+        const others = allRoutes.filter(r => r.id !== selfId && !deleted.includes(r.id));
+
+        if (!f.from) {
+          errs.from = 'Select the loading location.';
+        }
+
+        if (!f.to || !String(f.to).trim()) {
+          errs.to = 'Enter the destination.';
+        } else if (f.from && others.some(r => r.from === f.from && norm(r.to) === norm(f.to))) {
+          errs.to = 'Route already exists for this origin and destination.';
+        }
+
+        if (f.km === undefined || f.km === null || String(f.km).trim() === '') errs.km = 'Enter the fixed distance.';
+        if (f.hours === undefined || f.hours === null || String(f.hours).trim() === '') errs.hours = 'Enter the expected duration.';
+        if (f.toll === undefined || f.toll === null || String(f.toll).trim() === '') errs.toll = 'Enter the toll estimate.';
+        if (f.dieselLimit === undefined || f.dieselLimit === null || String(f.dieselLimit).trim() === '') errs.dieselLimit = 'Enter the authorized diesel limit.';
+
+        const bunks = Array.isArray(f.authorizedBunks) ? f.authorizedBunks : String(f.authorizedBunks || '').split(',').map(s => s.trim()).filter(Boolean);
+        if (!bunks || bunks.length === 0) errs.authorizedBunks = 'Add at least one authorized fuel bunk.';
+
+        if (!f.status) errs.status = 'Select the status.';
+
+        return errs;
+      },
     },
   };
 
@@ -687,16 +905,17 @@ export const MasterManager = ({ type }) => {
   const rows = m.data.filter(r =>
     (type !== 'locations' || !locClient || (r.clientId || r.client) === locClient) &&
     !deleted.includes(r.id) &&
-    matchesSearch(masterQ, Object.values(r), (tms.B[r.branch] || {}).name) &&
+    matchesSearch(debouncedMasterQ, Object.values(r), (tms.B[r.branch] || {}).name) &&
     (type !== 'drivers' || !driverApprovalFilter || (approvals[r.id] || r.approval || 'Approved') === driverApprovalFilter)
   );
-  const rowsPg = usePagination(rows, [type, masterQ, driverApprovalFilter, locClient]);
+  const rowsPg = usePagination(rows, [type, debouncedMasterQ, driverApprovalFilter, locClient]);
 
   // Nothing to add on the Loading Location page until a client is picked.
   const addBlocked = type === 'locations' && !locClient;
 
   const handleNewRecord = () => {
     if (addBlocked) return;
+    const req = typeof m.required === 'function' ? m.required(true) : m.required;
     setDrawer({
       isForm: true,
       isMaster: true,
@@ -704,9 +923,9 @@ export const MasterManager = ({ type }) => {
       kicker: 'New ' + m.singular,
       title: m.addLabel,
       saveLabel: 'Create ' + m.singular,
-      required: m.required || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
+      required: req || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
       fields: fieldsFor(null),
-      validate: m.validate ? f => m.validate(f, true) : null,
+      validate: m.validate ? f => m.validate(f, true, null) : null,
     });
     setForm(
       type === 'supervisors'
@@ -715,6 +934,14 @@ export const MasterManager = ({ type }) => {
         ? { supervisors: [], status: 'Active', loadingLocations: [] }
         : type === 'locations'
         ? { status: 'Active', radius: 100, client: locClient, branch: (clientList.find(c => c.id === locClient) || {}).branch || '' }
+        : type === 'routes'
+        ? { status: 'Active', authorizedBunks: [] }
+        : type === 'vehicles'
+        ? { status: 'Idle' }
+        : type === 'drivers'
+        ? { status: 'Active', type: 'Regular' }
+        : type === 'branches'
+        ? { status: 'Active' }
         : {}
     );
     setFormError('');
@@ -726,6 +953,7 @@ export const MasterManager = ({ type }) => {
     : m.fields;
 
   const handleEditRecord = (rec) => {
+    const req = typeof m.required === 'function' ? m.required(false) : m.required;
     setDrawer({
       isForm: true,
       isMaster: true,
@@ -733,33 +961,55 @@ export const MasterManager = ({ type }) => {
       kicker: 'Edit ' + m.singular,
       title: rec.name || rec.number,
       saveLabel: 'Save changes',
-      required: m.required || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
+      required: req || m.fields.filter(f => f[2] !== 'section').slice(0, 2).map(f => f[0]),
       fields: fieldsFor(rec),
-      validate: m.validate ? f => m.validate(f, false) : null,
+      validate: m.validate ? f => m.validate(f, false, rec) : null,
     });
-    let initialClients = rec.clientIds || [];
-    if ((!initialClients || !initialClients.length) && rec.clients) {
+    let initialClients = Array.isArray(rec.clientIds) ? [...rec.clientIds] : [];
+    if (rec.clients) {
       if (Array.isArray(rec.clients)) {
-        initialClients = rec.clients;
+        rec.clients.forEach(cid => { if (!initialClients.includes(cid)) initialClients.push(cid); });
       } else if (typeof rec.clients === 'string') {
         const names = rec.clients.split(',').map(s => s.trim().toLowerCase());
-        initialClients = (tms.clients || []).filter(c => names.includes(c.name.toLowerCase())).map(c => c.id);
-        if (!initialClients.length) initialClients = rec.clients.split(',').map(s => s.trim());
+        (tms.clients || []).forEach(c => {
+          if (names.includes(c.name.toLowerCase()) || names.includes(c.id.toLowerCase())) {
+            if (!initialClients.includes(c.id)) initialClients.push(c.id);
+          }
+        });
       }
     }
+    (tms.clients || []).forEach(c => {
+      const assignsThis = (c.supervisorIds || []).includes(rec.id) ||
+        (Array.isArray(c.supervisors) && (c.supervisors.includes(rec.id) || c.supervisors.includes(rec.name))) ||
+        (typeof c.supervisors === 'string' && rec.name && c.supervisors.toLowerCase().includes(rec.name.toLowerCase()));
+      if (assignsThis && !initialClients.includes(c.id)) {
+        initialClients.push(c.id);
+      }
+    });
+
     const initialAuthBunks = (rec.authorizedBunks || []).map(b => (tms.F[b] || {}).name || b);
-    let initialSupervisors = rec.supervisorIds || [];
-    if (!initialSupervisors || !initialSupervisors.length) {
+
+    let initialSupervisors = Array.isArray(rec.supervisorIds) ? [...rec.supervisorIds] : [];
+    if (rec.supervisors) {
       if (Array.isArray(rec.supervisors)) {
-        initialSupervisors = rec.supervisors;
-      } else {
-        const mappedSups = (tms.supervisors || []).filter(s =>
-          (s.clientIds || []).includes(rec.id) ||
-          (rec.supervisors && typeof rec.supervisors === 'string' && rec.supervisors.toLowerCase().includes(s.name.toLowerCase()))
-        );
-        initialSupervisors = mappedSups.map(s => s.id);
+        rec.supervisors.forEach(sid => { if (!initialSupervisors.includes(sid)) initialSupervisors.push(sid); });
+      } else if (typeof rec.supervisors === 'string') {
+        const names = rec.supervisors.split(',').map(s => s.trim().toLowerCase());
+        (tms.supervisors || []).forEach(s => {
+          if (names.includes(s.name.toLowerCase()) || names.includes(s.id.toLowerCase())) {
+            if (!initialSupervisors.includes(s.id)) initialSupervisors.push(s.id);
+          }
+        });
       }
     }
+    (tms.supervisors || []).forEach(s => {
+      const handlesThis = (s.clientIds || []).includes(rec.id) ||
+        (Array.isArray(s.clients) && (s.clients.includes(rec.id) || s.clients.includes(rec.name))) ||
+        (typeof s.clients === 'string' && rec.name && s.clients.toLowerCase().includes(rec.name.toLowerCase()));
+      if (handlesThis && !initialSupervisors.includes(s.id)) {
+        initialSupervisors.push(s.id);
+      }
+    });
     setForm({
       ...rec,
       authorizedBunks: initialAuthBunks,
@@ -873,11 +1123,11 @@ export const MasterManager = ({ type }) => {
       if (!errs.length && m.validate) {
         Object.entries(m.validate(merged, false) || {}).forEach(([k, msg]) => { if (msg) errs.push(msg.replace(/\.$/, '')); });
       }
-      if (!errs.length && type === 'supervisors' && (merged.status || 'Active') === 'Active' && merged.branch) {
+      if (!errs.length && type === 'supervisors' && merged.branch) {
         const selfId = existing && existing.id;
-        const clash = (tms.supervisors || []).find(s => s.status === 'Active' && s.branch === merged.branch && s.id !== selfId)
-          || [...pending.values()].find(p => p.f !== (prev && prev.f) && (p.f.status || 'Active') === 'Active' && p.f.branch === merged.branch);
-        if (clash) errs.push(`${bn(merged.branch)} already has an active supervisor`);
+        const clash = (tms.supervisors || []).find(s => isBranchEqual(s.branch, merged.branch) && s.id !== selfId)
+          || [...pending.values()].find(p => p.f !== (prev && prev.f) && isBranchEqual(p.f.branch, merged.branch));
+        if (clash) errs.push(`${bn(merged.branch)} already has an assigned supervisor (${clash.name || 'in list'})`);
       }
       if (errs.length) { problems.push(`Row ${line}: ${errs.join('; ')}`); return; }
       pending.set(key, { f: prev ? { ...prev.f, ...f } : f, existing, line });
@@ -1025,7 +1275,7 @@ export const MasterManager = ({ type }) => {
       )}
 
       {/* Driver Approval Queue banner */}
-      {type === 'drivers' && drvQueue.length > 0 && (
+      {/* {type === 'drivers' && drvQueue.length > 0 && (
         <section
           aria-label="Driver approval queue"
           style={{
@@ -1143,7 +1393,7 @@ export const MasterManager = ({ type }) => {
             </div>
           ))}
         </section>
-      )}
+      )} */}
 
       {/* Main Table Card */}
       <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>

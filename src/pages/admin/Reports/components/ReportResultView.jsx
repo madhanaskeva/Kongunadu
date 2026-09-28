@@ -12,6 +12,7 @@ import { Pagination, usePagination } from '../../../../components/common/Paginat
 import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
 import { ReportEmptyState } from './ReportEmptyState';
 import { useTMSAdmin } from '../../../../context/TMSAdminContext';
+import { useDebounce } from '../../../../utils/debounce';
 
 export const ReportResultView = ({
   result,
@@ -34,6 +35,7 @@ export const ReportResultView = ({
 
   // Local search filter within result set
   const [searchQ, setSearchQ] = useState('');
+  const debouncedSearchQ = useDebounce(searchQ, 300);
 
   // Column visibility
   const [visibleColKeys, setVisibleColKeys] = useState(() => columns.map(c => c.key));
@@ -55,8 +57,8 @@ export const ReportResultView = ({
   const processedRows = useMemo(() => {
     let list = [...rows];
 
-    if (searchQ.trim()) {
-      const q = searchQ.trim().toLowerCase();
+    if (debouncedSearchQ.trim()) {
+      const q = debouncedSearchQ.trim().toLowerCase();
       list = list.filter(row =>
         Object.values(row).some(val => val != null && String(val).toLowerCase().includes(q))
       );
@@ -78,7 +80,7 @@ export const ReportResultView = ({
     }
 
     return list;
-  }, [rows, searchQ, sortConfig]);
+  }, [rows, debouncedSearchQ, sortConfig]);
 
   const pagination = usePagination(processedRows, [processedRows]);
 
