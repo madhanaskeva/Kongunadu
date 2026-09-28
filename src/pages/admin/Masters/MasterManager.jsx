@@ -334,6 +334,19 @@ export const MasterManager = ({ type }) => {
   // Loading locations are owned by exactly one client, so both masters read the same list.
   const locationList = mdata('locations', tms.locations || []);
   const supervisorList = mdata('supervisors', tms.supervisors || []);
+  const getBranchSupervisor = (b) => {
+    if (!b) return '—';
+    const sup = supervisorList.find(s =>
+      s.branch && (
+        isBranchEqual(s.branch, { value: b.id, label: b.name }) ||
+        s.branch === b.id ||
+        s.branch === b.name ||
+        ((tms.B[s.branch] || {}).name && (tms.B[s.branch] || {}).name === b.name) ||
+        ((tms.B[b.id] || {}).name && (tms.B[b.id] || {}).name === s.branch)
+      )
+    );
+    return sup ? sup.name : '—';
+  };
   const getSupervisorOptions = (selectedBranch) => {
     const sups = supervisorList.filter(s => s.status !== 'Inactive' && s.status !== 'Suspended');
     const sorted = [...sups].sort((a, b) => {
@@ -384,14 +397,21 @@ export const MasterManager = ({ type }) => {
       plural: 'branches',
       addLabel: 'Add branch',
       searchPh: 'Search branch or state',
-      data: mdata('branches', tms.branches || []),
-      cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisors', 'Status'],
+      data: mdata('branches', tms.branches || []).map(b => {
+        const supName = getBranchSupervisor(b);
+        return {
+          ...b,
+          supervisor: supName,
+          supervisors: supName,
+        };
+      }),
+      cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisor', 'Status'],
       cells: b => [
         txtCell(b.code, true),
         txtCell(b.name, true),
         txtCell(b.state),
         txtCell(b.vehicles),
-        txtCell(b.supervisors),
+        txtCell(b.supervisor || getBranchSupervisor(b)),
         statusBadge(b.status),
       ],
       fields: [

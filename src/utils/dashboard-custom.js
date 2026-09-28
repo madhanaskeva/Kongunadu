@@ -186,15 +186,20 @@ export const getDashModules = (tms = {}, ctx = {}) => {
     }));
 
   // 6. Branches
-  const branchesRows = (tms.branches || []).filter(b => !deleted.includes(b.id)).map(b => ({
-    _id: b.id,
-    'Code': b.code || '—',
-    'Branch': b.name || '—',
-    'State': b.state || '—',
-    'Vehicles': b.vehicles != null ? b.vehicles : '—',
-    'Supervisors': b.supervisors != null ? b.supervisors : '—',
-    'Status': b.status || '—',
-  }));
+  const branchesRows = (tms.branches || []).filter(b => !deleted.includes(b.id)).map(b => {
+    const sup = (tms.supervisors || []).find(s => !deleted.includes(s.id) && (
+      s.branch === b.id || s.branch === b.name || (tms.B && tms.B[s.branch] && tms.B[s.branch].name === b.name)
+    ));
+    return {
+      _id: b.id,
+      'Code': b.code || '—',
+      'Branch': b.name || '—',
+      'State': b.state || '—',
+      'Vehicles': b.vehicles != null ? b.vehicles : '—',
+      'Supervisor': sup ? sup.name : '—',
+      'Status': b.status || '—',
+    };
+  });
 
   // 7. Supervisors
   const supervisorsRows = (tms.supervisors || []).filter(s => !deleted.includes(s.id)).map(s => ({
@@ -355,7 +360,7 @@ export const getDashModules = (tms = {}, ctx = {}) => {
     { id: 'fleet', label: 'Fleet & GPS', route: 'fleet', kind: 'route', cols: ['Vehicle', 'Type', 'Branch', 'Driver', 'Status', 'GPS', 'Odometer', 'Last seen', 'Route'], rows: fleetRows },
     { id: 'distance', label: 'Distance variation', route: 'distance', kind: 'route', cols: ['Trip', 'Vehicle', 'Route', 'Branch', 'Fixed KM', 'GPS KM', 'Odometer KM', 'Variance', 'Review'], rows: distanceRows },
     { id: 'attendance', label: 'Attendance', route: 'attendance', kind: 'drv', cols: ['Driver', 'Branch', 'Type', 'Present', 'Absent', 'Utilisation', 'Status'], rows: attendanceRows },
-    { id: 'branches', label: 'Branches', route: 'branches', kind: 'route', cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisors', 'Status'], rows: branchesRows },
+    { id: 'branches', label: 'Branches', route: 'branches', kind: 'route', cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisor', 'Status'], rows: branchesRows },
     { id: 'supervisors', label: 'Supervisors', route: 'supervisors', kind: 'route', cols: ['Name', 'Phone', 'Branch', 'Clients handled', 'Last login', 'Status'], rows: supervisorsRows },
     { id: 'vehicles', label: 'Vehicles', route: 'vehicles', kind: 'route', cols: ['Registration', 'Type', 'Branch', 'Odometer', 'Tank', 'GPS', 'Status'], rows: vehiclesRows },
     { id: 'drivers', label: 'Drivers', route: 'drivers', kind: 'drv', cols: ['Name', 'Licence', 'Phone', 'Branch', 'Type', 'Approval', 'Status'], rows: driversRows },

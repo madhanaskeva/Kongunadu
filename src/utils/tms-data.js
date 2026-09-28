@@ -1,11 +1,11 @@
 // Shared mock data for the Transport Management System (Phase 1).
 const branches=[
- {id:'B01',code:'CHN',name:'Chennai HO',state:'Tamil Nadu',vehicles:212,supervisors:9,status:'Active'},
- {id:'B02',code:'NMK',name:'Namakkal',state:'Tamil Nadu',vehicles:168,supervisors:7,status:'Active'},
- {id:'B03',code:'HYD',name:'Hyderabad',state:'Telangana',vehicles:124,supervisors:5,status:'Active'},
- {id:'B04',code:'BLR',name:'Bengaluru',state:'Karnataka',vehicles:96,supervisors:4,status:'Active'},
- {id:'B05',code:'MUM',name:'Mumbai',state:'Maharashtra',vehicles:84,supervisors:4,status:'Active'},
- {id:'B06',code:'VZG',name:'Visakhapatnam',state:'Andhra Pradesh',vehicles:38,supervisors:2,status:'Inactive'}
+ {id:'B01',code:'CHN',name:'Chennai HO',state:'Tamil Nadu',vehicles:212,status:'Active'},
+ {id:'B02',code:'NMK',name:'Namakkal',state:'Tamil Nadu',vehicles:168,status:'Active'},
+ {id:'B03',code:'HYD',name:'Hyderabad',state:'Telangana',vehicles:124,status:'Active'},
+ {id:'B04',code:'BLR',name:'Bengaluru',state:'Karnataka',vehicles:96,status:'Active'},
+ {id:'B05',code:'MUM',name:'Mumbai',state:'Maharashtra',vehicles:84,status:'Active'},
+ {id:'B06',code:'VZG',name:'Visakhapatnam',state:'Andhra Pradesh',vehicles:38,status:'Inactive'}
 ];
 const supervisors=[
  {id:'S01',name:'R. Senthil Kumar',email:'supervisor@transport.example',phone:'98410 22314',branch:'B01',clients:'INOX Air Products, Linde India, Suguna Foods',clientIds:['C01','C02','C05'],status:'Active',lastLogin:'Today 06:12'},
