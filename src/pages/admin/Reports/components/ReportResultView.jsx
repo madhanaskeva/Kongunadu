@@ -13,6 +13,7 @@ import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
 import { ReportEmptyState } from './ReportEmptyState';
 import { useTMSAdmin } from '../../../../context/TMSAdminContext';
 import { useDebounce } from '../../../../utils/debounce';
+import { FILE_TRANSFER_ENABLED } from '../../../../utils/featureFlags';
 
 export const ReportResultView = ({
   result,
@@ -182,7 +183,7 @@ export const ReportResultView = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             type="button"
-            onClick={handleExportXlsx}
+            onClick={FILE_TRANSFER_ENABLED ? handleExportXlsx : undefined}
             style={{
               all: 'unset',
               cursor: 'pointer',

@@ -9,6 +9,7 @@ import { Pagination, usePagination } from '../../../components/common/Pagination
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
 import { SelectField } from '../../../components/common/SelectField';
+import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 
 const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
   const rawBunks = route.authorizedBunks || [];
@@ -1497,7 +1498,7 @@ export const MasterManager = ({ type }) => {
             {canAdd && (
               <button
                 type="button"
-                onClick={() => importRef.current && importRef.current.click()}
+                onClick={() => FILE_TRANSFER_ENABLED && importRef.current && importRef.current.click()}
                 title="Import .xlsx or .csv — headings in the first row"
                 style={{
                   all: 'unset',

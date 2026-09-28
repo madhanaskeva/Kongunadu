@@ -18,6 +18,7 @@ import {
   Download,
   Info,
 } from 'lucide-react';
+import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 
 const ATT_KEY = 'kr-tms-attendance';
 const readAttStore = () => {
@@ -286,7 +287,7 @@ export const Reports = () => {
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleExportLegacyTemplate(item)}
+                    onClick={() => FILE_TRANSFER_ENABLED && handleExportLegacyTemplate(item)}
                     style={{
                       all: 'unset',
                       cursor: 'pointer',

@@ -15,6 +15,7 @@ import { SelectField } from '../../../components/common/SelectField';
 import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 // Scoped filter-bar styles (.tl-filters) live with the other Trips page CSS.
 import './tripDetail.css';
+import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 
 // Tab id for the exception filter — not a trip status, so it is matched separately.
 const PENDING_TAB = 'pending';
@@ -467,7 +468,7 @@ export const TripList = () => {
               // Exports the trips matching the current filters and search.
               <button
                 type="button"
-                onClick={exportTrips}
+                onClick={FILE_TRANSFER_ENABLED ? exportTrips : undefined}
                 style={{
                   all: 'unset',
                   cursor: 'pointer',

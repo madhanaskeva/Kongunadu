@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Select } from 'antd';
 import './attendance.css';
+import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 
 // The filter dropdowns render through antd so the open list is themed too —
 // a native <select> popup is drawn by the OS and cannot be styled.
@@ -884,7 +885,7 @@ export const Attendance = () => {
               {/* Export Excel: the filtered records shown below */}
               <button
                 type="button"
-                onClick={handleExportExcel}
+                onClick={FILE_TRANSFER_ENABLED ? handleExportExcel : undefined}
                 title="Download these attendance records as an Excel workbook"
                 style={{
                   all: 'unset',
