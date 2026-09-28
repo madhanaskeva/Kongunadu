@@ -865,9 +865,9 @@ export const MasterManager = ({ type }) => {
         ['toll', 'Toll estimate'],
         ['dieselLimit', 'Authorized diesel limit (L)', null, 'e.g. 200', { hint: 'Most diesel a supervisor may book on this route. Anything above it is flagged for verification.' }],
         ['authorizedBunks', 'Authorized fuel bunks', 'bunks-input', 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'],
-        ['status', 'Status', ['Active', 'Under review']],
+        // ['status', 'Status', ['Active', 'Under review']],
       ],
-      required: ['from', 'to', 'km', 'hours', 'toll', 'dieselLimit', 'authorizedBunks', 'status'],
+      required: ['from', 'to', 'km', 'hours', 'toll', 'dieselLimit', 'authorizedBunks'],
       validate: (f, isNew, self) => {
         const errs = {};
         const norm = s => String(s || '').trim().toLowerCase();

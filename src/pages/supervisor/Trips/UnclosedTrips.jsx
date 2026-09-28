@@ -22,6 +22,25 @@ export const UnclosedTrips = ({ v }) => (
               <span>{t.gpsKm} of {t.fixedKm} km by GPS</span>
               <span>{t.hoursOpen} h open</span>
             </div>
+            {t.subStatus && (
+              <div style={{ marginTop: "8px", display: "flex", alignItems: "center" }}>
+                <span
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    padding: "2px 8px",
+                    borderRadius: "var(--radius-sm)",
+                    background: t.subStatusBg || "var(--kr-saffron-100)",
+                    color: t.subStatusFg || "#7a4300",
+                  }}
+                >
+                  {t.subStatus}
+                </span>
+              </div>
+            )}
           </button>
         </React.Fragment>
       ))}

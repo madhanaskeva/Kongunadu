@@ -238,7 +238,7 @@ export class SupervisorApp extends React.Component {
   active() { return this.allTrips().filter(t => t.branch === this.BR && t.status === 'Enroute' && !this.state.closedIds.includes(t.id)); }
   // Badge colours per status label → [background, text, edge], from the --st-* palette in <helmet>.
   statusTone(label) {
-    const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent' }[label] || 'neutral';
+    const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent', 'Nearly reached': 'nearly' }[label] || 'neutral';
     return [`var(--st-${k}-bg)`, `var(--st-${k}-fg)`, `var(--st-${k}-edge)`];
   }
   decorate(t) {
@@ -249,7 +249,9 @@ export class SupervisorApp extends React.Component {
     const fixed = t.fixedKm || 0, prog = fixed ? Math.min(100, Math.round((t.gpsKm || 0) / fixed * 100)) : 0;
     const vNum = v ? v.number : '—', locName = (this.loc(t.loading) || {}).name || '—';
     const crewLine = d ? `${vNum} · ${d.name}` : vNum, routeLine = c ? `${c.name} → ${t.unloading}` : t.from ? `${t.from} → ${t.unloading} · ${t.nbKm} km · ${t.reason}` : `From ${locName} · ${t.type}${t.reason ? ' · ' + t.reason : ''}`;
-    return { ...t, vehicleNumber: vNum, driverName: d ? d.name : '—', clientName: c ? c.name : '—', crewLine, routeLine, partyName: c ? c.name : locName, badge, badgeBg: tone[0], badgeFg: tone[1], edge: tone[2], progress: prog + '%', gpsKm: t.gpsKm == null ? '—' : t.gpsKm, expectedHours: (T.R[(T.U[(t.customers || [])[0]] || {}).route] || {}).hours || 12, startKm: t.startKm.toLocaleString('en-IN') };
+    const subStatus = t.subStatus || (t.id === 'T22' || (fixed > 0 && t.gpsKm === 194 && fixed === 200) ? 'Nearly reached' : null);
+    const subTone = subStatus ? this.statusTone(subStatus) : null;
+    return { ...t, vehicleNumber: vNum, driverName: d ? d.name : '—', clientName: c ? c.name : '—', crewLine, routeLine, partyName: c ? c.name : locName, badge, badgeBg: tone[0], badgeFg: tone[1], edge: tone[2], subStatus, subStatusBg: subTone ? subTone[0] : 'var(--kr-saffron-100)', subStatusFg: subTone ? subTone[1] : '#7A4300', progress: prog + '%', gpsKm: t.gpsKm == null ? '—' : t.gpsKm, expectedHours: (T.R[(T.U[(t.customers || [])[0]] || {}).route] || {}).hours || 12, startKm: t.startKm.toLocaleString('en-IN') };
   }
   renderVals() {
     const T = this.T(); const s = this.state, f = s.form;

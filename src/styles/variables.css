@@ -15,6 +15,7 @@
   --kr-red-100: #fbe0e0;
   --kr-red-50: #fdf1f1;
 
+  --kr-saffron-800: #8d5206;
   --kr-saffron-600: #d97b00;
   --kr-saffron-500: #f29a1f;
   --kr-saffron-100: #fdebd3;
@@ -73,21 +74,32 @@
   --focus-ring: 0 0 0 3px rgba(0, 98, 63, 0.35);
 
   /* Status badge specific colors */
-  --st-enroute-bg: #e2eef7;
+  /* --st-enroute-bg: #e2eef7;
   --st-enroute-fg: #1f5f8b;
-  --st-enroute-edge: #2f7db5;
+  --st-enroute-edge: #2f7db5; */
+  --st-enroute-bg: #ddf3ef;
+  --st-enroute-fg: #0b6b5c;
+  --st-enroute-edge: #14a08a;
 
-  --st-long-bg: var(--kr-saffron-100);
-  --st-long-fg: #7a4300;
-  --st-long-edge: var(--kr-saffron-500);
+  --st-long-bg: #f7b77274;
+  --st-long-fg: #ea580c;
+  --st-long-edge: #ea580c;
+
+  --st-nearly-bg: var(--kr-saffron-100);
+  --st-nearly-fg: var(--kr-saffron-800);
+  --st-nearly-edge: var(--kr-saffron-500);
 
   --st-loading-bg: #ddf3ef;
   --st-loading-fg: #0b6b5c;
   --st-loading-edge: #14a08a;
 
-  --st-unloading-bg: #e9e7fb;
+  /* --st-unloading-bg: #e9e7fb;
   --st-unloading-fg: #3f3897;
-  --st-unloading-edge: #5b52d4;
+  --st-unloading-edge: #5b52d4; */
+
+   --st-unloading-bg: #fde6dc;
+  --st-unloading-fg: #9a3412;
+  --st-unloading-edge: #9a3412;
 
   --st-delayed-bg: #fde6dc;
   --st-delayed-fg: #9a3412;

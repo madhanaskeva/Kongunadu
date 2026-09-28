@@ -1202,6 +1202,37 @@ export const TripDetail = () => {
                   </span>
                 </div>
               )}
+
+              {/* Driver's explanation banner moved below diesel over limit message */}
+              {isClosed && verifyRecord?.reason && (
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'flex-start',
+                    marginTop: '10px',
+                    padding: '14px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-hazard-soft)',
+                    color: '#7A4300',
+                  }}
+                >
+                  <TriangleAlert size={20} style={{ flex: 'none', marginTop: '2px' }} />
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 800, lineHeight: 1.2 }}>
+                      Driver&rsquo;s explanation
+                    </span>
+                    <span style={{ display: 'block', marginTop: '4px', fontSize: '13px', lineHeight: 1.5 }}>
+                      {verifyRecord.reason}
+                    </span>
+                    {verifyRecord.escalatedBy && (
+                      <span style={{ display: 'block', marginTop: '6px', fontSize: '12px', opacity: 0.85 }}>
+                        Escalated by {verifyRecord.escalatedBy} · {verifyRecord.escalatedAt}
+                      </span>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1275,16 +1306,6 @@ export const TripDetail = () => {
         {/* Workflow trail + the actions available at this level */}
         {isClosed && (
           <div style={{ borderTop: '1px solid var(--border-default)', padding: '14px 18px', background: 'var(--surface-muted)' }}>
-            {verifyRecord?.reason && (
-              <div style={{ marginBottom: '12px', fontSize: '13.5px', lineHeight: 1.55 }}>
-                <span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>Driver&rsquo;s explanation:</span>{' '}
-                <span style={{ color: 'var(--text-body)' }}>{verifyRecord.reason}</span>
-                <span style={{ display: 'block', fontSize: '12.5px', color: 'var(--kr-grey-700)', marginTop: '2px' }}>
-                  Escalated by {verifyRecord.escalatedBy} · {verifyRecord.escalatedAt}
-                </span>
-              </div>
-            )}
-
             {verifyRecord?.deduction && (
               <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'var(--kr-red-100)', borderRadius: 'var(--radius-md)', fontSize: '13.5px', color: 'var(--kr-red-800)', lineHeight: 1.55 }}>
                 <strong>{fmtMoney(verifyRecord.deduction.amount)} to recover from {(d || {}).name || 'the driver'}.</strong>{' '}

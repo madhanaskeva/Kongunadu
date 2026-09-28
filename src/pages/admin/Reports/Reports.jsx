@@ -206,7 +206,7 @@ export const Reports = () => {
       )}
 
       {/* Ready-Made Standard Reports Drawer (Bottom) */}
-      <section
+      {/* <section
         style={{
           background: '#ffffff',
           border: '1px solid var(--border-default, #e2e8f0)',
@@ -311,7 +311,7 @@ export const Reports = () => {
             ))}
           </div>
         )}
-      </section>
+      </section> */}
     </div>
   );
 };

@@ -574,7 +574,7 @@ export const Analytics = () => {
               </div>
 
               {/* Quick Presets */}
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginRight: '2px' }}>
                   Presets:
                 </span>
@@ -604,7 +604,7 @@ export const Analytics = () => {
                     </button>
                   );
                 })}
-              </div>
+              </div> */}
             </div>
 
             {/* Inputs Row */}
