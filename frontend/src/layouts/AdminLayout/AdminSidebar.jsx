@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Badge, Menu } from 'antd';
 import {
   Building2, CalendarCheck, ChartColumn, ChevronRight, Contact, FileText, House, MapPin, MapPinned,
-  Route, Settings, ShieldCheck, Truck, User, Users, UsersRound,
+  Bell, Route, Settings, ShieldCheck, Truck, User, Users, UsersRound,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { useModuleAccess } from '../../hooks/useModuleAccess';
@@ -63,6 +63,7 @@ export const AdminSidebar = ({ onClose }) => {
         { label: 'Device Approvals', path: '/admin/device-approvals', icon: ShieldCheck, count: devPending || null, countBg: 'var(--kr-saffron-600)' },
         { label: 'Users & Roles', path: '/admin/users', icon: UsersRound },
         { label: 'Settings', path: '/admin/settings', icon: Settings },
+      { label: 'Notifications', path: '/admin/notifications', icon: Bell },
       ],
     },
   ];

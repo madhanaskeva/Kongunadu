@@ -1,0 +1,68 @@
+/* Analytics page structure — numbered sections: Overview, Charts, Statistics. */
+.an-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.an-section-head {
+  padding: 0 2px;
+}
+
+.an-step {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-brand);
+  background: var(--color-brand-tint, #eef7f2);
+  border: 1px solid var(--color-brand);
+}
+
+.an-chart-card .ant-card-head {
+  min-height: 56px;
+}
+
+/* Metric tabs sit flush along the top of the statistics table. */
+.an-metric-tabs > .ant-tabs-nav {
+  margin: 0;
+  padding: 0 18px;
+}
+
+/* Analytics › statistics tables.
+   Vehicles alternate a faint band so each block of metric rows reads as one unit,
+   and a firmer rule opens every vehicle's block. */
+
+.vp-stats-table .ant-table-thead > tr > th {
+  white-space: nowrap;
+}
+
+.vp-stats-table .vp-band-1 > td {
+  background: var(--surface-muted);
+}
+
+/* The combined "All selected" block that heads a comparison. */
+.vp-stats-table .vp-band-all > td {
+  background: var(--color-brand-tint, #eef7f2);
+}
+
+.vp-stats-table .vp-group-start > td {
+  border-top: 2px solid var(--border-default);
+}
+
+.vp-stats-table .vp-vehicle-cell {
+  vertical-align: top;
+}
+
+.vp-stats-table td.vp-total-col {
+  font-weight: 600;
+}
+
+.vp-stats-table .ant-table-cell {
+  font-variant-numeric: tabular-nums;
+}

@@ -463,6 +463,84 @@ export const TripDetail = () => {
     setForm({ amount: overValue != null ? String(overValue) : '', note: '' });
   };
 
+  // Expenses are signed off on their own, apart from the diesel check. The popup
+  // lists every expense the supervisor filed, takes a reason, and settles whether
+  // any of it is recovered from the driver's salary.
+  const approveExpenses = () => {
+    setDrawer({
+      isForm: true,
+      kicker: `Expenses · ${rawTrip.number}`,
+      title: 'Approve trip expenses',
+      details: [
+        ['Driver', (d || {}).name || rawTrip.driverName || '—'],
+        ['Vehicle', (v || {}).number || rawTrip.vehicleNumber || '—'],
+        ...expenseRows.map(([label, val, , fallback]) => [label, val != null ? val : fallback]),
+        ...otherExpenses.map(x => [`· ${x.name || 'Unnamed'}`, fmtMoney(Number(x.amount) || 0)]),
+        ['Total expense', fmtMoney(filedTotal > 0 ? filedTotal : statedTotal || 0)],
+      ],
+      fields: [
+        ['reason', 'Reason', 'textarea', 'Record the reason for approving these expenses.'],
+        ['deduct', 'Deduct from salary?', ['No', 'Yes'], 'Yes recovers an amount through payroll. No approves the expenses as filed.'],
+        ['amount', 'Amount to deduct (₹)', null, '0', { when: (f) => f.deduct === 'Yes' }],
+      ],
+      required: (f) => (f.deduct === 'Yes' ? ['reason', 'deduct', 'amount'] : ['reason', 'deduct']),
+      validate: (f) => ({
+        reason: !String(f.reason || '').trim() ? 'Record a reason.' : undefined,
+        deduct: !f.deduct ? 'Choose whether to deduct from the driver.' : undefined,
+        amount:
+          f.deduct === 'Yes' && !(Number(String(f.amount || '').replace(/[^\d.]/g, '')) > 0)
+            ? 'Enter the amount to deduct.'
+            : undefined,
+      }),
+      saveLabel: (f) => (f.deduct === 'Yes' ? 'Raise deduction' : 'Approve expenses'),
+      onSave: (f) => {
+        const note = (f.reason || '').trim();
+        const amount = f.deduct === 'Yes' ? Number(String(f.amount || '').replace(/[^\d.]/g, '')) || 0 : 0;
+        saveVerify({ expense: { approvedBy: VERIFY_LEVEL_1, approvedAt: stamp(), reason: note, deductAmount: amount } });
+
+        if (!amount) {
+          showToast('success', 'Expenses approved', `Expenses on ${rawTrip.number} approved as filed.`);
+          return;
+        }
+
+        setDeductions([
+          {
+            id: 'SD' + Date.now(),
+            trip: rawTrip.id,
+            tripNumber: rawTrip.number,
+            driver: rawTrip.driver,
+            driverName: (d || {}).name || '—',
+            branch: rawTrip.branch,
+            litres: 0,
+            amount,
+            note,
+            raisedBy: VERIFY_LEVEL_1,
+            raisedAt: stamp(),
+            status: 'Pending payroll',
+          },
+          ...deductions,
+        ]);
+        showToast('danger', 'Deduction raised', `₹${amount.toLocaleString('en-IN')} to recover from ${(d || {}).name || 'the driver'}.`);
+        pushNotice({
+          kind: 'action',
+          priority: 'Urgent',
+          branch: rawTrip.branch,
+          title: `Salary deduction · ${(d || {}).name || 'Driver'}`,
+          body: `Expenses on ${rawTrip.number} were approved with ₹${amount.toLocaleString('en-IN')} to be recovered through payroll.`,
+          rows: [
+            ['Trip', rawTrip.number],
+            ['Driver', (d || {}).name || '—'],
+            ['Deduction', `₹${amount.toLocaleString('en-IN')}`],
+            ['Reason', note],
+          ],
+          link: { trip: rawTrip.id },
+          linkLabel: 'View trip',
+        });
+      },
+    });
+    setForm({ reason: '', deduct: 'No', amount: '' });
+  };
+
   const askDeleteTrip = () => {
     setConfirm({
       title: `Delete trip ${rawTrip.number}?`,
@@ -518,6 +596,10 @@ export const TripDetail = () => {
   const vState = verifyState(rawTrip, verifyRecord, checks);
   const canVerify = can('trips', 'verify');
   const canDecideEscalation = can('trips', 'edit') && can('trips', 'verify');
+  // The record locks only once both sign-offs are in: the diesel verification
+  // and the separate expense approval. Either one alone leaves it editable.
+  const expenseApproved = !!verifyRecord?.expense;
+  const recordLocked = vState.locked && expenseApproved;
 
   const vv = VERIFY_VIEW[vState.status] || VERIFY_VIEW[VERIFY_STATUS.PENDING];
 
@@ -758,17 +840,17 @@ export const TripDetail = () => {
           </Flex>
         </div>
         <Space size={8} wrap>
-          {vState.locked && (
+          {recordLocked && (
             <Typography.Text strong>
               <Space size={6}><Lock size={14} /> Locked after approval</Space>
             </Typography.Text>
           )}
-          {can('trips', 'edit') && !vState.locked && (
+          {can('trips', 'edit') && !recordLocked && (
             <Button size="small" color="primary" variant="outlined" onClick={editTrip}>
               Edit record
             </Button>
           )}
-          {can('trips', 'delete') && !vState.locked && (
+          {can('trips', 'delete') && !recordLocked && (
             <Button size="small" type="text" danger onClick={askDeleteTrip}>
               Delete
             </Button>
@@ -964,7 +1046,7 @@ export const TripDetail = () => {
         style={{ '--td-edge': vv.edge }}
         styles={{ body: { padding: 0 } }}
         extra={
-          <Tag color={vv.tag} icon={vState.locked ? <Lock size={12} /> : null} className="td-caps-tag">
+          <Tag color={vv.tag} icon={recordLocked ? <Lock size={12} /> : null} className="td-caps-tag">
             {vState.status}
           </Tag>
         }
@@ -1069,6 +1151,25 @@ export const TripDetail = () => {
                 The supervisor filed {fmtMoney(statedTotal)} as the total, but the itemised boxes add up to {fmtMoney(filedTotal)}.
               </Typography.Paragraph>
             )}
+
+            {/* Expense sign-off, separate from the diesel decision on the left. */}
+            {isClosed && (verifyRecord?.expense ? (
+              <Alert
+                type={verifyRecord.expense.deductAmount ? 'error' : 'success'}
+                showIcon
+                className="td-verify-after"
+                title={verifyRecord.expense.deductAmount
+                  ? `Expenses approved · ${fmtMoney(verifyRecord.expense.deductAmount)} to deduct from salary`
+                  : 'Expenses approved'}
+                description={`${verifyRecord.expense.reason} — ${verifyRecord.expense.approvedBy} · ${verifyRecord.expense.approvedAt}`}
+              />
+            ) : canVerify && (
+              <Flex justify="flex-end" className="td-verify-after">
+                <Button type="primary" icon={<ShieldCheck size={15} />} onClick={approveExpenses}>
+                  Approve expenses
+                </Button>
+              </Flex>
+            ))}
           </div>
         </div>
 
@@ -1091,12 +1192,14 @@ export const TripDetail = () => {
 
             {vState.locked ? (
               <Flex align="center" gap={8}>
-                <Lock size={15} className="td-flex-none" />
+                {recordLocked && <Lock size={15} className="td-flex-none" />}
                 <Typography.Text>
                   {verifyRecord?.approvedAt
-                    ? `Approved by ${verifyRecord.approvedBy} on ${verifyRecord.approvedAt}. `
+                    ? `Diesel approved by ${verifyRecord.approvedBy} on ${verifyRecord.approvedAt}. `
                     : ''}
-                  This record is locked — it can no longer be edited or deleted.
+                  {recordLocked
+                    ? 'Expenses approved too — this record is locked and can no longer be edited or deleted.'
+                    : 'The record locks once the expenses are approved as well.'}
                 </Typography.Text>
               </Flex>
             ) : (

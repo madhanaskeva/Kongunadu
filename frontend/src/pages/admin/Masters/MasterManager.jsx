@@ -8,6 +8,7 @@ import { readSheet } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
 import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
+import { coordErrors } from '../../../utils/coords';
 
 const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
   const rawBunks = route.authorizedBunks || [];
@@ -591,6 +592,8 @@ export const MasterManager = ({ type }) => {
         ['branch', 'Branch', branchOpts],
         ['loadingLocations', 'Loading locations', 'locations-input', 'Type a loading location (e.g. Sriperumbudur Cryogenic Hub)'],
         ['phone', 'Client phone number', null, '98410 11220', { clean: 'phone', prefix: '+91', hint: 'Primary contact or dispatch phone' }],
+        ['lat', 'Latitude', null, '12.9605', { hint: 'Client site latitude, −90 to 90' }],
+        ['lng', 'Longitude', null, '79.9412', { hint: 'Client site longitude, −180 to 180' }],
         ['supervisors', 'Supervisor assignment', 'checkbox-select', 'Select supervisors', {
           options: (f) => getSupervisorOptions(f?.branch),
           itemNoun: 'supervisor',
@@ -598,7 +601,7 @@ export const MasterManager = ({ type }) => {
         }],
         ['status', 'Status', ['Active', 'On hold']],
       ],
-      required: ['name', 'gst', 'branch', 'loadingLocations', 'phone', 'supervisors', 'status'],
+      required: ['name', 'gst', 'branch', 'loadingLocations', 'phone', 'lat', 'lng', 'supervisors', 'status'],
       validate: (f, isNew, self) => {
         const errs = {};
         const dg = x => String(x || '').replace(/\D/g, '');
@@ -629,6 +632,7 @@ export const MasterManager = ({ type }) => {
         if (!locs || locs.length === 0) errs.loadingLocations = 'Add at least one loading location.';
 
         if (!f.phone || dg(f.phone).length !== 10) errs.phone = 'Enter a 10-digit mobile number.';
+        Object.assign(errs, coordErrors(f));
 
         const sups = Array.isArray(f.supervisors) ? f.supervisors : String(f.supervisors || '').split(',').map(s => s.trim()).filter(Boolean);
         if (!sups || sups.length === 0) errs.supervisors = 'Select at least one supervisor.';

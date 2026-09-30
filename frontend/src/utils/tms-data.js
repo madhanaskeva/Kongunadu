@@ -235,6 +235,29 @@ const supervisorNotices=[
  {id:'N08',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-13 16:10',title:'Bunk approved \u00b7 BPCL \u2013 Dindigul Bypass',body:'Head Office approved bunk "BPCL \u2013 Dindigul Bypass". It is now authorized for route Ambattur \u2192 Madurai.',rows:[['Bunk','BPCL \u2013 Dindigul Bypass'],['Route','Ambattur \u2192 Madurai'],['Status','Authorized']]},
  {id:'N06',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-10 17:20',title:'Vehicle master updated · TN 28 AR 7712',body:'TN 28 AR 7712 is now mapped to Linde India and Suguna Foods. Its driver mapping was cleared, so pick a driver when you open a trip for it.',rows:[['Vehicle','TN 28 AR 7712 · Closed body 19ft'],['Clients','Linde India, Suguna Foods'],['Driver','Not mapped'],['Action taken','Master record edited']]}
 ];
+// Monthly kilometre targets and actuals per vehicle, for Analytics › Vehicle.
+// Compact source rows: `start` is the first month ('YYYY-MM'); `target` is one
+// number for every month or an array when the target changed; `actual` is the
+// kilometres run each month from that start. Expanded below into
+// { vehicle, vehicleNumber, monthlyPerformance: { 'YYYY-MM': { targetKm, actualKm } } }.
+const vehiclePerformanceRows=[
+ {vehicle:'V04',start:'2025-10',target:2000,actual:[1780,1960,2040,1690,1880,2010,1850,2120,1920,2250,2080,2310]},
+ {vehicle:'V10',start:'2025-10',target:2500,actual:[2410,2380,2620,2290,2450,2510,2360,2480,2500,2710,2390,2560]},
+ {vehicle:'V06',start:'2025-10',target:3200,actual:[3050,3310,2980,3120,3400,3180,3240,2990,3080,3150,2610,1420]},
+ {vehicle:'V01',start:'2025-10',target:3000,actual:[2890,3120,3050,2760,2950,3210,3080,2940,3180,3020,3260,3140]},
+ {vehicle:'V02',start:'2025-10',target:[3200,3200,3200,3200,3200,3200,3500,3500,3500,3500,3500,3500],actual:[3010,3150,3280,2870,3090,3240,3310,3460,3620,3380,3550,3190]},
+ {vehicle:'V03',start:'2025-10',target:2800,actual:[2650,2540,2700,2480,2590,2610,2720,2560,2490,2680,2510,2380]},
+ {vehicle:'V07',start:'2025-10',target:2200,actual:[2350,2280,2410,2190,2260,2330,2240,2380,2290,2450,2310,2420]},
+ {vehicle:'V09',start:'2025-10',target:3000,actual:[2900,2960,3050,2820,2880,3000,3100,2970,3060,2890,3150,2980]},
+ {vehicle:'V08',start:'2026-01',target:3000,actual:[1950,2710,2880,2940,3050,2990,3120,2860,3010]}
+];
+const addMonths=(ym,n)=>{const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;};
+const vehiclePerformance=vehiclePerformanceRows.map(r=>({
+ vehicle:r.vehicle,
+ vehicleNumber:(vehicles.find(v=>v.id===r.vehicle)||{}).number||r.vehicle,
+ monthlyPerformance:Object.fromEntries(r.actual.map((a,i)=>[addMonths(r.start,i),{targetKm:Array.isArray(r.target)?r.target[i]:r.target,actualKm:a}]))
+}));
+
 export const byId = (arr) => Object.fromEntries((arr || []).map(x => [x.id, x]));
 
 export const B = byId(branches);
@@ -265,6 +288,7 @@ export const TMS = {
   permissions,
   radiusAlerts,
   supervisorNotices,
+  vehiclePerformance,
   B,
   S,
   V,
@@ -298,6 +322,7 @@ export {
   permissions,
   radiusAlerts,
   supervisorNotices,
+  vehiclePerformance,
 };
 
 export default TMS;

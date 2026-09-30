@@ -47,6 +47,7 @@ export const MODULE_GROUPS = [
       ['deviceApprovals', 'Device Approvals', ['view', 'edit'], '/admin/device-approvals'],
       ['users', 'Users & roles', ['view', 'add', 'edit', 'delete'], '/admin/users'],
       ['settings', 'Settings', ['view', 'edit'], '/admin/settings'],
+      ['notifications', 'Notifications', ['view', 'add'], '/admin/notifications'],
     ],
   },
 ];
@@ -78,13 +79,15 @@ export const roleDefault = role => {
     else if (/^Verification/.test(role)) allowed = key === 'trips' ? ['view', 'verify', 'export'] : ['dashboard', 'exceptions', 'vehicles', 'drivers', 'analytics', 'reports'].includes(key) ? acts.filter(a => a === 'view' || a === 'export') : [];
     else if (/^Owner/.test(role)) allowed = ['users', 'deviceApprovals', 'settings'].includes(key) ? [] : acts.filter(a => a === 'view' || a === 'export');
     else if (/^Billing/.test(role)) allowed = ['dashboard', 'trips', 'clients', 'analytics', 'reports'].includes(key) ? acts.filter(a => a === 'view' || a === 'export') : [];
+    // Every portal user can read notifications (the header bell links here); only admins send by default.
+    if (key === 'notifications' && !isAdminRole(role)) allowed = ['view'];
     out[key] = allowed;
   });
   return out;
 };
 
 export const userAccess = (u, saved = readAccess()) =>
-  !u ? {} : isAdminRole(u.role) ? roleDefault(u.role) : saved[u.id] || roleDefault(u.role);
+  !u ? {} : isAdminRole(u.role) ? roleDefault(u.role) : saved[u.id] ? { ...roleDefault(u.role), ...saved[u.id] } : roleDefault(u.role);
 
 export const accessCount = access => ALL_MODULES.filter(([key]) => (access[key] || []).includes('view')).length;
 

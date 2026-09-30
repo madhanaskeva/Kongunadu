@@ -1,13 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Clock, TriangleAlert, Search } from 'lucide-react';
+import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag } from 'lucide-react';
+import dayjs from 'dayjs';
 import {
-  Alert, Button, Card, Col, Descriptions, Empty, Flex, Input, Pagination, Row, Segmented,
+  Alert, Button, Card, Col, DatePicker, Descriptions, Empty, Flex, Form, Input, Pagination, Row, Segmented,
   Select, Space, Statistic, Table, Tag, Timeline, Typography,
 } from 'antd';
 import { AimOutlined, ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
+import VehicleActivityModal, { ActivityBar, ACTIVITY_TONE } from './VehicleActivityModal';
+import { ACTIVITY, fmtDuration, minutesAgo, vehicleActivity } from '../../../utils/vehicleActivity';
 import { useDebounce } from '../../../utils/debounce';
+import { matchesSearch as textMatches } from '../../../utils/search';
+import { evaluateDateRange } from '../Reports/reportEngine';
+// Shared filter-bar styles (.tl-filters) — the same bar as the Trips page.
+import '../../../styles/tripDetail.css';
+
+const DATE_FMT = 'YYYY-MM-DD';
+const EMPTY_FILTERS = { branch: '', client: '', vehicles: [], type: '', flag: '', from: '', to: '' };
 
 // Client-side paging for the card grids (default 10 / page). Any change to `resetKeys`
 // (filters, search) or the page size sends the grid back to page 1.
@@ -58,6 +68,91 @@ export const FleetMonitor = () => {
 
   const ff = fleetFilter;
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id));
+
+  /* ------------------------------------------------------------------- */
+  /* Filter bar — the same filters as the Trips page, applied to whichever */
+  /* cards the current tab shows.                                          */
+  /* ------------------------------------------------------------------- */
+  const [flt, setFlt] = useState(EMPTY_FILTERS);
+  const patchFlt = (p) => setFlt(prev => ({ ...prev, ...p }));
+  const fltKey = JSON.stringify(flt);
+  const hasFilters = fltKey !== JSON.stringify(EMPTY_FILTERS);
+
+  const allVehicles = tms.vehicles || [];
+  // Clients narrow to the branch: its own clients plus any client a vehicle of that branch serves.
+  const clientsOfBranch = (branch) => (tms.clients || []).filter(c =>
+    !branch || c.branch === branch || allVehicles.some(v => v.branch === branch && (v.clients || []).includes(c.id)));
+  const branchOptions = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+  const clientOptions = clientsOfBranch(flt.branch).map(c => ({ value: c.id, label: c.name }));
+  const vehicleOptions = allVehicles
+    .filter(v => (!flt.branch || v.branch === flt.branch) && (!flt.client || (v.clients || []).includes(flt.client)))
+    .map(v => ({ value: v.id, label: v.number }));
+  const typeOptions = [...new Set(allVehicles.map(v => v.type).filter(Boolean))].map(t => ({ value: t, label: t }));
+  const flagOptions = [{ value: 'flagged', label: 'Flagged' }, { value: 'clean', label: 'No flagged' }];
+
+  // Does this vehicle pass the branch / client / vehicle / type filters?
+  const vehPass = (v) => !!v &&
+    (!flt.branch || v.branch === flt.branch) &&
+    (!flt.client || (v.clients || []).includes(flt.client)) &&
+    (!flt.vehicles.length || flt.vehicles.includes(v.id)) &&
+    (!flt.type || v.type === flt.type);
+  const flagPass = (flagged) => !flt.flag || (flt.flag === 'flagged' ? flagged : !flagged);
+  // Trip-based cards (diversions, non-billable) filter on the trip itself and its opened date.
+  const tripPass = (t) =>
+    (!flt.branch || t.branch === flt.branch) &&
+    (!flt.client || t.client === flt.client) &&
+    (!flt.vehicles.length || flt.vehicles.includes(t.vehicle)) &&
+    (!flt.type || (tms.V[t.vehicle] || {}).type === flt.type) &&
+    flagPass((t.flags || []).length > 0) &&
+    evaluateDateRange(t.opened, dateRange);
+  const dateRange = { from: flt.from, to: flt.to };
+  const hasDates = !!(flt.from || flt.to);
+  // Vehicle cards follow the GPS, not trips: a vehicle passes the From / To dates
+  // when its tracker reported inside the range. No device fitted → no data;
+  // a failed tracker only counts up to its last fix.
+  const rangeStart = flt.from ? dayjs(flt.from).startOf('day') : null;
+  const rangeEnd = flt.to ? dayjs(flt.to).endOf('day') : null;
+  const vehDatePass = (v) => {
+    if (!hasDates) return true;
+    if (v.gps === 'Pending') return false;
+    if (v.gps === 'Failed' && rangeStart) {
+      const ago = minutesAgo(v.lastSeen);
+      if (ago != null && dayjs().subtract(ago, 'minute').isBefore(rangeStart)) return false;
+    }
+    return !rangeStart || !rangeStart.isAfter(dayjs());
+  };
+
+  // The single Date beside the search picks which day's GPS timeline the cards
+  // show. It stays inside the From / To range: no pick means today, or the
+  // range's last day when today is outside it.
+  const [activityId, setActivityId] = useState(null);
+  const [tlDate, setTlDate] = useState('');
+  const today = dayjs().startOf('day');
+  const clampDay = (d) => {
+    if (rangeEnd && d.isAfter(rangeEnd, 'day')) d = rangeEnd.startOf('day');
+    if (rangeStart && d.isBefore(rangeStart, 'day')) d = rangeStart;
+    return d.isAfter(today, 'day') ? today : d;
+  };
+  const timelineDay = clampDay(tlDate ? dayjs(tlDate) : today);
+  const isToday = timelineDay.isSame(today, 'day');
+  const activityRange = (() => {
+    const end = timelineDay.endOf('day');
+    return { from: timelineDay.startOf('day'), to: end.isAfter(dayjs()) ? dayjs() : end };
+  })();
+  const dayLabel = isToday ? 'Today' : activityRange.from.format('DD MMM YYYY');
+
+  // Radius alerts are today's live breaches (they carry a time, not a date), so
+  // they show only while today falls inside the From / To range.
+  const todayInRange = evaluateDateRange(dayjs().format(DATE_FMT), dateRange);
+  // Radius alerts: vehicles by their own record, supervisors by branch and client.
+  const alertPass = (a) => {
+    if (!todayInRange) return false;
+    if (a.kind === 'vehicle') return vehPass(tms.V[a.ref]);
+    const s = tms.S[a.ref] || {};
+    return !flt.vehicles.length && !flt.type &&
+      (!flt.branch || s.branch === flt.branch) &&
+      (!flt.client || (s.clientIds || []).includes(flt.client));
+  };
 
   // Fleet Vehicles
   const fleetAll = (tms.vehicles || []).map(v => {
@@ -112,11 +207,12 @@ export const FleetMonitor = () => {
       (v.lastSeen && v.lastSeen.toLowerCase().includes(q))
     );
 
-    return matchesCategory && matchesDuration && matchesSearch;
+    return matchesCategory && matchesDuration && matchesSearch &&
+      vehPass(v) && flagPass(v.gps !== 'OK' || !!v.radiusAlert) && vehDatePass(v);
   });
 
   // A branch can run hundreds of vehicles, so the grid is paged like every other list (default 10 / page).
-  const fleetPg = usePagedCards(fleetCards, [ff, idleDurationFilter, debouncedFleetQ], 'vehicles');
+  const fleetPg = usePagedCards(fleetCards, [ff, idleDurationFilter, debouncedFleetQ, fltKey], 'vehicles');
 
   const gpsTone = g => g === 'OK' ? 'var(--kr-green-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
@@ -128,7 +224,7 @@ export const FleetMonitor = () => {
   };
   const divOrder = { 'Off route now': 0, 'Rejoined': 1, 'Reviewed': 2 };
   const divCards = trips
-    .filter(t => t.diversion)
+    .filter(t => t.diversion && tripPass(t))
     .sort((a, b) => (divOrder[a.diversion.state] ?? 3) - (divOrder[b.diversion.state] ?? 3))
     .map(t => {
       const dv = t.diversion;
@@ -172,16 +268,16 @@ export const FleetMonitor = () => {
       (d.at && d.at.toLowerCase().includes(q))
     );
   });
-  const divPg = usePagedCards(filteredDivCards, [ff, debouncedFleetQ], 'flagged routes');
+  const divPg = usePagedCards(filteredDivCards, [ff, debouncedFleetQ, fltKey], 'flagged routes');
 
   const divSummary = {
     count: divCards.length,
     live: divCards.filter(d => d.state === 'Off route now').length,
-    over: trips.filter(t => t.diversion && t.diversion.offKm > 20).length,
+    over: trips.filter(t => t.diversion && tripPass(t) && t.diversion.offKm > 20).length,
   };
 
   // Non-billable trips
-  const nbTrips = trips.filter(t => t.type === 'Non-Business');
+  const nbTrips = trips.filter(t => t.type === 'Non-Business' && tripPass(t));
   const nbCards = nbTrips.map(t => {
     const tr = t.track || { points: [] };
     const v = tms.V[t.vehicle] || {};
@@ -231,7 +327,7 @@ export const FleetMonitor = () => {
       (n.fromTo && n.fromTo.toLowerCase().includes(q))
     );
   });
-  const nbPg = usePagedCards(filteredNbCards, [ff, debouncedFleetQ], 'movements');
+  const nbPg = usePagedCards(filteredNbCards, [ff, debouncedFleetQ, fltKey], 'movements');
 
   const nbReasons = Object.entries(
     nbTrips.reduce((m, t) => {
@@ -252,7 +348,8 @@ export const FleetMonitor = () => {
     const [hh, mm] = t.split(':').map(Number);
     return (hh % 12 || 12) + ':' + String(mm).padStart(2, '0') + (hh < 12 ? ' AM' : ' PM');
   };
-  const rbCards = (tms.radiusAlerts || []).map(a => {
+  const rbAlerts = (tms.radiusAlerts || []).filter(alertPass);
+  const rbCards = rbAlerts.map(a => {
     const l = tms.L[a.location] || {};
     const isVeh = a.kind === 'vehicle';
     const who = isVeh ? tms.V[a.ref] : tms.S[a.ref];
@@ -280,13 +377,13 @@ export const FleetMonitor = () => {
       (r.away && r.away.toLowerCase().includes(q))
     );
   });
-  const rbPg = usePagedCards(filteredRbCards, [ff, debouncedFleetQ], 'alerts');
+  const rbPg = usePagedCards(filteredRbCards, [ff, debouncedFleetQ, fltKey], 'alerts');
 
   // Every card in this view is an open breach, so they carry a tint by default.
   const rbTiles = [
     { label: 'Active alerts', value: rbCards.length, color: 'var(--kr-red-700)', bg: 'var(--kr-red-100)', edge: 'var(--kr-red-600)' },
-    { label: 'Vehicles', value: (tms.radiusAlerts || []).filter(a => a.kind === 'vehicle').length, color: 'var(--text-heading)', bg: 'var(--st-enroute-bg)', edge: 'var(--st-enroute-edge)' },
-    { label: 'Supervisors', value: (tms.radiusAlerts || []).filter(a => a.kind === 'supervisor').length, color: 'var(--text-heading)', bg: 'var(--color-brand-tint)', edge: 'var(--color-brand)' },
+    { label: 'Vehicles', value: rbAlerts.filter(a => a.kind === 'vehicle').length, color: 'var(--text-heading)', bg: 'var(--st-enroute-bg)', edge: 'var(--st-enroute-edge)' },
+    { label: 'Supervisors', value: rbAlerts.filter(a => a.kind === 'supervisor').length, color: 'var(--text-heading)', bg: 'var(--color-brand-tint)', edge: 'var(--color-brand)' },
   ];
 
   // Filters & Tiles
@@ -350,6 +447,99 @@ export const FleetMonitor = () => {
         ))}
       </Row>
 
+      {/* Filters Bar — same filters as the Trips page */}
+      <Card className="tl-filters" styles={{ body: { padding: '18px 20px' } }}>
+        <Form layout="vertical">
+          <Flex gap={14} wrap align="flex-end">
+            <Form.Item label="Branch" className="tl-filter" style={{ width: 190 }}>
+              <Select
+                prefix={<Building2 size={17} />}
+                value={flt.branch}
+                options={[{ value: '', label: 'All branches' }, ...branchOptions]}
+                popupMatchSelectWidth={false}
+                // A new branch drops any client or vehicle it does not own.
+                onChange={(v) => patchFlt({
+                  branch: v,
+                  client: flt.client && clientsOfBranch(v).some(c => c.id === flt.client) ? flt.client : '',
+                  vehicles: flt.vehicles.filter(id => !v || (tms.V[id] || {}).branch === v),
+                })}
+              />
+            </Form.Item>
+            <Form.Item label="Client" className="tl-filter" style={{ width: 200 }}>
+              <Select
+                prefix={<Users size={17} />}
+                value={flt.client}
+                options={[{ value: '', label: 'All clients' }, ...clientOptions]}
+                popupMatchSelectWidth={false}
+                showSearch={{ filterOption: (input, o) => textMatches(input, o.label) }}
+                onChange={(v) => patchFlt({
+                  client: v,
+                  vehicles: flt.vehicles.filter(id => !v || ((tms.V[id] || {}).clients || []).includes(v)),
+                })}
+              />
+            </Form.Item>
+            <Form.Item label="Vehicle" className="tl-filter" style={{ width: 210 }}>
+              <Select
+                mode="multiple"
+                prefix={<Truck size={17} />}
+                placeholder="All vehicles"
+                value={flt.vehicles}
+                options={vehicleOptions}
+                onChange={(ids) => patchFlt({ vehicles: ids })}
+                maxTagCount={0}
+                maxTagPlaceholder={() => (flt.vehicles.length === 1
+                  ? (tms.V[flt.vehicles[0]] || {}).number || '1 vehicle'
+                  : `${flt.vehicles.length} vehicles`)}
+                popupMatchSelectWidth={240}
+                showSearch={{ filterOption: (input, o) => textMatches(input, o.label) }}
+              />
+            </Form.Item>
+            <Form.Item label="Type" className="tl-filter" style={{ width: 200 }}>
+              <Select
+                prefix={<TagIcon size={17} />}
+                value={flt.type}
+                options={[{ value: '', label: 'All types' }, ...typeOptions]}
+                popupMatchSelectWidth={false}
+                onChange={(v) => patchFlt({ type: v })}
+              />
+            </Form.Item>
+            <Form.Item label="Flags" className="tl-filter" style={{ width: 160 }}>
+              <Select
+                prefix={<Flag size={17} />}
+                value={flt.flag}
+                options={[{ value: '', label: 'All flags' }, ...flagOptions]}
+                popupMatchSelectWidth={false}
+                onChange={(v) => patchFlt({ flag: v })}
+              />
+            </Form.Item>
+            {/* Vehicles match on trips opened in the range; trip cards on their own opened date. */}
+            <Form.Item label="From date" className="tl-filter" style={{ width: 170 }}>
+              <DatePicker
+                value={flt.from ? dayjs(flt.from) : null}
+                format="DD MMM YYYY"
+                placeholder="From date"
+                disabledDate={d => !!flt.to && d.isAfter(dayjs(flt.to), 'day')}
+                onChange={d => patchFlt({ from: d ? d.format(DATE_FMT) : '' })}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+            <Form.Item label="To date" className="tl-filter" style={{ width: 170 }}>
+              <DatePicker
+                value={flt.to ? dayjs(flt.to) : null}
+                format="DD MMM YYYY"
+                placeholder="To date"
+                disabledDate={d => !!flt.from && d.isBefore(dayjs(flt.from), 'day')}
+                onChange={d => patchFlt({ to: d ? d.format(DATE_FMT) : '' })}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+            <Button onClick={() => { setFlt(EMPTY_FILTERS); setFleetQ(''); setTlDate(''); }} disabled={!hasFilters && !fleetQ && !tlDate}>
+              Clear
+            </Button>
+          </Flex>
+        </Form>
+      </Card>
+
       {/* Filter Pills, Search Bar, and Right Side Duration Filter Option */}
       <Flex justify="space-between" align="center" gap={12} wrap>
         <Flex gap={8} wrap align="center" style={{ flex: '1 1 auto', minWidth: 0 }}>
@@ -383,6 +573,22 @@ export const FleetMonitor = () => {
             aria-label="Search fleet vehicles and GPS health"
             style={{ flex: '1 1 250px', maxWidth: 360 }}
           />
+
+          {/* The day whose GPS running / idle times the vehicle cards show. Empty means today. */}
+          {fleetShowVehicles && (
+            <DatePicker
+              value={isToday && !tlDate ? null : timelineDay}
+              format="DD MMM YYYY"
+              placeholder="Today"
+              aria-label="Timeline date"
+              // Only days inside the From / To range, and never the future.
+              disabledDate={d => d.isAfter(dayjs(), 'day')
+                || (rangeStart && d.isBefore(rangeStart, 'day'))
+                || (rangeEnd && d.isAfter(rangeEnd, 'day'))}
+              onChange={d => setTlDate(d ? d.format(DATE_FMT) : '')}
+              style={{ width: 170 }}
+            />
+          )}
         </Flex>
 
         {/* Right side duration filter option — ONLY shown in IDLE section */}
@@ -416,6 +622,8 @@ export const FleetMonitor = () => {
                     <Typography.Text strong style={{ display: 'block' }}>No vehicles matching "{fleetQ}"</Typography.Text>
                     <Typography.Text type="secondary" style={{ fontSize: 13 }}>Try searching by registration number, driver, branch, or route.</Typography.Text>
                   </>
+                ) : hasFilters ? (
+                  'No vehicles match the selected filters.'
                 ) : (
                   `No idle vehicles match the selected duration filter ${idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.`
                 )
@@ -426,12 +634,19 @@ export const FleetMonitor = () => {
                   Clear search &rarr;
                 </Button>
               )}
+              {!fleetQ && hasFilters && (
+                <Button type="link" onClick={() => setFlt(EMPTY_FILTERS)}>
+                  Clear filters &rarr;
+                </Button>
+              )}
             </Empty>
           </Card>
         ) : (
           <>
           <Row gutter={[16, 16]}>
-            {fleetPg.rows.map(v => (
+            {fleetPg.rows.map(v => {
+              const act = vehicleActivity(v, activityRange.from.valueOf(), activityRange.to.valueOf());
+              return (
               <Col key={v.id} xs={24} sm={12} xl={8} xxl={6}>
                 <Card
                   hoverable
@@ -480,12 +695,70 @@ export const FleetMonitor = () => {
                     <Typography.Text type="secondary" style={{ fontSize: 12.5, marginLeft: 'auto', flex: 'none', whiteSpace: 'nowrap' }}>{v.lastSeen}</Typography.Text>
                   </Flex>
 
-                  <Space size={6} style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-brand)' }}>
-                    <MapPin size={13} /> Track on map
-                  </Space>
+                  {/* The selected day's Running / Idle times, from GPS */}
+                  {act.segments.every(s => s.state === ACTIVITY.NO_GPS) ? (
+                    <Flex justify="space-between" gap={8}>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>No GPS data for this day</Typography.Text>
+                    </Flex>
+                  ) : (
+                    <Flex vertical gap={6}>
+                      <Flex justify="space-between" gap={8}>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
+                        <Typography.Text style={{ fontSize: 12 }}>
+                          <span style={{ color: 'var(--kr-green-700)', fontWeight: 700 }}>Run {fmtDuration(act.summary.running)}</span>
+                          {' · '}
+                          <span style={{ color: '#7A4300', fontWeight: 700 }}>Idle {fmtDuration(act.summary.idle)}</span>
+                        </Typography.Text>
+                      </Flex>
+                      <ActivityBar segments={act.segments} height={8} />
+                      <div
+                        className="fl-spans"
+                        onClick={e => e.stopPropagation()}
+                        style={{ maxHeight: 118, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 8 }}
+                      >
+                        {act.segments.map((s, i) => (
+                          <Flex
+                            key={i}
+                            align="center"
+                            gap={8}
+                            style={{ padding: '4px 10px', fontSize: 12, borderTop: i ? '1px solid var(--border-default)' : 0 }}
+                          >
+                            <span style={{ width: 8, height: 8, borderRadius: 2, flex: 'none', background: ACTIVITY_TONE[s.state].color }} />
+                            <Typography.Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                              {dayjs(s.start).format('HH:mm')} – {dayjs(s.end).format('HH:mm')}
+                            </Typography.Text>
+                            <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--kr-green-700)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
+                              {s.state}
+                            </Typography.Text>
+                            <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                              {fmtDuration(s.minutes)}
+                            </Typography.Text>
+                          </Flex>
+                        ))}
+                      </div>
+                    </Flex>
+                  )}
+
+                  <Flex justify="space-between" align="center" gap={8}>
+                    <Space size={6} style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-brand)' }}>
+                      <MapPin size={13} /> Track on map
+                    </Space>
+                    <Button
+                      type="link"
+                      size="small"
+                      icon={<Clock size={13} />}
+                      style={{ paddingInline: 0, fontSize: 12, fontWeight: 700 }}
+                      onClick={e => { e.stopPropagation(); setActivityId(v.id); }}
+                      onKeyDown={e => e.stopPropagation()}
+                    >
+                      Activity timeline
+                    </Button>
+                  </Flex>
                 </Card>
               </Col>
-            ))}
+              );
+            })}
           </Row>
           <Card size="small">
             <Pagination align="end" {...fleetPg.pagination} />
@@ -507,6 +780,15 @@ export const FleetMonitor = () => {
           />
         );
       })()}
+
+      {activityId && (
+        <VehicleActivityModal
+          vehicle={fleetAll.find(x => x.id === activityId)}
+          initialFrom={activityRange.from}
+          initialTo={activityRange.to}
+          onClose={() => setActivityId(null)}
+        />
+      )}
 
       {/* DIVERSIONS VIEW */}
       {fleetShowDiversion && (

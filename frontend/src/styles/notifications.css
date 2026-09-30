@@ -1,0 +1,43 @@
+/* Notifications page (/admin/notifications): filter bar, unread rows, supervisor picker. */
+
+.ntf-filters {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+}
+.ntf-filters .ant-select { min-width: 150px; }
+.ntf-search { width: 280px; }
+
+/* Unread alerts stand out with a brand edge and slightly tinted row. */
+.ntf-page .ntf-row-unread > td { background: color-mix(in srgb, var(--color-brand) 4%, transparent); }
+.ntf-page .ntf-row-unread > td:first-child { box-shadow: inset 3px 0 0 var(--color-brand); }
+
+/* Supervisor picker (Send + Share / Resend modals) */
+.ntf-sup-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--ant-color-border, #d9d9d9);
+  border-radius: 8px;
+}
+.ntf-sup-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+}
+.ntf-sup-row:last-child { border-bottom: 0; }
+.ntf-sup-row:hover { background: var(--ant-color-fill-quaternary, #fafafa); }
+.ntf-sup-row.is-disabled { cursor: not-allowed; opacity: .6; }
+
+.ntf-original {
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: var(--ant-color-fill-quaternary, #fafafa);
+  border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
+}
+
+@media (max-width: 640px) {
+  .ntf-search { width: 100%; }
+  .ntf-filters .ant-select { flex: 1 1 140px; }
+}

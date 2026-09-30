@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
   Building2,
@@ -15,14 +15,16 @@ import {
   X,
   Eye,
 } from 'lucide-react';
+import dayjs from 'dayjs';
 import {
-  Avatar, Button, Card, Col, Empty, Flex, Form, Input, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography,
+  Avatar, Button, Card, Col, DatePicker, Empty, Flex, Form, Input, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography,
 } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
+import { evaluateDateRange } from '../Reports/reportEngine';
 import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 // Scoped filter-bar styles (.tl-filters) live with the other Trips page CSS.
 import '../../../styles/tripDetail.css';
@@ -30,6 +32,8 @@ import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 
 // Tab id for the exception filter — not a trip status, so it is matched separately.
 const PENDING_TAB = 'pending';
+// Opened-date filter bounds are kept as plain 'YYYY-MM-DD' strings in tf.
+const DATE_FMT = 'YYYY-MM-DD';
 
 export const TripList = () => {
   const {
@@ -95,6 +99,7 @@ export const TripList = () => {
   const tripMatch = (t, ignoreStatus) =>
     (!tf.branch || t.branch === tf.branch) &&
     (!tf.client || t.client === tf.client) &&
+    evaluateDateRange(t.opened, { from: tf.from, to: tf.to }) &&
     (ignoreStatus || statusMatch(t)) &&
     (!tf.type || t.type === tf.type) &&
     (!pickedVehicles.length || pickedVehicles.includes(t.vehicle)) &&
@@ -129,6 +134,10 @@ export const TripList = () => {
 
   const tripEnrouteCount = tripRows.filter(t => t.status === 'Enroute').length;
 
+  // Stable dayjs values: a new object each render makes an open calendar jump back to the selected month.
+  const fromDay = useMemo(() => (tf.from ? dayjs(tf.from) : null), [tf.from]);
+  const toDay = useMemo(() => (tf.to ? dayjs(tf.to) : null), [tf.to]);
+
   const [draftQ, setDraftQ] = useState(tf.q || '');
   const debouncedDraftQ = useDebounce(draftQ, 350);
   // Only the first few ticked vehicles get a chip; the rest stay behind a "+n more".
@@ -148,7 +157,7 @@ export const TripList = () => {
   const [tripPage, setTripPage] = useState(1);
   const [tripPageSize, setTripPageSize] = useState(10);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setTripPage(1); }, [tf.branch, tf.client, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
+  useEffect(() => { setTripPage(1); }, [tf.branch, tf.client, tf.from, tf.to, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
 
   // Search text inside the vehicle dropdown (drives its "Select these n" action).
   const [vehQ, setVehQ] = useState('');
@@ -168,7 +177,7 @@ export const TripList = () => {
 
   const clearTf = () => {
     setDraftQ('');
-    setTf({ branch: '', client: '', status: '', type: '', flag: '', q: '', vehicles: [] });
+    setTf({ branch: '', client: '', status: '', type: '', flag: '', from: '', to: '', q: '', vehicles: [] });
   };
   const runSearch = () => setTf({ ...tf, q: draftQ.trim() });
 
@@ -176,7 +185,7 @@ export const TripList = () => {
     if (!tripRows.length) { showToast('warning', 'Nothing to export', 'No trips match the current filters.'); return; }
     const cols = [
       ['Trip number', t => t.number], ['Branch', t => t.branchName], ['Vehicle', t => t.vehicleNumber], ['Driver', t => t.driverName],
-      ['Client', t => t.clientName], ['Unloading', t => t.unloading], ['Type', t => t.typeLabel], ['Opened', t => t.opened],
+      ['Client', t => t.clientName], ['Unloading', t => t.unloading], ['Type', t => t.typeLabel], ['Opened date', t => t.opened],
       ['Closed', t => t.closed], ['Start KM', t => t.startKm], ['Closing KM', t => t.closeKm], ['Invoice', t => t.invoice],
       ['LR', t => t.lr], ['Status', t => t.badge], ['Flags', t => (t.flags || []).join(', ')],
       ['Pending closure', t => (t.pendingClose ? t.pendingCloseDetail : '')],
@@ -232,7 +241,7 @@ export const TripList = () => {
     },
     { title: 'Type', dataIndex: 'typeLabel', key: 'type', onCell: () => ({ style: { maxWidth: 150, fontSize: 13 } }) },
     {
-      title: <Space size={4}>Opened<ArrowDown size={13} /></Space>,
+      title: <Space size={4}>Opened date<ArrowDown size={13} /></Space>,
       dataIndex: 'opened',
       key: 'opened',
       onCell: () => ({ style: nowrap }),
@@ -408,6 +417,30 @@ export const TripList = () => {
                 options={[{ value: '', label: 'All flags' }, ...flagOptions]}
                 popupMatchSelectWidth={false}
                 onChange={(v) => setTf({ ...tf, flag: v })}
+              />
+            </Form.Item>
+            {/* Matches on the trip's opened date; either end may be left open.
+                Each end has its own calendar, and can't be set past the other end. */}
+            <Form.Item label="From date" className="tl-filter" style={{ width: 170 }}>
+              <DatePicker
+                value={fromDay}
+                format="DD MMM YYYY"
+                placeholder="From date"
+                allowClear
+                disabledDate={d => !!toDay && d.isAfter(toDay, 'day')}
+                onChange={d => setTf({ ...tf, from: d ? d.format(DATE_FMT) : '' })}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+            <Form.Item label="To date" className="tl-filter" style={{ width: 170 }}>
+              <DatePicker
+                value={toDay}
+                format="DD MMM YYYY"
+                placeholder="To date"
+                allowClear
+                disabledDate={d => !!fromDay && d.isBefore(fromDay, 'day')}
+                onChange={d => setTf({ ...tf, to: d ? d.format(DATE_FMT) : '' })}
+                style={{ width: '100%' }}
               />
             </Form.Item>
 

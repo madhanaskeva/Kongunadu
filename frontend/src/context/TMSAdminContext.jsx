@@ -73,7 +73,7 @@ export const TMSAdminProvider = ({ children }) => {
   const [globalQ, setGlobalQ] = useState('');
   const [selectedTrip, setSelectedTrip] = useState('T07');
   // `vehicles` holds the ids ticked in the Trips vehicle filter — empty means every vehicle.
-  const [tf, setTf] = useState({ branch: '', client: '', status: '', type: '', flag: '', q: '', vehicles: [] });
+  const [tf, setTf] = useState({ branch: '', client: '', status: '', type: '', flag: '', from: '', to: '', q: '', vehicles: [] });
   const [excType, setExcType] = useState('');
   const [excStatus, setExcStatus] = useState('open');
   const [excSel, setExcSel] = useState('X02');
@@ -917,6 +917,8 @@ export const TMSAdminProvider = ({ children }) => {
         f.loadingLocation = f.loadingLocations.join(', ');
       }
     }
+    // Client site coordinates are stored as numbers, like a loading location's.
+    if (route === 'clients') { num('lat'); num('lng'); }
     if (route === 'customers') { dflt('status', 'Active'); dflt('billing', 'Per trip'); }
     if (route === 'locations') { num('radius'); num('lat'); num('lng'); dflt('radius', 100); dflt('status', 'Active'); }
     if (route === 'trips') {
@@ -975,9 +977,15 @@ export const TMSAdminProvider = ({ children }) => {
     };
     window.addEventListener('storage', handleStorage);
 
+    // Only push a new list when the stored JSON actually changed; a fresh array on
+    // every poll re-renders the whole admin tree (and resets open date pickers).
+    let lastNotifRaw = null;
     const handleCustomNotif = () => {
       try {
-        const list = JSON.parse(localStorage.getItem(ADMIN_NOTIF_KEY) || 'null');
+        const raw = localStorage.getItem(ADMIN_NOTIF_KEY);
+        if (raw === lastNotifRaw) return;
+        lastNotifRaw = raw;
+        const list = JSON.parse(raw || 'null');
         if (list && Array.isArray(list)) {
           setAdminNotifications(list);
         }

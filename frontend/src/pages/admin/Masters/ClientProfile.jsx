@@ -7,6 +7,7 @@ import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
+import { coordErrors } from '../../../utils/coords';
 
 // Seed rows merged with admin additions/edits (same rule as MasterManager)
 const mergeEdits = (edits, seed) => {
@@ -100,12 +101,14 @@ export const ClientProfile = () => {
       kicker: 'Edit client',
       title: client.name,
       saveLabel: 'Save changes',
-      required: ['name', 'gst', 'branch', 'phone', 'supervisors', 'status'],
+      required: ['name', 'gst', 'branch', 'phone', 'lat', 'lng', 'supervisors', 'status'],
       fields: [
         ['name', 'Client name', null, 'e.g. Linde India or INOX Air Products'],
         ['gst', 'GSTIN', null, '33AAACL0123M1Z2', { clean: 'gstin', hint: '15-character GST identification number' }],
         ['branch', 'Branch', branchOpts],
         ['phone', 'Client phone number', null, '98410 11220', { clean: 'phone', prefix: '+91', hint: 'Primary contact or dispatch phone' }],
+        ['lat', 'Latitude', null, '12.9605', { hint: 'Client site latitude, −90 to 90' }],
+        ['lng', 'Longitude', null, '79.9412', { hint: 'Client site longitude, −180 to 180' }],
         ['contact', 'Contact person / desk', null, 'e.g. Cryogenic desk, Sriperumbudur'],
         ['supervisors', 'Supervisor assignment', 'checkbox-select', 'Select supervisors', {
           options: (f) => getSupervisorOptions(f?.branch),
@@ -138,6 +141,7 @@ export const ClientProfile = () => {
 
         if (!f.branch) errs.branch = 'Select a branch for this client.';
         if (!f.phone || dg(f.phone).length !== 10) errs.phone = 'Enter a 10-digit mobile number.';
+        Object.assign(errs, coordErrors(f));
 
         const sups = Array.isArray(f.supervisors) ? f.supervisors : String(f.supervisors || '').split(',').map(s => s.trim()).filter(Boolean);
         if (!sups || sups.length === 0) errs.supervisors = 'Select at least one supervisor.';
@@ -198,6 +202,7 @@ export const ClientProfile = () => {
     [Building2, 'Branch', (tms.B[client.branch] || {}).name],
     [Phone, 'Phone', client.phone ? (String(client.phone).startsWith('+91') ? client.phone : `+91 ${client.phone}`) : '—'],
     [UserCheck, 'Contact person', client.contact || '—'],
+    [MapPin, 'Latitude, longitude', client.lat != null && client.lng != null && client.lat !== '' ? `${client.lat}, ${client.lng}` : '—'],
     [MapPin, 'Supervisors', supervisors.map(s => s.name).join(', ') || 'None mapped'],
   ];
 
