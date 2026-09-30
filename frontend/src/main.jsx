@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { Provider } from 'react-redux';
-import { store } from './app/store/store';
-import { AntdProvider } from './app/AntdProvider';
+import { store } from './redux/store/store';
+import { AntdProvider } from './redux/AntdProvider';
 import App from './App';
 import './utils/tms-data';
 import './utils/mockSeed';
