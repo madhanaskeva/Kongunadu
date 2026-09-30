@@ -322,35 +322,55 @@ export const CloseTrip = ({ v }) => (
           {/* Expense breakdown — every box feeds the total, so nothing is typed twice */}
           <Card size="small" title="Trip expenses" style={{ marginBottom: 18 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', columnGap: 12 }}>
-              <Form.Item label="1. Diesel cash">
-                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.dieselCash ?? ''} onChange={e => v.setExpBreakdown('dieselCash', e.target.value)} />
+              <Form.Item label="1. FASTag">
+                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.fastag ?? ''} onChange={e => v.setExpBreakdown('fastag', e.target.value)} />
               </Form.Item>
-              <Form.Item label="2. Driver bata">
-                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.driverBata ?? ''} onChange={e => v.setExpBreakdown('driverBata', e.target.value)} />
-              </Form.Item>
-              <Form.Item label="3. Cleaner bata">
+              {(v.closeDrivers && v.closeDrivers.length > 0 ? v.closeDrivers : [{ id: 'default', name: 'Driver' }]).map((d, dIdx) => {
+                const label = (v.closeDrivers || []).length > 1
+                  ? `${2 + dIdx}. Driver bata (${d.name})`
+                  : '2. Driver bata';
+                const val = v.expBreakdown.driverBatas?.[d.id] ?? (dIdx === 0 ? (v.expBreakdown.driverBata ?? '') : '');
+                return (
+                  <Form.Item key={d.id || dIdx} label={label}>
+                    <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={val} onChange={e => v.setDriverBata(d.id, e.target.value)} />
+                  </Form.Item>
+                );
+              })}
+              <Form.Item label={`${((v.closeDrivers && v.closeDrivers.length) || 1) + 2}. Cleaner bata`}>
                 <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.cleanerBata ?? ''} onChange={e => v.setExpBreakdown('cleanerBata', e.target.value)} />
               </Form.Item>
-              <Form.Item label="4. R.T.O. & P.C. exp">
+              <Form.Item label={`${((v.closeDrivers && v.closeDrivers.length) || 1) + 3}. R.T.O. & P.C. exp`}>
                 <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.rto ?? ''} onChange={e => v.setExpBreakdown('rto', e.target.value)} />
               </Form.Item>
-              <Form.Item label="5. Toll cash exp">
+              <Form.Item label={`${((v.closeDrivers && v.closeDrivers.length) || 1) + 4}. Toll cash exp`}>
                 <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.toll ?? ''} onChange={e => v.setExpBreakdown('toll', e.target.value)} />
               </Form.Item>
-              <Form.Item label="6. Weighment exp">
+              <Form.Item label={`${((v.closeDrivers && v.closeDrivers.length) || 1) + 5}. Weighment exp`}>
                 <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.weighment ?? ''} onChange={e => v.setExpBreakdown('weighment', e.target.value)} />
               </Form.Item>
             </div>
 
-            <Form.Item label="7. Other expenses" style={{ marginBottom: 0 }}>
+            <Form.Item label={`${((v.closeDrivers && v.closeDrivers.length) || 1) + 6}. Other expenses`} style={{ marginBottom: 0 }}>
               <Flex vertical gap={8}>
-                {v.otherExpenses.map((row, i) => (
-                  <Flex key={i} gap={8} align="center">
-                    <Input size="large" style={{ flex: '1 1 auto', minWidth: 0 }} placeholder="What it was for" value={row.name ?? ''} onChange={e => v.setOtherExpense(i, 'name', e.target.value)} />
-                    <Input size="large" style={{ flex: '0 0 128px', width: 128 }} prefix="₹" placeholder="0" inputMode="numeric" value={row.amount ?? ''} onChange={e => v.setOtherExpense(i, 'amount', e.target.value)} />
-                    <Button type="text" danger icon={<X size={20} strokeWidth={3} />} onClick={() => v.removeOtherExpense(i)} aria-label={`Remove other expense ${i + 1}`} style={{ flex: 'none' }} />
-                  </Flex>
-                ))}
+                {v.otherExpenses.map((row, i) => {
+                  const opts = (v.otherExpenseOptions || []).some(o => o.value === row.name)
+                    ? v.otherExpenseOptions
+                    : (row.name ? [...(v.otherExpenseOptions || []), { value: row.name, label: row.name }] : (v.otherExpenseOptions || []));
+                  return (
+                    <Flex key={i} gap={8} align="center">
+                      <Select
+                        size="large"
+                        style={{ flex: '1 1 auto', minWidth: 0 }}
+                        placeholder="Select expense"
+                        options={opts}
+                        value={row.name || undefined}
+                        onChange={val => v.setOtherExpense(i, 'name', val)}
+                      />
+                      <Input size="large" style={{ flex: '0 0 128px', width: 128 }} prefix="₹" placeholder="0" inputMode="numeric" value={row.amount ?? ''} onChange={e => v.setOtherExpense(i, 'amount', e.target.value)} />
+                      <Button type="text" danger icon={<X size={20} strokeWidth={3} />} onClick={() => v.removeOtherExpense(i)} aria-label={`Remove other expense ${i + 1}`} style={{ flex: 'none' }} />
+                    </Flex>
+                  );
+                })}
                 <div>
                   <Button onClick={v.addOtherExpense}>Add more expenses</Button>
                 </div>

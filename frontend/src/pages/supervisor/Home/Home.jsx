@@ -1,6 +1,6 @@
 import React from 'react';
 import { Avatar, Card, Flex, Typography } from 'antd';
-import { ArrowRight, CalendarCheck, Check, History } from 'lucide-react';
+import { ArrowRight, Bell, CalendarCheck, Check, History } from 'lucide-react';
 import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 
 const { Text } = Typography;
@@ -59,6 +59,15 @@ export const Home = ({ v }) => (
             <Text className="sv-home-tile-sub">{v.histHomeHint}</Text>
           </div>
           <History size={30} strokeWidth={2.4} color="var(--color-brand)" aria-hidden="true" />
+        </Flex>
+      </Card>
+      <Card hoverable role="button" tabIndex={0} onClick={v.goNotifications} onKeyDown={tileKey(v.goNotifications)} className="sv-home-tile sv-home-tile--solid">
+        <Flex align="center" justify="space-between" gap={16}>
+          <div>
+            <div className="sv-home-tile-title">Notifications</div>
+            <Text className="sv-home-tile-sub">{v.notifHomeHint}</Text>
+          </div>
+          <Bell size={28} strokeWidth={2.4} aria-hidden="true" />
         </Flex>
       </Card>
     </Flex>

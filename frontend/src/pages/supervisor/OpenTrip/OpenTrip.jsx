@@ -90,39 +90,44 @@ export const OpenTrip = ({ v }) => (
                   </>
                 ) : null}
                 {v.dc.has ? (
-                  <>
-                    <Card size="small" style={{ borderWidth: 2, borderColor: v.dc.border, background: v.dc.bg }}>
-                      <Flex align="center" gap={12}>
-                        <Avatar aria-hidden="true" size={44} style={{ flex: 'none', background: v.dc.avatarBg, color: v.dc.avatarFg, fontWeight: 800 }}>
-                          {v.dc.initials}
-                        </Avatar>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <Typography.Text strong style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: v.dc.statusFg }}>
-                            {v.dc.status}
-                          </Typography.Text>
-                          <Typography.Text strong ellipsis style={{ display: 'block', marginTop: 2, fontSize: 17, lineHeight: 1.2 }}>
-                            {v.dc.name}
-                          </Typography.Text>
-                          <Typography.Text type="secondary" ellipsis style={{ display: 'block', fontSize: 13 }}>{v.dc.sub}</Typography.Text>
-                        </div>
-                        {v.dc.ask ? (
-                          <>
+                  <Flex vertical gap={10}>
+                    {(v.driverCards && v.driverCards.length > 0 ? v.driverCards : [v.dc]).map((card, cIdx) => (
+                      <Card key={card.id || cIdx} size="small" style={{ borderWidth: 2, borderColor: card.border, background: card.bg }}>
+                        <Flex align="center" gap={12}>
+                          <Avatar aria-hidden="true" size={44} style={{ flex: 'none', background: card.avatarBg, color: card.avatarFg, fontWeight: 800 }}>
+                            {card.initials}
+                          </Avatar>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Typography.Text strong style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: card.statusFg }}>
+                              {card.status}
+                            </Typography.Text>
+                            <Typography.Text strong ellipsis style={{ display: 'block', marginTop: 2, fontSize: 17, lineHeight: 1.2 }}>
+                              {card.name}
+                            </Typography.Text>
+                            <Typography.Text type="secondary" ellipsis style={{ display: 'block', fontSize: 13 }}>{card.sub}</Typography.Text>
+                          </div>
+                          {card.ask ? (
                             <Flex gap={8} style={{ flex: 'none' }}>
-                              <Button size="large" danger icon={<X size={20} strokeWidth={3} />} onClick={v.rejectDriver} aria-label="Not this driver, choose another" title="Choose another driver" />
-                              <Button size="large" type="primary" icon={<Check size={22} strokeWidth={3} />} onClick={v.acceptDriver} aria-label="Confirm this driver" title="Confirm driver" />
+                              <Button size="large" danger icon={<X size={20} strokeWidth={3} />} onClick={() => v.rejectDriver(card.id)} aria-label="Not this driver, choose another" title="Choose another driver" />
+                              <Button size="large" type="primary" icon={<Check size={22} strokeWidth={3} />} onClick={() => v.acceptDriver(card.id)} aria-label="Confirm this driver" title="Confirm driver" />
                             </Flex>
-                          </>
-                        ) : null}
-                        {v.dc.ok ? (
-                          <>
-                            <Button type="link" size="large" onClick={v.openDrvPick} style={{ flex: 'none' }}>
-                              Change
+                          ) : null}
+                          {card.ok ? (
+                            <Button type="link" size="large" onClick={() => (v.driverCards || []).length > 1 ? v.removeDriver(card.id) : v.openDrvPick(card.id)} style={{ flex: 'none' }}>
+                              {(v.driverCards || []).length > 1 ? 'Remove' : 'Change'}
                             </Button>
-                          </>
-                        ) : null}
+                          ) : null}
+                        </Flex>
+                      </Card>
+                    ))}
+                    {v.dc.ok ? (
+                      <Flex justify="flex-end">
+                        <Button type="dashed" size="small" onClick={() => v.openDrvPick('__add')}>
+                          + Add another driver
+                        </Button>
                       </Flex>
-                    </Card>
-                  </>
+                    ) : null}
+                  </Flex>
                 ) : null}
                 {v.dc.empty ? (
                   <>
@@ -131,7 +136,7 @@ export const OpenTrip = ({ v }) => (
                       title={
                         <Flex vertical gap={12}>
                           <span>{v.dc.emptyText}</span>
-                          <Button size="large" block onClick={v.openDrvPick}>Choose driver</Button>
+                          <Button size="large" block onClick={() => v.openDrvPick()}>Choose driver</Button>
                         </Flex>
                       }
                     />
@@ -317,39 +322,44 @@ export const OpenTrip = ({ v }) => (
                   </>
                 ) : null}
                 {v.dc.has ? (
-                  <>
-                    <Card size="small" style={{ borderWidth: 2, borderColor: v.dc.border, background: v.dc.bg }}>
-                      <Flex align="center" gap={12}>
-                        <Avatar aria-hidden="true" size={44} style={{ flex: 'none', background: v.dc.avatarBg, color: v.dc.avatarFg, fontWeight: 800 }}>
-                          {v.dc.initials}
-                        </Avatar>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <Typography.Text strong style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: v.dc.statusFg }}>
-                            {v.dc.status}
-                          </Typography.Text>
-                          <Typography.Text strong ellipsis style={{ display: 'block', marginTop: 2, fontSize: 17, lineHeight: 1.2 }}>
-                            {v.dc.name}
-                          </Typography.Text>
-                          <Typography.Text type="secondary" ellipsis style={{ display: 'block', fontSize: 13 }}>{v.dc.sub}</Typography.Text>
-                        </div>
-                        {v.dc.ask ? (
-                          <>
+                  <Flex vertical gap={10}>
+                    {(v.driverCards && v.driverCards.length > 0 ? v.driverCards : [v.dc]).map((card, cIdx) => (
+                      <Card key={card.id || cIdx} size="small" style={{ borderWidth: 2, borderColor: card.border, background: card.bg }}>
+                        <Flex align="center" gap={12}>
+                          <Avatar aria-hidden="true" size={44} style={{ flex: 'none', background: card.avatarBg, color: card.avatarFg, fontWeight: 800 }}>
+                            {card.initials}
+                          </Avatar>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Typography.Text strong style={{ display: 'block', fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: card.statusFg }}>
+                              {card.status}
+                            </Typography.Text>
+                            <Typography.Text strong ellipsis style={{ display: 'block', marginTop: 2, fontSize: 17, lineHeight: 1.2 }}>
+                              {card.name}
+                            </Typography.Text>
+                            <Typography.Text type="secondary" ellipsis style={{ display: 'block', fontSize: 13 }}>{card.sub}</Typography.Text>
+                          </div>
+                          {card.ask ? (
                             <Flex gap={8} style={{ flex: 'none' }}>
-                              <Button size="large" danger icon={<X size={20} strokeWidth={3} />} onClick={v.rejectDriver} aria-label="Not this driver, choose another" title="Choose another driver" />
-                              <Button size="large" type="primary" icon={<Check size={22} strokeWidth={3} />} onClick={v.acceptDriver} aria-label="Confirm this driver" title="Confirm driver" />
+                              <Button size="large" danger icon={<X size={20} strokeWidth={3} />} onClick={() => v.rejectDriver(card.id)} aria-label="Not this driver, choose another" title="Choose another driver" />
+                              <Button size="large" type="primary" icon={<Check size={22} strokeWidth={3} />} onClick={() => v.acceptDriver(card.id)} aria-label="Confirm this driver" title="Confirm driver" />
                             </Flex>
-                          </>
-                        ) : null}
-                        {v.dc.ok ? (
-                          <>
-                            <Button type="link" size="large" onClick={v.openDrvPick} style={{ flex: 'none' }}>
-                              Change
+                          ) : null}
+                          {card.ok ? (
+                            <Button type="link" size="large" onClick={() => (v.driverCards || []).length > 1 ? v.removeDriver(card.id) : v.openDrvPick(card.id)} style={{ flex: 'none' }}>
+                              {(v.driverCards || []).length > 1 ? 'Remove' : 'Change'}
                             </Button>
-                          </>
-                        ) : null}
+                          ) : null}
+                        </Flex>
+                      </Card>
+                    ))}
+                    {v.dc.ok ? (
+                      <Flex justify="flex-end">
+                        <Button type="dashed" size="small" onClick={() => v.openDrvPick('__add')}>
+                          + Add another driver
+                        </Button>
                       </Flex>
-                    </Card>
-                  </>
+                    ) : null}
+                  </Flex>
                 ) : null}
                 {v.dc.empty ? (
                   <>
@@ -358,7 +368,7 @@ export const OpenTrip = ({ v }) => (
                       title={
                         <Flex vertical gap={12}>
                           <span>{v.dc.emptyText}</span>
-                          <Button size="large" block onClick={v.openDrvPick}>Choose driver</Button>
+                          <Button size="large" block onClick={() => v.openDrvPick()}>Choose driver</Button>
                         </Flex>
                       }
                     />
