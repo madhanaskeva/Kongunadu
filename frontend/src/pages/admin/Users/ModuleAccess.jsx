@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Lock, RotateCcw, ShieldCheck } from 'lucide-react';
+import { Alert, Badge, Button, Card, Checkbox, Flex, Menu, Table, Tag, Tooltip, Typography } from 'antd';
 
 import {
   ACTIONS,
@@ -17,51 +18,6 @@ import {
 export { MODULE_TOTAL, accessCount, userAccess };
 
 const same = (a, b) => ALL_MODULES.every(([k]) => [...(a[k] || [])].sort().join() === [...(b[k] || [])].sort().join());
-
-const Check = ({ checked, indeterminate, disabled, onChange, label }) => {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (ref.current) ref.current.indeterminate = !!indeterminate;
-  }, [indeterminate]);
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={!!checked}
-      disabled={disabled}
-      onChange={e => onChange(e.target.checked)}
-      aria-label={label}
-      style={{ width: '18px', height: '18px', margin: 0, accentColor: 'var(--color-brand)', cursor: disabled ? 'not-allowed' : 'pointer' }}
-    />
-  );
-};
-
-const thStyle = {
-  padding: '10px 12px',
-  fontFamily: 'var(--font-display)',
-  fontSize: '11px',
-  fontWeight: 700,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  color: 'var(--text-muted)',
-  whiteSpace: 'nowrap',
-};
-
-const btn = primary => ({
-  all: 'unset',
-  cursor: 'pointer',
-  padding: '0 14px',
-  height: '34px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  borderRadius: 'var(--radius-md)',
-  fontSize: '13px',
-  fontWeight: 700,
-  background: primary ? 'var(--color-brand)' : '#fff',
-  color: primary ? '#fff' : 'var(--text-heading)',
-  border: primary ? 'none' : '1px solid var(--border-strong)',
-});
 
 export const ModuleAccess = ({ users, selectedId, onSelect, showToast }) => {
   const [saved, setSaved] = useState(readAccess);
@@ -134,136 +90,163 @@ export const ModuleAccess = ({ users, selectedId, onSelect, showToast }) => {
 
   const resetToRole = () => setAccess(roleDefault(user.role));
 
+  // Group headings and module rows share one table; a heading row spans every column.
+  const rows = MODULE_GROUPS.flatMap(g => [
+    { rowKey: `group:${g.group}`, isGroup: true, group: g.group },
+    ...g.items.map(([key, label, acts]) => ({ rowKey: key, key, label, acts })),
+  ]);
+  const colCount = ACTIONS.length + 2;
+  const hideInGroup = r => (r.isGroup ? { colSpan: 0 } : {});
+
+  const columns = [
+    {
+      title: 'Module',
+      key: 'module',
+      onCell: r => (r.isGroup ? { colSpan: colCount } : { style: { whiteSpace: 'nowrap' } }),
+      render: (_, r) =>
+        r.isGroup ? (
+          <Typography.Text strong type="success" style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            {r.group}
+          </Typography.Text>
+        ) : (
+          <Typography.Text strong>{r.label}</Typography.Text>
+        ),
+    },
+    ...ACTIONS.map(([act, actLabel]) => {
+      const st = colState(act);
+      return {
+        title: (
+          <Flex vertical align="center" gap={6}>
+            {actLabel}
+            <Checkbox
+              checked={st.all}
+              indeterminate={st.some}
+              disabled={locked}
+              onChange={e => toggleCol(act, e.target.checked)}
+              aria-label={`${actLabel} for all modules`}
+            />
+          </Flex>
+        ),
+        key: act,
+        align: 'center',
+        onCell: hideInGroup,
+        render: (_, r) => {
+          if (r.isGroup) return null;
+          const cur = access[r.key] || [];
+          return r.acts.includes(act) ? (
+            <Checkbox checked={cur.includes(act)} disabled={locked} onChange={e => toggle(r.key, act, e.target.checked)} aria-label={`${actLabel} ${r.label}`} />
+          ) : (
+            <Typography.Text type="secondary" aria-hidden="true">—</Typography.Text>
+          );
+        },
+      };
+    }),
+    {
+      title: 'Full',
+      key: 'full',
+      align: 'center',
+      onCell: hideInGroup,
+      render: (_, r) => {
+        if (r.isGroup) return null;
+        const cur = access[r.key] || [];
+        const full = r.acts.every(a => cur.includes(a));
+        const none = cur.length === 0;
+        return (
+          <Checkbox
+            checked={full}
+            indeterminate={!full && !none}
+            disabled={locked}
+            onChange={e => toggleRow(r.key, r.acts, e.target.checked)}
+            aria-label={`Full access to ${r.label}`}
+          />
+        );
+      },
+    },
+  ];
+
   return (
     <div className="tms-access">
       {/* User picker */}
-      <aside style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', alignSelf: 'start' }}>
-        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-default)', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-          Select user
-        </div>
-        {users.map(u => {
-          const active = u.id === user.id;
-          const n = accessCount(drafts[u.id] || userAccess(u, saved));
-          return (
-            <button
-              key={u.id}
-              onClick={() => onSelect(u.id)}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                boxSizing: 'border-box',
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '12px 16px',
-                borderTop: '1px solid var(--border-default)',
-                borderLeft: `3px solid ${active ? 'var(--color-brand)' : 'transparent'}`,
-                background: active ? 'var(--color-brand-tint)' : '#fff',
-              }}
-            >
-              <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: 'var(--text-heading)' }}>{u.name}</span>
-                <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '1px' }}>{u.role}</span>
-              </span>
-              {isDirty(u) && <span title="Unsaved changes" style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-hazard)' }} />}
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--kr-green-800)', background: 'var(--color-brand-soft)', padding: '2px 8px', borderRadius: '999px', whiteSpace: 'nowrap' }}>
-                {n}/{MODULE_TOTAL}
-              </span>
-            </button>
-          );
-        })}
-      </aside>
+      <Card title="Select user" size="small" styles={{ body: { padding: 0 } }}>
+        <Menu
+          mode="inline"
+          selectedKeys={[String(user.id)]}
+          onClick={({ key }) => onSelect(users.find(u => String(u.id) === key)?.id ?? key)}
+          style={{ borderInlineEnd: 'none' }}
+          items={users.map(u => {
+            const n = accessCount(drafts[u.id] || userAccess(u, saved));
+            return {
+              key: String(u.id),
+              style: { height: 'auto', lineHeight: 1.4, paddingBlock: 10 },
+              label: (
+                <Flex align="center" gap={10}>
+                  <Flex vertical style={{ flex: 1, minWidth: 0 }}>
+                    <Typography.Text strong ellipsis>{u.name}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{u.role}</Typography.Text>
+                  </Flex>
+                  {isDirty(u) && <Tooltip title="Unsaved changes"><span><Badge status="warning" /></span></Tooltip>}
+                  <Tag color="success" style={{ marginInlineEnd: 0 }}>
+                    {n}/{MODULE_TOTAL}
+                  </Tag>
+                </Flex>
+              ),
+            };
+          })}
+        />
+      </Card>
 
       {/* Matrix */}
-      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
-          <div style={{ flex: 1, minWidth: '220px' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', textTransform: 'uppercase', letterSpacing: '0.02em', color: 'var(--text-heading)' }}>
+      <Card styles={{ body: { padding: 0 } }} style={{ minWidth: 0 }}>
+        <Flex align="center" gap={12} wrap style={{ padding: '14px 18px' }}>
+          <div style={{ flex: 1, minWidth: 220 }}>
+            <Typography.Title level={5} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
               Module access · {user.name}
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
+            </Typography.Title>
+            <Typography.Text type="secondary">
               {user.role} · {user.branch} · {accessCount(access)} of {MODULE_TOTAL} modules
-            </div>
+            </Typography.Text>
           </div>
           {!locked && (
-            <>
-              <button onClick={resetToRole} style={btn(false)} title="Use the default access for this role">
-                <RotateCcw size={14} /> Role default
-              </button>
-              {dirty && <button onClick={discard} style={btn(false)}>Discard</button>}
-              <button onClick={save} disabled={!dirty} style={{ ...btn(true), opacity: dirty ? 1 : 0.5, cursor: dirty ? 'pointer' : 'not-allowed' }}>
+            <Flex gap={8} wrap>
+              <Tooltip title="Use the default access for this role">
+                <Button onClick={resetToRole} icon={<RotateCcw size={14} />}>Role default</Button>
+              </Tooltip>
+              {dirty && <Button onClick={discard}>Discard</Button>}
+              <Button type="primary" onClick={save} disabled={!dirty}>
                 Save access
-              </button>
-            </>
+              </Button>
+            </Flex>
           )}
-        </div>
+        </Flex>
 
         {locked && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: 'var(--color-brand-tint)', borderBottom: '1px solid var(--border-default)', fontSize: '13px', color: 'var(--kr-green-900)' }}>
-            <Lock size={14} /> Administrators always have full access to every module, so these boxes can't be changed.
-          </div>
+          <Alert
+            type="success"
+            banner
+            showIcon
+            icon={<Lock size={14} />}
+            title="Administrators always have full access to every module, so these boxes can't be changed."
+          />
         )}
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '640px' }}>
-            <thead>
-              <tr style={{ background: 'var(--surface-muted)' }}>
-                <th style={{ ...thStyle, textAlign: 'left', paddingLeft: '18px' }}>Module</th>
-                {ACTIONS.map(([act, label]) => {
-                  const st = colState(act);
-                  return (
-                    <th key={act} style={{ ...thStyle, textAlign: 'center' }}>
-                      <label style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: locked ? 'default' : 'pointer' }}>
-                        {label}
-                        <Check checked={st.all} indeterminate={st.some} disabled={locked} onChange={on => toggleCol(act, on)} label={`${label} for all modules`} />
-                      </label>
-                    </th>
-                  );
-                })}
-                <th style={{ ...thStyle, textAlign: 'center' }}>Full</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MODULE_GROUPS.map(g => (
-                <React.Fragment key={g.group}>
-                  <tr>
-                    <td colSpan={ACTIONS.length + 2} style={{ padding: '14px 18px 6px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--color-brand)', borderTop: '1px solid var(--border-default)' }}>
-                      {g.group}
-                    </td>
-                  </tr>
-                  {g.items.map(([key, label, acts]) => {
-                    const cur = access[key] || [];
-                    const full = acts.every(a => cur.includes(a));
-                    const none = cur.length === 0;
-                    return (
-                      <tr key={key} className="tms-access-row" style={{ borderTop: '1px solid var(--border-default)', opacity: none ? 0.7 : 1 }}>
-                        <td style={{ padding: '10px 12px 10px 18px', fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>{label}</td>
-                        {ACTIONS.map(([act, actLabel]) => (
-                          <td key={act} style={{ padding: '10px 12px', textAlign: 'center' }}>
-                            {acts.includes(act) ? (
-                              <Check checked={cur.includes(act)} disabled={locked} onChange={on => toggle(key, act, on)} label={`${actLabel} ${label}`} />
-                            ) : (
-                              <span style={{ color: 'var(--kr-grey-300)' }} aria-hidden="true">—</span>
-                            )}
-                          </td>
-                        ))}
-                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                          <Check checked={full} indeterminate={!full && !none} disabled={locked} onChange={on => toggleRow(key, acts, on)} label={`Full access to ${label}`} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table
+          columns={columns}
+          dataSource={rows}
+          rowKey="rowKey"
+          tableLayout="auto"
+          scroll={{ x: 640 }}
+          pagination={false}
+          size="middle"
+          onRow={r => (!r.isGroup && (access[r.key] || []).length === 0 ? { style: { opacity: 0.7 } } : {})}
+        />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 18px', borderTop: '1px solid var(--border-default)', fontSize: '12px', color: 'var(--text-muted)' }}>
-          <ShieldCheck size={14} /> Ticking Add, Edit, Delete or Export also gives View. Unticking View removes all access to that module.
-        </div>
-      </section>
+        <Flex align="center" gap={8} style={{ padding: '12px 18px' }}>
+          <ShieldCheck size={14} />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Ticking Add, Edit, Delete or Export also gives View. Unticking View removes all access to that module.
+          </Typography.Text>
+        </Flex>
+      </Card>
     </div>
   );
 };

@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Building2, Edit3, FileText, MapPin, Phone, Plus, UserCheck } from 'lucide-react';
+import { ArrowLeft, Building2, Edit3, FileText, MapPin, Phone, Plus, UserCheck, Pencil, Trash2, Search } from 'lucide-react';
+import { Avatar, Button, Card, Col, Empty, Flex, Input, Row, Space, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
-import { RowActions } from '../../../components/common/RowActions';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
 
@@ -16,69 +15,13 @@ const mergeEdits = (edits, seed) => {
   return seed.map(r => (ed[r.id] ? { ...r, ...ed[r.id] } : r));
 };
 
+// Status → antd Tag preset colour (green / amber / grey).
 const badgeTone = v =>
   /Active/.test(v)
-    ? ['var(--color-brand-soft)', 'var(--kr-green-800)']
+    ? 'success'
     : /hold|review/i.test(v)
-    ? ['var(--color-hazard-soft)', '#7A4300']
-    : ['var(--kr-grey-100)', 'var(--kr-grey-700)'];
-
-const Badge = ({ v }) => {
-  const [bg, fg] = badgeTone(v);
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        fontFamily: 'var(--font-display)',
-        fontSize: '11px',
-        fontWeight: 700,
-        letterSpacing: '0.1em',
-        textTransform: 'uppercase',
-        padding: '3px 8px',
-        borderRadius: 'var(--radius-sm)',
-        background: bg,
-        color: fg,
-      }}
-    >
-      {v || '—'}
-    </span>
-  );
-};
-
-const thStyle = {
-  padding: '10px 14px',
-  fontFamily: 'var(--font-display)',
-  fontSize: '11px',
-  fontWeight: 700,
-  letterSpacing: '0.1em',
-  textTransform: 'uppercase',
-  color: 'var(--text-muted)',
-  whiteSpace: 'nowrap',
-  textAlign: 'left',
-};
-
-const btnPrimary = {
-  all: 'unset',
-  cursor: 'pointer',
-  padding: '0 14px',
-  height: '32px',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px',
-  borderRadius: 'var(--radius-md)',
-  background: 'var(--color-brand)',
-  color: '#fff',
-  fontSize: '13px',
-  fontWeight: 700,
-};
-
-const btnSecondary = {
-  ...btnPrimary,
-  background: '#fff',
-  color: 'var(--text-heading)',
-  border: '1px solid var(--border-strong)',
-  fontWeight: 600,
-};
+    ? 'warning'
+    : 'default';
 
 export const ClientProfile = () => {
   const { id } = useParams();
@@ -96,15 +39,25 @@ export const ClientProfile = () => {
   const customers = mergeEdits(customerEdits, tms.customers || []).filter(u => u.client === id && !delList.includes(u.id));
   const routeName = rid => (tms.R[rid] || {}).name || rid || '—';
   const rows = customers.filter(u => matchesSearch(debouncedQ, u.name, u.city, routeName(u.route), u.billing, u.status));
-  const pg = usePagination(rows, [id, debouncedQ]);
+  // Table paging: jump back to page 1 when the client or the search changes.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [id, debouncedQ]);
 
   if (!client || deleted.includes(id)) {
     return (
-      <div style={{ padding: '48px 24px', textAlign: 'center', background: '#fff', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-lg)' }}>
-        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>Client not found</div>
-        <p style={{ margin: '6px 0 16px', color: 'var(--text-muted)', fontSize: '14px' }}>It may have been deleted. Go back to the client list.</p>
-        <button onClick={() => navigate('/admin/masters/clients')} style={btnPrimary}>Back to clients</button>
-      </div>
+      <Card>
+        <Empty
+          description={
+            <Flex vertical gap={4}>
+              <Typography.Title level={4} style={{ margin: 0 }}>Client not found</Typography.Title>
+              <Typography.Text type="secondary">It may have been deleted. Go back to the client list.</Typography.Text>
+            </Flex>
+          }
+        >
+          <Button type="primary" onClick={() => navigate('/admin/masters/clients')}>Back to clients</Button>
+        </Empty>
+      </Card>
     );
   }
 
@@ -254,222 +207,214 @@ export const ClientProfile = () => {
     ['Trips', trips.length, `${trips.filter(t => t.status === 'Enroute').length} ${ENROUTE_LABEL_LOWER} now`],
   ];
 
+  const nowrap = { whiteSpace: 'nowrap' };
+  const customerColumns = [
+    { title: 'Customer', dataIndex: 'name', key: 'name', render: v => <Typography.Text strong>{v}</Typography.Text> },
+    { title: 'City', dataIndex: 'city', key: 'city', onCell: () => ({ style: nowrap }), render: v => v || '—' },
+    { title: 'Route', dataIndex: 'route', key: 'route', onCell: () => ({ style: nowrap }), render: v => routeName(v) },
+    { title: 'Billing', dataIndex: 'billing', key: 'billing', onCell: () => ({ style: nowrap }), render: v => v || '—' },
+    { title: 'Status', dataIndex: 'status', key: 'status', onCell: () => ({ style: nowrap }), render: v => <Tag color={badgeTone(v)}>{v || '—'}</Tag> },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      onCell: () => ({ style: nowrap }),
+      render: (_, u) => (
+        <Space size={8} onClick={e => e.stopPropagation()} aria-label={`Actions for ${u.name}`}>
+          {can('clients', 'edit') && (
+            <Tooltip title="Edit customer">
+              <Button type="text" size="small" className="tms-row-action" icon={<Pencil size={16} strokeWidth={2} />} aria-label="Edit customer" onClick={() => openCustomerForm(u)} />
+            </Tooltip>
+          )}
+          {can('clients', 'delete') && (
+            <Tooltip title="Delete customer">
+              <Button type="text" size="small" className="tms-row-action" danger icon={<Trash2 size={16} strokeWidth={2} />} aria-label="Delete customer" onClick={() => deleteCustomer(u)} />
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <button
-        onClick={() => navigate('/admin/masters/clients')}
-        style={{ all: 'unset', cursor: 'pointer', alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-      >
-        <ArrowLeft size={16} /> All clients
-      </button>
+    <Flex vertical gap={20}>
+      <Flex>
+        <Button type="link" icon={<ArrowLeft size={16} />} onClick={() => navigate('/admin/masters/clients')} style={{ paddingInline: 0, fontWeight: 700 }}>
+          All clients
+        </Button>
+      </Flex>
 
-      {/* Profile card */}
-      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderTop: '4px solid var(--color-brand)', borderRadius: 'var(--radius-lg)', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <span
-            style={{
-              flex: 'none',
-              width: '56px',
-              height: '56px',
-              borderRadius: '14px',
-              background: 'var(--color-brand-soft)',
-              color: 'var(--color-brand)',
-              display: 'grid',
-              placeItems: 'center',
-              fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: '20px',
-            }}
-          >
-            {initials}
-          </span>
-          <div style={{ flex: 1, minWidth: '220px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '22px', color: 'var(--text-heading)' }}>{client.name}</h2>
-                <Badge v={client.status} />
+      {/* Profile card — brand accent strip on top */}
+      <Card style={{ borderTop: '4px solid var(--color-brand)' }}>
+        <Flex vertical gap={18}>
+          <Flex align="center" gap={16} wrap>
+            <Avatar shape="square" size={56} style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)', fontWeight: 800, fontSize: 20 }}>
+              {initials}
+            </Avatar>
+            <Flex justify="space-between" align="flex-start" wrap gap={10} style={{ flex: 1, minWidth: 0 }}>
+              <div>
+                <Flex align="center" gap={10} wrap>
+                  <Typography.Title level={3} style={{ margin: 0 }}>{client.name}</Typography.Title>
+                  <Tag color={badgeTone(client.status)}>{client.status || '—'}</Tag>
+                </Flex>
+                <Typography.Text type="secondary">Client ID {client.id}</Typography.Text>
               </div>
-              <div style={{ marginTop: '4px', fontSize: '13px', color: 'var(--text-muted)' }}>Client ID {client.id}</div>
-            </div>
-            {can('clients', 'edit') && (
-              <button onClick={openEditClientForm} style={btnSecondary}>
-                <Edit3 size={15} /> Edit client
-              </button>
-            )}
-          </div>
-        </div>
+              {can('clients', 'edit') && (
+                <Button icon={<Edit3 size={15} />} onClick={openEditClientForm}>
+                  Edit client
+                </Button>
+              )}
+            </Flex>
+          </Flex>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-          {facts.map(([Icon, label, value]) => (
-            <div key={label} style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-              <Icon size={18} color="var(--kr-grey-700)" style={{ flex: 'none', marginTop: '2px' }} />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>{label}</div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-heading)', marginTop: '2px' }}>{value || '—'}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+          <Row gutter={[14, 14]}>
+            {facts.map(([Icon, label, value]) => (
+              <Col key={label} xs={24} sm={12} lg={8}>
+                <Flex gap={10} align="flex-start">
+                  <Icon size={18} color="var(--kr-grey-700)" style={{ flex: 'none', marginTop: 2 }} />
+                  <Flex vertical style={{ minWidth: 0 }}>
+                    <Typography.Text type="secondary" strong style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</Typography.Text>
+                    <Typography.Text strong>{value || '—'}</Typography.Text>
+                  </Flex>
+                </Flex>
+              </Col>
+            ))}
+          </Row>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-          {stats.map(([label, value, sub]) => (
-            <div key={label} style={{ background: 'var(--color-brand-tint)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{label}</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '26px', lineHeight: 1.1, color: 'var(--text-heading)', marginTop: '4px' }}>{value}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+          <Row gutter={[12, 12]}>
+            {stats.map(([label, value, sub]) => (
+              <Col key={label} xs={24} sm={12} lg={8}>
+                <Card size="small" variant="borderless" style={{ background: 'var(--color-brand-tint)' }}>
+                  <Statistic title={label} value={value} />
+                  <Typography.Text type="secondary" ellipsis={{ tooltip: sub }} style={{ fontSize: 12 }}>{sub}</Typography.Text>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </Flex>
+      </Card>
 
       {/* Supervisors section */}
-      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px 22px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+      <Card>
+        <Flex justify="space-between" align="center" wrap gap={12} style={{ marginBottom: 14 }}>
           <div>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+            <Typography.Title level={5} style={{ margin: 0, textTransform: 'uppercase' }}>
               Assigned Supervisors · {supervisors.length}
-            </h3>
-            <p style={{ margin: '3px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+            </Typography.Title>
+            <Typography.Text type="secondary">
               Branch supervisors authorized to manage, open, and close trips for {client.name}.
-            </p>
+            </Typography.Text>
           </div>
           {can('clients', 'edit') && (
-            <button onClick={openEditClientForm} style={btnSecondary}>
-              <UserCheck size={15} /> Reassign supervisors
-            </button>
+            <Button icon={<UserCheck size={15} />} onClick={openEditClientForm}>
+              Reassign supervisors
+            </Button>
           )}
-        </div>
+        </Flex>
 
         {supervisors.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+          <Row gutter={[12, 12]}>
             {supervisors.map(s => (
-              <div
-                key={s.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '12px 14px',
-                  background: 'var(--surface-muted, #f8fafc)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 'var(--radius-md)',
-                }}
-              >
-                <div
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    background: 'var(--color-brand-soft)',
-                    color: 'var(--color-brand)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 700,
-                    fontSize: '14px',
-                    flexShrink: 0,
-                  }}
-                >
-                  {s.name ? s.name.charAt(0) : 'S'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-heading)' }}>{s.name}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    {(tms.B[s.branch] || {}).name || s.branch} {s.phone ? `· +91 ${s.phone}` : ''}
-                  </div>
-                </div>
-                <Badge v={s.status} />
-              </div>
+              <Col key={s.id} xs={24} md={12} xl={8}>
+                <Card size="small">
+                  <Flex align="center" gap={12}>
+                    <Avatar size={38} style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)', fontWeight: 700, flexShrink: 0 }}>
+                      {s.name ? s.name.charAt(0) : 'S'}
+                    </Avatar>
+                    <Flex vertical style={{ flex: 1, minWidth: 0 }}>
+                      <Typography.Text strong>{s.name}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                        {(tms.B[s.branch] || {}).name || s.branch} {s.phone ? `· +91 ${s.phone}` : ''}
+                      </Typography.Text>
+                    </Flex>
+                    <Tag color={badgeTone(s.status)}>{s.status || '—'}</Tag>
+                  </Flex>
+                </Card>
+              </Col>
             ))}
-          </div>
+          </Row>
         ) : (
-          <div style={{ padding: '24px', textAlign: 'center', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>
-              No supervisors currently assigned to {client.name}. Reassign to grant supervisors trip access.
-            </p>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={`No supervisors currently assigned to ${client.name}. Reassign to grant supervisors trip access.`}
+          >
             {can('clients', 'edit') && (
-              <button onClick={openEditClientForm} style={{ ...btnPrimary, marginTop: '12px' }}>
-                <UserCheck size={15} /> Assign supervisors
-              </button>
+              <Button type="primary" icon={<UserCheck size={15} />} onClick={openEditClientForm}>
+                Assign supervisors
+              </Button>
             )}
-          </div>
+          </Empty>
         )}
-      </section>
+      </Card>
 
       {/* Customers table */}
-      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 18px', borderBottom: '1px solid var(--border-default)' }}>
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
+      <Card styles={{ body: { padding: 0 } }}>
+        <Flex justify="space-between" align="center" gap={12} wrap style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-default)' }}>
+          <Flex gap={12} align="center" wrap>
+            <Typography.Title level={5} style={{ margin: 0, textTransform: 'uppercase' }}>
               Customers · {customers.length}
-            </h3>
-            <input
-              type="text"
+            </Typography.Title>
+            <Input
+              className="tms-search"
+              prefix={<Search size={16} strokeWidth={2} />}
+              allowClear
               placeholder="Search customer or city"
               value={q}
               onChange={e => setQ(e.target.value)}
-              style={{ width: '240px', height: '36px', padding: '0 12px', fontSize: '14px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', outline: 'none' }}
+              style={{ width: 240, maxWidth: '100%' }}
             />
-          </div>
+          </Flex>
           {can('clients', 'add') && (
-            <button onClick={() => openCustomerForm(null)} style={btnSecondary}>
-              <Plus size={16} /> Add customer
-            </button>
+            <Button icon={<Plus size={16} />} onClick={() => openCustomerForm(null)}>
+              Add customer
+            </Button>
           )}
-        </div>
+        </Flex>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '760px' }}>
-            <thead>
-              <tr style={{ background: 'var(--surface-muted)' }}>
-                {['Customer', 'City', 'Route', 'Billing', 'Status'].map(c => (
-                  <th key={c} style={{ ...thStyle, color: 'var(--text-heading)' }}>{c}</th>
-                ))}
-                <th style={{ ...thStyle, textAlign: 'center', color: 'var(--text-heading)' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pg.rows.map(u => (
-                <tr key={u.id} style={{ borderTop: '1px solid var(--border-default)' }}>
-                  <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-heading)' }}>{u.name}</td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{u.city || '—'}</td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{routeName(u.route)}</td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{u.billing || '—'}</td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}><Badge v={u.status} /></td>
-                  <td style={{ padding: '8px 14px', textAlign: 'center' }}>
-                    <RowActions
-                      onEdit={can('clients', 'edit') ? () => openCustomerForm(u) : undefined}
-                      onDelete={can('clients', 'delete') ? () => deleteCustomer(u) : undefined}
-                      editLabel="Edit customer"
-                      deleteLabel="Delete customer"
-                      buttonAriaLabel={`Actions for ${u.name}`}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {rows.length > 0 && <Pagination {...pg} noun="customers" />}
-        {rows.length === 0 && (
-          <div style={{ padding: '40px 24px', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '17px', color: 'var(--text-heading)' }}>
-              {customers.length ? 'No customers match' : 'No customers yet'}
-            </div>
-            <p style={{ margin: '6px 0 16px', color: 'var(--text-muted)', fontSize: '14px' }}>
-              {customers.length
-                ? `Nothing matches “${q}”.`
-                : `Add the delivery points for ${client.name}. Supervisors pick from this list when unloading.`}
-            </p>
-            {!customers.length && can('clients', 'add') && (
-              <button onClick={() => openCustomerForm(null)} style={btnPrimary}>
-                <Plus size={16} /> Add customer
-              </button>
-            )}
-          </div>
-        )}
-      </section>
-    </div>
+        <Table
+          columns={customerColumns}
+          dataSource={rows}
+          rowKey="id"
+          tableLayout="auto"
+          scroll={{ x: 760 }}
+          pagination={{
+            current: page,
+            pageSize,
+            onChange: (p, size) => {
+              if (size !== pageSize) { setPageSize(size); setPage(1); } else setPage(p);
+            },
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} customers`,
+          }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <Flex vertical gap={4}>
+                    <Typography.Title level={5} style={{ margin: 0 }}>
+                      {customers.length ? 'No customers match' : 'No customers yet'}
+                    </Typography.Title>
+                    <Typography.Text type="secondary">
+                      {customers.length
+                        ? `Nothing matches “${q}”.`
+                        : `Add the delivery points for ${client.name}. Supervisors pick from this list when unloading.`}
+                    </Typography.Text>
+                  </Flex>
+                }
+              >
+                {!customers.length && can('clients', 'add') && (
+                  <Button type="primary" icon={<Plus size={16} />} onClick={() => openCustomerForm(null)}>
+                    Add customer
+                  </Button>
+                )}
+              </Empty>
+            ),
+          }}
+        />
+      </Card>
+    </Flex>
   );
 };
 

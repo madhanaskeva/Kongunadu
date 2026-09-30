@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Divider, Flex, Progress, Typography } from 'antd';
 import { RequestOtpForm } from './RequestOtpForm';
 import { VerifyOtpForm } from './VerifyOtpForm';
 import { ResetPasswordForm } from './ResetPasswordForm';
@@ -123,52 +124,22 @@ export const ForgotPasswordFlow = ({
   const currentStepNum = stepNumbers[step] || 1;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       {/* Step Indicator (when not on success) */}
       {step !== 'success' && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingBottom: '14px',
-            borderBottom: '1px solid var(--border-subtle, #f0f0ee)',
-          }}
-        >
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            {[1, 2, 3].map((num) => {
-              const isCompleted = num < currentStepNum;
-              const isCurrent = num === currentStepNum;
-              return (
-                <div
-                  key={num}
-                  style={{
-                    width: num === currentStepNum ? '28px' : '8px',
-                    height: '8px',
-                    borderRadius: '4px',
-                    backgroundColor: isCurrent
-                      ? 'var(--color-brand, #00623f)'
-                      : isCompleted
-                      ? 'var(--color-brand-tint, #edf8f3)'
-                      : 'var(--border-subtle, #e5e5e3)',
-                    transition: 'all 0.25s ease',
-                  }}
-                  title={`Step ${num}`}
-                />
-              );
-            })}
-          </div>
-          <span
-            style={{
-              fontSize: '12px',
-              fontWeight: 700,
-              color: 'var(--text-muted, #7c7c76)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
-            Step {currentStepNum} of 3
-          </span>
+        <div>
+          <Flex align="center" justify="space-between" gap={12}>
+            <Progress
+              steps={3}
+              percent={Math.round((currentStepNum / 3) * 100)}
+              showInfo={false}
+              size={[20, 8]}
+            />
+            <Typography.Text type="secondary" strong>
+              Step {currentStepNum} of 3
+            </Typography.Text>
+          </Flex>
+          <Divider style={{ margin: '14px 0 0' }} />
         </div>
       )}
 
@@ -222,7 +193,7 @@ export const ForgotPasswordFlow = ({
           onLogin={onBack}
         />
       )}
-    </div>
+    </Flex>
   );
 };
 

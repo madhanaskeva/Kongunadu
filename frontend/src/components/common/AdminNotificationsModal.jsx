@@ -1,12 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import Modal from './Modal';
-import Button from './Button';
+import { Button, Empty, Flex, Modal, Space, Typography } from 'antd';
 import NotificationCard from './NotificationCard';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 
 /**
- * AdminNotificationsModal — Exact popup modal from Image 3 showing "All Messages".
+ * AdminNotificationsModal — "All Messages" popup opened from the header bell.
  *
  * Props:
  *   isOpen: boolean
@@ -37,37 +36,29 @@ export const AdminNotificationsModal = ({ isOpen, onClose }) => {
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={handleClose}
-      subtitle="NOTIFICATIONS"
-      title="All Messages"
-      maxWidth="560px"
-      footerStyle={{
-        backgroundColor: '#ffffff',
-        borderTop: '1px solid #e5e7eb',
-        padding: '16px 24px',
-      }}
-      bodyStyle={{
-        maxHeight: '70vh',
-      }}
+      open={!!isOpen}
+      onCancel={handleClose}
+      width={560}
+      centered
+      title={
+        <div>
+          <Typography.Text
+            type="secondary"
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+          >
+            NOTIFICATIONS
+          </Typography.Text>
+          <div>All Messages</div>
+        </div>
+      }
+      styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}
       footer={
-        <Button
-          variant="primary"
-          onClick={handleClose}
-          style={{
-            backgroundColor: 'var(--kr-green-800, #00462a)',
-            borderColor: 'var(--kr-green-800, #00462a)',
-            color: '#ffffff',
-            fontWeight: 700,
-            padding: '0 24px',
-            borderRadius: '8px',
-          }}
-        >
+        <Button type="primary" onClick={handleClose}>
           Close
         </Button>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      <Flex vertical gap={14}>
         {shown.map((item) => (
           <NotificationCard
             key={item.id}
@@ -77,69 +68,29 @@ export const AdminNotificationsModal = ({ isOpen, onClose }) => {
             unread={item.unread}
             actions={
               item.kind === 'bunkApproval' && item.bunkRequestId ? (
-                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                  <button
-                    type="button"
-                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Approved')}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      background: 'var(--color-brand)',
-                      color: '#fff',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                    }}
-                  >
+                <Space size={8}>
+                  <Button type="primary" size="small" onClick={() => decideBunkRequest(item.bunkRequestId, 'Approved')}>
                     Approve Bunk
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Rejected')}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--kr-red-600)',
-                      color: 'var(--kr-red-600)',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                    }}
-                  >
+                  </Button>
+                  <Button danger size="small" onClick={() => decideBunkRequest(item.bunkRequestId, 'Rejected')}>
                     Reject
-                  </button>
-                </div>
+                  </Button>
+                </Space>
               ) : null
             }
           />
         ))}
 
-        {list.length === 0 && (
-          <div
-            style={{
-              padding: '40px 20px',
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: '14px',
-            }}
-          >
-            No notifications yet
-          </div>
-        )}
+        {list.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notifications yet" />}
 
-        <Button
-          variant="outline"
-          onClick={viewAll}
-          style={{ alignSelf: 'center', fontWeight: 700, borderRadius: '8px', padding: '0 20px' }}
-        >
-          {list.length > PREVIEW_COUNT ? `View all (${list.length})` : 'View all'}
-        </Button>
-      </div>
+        <Flex justify="center">
+          <Button onClick={viewAll}>
+            {list.length > PREVIEW_COUNT ? `View all (${list.length})` : 'View all'}
+          </Button>
+        </Flex>
+      </Flex>
     </Modal>
   );
 };
 
 export default AdminNotificationsModal;
-

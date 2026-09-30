@@ -1,8 +1,23 @@
-import React, { useState } from 'react';
-import { SelectField } from '../../../components/common/SelectField';
-import { Modal } from '../../../components/common/Modal';
+import React, { useEffect, useState } from 'react';
+import {
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Empty,
+  Flex,
+  Form,
+  Modal,
+  Row,
+  Segmented,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+  Typography,
+} from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
 
 export const DeviceApprovals = () => {
   const {
@@ -30,7 +45,7 @@ export const DeviceApprovals = () => {
   const devTiles = [
     { label: 'Waiting for approval', value: devCounts.Pending, edge: 'var(--kr-saffron-500)' },
     { label: 'Approved · OTP shared', value: devCounts.Approved, edge: 'var(--color-brand)' },
-    { label: 'Verified / registered', value: devCounts.done, edge: 'var(--kr-grey-300)' },
+    { label: 'Verified / registered', value: devCounts.done, edge: 'var(--st-enroute-edge)' },
     { label: 'Rejected', value: devCounts.Rejected, edge: 'var(--kr-red-600)' },
   ];
 
@@ -49,14 +64,17 @@ export const DeviceApprovals = () => {
       ? ['Verified', 'Registered'].includes(r.status)
       : r.status === devFilter
   );
-  const devPg = usePagination(devShown, [devFilter]);
+  // Table pagination; back to page 1 whenever the filter or page size changes.
+  const [devPage, setDevPage] = useState(1);
+  const [devPageSize, setDevPageSize] = useState(10);
+  useEffect(() => { setDevPage(1); }, [devFilter, devPageSize]);
 
   const statusTone = {
-    Pending: ['var(--kr-saffron-100)', '#7A4300'],
-    Approved: ['var(--kr-green-100)', 'var(--kr-green-800)'],
-    Verified: ['var(--st-enroute-bg)', 'var(--st-enroute-fg)'],
-    Registered: ['var(--kr-green-100)', 'var(--kr-green-800)'],
-    Rejected: ['var(--kr-red-100)', 'var(--kr-red-800)'],
+    Pending: 'warning',
+    Approved: 'success',
+    Verified: 'processing',
+    Registered: 'success',
+    Rejected: 'error',
   };
 
   const newOtp = () => String(1000 + Math.floor(Math.random() * 9000));
@@ -153,296 +171,232 @@ export const DeviceApprovals = () => {
     showToast('info', `New OTP ${otp}`, 'The previous code no longer works.');
   };
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* 4 Summary Tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '16px' }}>
-        {devTiles.map((k, idx) => (
-          <div
-            key={idx}
-            style={{
-              background: '#fff',
-              border: '1px solid var(--border-default)',
-              borderTop: `4px solid ${k.edge}`,
-              borderRadius: 'var(--radius-lg)',
-              padding: '14px 16px',
-            }}
+  const nowrap = { whiteSpace: 'nowrap' };
+  const devColumns = [
+    {
+      title: 'Mobile number',
+      key: 'phone',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => (
+        <Flex vertical>
+          <Typography.Text strong>+91 {fmtPhone(r.phone)}</Typography.Text>
+          <Typography.Text strong>{r.name || 'Supervisor · not registered yet'}</Typography.Text>
+        </Flex>
+      ),
+    },
+    {
+      title: 'IMEI',
+      key: 'imei',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => <Typography.Text code>{fmtImei(r.imei)}</Typography.Text>,
+    },
+    {
+      title: 'Device',
+      key: 'device',
+      render: (_, r) => (
+        <Flex vertical>
+          <Typography.Text>{r.device || 'Android phone'}</Typography.Text>
+          <Typography.Text type={r.branch ? 'secondary' : 'warning'} style={{ fontSize: 12 }}>
+            {r.branch || 'Branch assigned on approval'}
+          </Typography.Text>
+        </Flex>
+      ),
+    },
+    { title: 'Requested', dataIndex: 'requestedAt', key: 'requestedAt', render: v => <Typography.Text type="secondary">{v}</Typography.Text> },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: v => <Tag color={statusTone[v] || 'default'}>{v}</Tag>,
+    },
+    {
+      title: 'OTP',
+      key: 'otp',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) =>
+        r.otp ? (
+          <Typography.Text
+            strong
+            type={r.status === 'Approved' ? undefined : 'secondary'}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: 20, letterSpacing: '0.2em' }}
           >
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-              {k.label}
-            </div>
-            <div style={{ marginTop: '6px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '28px', color: 'var(--text-heading)' }}>
-              {k.value}
-            </div>
-          </div>
+            {r.otp}
+          </Typography.Text>
+        ) : (
+          <Typography.Text type="secondary">&mdash;</Typography.Text>
+        ),
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => {
+        const isPending = r.status === 'Pending';
+        const isApproved = r.status === 'Approved';
+        const isDone = !isPending && !isApproved;
+        const doneText = r.status === 'Registered'
+          ? `Registered ${r.registeredAt || ''}`
+          : r.status === 'Verified'
+          ? `OTP verified ${r.verifiedAt || ''}`
+          : `Rejected ${r.decidedAt || ''}`;
+        return (
+          <>
+            {isPending && (
+              <Space size={6}>
+                <Button type="primary" size="small" onClick={() => openApprove(r)}>
+                  Approve
+                </Button>
+                <Button type="text" danger size="small" onClick={() => rejectDevice(r.id)}>
+                  Reject
+                </Button>
+              </Space>
+            )}
+            {isApproved && (
+              <Space size={10}>
+                <Typography.Text type="secondary">Share with supervisor</Typography.Text>
+                <Button size="small" onClick={() => regenOtp(r.id)}>
+                  New OTP
+                </Button>
+              </Space>
+            )}
+            {isDone && <Typography.Text type="secondary">{doneText}</Typography.Text>}
+          </>
+        );
+      },
+    },
+  ];
+
+  return (
+    <Flex vertical gap={20}>
+      {/* 4 Summary Tiles */}
+      <Row gutter={[16, 16]}>
+        {devTiles.map((k, idx) => (
+          <Col key={idx} xs={24} sm={12} lg={6}>
+            {/* Accent colour marks each tile's status (see .tms-kpi). */}
+            <Card size="small" className="tms-kpi" style={{ height: '100%', '--kpi': k.edge }}>
+              <Statistic
+                title={<span className="tms-kpi-label">{k.label}</span>}
+                value={k.value}
+              />
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
       {/* Main Table Card */}
-      <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-            padding: '12px 18px',
-            borderBottom: '1px solid var(--border-default)',
+      <Card styles={{ body: { padding: 0 } }}>
+        <Flex justify="space-between" align="center" gap={12} wrap style={{ padding: '12px 18px' }}>
+          <Typography.Text style={{ maxWidth: 640 }}>
+            Supervisors request access from the mobile app. <Typography.Text strong>Approve</Typography.Text> to create a 4-digit OTP, then share it with the supervisor to finish registration.
+          </Typography.Text>
+          <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
+            <Segmented
+              value={devFilter}
+              onChange={setDevFilter}
+              options={devFilters.map(f => ({ value: f.id, label: f.label }))}
+            />
+          </div>
+        </Flex>
+
+        <Table
+          columns={devColumns}
+          dataSource={devShown}
+          rowKey="id"
+          tableLayout="auto"
+          scroll={{ x: 760 }}
+          // Pending requests keep their hazard-tinted row.
+          onRow={r => (r.status === 'Pending' ? { style: { background: 'var(--color-hazard-soft)' } } : {})}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <Flex vertical align="center" gap={6}>
+                    <Typography.Text strong style={{ fontSize: 18 }}>
+                      {devReqs.length ? 'Nothing in this view' : 'No approval requests yet'}
+                    </Typography.Text>
+                    <Typography.Text type="secondary" style={{ maxWidth: 460 }}>
+                      When a supervisor taps <strong>Request approval</strong> in the mobile app, the request appears here with their mobile number and the phone’s IMEI.
+                    </Typography.Text>
+                  </Flex>
+                }
+              />
+            ),
           }}
-        >
-          <span style={{ fontSize: '14px', color: 'var(--text-body)', maxWidth: '640px' }}>
-            Supervisors request access from the mobile app. <strong style={{ color: 'var(--text-heading)' }}>Approve</strong> to create a 4-digit OTP, then share it with the supervisor to finish registration.
-          </span>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {devFilters.map(f => {
-              const on = devFilter === f.id;
-              return (
-                <button
-                  key={f.id}
-                  onClick={() => setDevFilter(f.id)}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    padding: '6px 12px',
-                    borderRadius: 'var(--radius-pill)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    border: `1px solid ${on ? 'var(--color-brand)' : 'var(--border-strong)'}`,
-                    background: on ? 'var(--color-brand)' : '#fff',
-                    color: on ? '#fff' : 'var(--text-heading)',
-                  }}
-                >
-                  {f.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '760px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                {['Mobile number', 'IMEI', 'Device', 'Requested', 'Status', 'OTP', 'Action'].map((c, i) => (
-                  <th
-                    key={i}
-                    style={{
-                      padding: '10px 14px',
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {devPg.rows.map(r => {
-                const [bg, fg] = statusTone[r.status] || ['var(--kr-grey-100)', 'var(--kr-grey-700)'];
-                const isPending = r.status === 'Pending';
-                const isApproved = r.status === 'Approved';
-                const isDone = !isPending && !isApproved;
-                const doneText = r.status === 'Registered'
-                  ? `Registered ${r.registeredAt || ''}`
-                  : r.status === 'Verified'
-                  ? `OTP verified ${r.verifiedAt || ''}`
-                  : `Rejected ${r.decidedAt || ''}`;
-
-                return (
-                  <tr
-                    key={r.id}
-                    style={{
-                      borderTop: '1px solid var(--border-default)',
-                      background: isPending ? 'var(--color-hazard-soft)' : '#fff',
-                    }}
-                  >
-                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontWeight: 700, color: 'var(--text-heading)' }}>+91 {fmtPhone(r.phone)}</div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-heading)' }}>
-                        {r.name || 'Supervisor · not registered yet'}
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 14px', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', color: 'var(--text-heading)' }}>
-                      {fmtImei(r.imei)}
-                    </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-body)', lineHeight: 1.35 }}>
-                      {r.device || 'Android phone'}
-                      <div style={{ fontSize: '12px', color: r.branch ? 'var(--text-muted)' : '#7A4300' }}>{r.branch || 'Branch assigned on approval'}</div>
-                    </td>
-                    <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>{r.requestedAt}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          fontFamily: 'var(--font-display)',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          letterSpacing: '0.1em',
-                          textTransform: 'uppercase',
-                          padding: '3px 8px',
-                          borderRadius: 'var(--radius-sm)',
-                          background: bg,
-                          color: fg,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {r.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                      {r.otp ? (
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '20px', fontWeight: 700, letterSpacing: '0.2em', color: isApproved ? 'var(--text-heading)' : 'var(--text-muted)' }}>
-                          {r.otp}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>&mdash;</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                      {isPending && (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            onClick={() => openApprove(r)}
-                            style={{
-                              all: 'unset',
-                              cursor: 'pointer',
-                              padding: '7px 14px',
-                              borderRadius: 'var(--radius-md)',
-                              background: 'var(--color-brand)',
-                              color: '#fff',
-                              fontFamily: 'var(--font-display)',
-                              fontSize: '13px',
-                              fontWeight: 700,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.02em',
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => rejectDevice(r.id)}
-                            style={{
-                              all: 'unset',
-                              cursor: 'pointer',
-                              padding: '7px 12px',
-                              borderRadius: 'var(--radius-md)',
-                              color: 'var(--kr-red-700)',
-                              fontSize: '13px',
-                              fontWeight: 700,
-                            }}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                      {isApproved && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Share with supervisor</span>
-                          <button
-                            onClick={() => regenOtp(r.id)}
-                            style={{
-                              all: 'unset',
-                              cursor: 'pointer',
-                              padding: '6px 10px',
-                              borderRadius: 'var(--radius-md)',
-                              border: '1px solid var(--border-strong)',
-                              fontSize: '13px',
-                              fontWeight: 600,
-                              color: 'var(--text-heading)',
-                            }}
-                          >
-                            New OTP
-                          </button>
-                        </div>
-                      )}
-                      {isDone && <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{doneText}</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {devShown.length > 0 && <Pagination {...devPg} noun="requests" />}
-        {devShown.length === 0 && (
-          <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
-              {devReqs.length ? 'Nothing in this view' : 'No approval requests yet'}
-            </div>
-            <p style={{ margin: '6px auto 0', maxWidth: '460px', color: 'var(--text-muted)', fontSize: '14px' }}>
-              When a supervisor taps <strong>Request approval</strong> in the mobile app, the request appears here with their mobile number and the phone’s IMEI.
-            </p>
-          </div>
-        )}
-      </div>
+          pagination={
+            devShown.length > 0 && {
+              current: devPage,
+              pageSize: devPageSize,
+              onChange: (p, size) => {
+                if (size !== devPageSize) setDevPageSize(size);
+                else setDevPage(p);
+              },
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} requests`,
+            }
+          }
+        />
+      </Card>
 
       <Modal
-        isOpen={!!approving}
-        onClose={() => setApproving(null)}
-        subtitle="Approve supervisor"
-        title={approving ? approving.name || `+91 ${fmtPhone(approving.phone)}` : ''}
-        maxWidth="460px"
-        footer={
-          <>
-            <button
-              onClick={() => setApproving(null)}
-              style={{ all: 'unset', cursor: 'pointer', height: '38px', padding: '0 16px', borderRadius: 'var(--radius-md)', fontSize: '14px', fontWeight: 600, color: 'var(--text-heading)' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmApprove}
-              style={{ all: 'unset', cursor: 'pointer', height: '38px', padding: '0 18px', display: 'inline-flex', alignItems: 'center', borderRadius: 'var(--radius-md)', background: 'var(--color-brand)', color: '#fff', fontSize: '14px', fontWeight: 700 }}
-            >
-              Approve &amp; share OTP
-            </button>
-          </>
+        open={!!approving}
+        onCancel={() => setApproving(null)}
+        title={
+          <Flex vertical>
+            <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Approve supervisor
+            </Typography.Text>
+            <span>{approving ? approving.name || `+91 ${fmtPhone(approving.phone)}` : ''}</span>
+          </Flex>
         }
+        width={460}
+        footer={[
+          <Button key="cancel" onClick={() => setApproving(null)}>
+            Cancel
+          </Button>,
+          <Button key="ok" type="primary" onClick={confirmApprove}>
+            Approve &amp; share OTP
+          </Button>,
+        ]}
       >
         {approving && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ borderRadius: 'var(--radius-md)', background: 'var(--surface-muted)', padding: '4px 14px' }}>
-              {[
+          <Flex vertical gap={16}>
+            <Descriptions
+              size="small"
+              column={1}
+              bordered
+              items={[
                 ['Name', approving.name || 'Not given'],
                 ['Mobile number', `+91 ${fmtPhone(approving.phone)}`],
                 ['Device IMEI', fmtImei(approving.imei)],
                 ['Requested', approving.requestedAt],
-              ].map(([k, v], i) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '10px 0', borderTop: i ? '1px solid var(--border-default)' : 'none', fontSize: '14px' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>{k}</span>
-                  <span style={{ fontWeight: 700, color: 'var(--text-heading)', fontFamily: k === 'Device IMEI' ? 'var(--font-mono)' : 'inherit' }}>{v}</span>
-                </div>
-              ))}
-            </div>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>Assign branch</span>
-              <SelectField
-                value={approveBranch}
-                onChange={(v) => { setApproveBranch(v); setApproveErr(''); }}
-                options={approveBranchOpts(approving).map(b => ({ value: b.id, label: b.name }))}
-                placeholder="Select branch"
-                error={approveErr ? ' ' : undefined}
-                ariaLabel="Branch"
-                height={40}
-              />
-              {approveErr ? (
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--kr-red-700)' }}>{approveErr}</span>
-              ) : (
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>The supervisor is added to Supervisor Master under this branch and only sees its trips.</span>
-              )}
-            </label>
-          </div>
+              ].map(([k, v]) => ({
+                key: k,
+                label: k,
+                children: <Typography.Text strong code={k === 'Device IMEI'}>{v}</Typography.Text>,
+              }))}
+            />
+            <Form layout="vertical" component="div">
+              <Form.Item
+                label="Assign branch"
+                style={{ marginBottom: 0 }}
+                validateStatus={approveErr ? 'error' : undefined}
+                help={approveErr || 'The supervisor is added to Supervisor Master under this branch and only sees its trips.'}
+              >
+                <Select
+                  value={approveBranch || undefined}
+                  onChange={(v) => { setApproveBranch(v); setApproveErr(''); }}
+                  options={approveBranchOpts(approving).map(b => ({ value: b.id, label: b.name }))}
+                  placeholder="Select branch"
+                  aria-label="Branch"
+                />
+              </Form.Item>
+            </Form>
+          </Flex>
         )}
       </Modal>
-    </div>
+    </Flex>
   );
 };
 

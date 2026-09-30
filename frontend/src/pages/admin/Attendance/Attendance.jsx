@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { exportToExcel } from '../../../utils';
 import {
   Filter,
@@ -15,19 +14,10 @@ import {
   Search,
   CheckCircle2,
 } from 'lucide-react';
-import { Select } from 'antd';
+import { Alert, Avatar, Button, Card, Col, DatePicker, Divider, Empty, Flex, Row, Select, Space, Table, Tag, Typography } from 'antd';
+import dayjs from 'dayjs';
 import '../../../styles/attendance.css';
 import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
-
-// The filter dropdowns render through antd so the open list is themed too —
-// a native <select> popup is drawn by the OS and cannot be styled.
-const filterSelectStyle = { width: '100%', height: '40px' };
-const filterSelectProps = {
-  size: 'middle',
-  popupMatchSelectWidth: true,
-  className: 'att-filter-select',
-  classNames: { popup: { root: 'att-filter-popup' } },
-};
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -78,10 +68,11 @@ const useAttStore = () => {
   return store;
 };
 
+// antd Tag preset colour per attendance status.
 const STATUS_TONE = {
-  Present: ['var(--kr-green-100, #e6f4ea)', 'var(--kr-green-700, #00623f)'],
-  Absent: ['#FDECEC', 'var(--kr-red-700, #b91c1c)'],
-  'Not marked': ['var(--kr-grey-100, #f1f5f9)', 'var(--text-muted, #64748b)'],
+  Present: 'success',
+  Absent: 'error',
+  'Not marked': 'default',
 };
 
 export const Attendance = () => {
@@ -345,9 +336,19 @@ export const Attendance = () => {
   const notMarkedCount = attRows.filter(r => r.status === 'Not marked').length;
 
 
-  const attPg = usePagination(attRows, [appliedFilters]);
+  // Table paging: back to page 1 whenever the applied filters or page size change.
+  const [attPage, setAttPage] = useState(1);
+  const [attPageSize, setAttPageSize] = useState(10);
+  useEffect(() => { setAttPage(1); }, [appliedFilters, attPageSize]);
 
-  const attCols = ['Driver name', 'Vehicle number', 'Branch', 'Status', 'Date'];
+  const nowrap = { whiteSpace: 'nowrap' };
+  const attColumns = [
+    { title: 'Driver name', dataIndex: 'name', key: 'name', onCell: () => ({ style: nowrap }), render: v => <Typography.Text strong style={{ color: 'var(--text-heading)' }}>{v}</Typography.Text> },
+    { title: 'Vehicle number', dataIndex: 'vehicle', key: 'vehicle', onCell: () => ({ style: nowrap }), render: v => <Typography.Text type={v === '—' ? 'secondary' : undefined} style={{ fontWeight: 500 }}>{v}</Typography.Text> },
+    { title: 'Branch', dataIndex: 'branchName', key: 'branchName', onCell: () => ({ style: nowrap }) },
+    { title: 'Status', dataIndex: 'status', key: 'status', render: v => <Tag color={STATUS_TONE[v] || STATUS_TONE['Not marked']}>{v}</Tag> },
+    { title: 'Date', dataIndex: 'date', key: 'date', onCell: () => ({ style: nowrap }), render: v => formatDate(v) },
+  ];
 
   // Apply filters action
   const handleApplyFilters = (e) => {
@@ -396,265 +397,137 @@ export const Attendance = () => {
 
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Page Breadcrumb & Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+    <Flex vertical gap={20}>
+      {/* Page Header */}
+      <Flex justify="space-between" align="flex-start" wrap gap={16}>
         <div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-            <span>Operations</span>
-            <span>›</span>
-            <span style={{ fontWeight: 600, color: 'var(--color-brand)' }}>Attendance</span>
-          </div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '26px', fontWeight: 800, color: 'var(--text-heading)', letterSpacing: '-0.02em' }}>
+          <Typography.Title level={2} style={{ margin: 0, fontSize: 26, letterSpacing: '-0.02em' }}>
             Attendance
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>
+          </Typography.Title>
+          <Typography.Paragraph type="secondary" style={{ margin: '4px 0 0', fontSize: 13 }}>
             Supervisor and driver attendance by branch with 11:00 AM daily cut-off monitoring
-          </p>
+          </Typography.Paragraph>
         </div>
 
         {/* Date & Deadline Card */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px',
-          background: '#fff',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          padding: '10px 16px',
-          boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04))',
-        }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '8px',
-            background: 'var(--color-brand-soft)',
-            color: 'var(--color-brand)',
-            display: 'grid',
-            placeItems: 'center',
-          }}>
-            <Calendar size={18} />
-          </div>
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
-              Today, {todayFormatted}
+        <Card size="small" styles={{ body: { padding: '10px 16px' } }}>
+          <Flex align="center" gap={14}>
+            <Avatar shape="square" size={36} style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }} icon={<Calendar size={18} />} />
+            <div>
+              <Typography.Text strong style={{ display: 'block', fontSize: 13 }}>
+                Today, {todayFormatted}
+              </Typography.Text>
+              <Space size={6} style={{ fontSize: 11 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>{todayDayName}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 11 }}>•</Typography.Text>
+                <Typography.Text strong type={isPast11AM ? 'danger' : undefined} style={{ fontSize: 11, color: isPast11AM ? undefined : 'var(--color-brand)' }}>
+                  Deadline: 11:00 AM {isPast11AM ? '(Passed)' : ''}
+                </Typography.Text>
+              </Space>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>{todayDayName}</span>
-              <span>•</span>
-              <span style={{ color: isPast11AM ? 'var(--kr-red-600, #dc2626)' : 'var(--color-brand)', fontWeight: 600 }}>
-                Deadline: 11:00 AM {isPast11AM ? '(Passed)' : ''}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+          </Flex>
+        </Card>
+      </Flex>
 
       {/* 11:00 AM Deadline Alert Banner (Shown in Admin Portal if attendance missing after 11:00 AM) */}
       {isOverdue && (
-        <div
-          style={{
-            background: '#FEF2F2',
-            border: '1px solid #FCA5A5',
-            borderRadius: 'var(--radius-lg, 12px)',
-            padding: '16px 20px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '16px',
-            flexWrap: 'wrap',
-            boxShadow: '0 4px 12px rgba(220, 38, 38, 0.08)',
-            animation: 'tmsFadeIn 0.2s ease',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                background: '#FEE2E2',
-                color: '#DC2626',
-                display: 'grid',
-                placeItems: 'center',
-                flexShrink: 0,
-                marginTop: '2px',
-              }}
-            >
-              <AlertTriangle size={22} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 800, fontSize: '15px', color: '#991B1B', fontFamily: 'var(--font-display)' }}>
-                  Attendance Deadline Passed (11:00 AM)
-                </span>
-                <span
-                  style={{
-                    background: '#DC2626',
-                    color: '#fff',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '999px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  {missingTodayBranches.length} {missingTodayBranches.length === 1 ? 'Branch Overdue' : 'Branches Overdue'}
-                </span>
-              </div>
-              <div style={{ fontSize: '13px', color: '#7F1D1D', marginTop: '4px', lineHeight: 1.5 }}>
-                Daily driver attendance for today ({todayFormatted}) has not been submitted by:{' '}
-                <strong>{missingTodayBranches.map(b => b.name).join(', ')}</strong>. The 11:00 AM cut-off has passed.
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={handleNotifySupervisors}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '0 16px',
-                height: '38px',
-                background: '#DC2626',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 700,
-                borderRadius: 'var(--radius-md, 8px)',
-                boxShadow: '0 2px 4px rgba(220, 38, 38, 0.2)',
-                transition: 'background 0.15s ease',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#B91C1C')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#DC2626')}
-            >
-              <Bell size={15} />
+        <Alert
+          type="error"
+          showIcon
+          icon={<AlertTriangle size={22} />}
+          title={
+            <Space size={10} wrap>
+              <Typography.Text strong style={{ fontSize: 15 }}>Attendance Deadline Passed (11:00 AM)</Typography.Text>
+              <Tag color="error" variant="solid" style={{ textTransform: 'uppercase', marginInlineEnd: 0 }}>
+                {missingTodayBranches.length} {missingTodayBranches.length === 1 ? 'Branch Overdue' : 'Branches Overdue'}
+              </Tag>
+            </Space>
+          }
+          description={
+            <>
+              Daily driver attendance for today ({todayFormatted}) has not been submitted by:{' '}
+              <strong>{missingTodayBranches.map(b => b.name).join(', ')}</strong>. The 11:00 AM cut-off has passed.
+            </>
+          }
+          action={
+            <Button type="primary" danger icon={<Bell size={15} />} onClick={handleNotifySupervisors}>
               Notify Supervisors
-            </button>
-          </div>
-        </div>
+            </Button>
+          }
+          style={{ flexWrap: 'wrap', rowGap: 12 }}
+        />
       )}
 
       {/* FILTER PANEL CARD (Works Entirely Through Filters) */}
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          padding: '20px',
-          boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.05))',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '6px',
-              background: 'var(--color-brand-soft)',
-              color: 'var(--color-brand)',
-              display: 'grid',
-              placeItems: 'center',
-            }}>
-              <Filter size={16} />
-            </div>
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 800, color: 'var(--text-heading)' }}>
-              Filter Attendance Records
-            </h3>
-          </div>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+      <Card
+        title={
+          <Space size={8}>
+            <Avatar shape="square" size={28} style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }} icon={<Filter size={16} />} />
+            <span>Filter Attendance Records</span>
+          </Space>
+        }
+        extra={
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Select your criteria and click <strong>Apply Filters</strong> to display records
-          </span>
-        </div>
-
+          </Typography.Text>
+        }
+        styles={{ header: { flexWrap: 'wrap', gap: 8, paddingBlock: 10 } }}
+      >
         {/* Filter Inputs Grid */}
         <form onSubmit={handleApplyFilters}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '14px',
-              alignItems: 'flex-end',
-            }}
-          >
+          <Row gutter={[14, 14]} align="bottom">
             {/* From Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Calendar size={13} style={{ color: 'var(--text-muted)' }} />
+            <Col xs={24} sm={12} lg={8} xl={4}>
+              <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>
+                <Calendar size={13} style={{ color: 'var(--text-muted)', marginRight: 4, verticalAlign: '-2px' }} />
                 From Date
-              </label>
-              <input
-                type="date"
-                value={filterForm.fromDate}
-                max={filterForm.toDate || today}
-                onChange={e => setFilterForm({ ...filterForm, fromDate: e.target.value })}
-                style={{
-                  height: '40px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--border-strong, #cbd5e1)',
-                  fontSize: '13px',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  background: '#fff',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
+              </Typography.Text>
+              <DatePicker
+                value={filterForm.fromDate ? dayjs(filterForm.fromDate, 'YYYY-MM-DD') : null}
+                format="DD-MM-YYYY"
+                allowClear={false}
+                disabledDate={d => d.isAfter(dayjs(filterForm.toDate || today, 'YYYY-MM-DD'), 'day')}
+                onChange={d => setFilterForm({ ...filterForm, fromDate: d ? d.format('YYYY-MM-DD') : '' })}
+                style={{ width: '100%' }}
               />
-            </div>
+            </Col>
 
             {/* To Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Calendar size={13} style={{ color: 'var(--text-muted)' }} />
+            <Col xs={24} sm={12} lg={8} xl={4}>
+              <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>
+                <Calendar size={13} style={{ color: 'var(--text-muted)', marginRight: 4, verticalAlign: '-2px' }} />
                 To Date
-              </label>
-              <input
-                type="date"
-                value={filterForm.toDate}
-                min={filterForm.fromDate}
-                onChange={e => setFilterForm({ ...filterForm, toDate: e.target.value })}
-                style={{
-                  height: '40px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--border-strong, #cbd5e1)',
-                  fontSize: '13px',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  background: '#fff',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
+              </Typography.Text>
+              <DatePicker
+                value={filterForm.toDate ? dayjs(filterForm.toDate, 'YYYY-MM-DD') : null}
+                format="DD-MM-YYYY"
+                allowClear={false}
+                disabledDate={d => !!filterForm.fromDate && d.isBefore(dayjs(filterForm.fromDate, 'YYYY-MM-DD'), 'day')}
+                onChange={d => setFilterForm({ ...filterForm, toDate: d ? d.format('YYYY-MM-DD') : '' })}
+                style={{ width: '100%' }}
               />
-            </div>
+            </Col>
 
             {/* Branch Filter */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Building2 size={13} style={{ color: 'var(--text-muted)' }} />
+            <Col xs={24} sm={12} lg={8} xl={5}>
+              <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>
+                <Building2 size={13} style={{ color: 'var(--text-muted)', marginRight: 4, verticalAlign: '-2px' }} />
                 Branch
-              </label>
+              </Typography.Text>
               <Select
                 value={filterForm.branch}
                 onChange={val => setFilterForm({ ...filterForm, branch: val })}
                 options={[{ value: '', label: 'All branches' }, ...branchOpts]}
-                style={filterSelectStyle}
-                {...filterSelectProps}
+                style={{ width: '100%' }}
               />
-            </div>
+            </Col>
 
             {/* Vehicle Number Dropdown */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Truck size={13} style={{ color: 'var(--text-muted)' }} />
+            <Col xs={24} sm={12} lg={12} xl={6}>
+              <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>
+                <Truck size={13} style={{ color: 'var(--text-muted)', marginRight: 4, verticalAlign: '-2px' }} />
                 Vehicle Number
-              </label>
+              </Typography.Text>
               <Select
                 showSearch
                 value={filterForm.vehicle}
@@ -667,17 +540,18 @@ export const Attendance = () => {
                   String(opt?.label ?? '').replace(/\s+/g, '').toLowerCase()
                     .includes(input.replace(/\s+/g, '').toLowerCase())
                 }
-                style={filterSelectStyle}
-                {...filterSelectProps}
+                listHeight={264}
+                classNames={{ popup: { root: 'att-filter-popup' } }}
+                style={{ width: '100%' }}
               />
-            </div>
+            </Col>
 
             {/* Marked / Not Marked Status Filter */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Clock size={13} style={{ color: 'var(--text-muted)' }} />
+            <Col xs={24} sm={24} lg={12} xl={5}>
+              <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>
+                <Clock size={13} style={{ color: 'var(--text-muted)', marginRight: 4, verticalAlign: '-2px' }} />
                 Attendance Status
-              </label>
+              </Typography.Text>
               <Select
                 value={filterForm.status}
                 onChange={val => setFilterForm({ ...filterForm, status: val })}
@@ -686,309 +560,130 @@ export const Attendance = () => {
                   { value: 'marked', label: 'Marked' },
                   { value: 'not_marked', label: 'Not marked' },
                 ]}
-                style={filterSelectStyle}
-                {...filterSelectProps}
+                style={{ width: '100%' }}
               />
-            </div>
-          </div>
+            </Col>
+          </Row>
+
+          <Divider style={{ margin: '16px 0' }} />
 
           {/* Action Buttons Row */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '16px', borderTop: '1px solid var(--border-default)', paddingTop: '16px' }}>
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                height: '38px',
-                padding: '0 16px',
-                borderRadius: 'var(--radius-md, 8px)',
-                border: '1px solid var(--border-strong, #cbd5e1)',
-                background: '#fff',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--text-heading)',
-              }}
-            >
-              <RotateCcw size={14} />
+          <Flex justify="flex-end" align="center" gap={10} wrap>
+            <Button htmlType="button" icon={<RotateCcw size={14} />} onClick={handleResetFilters}>
               Reset Filters
-            </button>
-
-            <button
-              type="submit"
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                height: '38px',
-                padding: '0 20px',
-                borderRadius: 'var(--radius-md, 8px)',
-                background: 'var(--color-brand, #00623f)',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 700,
-                boxShadow: '0 2px 4px rgba(0, 98, 63, 0.2)',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#004d32')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-brand, #00623f)')}
-            >
-              <Search size={15} />
+            </Button>
+            <Button type="primary" htmlType="submit" icon={<Search size={15} />}>
               Apply Filters
-            </button>
-          </div>
+            </Button>
+          </Flex>
         </form>
-      </div>
+      </Card>
 
       {/* INITIAL STATE: DISPLAYED ONLY WHEN FILTERS ARE NOT YET APPLIED */}
       {!appliedFilters && (
-        <div
-          style={{
-            background: '#ffffff',
-            border: '2px dashed var(--border-default, #e2e8f0)',
-            borderRadius: 'var(--radius-lg, 12px)',
-            padding: '48px 24px',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px',
-          }}
-        >
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'var(--color-brand-soft, #e6f4ea)',
-              color: 'var(--color-brand, #00623f)',
-              display: 'grid',
-              placeItems: 'center',
-            }}
+        <Card style={{ borderStyle: 'dashed', borderWidth: 2 }} styles={{ body: { padding: '48px 24px' } }}>
+          <Empty
+            image={<Avatar size={56} style={{ background: 'var(--color-brand-soft)', color: 'var(--color-brand)' }} icon={<Filter size={28} />} />}
+            styles={{ image: { height: 'auto', marginBottom: 12 } }}
+            description={
+              <Flex vertical align="center" gap={6}>
+                <Typography.Title level={4} style={{ margin: 0, fontSize: 17 }}>
+                  Select Filters & Apply to View Records
+                </Typography.Title>
+                <Typography.Paragraph type="secondary" style={{ margin: 0, fontSize: 13, maxWidth: 460 }}>
+                  The attendance roster is hidden by default. Choose your date range, branch, vehicle number, or status above, then click <strong>Apply Filters</strong> to display records.
+                </Typography.Paragraph>
+              </Flex>
+            }
           >
-            <Filter size={28} />
-          </div>
-          <h3
-            style={{
-              margin: '6px 0 0',
-              fontFamily: 'var(--font-display)',
-              fontSize: '17px',
-              fontWeight: 800,
-              color: 'var(--text-heading, #1e293b)',
-            }}
-          >
-            Select Filters & Apply to View Records
-          </h3>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '13px',
-              color: 'var(--text-muted, #64748b)',
-              maxWidth: '460px',
-              lineHeight: 1.5,
-            }}
-          >
-            The attendance roster is hidden by default. Choose your date range, branch, vehicle number, or status above, then click <strong>Apply Filters</strong> to display records.
-          </p>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterForm({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'all' });
-                setAppliedFilters({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'all' });
-              }}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                borderRadius: '999px',
-                background: 'var(--surface-muted, #f1f5f9)',
-                color: 'var(--color-brand, #00623f)',
-                fontSize: '12px',
-                fontWeight: 600,
-                border: '1px solid var(--border-default)',
-              }}
-            >
-              Quick Load: Today's All Branches
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFilterForm({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'marked' });
-                setAppliedFilters({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'marked' });
-              }}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '6px 14px',
-                borderRadius: '999px',
-                background: 'var(--surface-muted, #f1f5f9)',
-                color: 'var(--color-brand, #00623f)',
-                fontSize: '12px',
-                fontWeight: 600,
-                border: '1px solid var(--border-default)',
-              }}
-            >
-              Quick Load: Marked Drivers
-            </button>
-
-          </div>
-        </div>
+            <Flex gap={8} wrap justify="center" style={{ marginTop: 12 }}>
+              <Button
+                shape="round"
+                size="small"
+                onClick={() => {
+                  setFilterForm({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'all' });
+                  setAppliedFilters({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'all' });
+                }}
+              >
+                Quick Load: Today's All Branches
+              </Button>
+              <Button
+                shape="round"
+                size="small"
+                onClick={() => {
+                  setFilterForm({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'marked' });
+                  setAppliedFilters({ fromDate: today, toDate: today, branch: '', vehicle: '', status: 'marked' });
+                }}
+              >
+                Quick Load: Marked Drivers
+              </Button>
+            </Flex>
+          </Empty>
+        </Card>
       )}
 
       {/* ATTENDANCE RECORDS TABLE (RENDERED ONLY AFTER FILTERS ARE APPLIED) */}
       {appliedFilters && (
-        <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          {/* Table Header & Export Action Bar */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '12px',
-              flexWrap: 'wrap',
-              padding: '14px 18px',
-              borderBottom: '1px solid var(--border-default)',
-              background: '#ffffff',
-            }}
-          >
-            <div>
-              <h2
-                style={{
-                  margin: 0,
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 800,
-                  fontSize: '15px',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase',
-                  color: 'var(--text-heading)',
-                }}
-              >
-                Driver attendance · daily
-              </h2>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                Showing records for {formatDate(appliedFilters.fromDate)} to {formatDate(appliedFilters.toDate)}
-                {appliedFilters.branch && ` · ${(tms.B[appliedFilters.branch] || {}).name || appliedFilters.branch}`}
-                {appliedFilters.vehicle && ` · Vehicle ${appliedFilters.vehicle}`}
-                {appliedFilters.status !== 'all' && ` · Status: ${appliedFilters.status === 'marked' ? 'Marked' : 'Not marked'}`}
-              </div>
-            </div>
-
-            {/* Action Bar */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Export Excel: the filtered records shown below */}
-              <button
-                type="button"
-                onClick={FILE_TRANSFER_ENABLED ? handleExportExcel : undefined}
-                title="Download these attendance records as an Excel workbook"
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  height: '38px',
-                  padding: '0 16px',
-                  boxSizing: 'border-box',
-                  borderRadius: '10px',
-                  color: 'var(--kr-green-800, #004d32)',
-                  border: '1px solid var(--kr-green-700, #00623f)',
-                  background: '#ffffff',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--kr-green-50, #f0fdf4)')}
-                onMouseLeave={e => (e.currentTarget.style.background = '#ffffff')}
-              >
-                <Download size={17} />
-                Export Excel
-              </button>
-            </div>
-          </div>
+        <Card
+          title="Driver attendance · daily"
+          extra={
+            /* Export Excel: the filtered records shown below */
+            <Button
+              icon={<Download size={17} />}
+              onClick={FILE_TRANSFER_ENABLED ? handleExportExcel : undefined}
+              title="Download these attendance records as an Excel workbook"
+            >
+              Export Excel
+            </Button>
+          }
+          styles={{ header: { flexWrap: 'wrap', gap: 8, paddingBlock: 10 }, body: { padding: 0 } }}
+        >
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, margin: 0, padding: '10px 18px' }}>
+            Showing records for {formatDate(appliedFilters.fromDate)} to {formatDate(appliedFilters.toDate)}
+            {appliedFilters.branch && ` · ${(tms.B[appliedFilters.branch] || {}).name || appliedFilters.branch}`}
+            {appliedFilters.vehicle && ` · Vehicle ${appliedFilters.vehicle}`}
+            {appliedFilters.status !== 'all' && ` · Status: ${appliedFilters.status === 'marked' ? 'Marked' : 'Not marked'}`}
+          </Typography.Paragraph>
 
           {/* Table */}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '720px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                  {attCols.map((c, i) => (
-                    <th
-                      key={i}
-                      style={{
-                        padding: '10px 14px',
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                        color: 'var(--text-muted)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {attPg.rows.map(r => (
-                  <tr key={r.key} style={{ borderTop: '1px solid var(--border-default)' }}>
-                    <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                      {r.name}
-                    </td>
-                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', fontWeight: 500, color: r.vehicle === '—' ? 'var(--text-muted)' : 'var(--text-heading)' }}>
-                      {r.vehicle}
-                    </td>
-                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{r.branchName}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '2px 10px',
-                          borderRadius: '999px',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          background: (STATUS_TONE[r.status] || STATUS_TONE['Not marked'])[0],
-                          color: (STATUS_TONE[r.status] || STATUS_TONE['Not marked'])[1],
-                        }}
-                      >
-                        {r.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{formatDate(r.date)}</td>
-                  </tr>
-                ))}
-                {!attRows.length && (
-                  <tr style={{ borderTop: '1px solid var(--border-default)' }}>
-                    <td colSpan={attCols.length} style={{ padding: '36px 14px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No attendance records found matching your applied filter criteria.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            columns={attColumns}
+            dataSource={attRows}
+            rowKey="key"
+            tableLayout="auto"
+            scroll={{ x: 720 }}
+            locale={{ emptyText: 'No attendance records found matching your applied filter criteria.' }}
+            pagination={attRows.length > 0 ? {
+              current: attPage,
+              pageSize: attPageSize,
+              onChange: (p, size) => {
+                if (size !== attPageSize) setAttPageSize(size);
+                else setAttPage(p);
+              },
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              showTotal: (t, [a, b]) => `Showing ${a} to ${b} of ${t} records`,
+            } : false}
+          />
 
-          {/* Pagination & Summary Footer */}
-          {attRows.length > 0 && <Pagination {...attPg} noun="records" />}
-          <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border-default)', fontSize: '13px', color: 'var(--text-muted)', background: '#fafafa', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-            <div>
+          {/* Summary Footer */}
+          <Flex
+            justify="space-between"
+            align="center"
+            wrap
+            gap={10}
+            style={{ padding: '12px 18px', borderTop: '1px solid var(--border-default)', background: 'var(--surface-muted)' }}
+          >
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
               <strong>{attRows.length}</strong> records found · <strong>{markedCount}</strong> marked · <strong>{notMarkedCount}</strong> not marked
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               11:00 AM Daily Cut-off Policy Applied
-            </div>
-          </div>
-        </div>
+            </Typography.Text>
+          </Flex>
+        </Card>
       )}
-    </div>
+    </Flex>
   );
 };
 

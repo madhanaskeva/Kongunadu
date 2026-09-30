@@ -1,6 +1,6 @@
 import React from 'react';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
-import { Tooltip } from 'antd';
+import { Button, Space, Tooltip } from 'antd';
 
 /**
  * RowActions — Reusable action button component for table rows and list items.
@@ -20,6 +20,8 @@ import { Tooltip } from 'antd';
  * - deleteLabel: Custom tooltip text for delete action (default: 'Delete')
  * - disabled: Disable all action buttons
  * - style: Additional style for the wrapper
+ *
+ * Built on antd Button (type="text") + Tooltip; delete actions use antd's danger state.
  */
 export const RowActions = ({
   actions,
@@ -42,8 +44,6 @@ export const RowActions = ({
       label: viewLabel,
       onClick: onView,
       type: 'view',
-      colorHover: 'var(--kr-green-800, #004a31)',
-      bgHover: 'var(--kr-green-100, #daf1e7)',
     });
   }
 
@@ -54,8 +54,6 @@ export const RowActions = ({
       label: editLabel,
       onClick: onEdit,
       type: 'edit',
-      colorHover: '#1677ff',
-      bgHover: '#e6f4ff',
     });
   }
 
@@ -67,8 +65,6 @@ export const RowActions = ({
       onClick: onDelete,
       type: 'delete',
       danger: true,
-      colorHover: 'var(--kr-red-600, #d91619)',
-      bgHover: 'var(--kr-red-100, #fbe0e0)',
     });
   }
 
@@ -84,75 +80,28 @@ export const RowActions = ({
   if (actionList.length === 0) return null;
 
   return (
-    <div
-      role="group"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '4px',
-        whiteSpace: 'nowrap',
-        ...style,
-      }}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <Space size={8} role="group" style={{ whiteSpace: 'nowrap', ...style }} onClick={(e) => e.stopPropagation()}>
       {actionList.map((act) => {
         const Icon = act.icon;
-        const isDanger = act.danger;
-        const isDisabled = disabled || act.disabled;
-        const defaultColor = isDanger
-          ? 'var(--kr-red-600, #d91619)'
-          : 'var(--kr-grey-700, #4a4a46)';
-        const hoverColor = act.colorHover || (isDanger ? '#b31114' : 'var(--kr-green-800, #004a31)');
-        const hoverBg = act.bgHover || (isDanger ? 'var(--kr-red-100, #fbe0e0)' : 'var(--kr-green-100, #daf1e7)');
-
         return (
-          <Tooltip
-            key={act.key}
-            title={act.label}
-            placement="top"
-            arrow={{ pointAtCenter: true }}
-          >
-            <button
-              type="button"
-              disabled={isDisabled}
+          <Tooltip key={act.key} title={act.label} placement="top" arrow={{ pointAtCenter: true }}>
+            <Button
+              type="text"
+              size="small"
+              danger={!!act.danger}
+              disabled={disabled || act.disabled}
               aria-label={act.label}
+              className={`tms-row-action${act.type === 'view' ? ' tms-row-action--view' : ''}`}
+              icon={<Icon size={16} strokeWidth={2.2} />}
               onClick={(e) => {
                 e.stopPropagation();
                 if (act.onClick) act.onClick(e);
               }}
-              style={{
-                all: 'unset',
-                cursor: isDisabled ? 'not-allowed' : 'pointer',
-                opacity: isDisabled ? 0.4 : 1,
-                width: '30px',
-                height: '30px',
-                display: 'inline-grid',
-                placeItems: 'center',
-                borderRadius: '6px',
-                color: defaultColor,
-                background: 'transparent',
-                transition: 'background var(--dur-fast, 0.15s), color var(--dur-fast, 0.15s)',
-              }}
-              onMouseEnter={(e) => {
-                if (!isDisabled) {
-                  e.currentTarget.style.background = hoverBg;
-                  e.currentTarget.style.color = hoverColor;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isDisabled) {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = defaultColor;
-                }
-              }}
-            >
-              <Icon size={16} strokeWidth={2.2} />
-            </button>
+            />
           </Tooltip>
         );
       })}
-    </div>
+    </Space>
   );
 };
 

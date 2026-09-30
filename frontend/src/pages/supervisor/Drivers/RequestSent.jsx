@@ -1,31 +1,34 @@
 import React from 'react';
-import { Button } from '../components/ds';
+import { Button, Card, Flex, Result, Tag, Typography } from 'antd';
+import { ClockCircleOutlined } from '@ant-design/icons';
+
+// Request status label → antd Tag preset.
+const REQ_TAG = { 'Pending approval': 'warning', Approved: 'success', Rejected: 'error' };
 
 export const RequestSent = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "32px 24px 40px", textAlign: "center" }}>
-      <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "var(--color-hazard-soft)", display: "grid", placeItems: "center", margin: "16px auto 0" }}>
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7A4300" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      </div>
-      <h2 style={{ margin: "20px 0 4px", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", color: "var(--text-heading)" }}>Sent for approval</h2>
-      <p style={{ margin: "8px 0 0", fontSize: "15px" }}>{v.rf.name} will appear in the driver list once Head Office approves the request. You will also get a notification.</p>
-      <div role="status" aria-live="polite" style={{ marginTop: "20px", padding: "14px", border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", textAlign: "left" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)" }}>
+    <Flex vertical style={{ flex: 1, padding: '16px 24px 40px' }}>
+      <Result
+        status="warning"
+        icon={<ClockCircleOutlined />}
+        title="Sent for approval"
+        style={{ padding: '16px 0 0' }}
+        subTitle={<Typography.Paragraph style={{ margin: '8px 0 0', fontSize: 15 }}>{v.rf.name} will appear in the driver list once Head Office approves the request. You will also get a notification.</Typography.Paragraph>}
+      />
+      <Card size="small" role="status" aria-live="polite" style={{ marginTop: 20 }}>
+        <Flex justify="space-between" align="center" gap={12}>
+          <Typography.Text type="secondary" strong style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
             Request status
-          </span>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 8px", borderRadius: "var(--radius-sm)", background: v.reqSent.bg, color: v.reqSent.fg }}>
+          </Typography.Text>
+          <Tag color={REQ_TAG[v.reqSent.label] || 'default'} style={{ marginInlineEnd: 0 }}>
             {v.reqSent.label}
-          </span>
-        </div>
-        <div style={{ marginTop: "8px", fontSize: "14px", lineHeight: "1.5", color: "var(--text-body)" }}>{v.reqSent.note}</div>
-        <div style={{ marginTop: "4px", fontSize: "12px", color: "var(--text-muted)" }}>{v.reqSent.when}</div>
-      </div>
-      <div style={{ marginTop: "auto" }}><Button size="lg" fullWidth={true} onClick={v.goHome} style={v.bigBtn}>Back to home</Button></div>
-    </div>
+          </Tag>
+        </Flex>
+        <Typography.Paragraph style={{ margin: '8px 0 0', lineHeight: 1.5 }}>{v.reqSent.note}</Typography.Paragraph>
+        <Typography.Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>{v.reqSent.when}</Typography.Text>
+      </Card>
+      <div style={{ marginTop: 'auto', paddingTop: 20 }}><Button type="primary" size="large" block onClick={v.goHome} style={v.bigBtn}>Back to home</Button></div>
+    </Flex>
   </>
 );
 

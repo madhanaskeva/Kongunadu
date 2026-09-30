@@ -239,7 +239,9 @@ export class SupervisorApp extends React.Component {
   // Badge colours per status label → [background, text, edge], from the --st-* palette in <helmet>.
   statusTone(label) {
     const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent', 'Nearly reached': 'nearly' }[label] || 'neutral';
-    return [`var(--st-${k}-bg)`, `var(--st-${k}-fg)`, `var(--st-${k}-edge)`];
+    // 4th entry: the antd Tag preset colour for the same status.
+    const tag = { enroute: 'processing', loading: 'processing', unloading: 'volcano', delayed: 'volcano', long: 'warning', nearly: 'warning', gps: 'error', closed: 'success', flagged: 'purple', absent: 'error', neutral: 'default' }[k];
+    return [`var(--st-${k}-bg)`, `var(--st-${k}-fg)`, `var(--st-${k}-edge)`, tag];
   }
   decorate(t) {
     const T = this.T(); const v = T.V[t.vehicle], d = this.drv(t.driver), c = T.C[t.client];
@@ -251,7 +253,7 @@ export class SupervisorApp extends React.Component {
     const crewLine = d ? `${vNum} · ${d.name}` : vNum, routeLine = c ? `${c.name} → ${t.unloading}` : t.from ? `${t.from} → ${t.unloading} · ${t.nbKm} km · ${t.reason}` : `From ${locName} · ${t.type}${t.reason ? ' · ' + t.reason : ''}`;
     const subStatus = t.subStatus || (t.id === 'T22' || (fixed > 0 && t.gpsKm === 194 && fixed === 200) ? 'Nearly reached' : null);
     const subTone = subStatus ? this.statusTone(subStatus) : null;
-    return { ...t, vehicleNumber: vNum, driverName: d ? d.name : '—', clientName: c ? c.name : '—', crewLine, routeLine, partyName: c ? c.name : locName, badge, badgeBg: tone[0], badgeFg: tone[1], edge: tone[2], subStatus, subStatusBg: subTone ? subTone[0] : 'var(--kr-saffron-100)', subStatusFg: subTone ? subTone[1] : '#7A4300', progress: prog + '%', gpsKm: t.gpsKm == null ? '—' : t.gpsKm, expectedHours: (T.R[(T.U[(t.customers || [])[0]] || {}).route] || {}).hours || 12, startKm: t.startKm.toLocaleString('en-IN') };
+    return { ...t, vehicleNumber: vNum, driverName: d ? d.name : '—', clientName: c ? c.name : '—', crewLine, routeLine, partyName: c ? c.name : locName, badge, badgeBg: tone[0], badgeFg: tone[1], edge: tone[2], badgeColor: tone[3], subStatus, subStatusBg: subTone ? subTone[0] : 'var(--kr-saffron-100)', subStatusFg: subTone ? subTone[1] : '#7A4300', subStatusColor: subTone ? subTone[3] : 'warning', progress: prog + '%', gpsKm: t.gpsKm == null ? '—' : t.gpsKm, expectedHours: (T.R[(T.U[(t.customers || [])[0]] || {}).route] || {}).hours || 12, startKm: t.startKm.toLocaleString('en-IN') };
   }
   renderVals() {
     const T = this.T(); const s = this.state, f = s.form;
@@ -354,7 +356,7 @@ export class SupervisorApp extends React.Component {
     const driverErrText = !veh ? 'Select a vehicle, then confirm its driver.' : dcState === 'ask' ? 'Confirm the driver with ✓, or tap ✕ to choose another.' : 'Choose the driver taking this trip.';
     const pickList = drvList.map(d => { const on = drvOk && d.id === driverVal, present = !!attDrv && d.id === attDrv.id, mapped = !!mappedDrv && d.id === mappedDrv.id, pending = d.approval !== 'Approved';
       return { id: d.id, name: d.name, initials: initials(d.name), sub: drvSub(d), on: on ? 'true' : 'false', hasTag: present || mapped || pending, tag: pending ? 'Pending approval' : present ? 'Present today' : 'Mapped',
-        tagBg: pending ? 'var(--color-hazard-soft)' : 'var(--color-brand-tint)', tagFg: pending ? '#7A4300' : 'var(--kr-green-800)',
+        tagBg: pending ? 'var(--color-hazard-soft)' : 'var(--color-brand-tint)', tagFg: pending ? '#7A4300' : 'var(--kr-green-800)', tagColor: pending ? 'warning' : 'success',
         bg: on ? 'var(--color-brand-tint)' : '#fff', ring: on ? 'var(--color-brand)' : 'var(--border-strong)', dot: on ? 'var(--color-brand)' : 'transparent',
         avatarBg: on ? 'var(--color-brand)' : 'var(--surface-muted)', avatarFg: on ? '#fff' : 'var(--text-heading)' }; });
     const pickSub = `${drvList.length} ${drvList.length === 1 ? 'driver' : 'drivers'} free today${veh ? ' for ' + veh.number : ''} · not on a trip or marked absent.`;
@@ -417,7 +419,7 @@ export class SupervisorApp extends React.Component {
         crewLine: (v ? v.number : '—') + (d ? ' · ' + d.name : ''),
         routeLine: c ? `${c.name} → ${t.unloading}` : t.from ? `${t.from} → ${t.unloading} · ${t.reason}` : `${(this.loc(t.loading) || {}).name || '—'} · ${t.type}${t.reason ? ' · ' + t.reason : ''}`,
         badge: flagged ? 'Closed · flagged' : 'Closed', flagged, flagLine: flags.join(' · '),
-        badgeBg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[0], badgeFg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[1],
+        badgeBg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[0], badgeFg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[1], badgeColor: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[3],
         edge: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[2],
         closedAt: i.closedAt, distance: i.odo ? i.odo.toLocaleString('en-IN') + ' km' : '—' };
     }).sort((a, b) => b.sort.localeCompare(a.sort));
@@ -466,7 +468,7 @@ export class SupervisorApp extends React.Component {
     const hfHasRange = !!(hf.from || hf.to), hfAnyFilter = hfHasRange || hfHasVehFilter || !!hf.vehicle;
     const hfRangeLabel = hf.from && hf.to ? (hf.from === hf.to ? prettyDay(hf.from) : `${prettyDay(hf.from)} – ${prettyDay(hf.to)}`) : hf.from ? `From ${prettyDay(hf.from)}` : hf.to ? `Up to ${prettyDay(hf.to)}` : '';
     const TODAY = todayIso;
-    const hfPresets = [['Today', TODAY, TODAY], ['Last 7 days', isoDaysAgo(6), TODAY], ['This month', todayIso.slice(0, 8) + '01', TODAY]].map(([label, from, to]) => { const on = s.hfDraft.from === from && s.hfDraft.to === to; return { label, from, to, border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; });
+    const hfPresets = [['Today', TODAY, TODAY], ['Last 7 days', isoDaysAgo(6), TODAY], ['This month', todayIso.slice(0, 8) + '01', TODAY]].map(([label, from, to]) => { const on = s.hfDraft.from === from && s.hfDraft.to === to; return { label, from, to, on, border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; });
     const histShown = s.forceEmptyHist ? [] : histFiltered;
     const histSel = closedTrips.find(t => t.id === s.histSel) || closedTrips[0];
     let hist = { number: '', openRows: [], closeRows: [] };
@@ -479,7 +481,7 @@ export class SupervisorApp extends React.Component {
       const cust = (t.customers || []).map(id => (T.U[id] || {}).name).filter(Boolean).join(', ') || t.unloading || '—';
       hist = {
         number: t.number, badge: flagged ? 'Closed · flagged' : 'Closed',
-        badgeBg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[0], badgeFg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[1],
+        badgeBg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[0], badgeFg: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[1], badgeColor: this.statusTone(flagged ? 'Closed · flagged' : 'Closed')[3],
         fixedKm: fixed ? fixed.toLocaleString('en-IN') : '—', gpsKm: gps ? gps.toLocaleString('en-IN') : '—',
         odoKm: i.odo ? i.odo.toLocaleString('en-IN') : '—',
         verifyBg: !fixed ? 'var(--surface-muted)' : over ? 'var(--color-hazard-soft)' : 'var(--color-brand-tint)',
@@ -629,7 +631,7 @@ export class SupervisorApp extends React.Component {
     const idleMissing = idleRows.filter(v => v.missingReason).length;
     const idleFilt = s.idleFilter;
     const idleVehicles = idleRows.filter(v => idleFilt === 'all' || (idleFilt === 'idle' && v.on) || (idleFilt === 'missing' && v.missingReason));
-    const idleFilters = [['all', `All (${idleRows.length})`], ['idle', `Idle (${idleStats.idle})`], ['missing', `Reason missing (${idleMissing})`]].map(([id, label]) => { const a = id === idleFilt; return { id, label, border: a ? 'var(--color-brand)' : 'var(--border-strong)', bg: a ? 'var(--color-brand)' : '#fff', color: a ? '#fff' : 'var(--text-heading)' }; });
+    const idleFilters = [['all', `All (${idleRows.length})`], ['idle', `Idle (${idleStats.idle})`], ['missing', `Reason missing (${idleMissing})`]].map(([id, label]) => { const a = id === idleFilt; return { id, label, on: a, border: a ? 'var(--color-brand)' : 'var(--border-strong)', bg: a ? 'var(--color-brand)' : '#fff', color: a ? '#fff' : 'var(--text-heading)' }; });
     const weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
     const missing = [2, 7, 9]; const monthCells = [];
     for (let i = 0; i < 1; i++) monthCells.push({ day: 0, label: '', bg: 'transparent', fg: 'transparent', border: 'transparent', cursor: 'default' });

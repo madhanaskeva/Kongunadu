@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button, Card, Flex, Form, Input, Select, Typography } from 'antd';
 import { userApi } from '../../../api/userApi';
-import Button from '../../../components/common/Button';
-import FormInput from '../../../components/forms/FormInput';
-import FormSelect from '../../../components/forms/FormSelect';
+
+const toOptions = list => list.map(v => ({ value: v, label: v }));
 
 export const UserCreate = () => {
   const navigate = useNavigate();
@@ -16,42 +16,46 @@ export const UserCreate = () => {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', backgroundColor: '#ffffff', padding: '28px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-default)' }}>
-      <h2 style={{ margin: '0 0 20px', fontSize: '20px', fontWeight: 800 }}>Create New User</h2>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <FormInput
-          label="Full Name"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          required
-        />
-        <FormInput
-          label="Email Address"
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          required
-        />
-        <FormSelect
-          label="Role"
-          value={formData.role}
-          onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-          options={['Administrator', 'Verification Team', 'Owner (read-only)', 'Billing (read-only)']}
-        />
-        <FormSelect
-          label="Branch Scope"
-          value={formData.branch}
-          onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-          options={['All branches', 'Chennai HO', 'Namakkal', 'Hyderabad', 'Bengaluru', 'Mumbai']}
-        />
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
-          <Button variant="outline" size="md" onClick={() => navigate('/admin/users')}>Cancel</Button>
-          <Button type="submit" variant="primary" size="md">Save User</Button>
-        </div>
-      </form>
-    </div>
+    <Card style={{ maxWidth: 600, margin: '0 auto' }}>
+      <Typography.Title level={4} style={{ marginTop: 0 }}>Create New User</Typography.Title>
+      {/* Native submit (keeps the browser's required / email checks); handleSubmit runs in the capture phase. */}
+      <Form layout="vertical" onSubmitCapture={handleSubmit}>
+        <Form.Item label="Full Name" required>
+          <Input
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </Form.Item>
+        <Form.Item label="Email Address" required>
+          <Input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+        </Form.Item>
+        <Form.Item label="Role">
+          <Select
+            value={formData.role}
+            onChange={(v) => setFormData({ ...formData, role: v })}
+            options={toOptions(['Administrator', 'Verification Team', 'Owner (read-only)', 'Billing (read-only)'])}
+          />
+        </Form.Item>
+        <Form.Item label="Branch Scope">
+          <Select
+            value={formData.branch}
+            onChange={(v) => setFormData({ ...formData, branch: v })}
+            options={toOptions(['All branches', 'Chennai HO', 'Namakkal', 'Hyderabad', 'Bengaluru', 'Mumbai'])}
+          />
+        </Form.Item>
+        <Flex gap={12} justify="flex-end" wrap style={{ marginTop: 16 }}>
+          <Button onClick={() => navigate('/admin/users')}>Cancel</Button>
+          <Button type="primary" htmlType="submit">Save User</Button>
+        </Flex>
+      </Form>
+    </Card>
   );
 };
 
 export default UserCreate;
-

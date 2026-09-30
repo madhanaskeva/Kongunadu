@@ -1,4 +1,6 @@
 import React, { useMemo } from 'react';
+import { Alert, Card, Col, DatePicker, Flex, Row, Segmented, Space, Statistic, Tabs, Tag, Tooltip, Typography } from 'antd';
+import dayjs from 'dayjs';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { Calendar, ArrowRight, Clock, RotateCcw } from 'lucide-react';
 import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
@@ -469,336 +471,193 @@ export const Analytics = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       {/* 6 Category Tabs */}
-      <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '4px 18px', overflowX: 'auto' }}>
-        <div className="tms-tabrow" style={{ display: 'flex', gap: '8px' }}>
-          {anTabs.map((t) => (
-            <button
-              key={t.value}
-              onClick={() => setAnTab(t.value)}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '12px 16px',
-                fontFamily: 'var(--font-display)',
-                fontSize: '14px',
-                fontWeight: 700,
-                color: anTab === t.value ? 'var(--color-brand)' : 'var(--text-muted)',
-                borderBottom: `3px solid ${anTab === t.value ? 'var(--color-brand)' : 'transparent'}`,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Card styles={{ body: { padding: '0 18px' } }}>
+        <Tabs
+          activeKey={anTab}
+          onChange={setAnTab}
+          items={anTabs.map((t) => ({ key: t.value, label: t.label }))}
+        />
+      </Card>
 
       {/* Date Range Options */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {ranges.map((r) => {
-              const on = range === r.id;
-              return (
-                <button
-                  key={r.id}
-                  onClick={() => handleRangeClick(r.id)}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    padding: '0 16px',
-                    height: '36px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    borderRadius: 'var(--radius-pill)',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    border: `2px solid ${on ? 'var(--color-brand)' : 'var(--border-strong)'}`,
-                    background: on ? 'var(--color-brand)' : '#fff',
-                    color: on ? '#fff' : 'var(--text-heading)',
-                    transition: 'all 0.15s ease',
-                    boxShadow: on ? '0 2px 4px rgba(5,150,105,0.2)' : 'none',
-                  }}
-                >
-                  {r.label}
-                </button>
-              );
-            })}
-          </div>
+      <Flex vertical gap={12}>
+        <Flex justify="space-between" gap={12} wrap align="center">
+          <Segmented
+            value={range}
+            onChange={handleRangeClick}
+            options={ranges.map((r) => ({ value: r.id, label: r.label }))}
+            style={{ maxWidth: '100%', overflowX: 'auto' }}
+          />
 
           {/* Active Period Summary Badge */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-pill)',
-              background: '#f1f5f9',
-              border: '1px solid var(--border-default)',
-              fontSize: '12px',
-              fontWeight: 600,
-              color: 'var(--text-heading)',
-            }}
-          >
-            <Clock size={14} style={{ color: 'var(--color-brand)' }} />
-            <span>Active Range: <strong>{periodInfo.summary}</strong></span>
-          </div>
-        </div>
+          <Tag icon={<Clock size={14} style={{ color: 'var(--color-brand)', marginInlineEnd: 6, verticalAlign: '-2px' }} />} style={{ padding: '4px 12px', borderRadius: 999, marginInlineEnd: 0, whiteSpace: 'normal' }}>
+            Active Range: <strong>{periodInfo.summary}</strong>
+          </Tag>
+        </Flex>
 
         {/* Custom Date Range Panel (Expanded when Custom is selected) */}
         {range === 'custom' && (
-          <div
-            style={{
-              background: '#fff',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '16px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            }}
+          <Card
+            size="small"
+            title={
+              <Space size={8}>
+                <Calendar size={18} style={{ color: 'var(--color-brand)', verticalAlign: '-3px' }} />
+                <span>Select Custom Date Period</span>
+              </Space>
+            }
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar size={18} style={{ color: 'var(--color-brand)' }} />
-                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', color: 'var(--text-heading)' }}>
-                  Select Custom Date Period
-                </span>
-              </div>
-
-              {/* Quick Presets */}
-              {/* <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)', marginRight: '2px' }}>
-                  Presets:
-                </span>
-                {presetOptions.map((p) => {
-                  const isCur = customFrom === p.from && customTo === p.to;
-                  return (
-                    <button
-                      key={p.label}
-                      onClick={() => {
-                        if (setCustomFrom) setCustomFrom(p.from);
-                        if (setCustomTo) setCustomTo(p.to);
-                      }}
-                      style={{
-                        all: 'unset',
-                        cursor: 'pointer',
-                        padding: '4px 10px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        borderRadius: 'var(--radius-pill)',
-                        border: `1px solid ${isCur ? 'var(--color-brand)' : 'var(--border-default)'}`,
-                        background: isCur ? 'var(--color-brand-tint, #ecfdf5)' : '#f8fafc',
-                        color: isCur ? 'var(--color-brand)' : 'var(--text-muted)',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
-              </div> */}
-            </div>
+            {/* Quick Presets */}
+            {/* <Space size={6} wrap>
+              <Typography.Text type="secondary" strong style={{ fontSize: 11, textTransform: 'uppercase' }}>Presets:</Typography.Text>
+              {presetOptions.map((p) => {
+                const isCur = customFrom === p.from && customTo === p.to;
+                return (
+                  <Button
+                    key={p.label}
+                    size="small"
+                    shape="round"
+                    type={isCur ? 'primary' : 'default'}
+                    ghost={isCur}
+                    onClick={() => {
+                      if (setCustomFrom) setCustomFrom(p.from);
+                      if (setCustomTo) setCustomTo(p.to);
+                    }}
+                  >
+                    {p.label}
+                  </Button>
+                );
+              })}
+            </Space> */}
 
             {/* Inputs Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px', flex: '1 1 200px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span>From Date</span>
-                </label>
-                <input
-                  type="date"
-                  value={customFrom}
-                  max={customTo}
-                  onChange={(e) => handleFromChange(e.target.value)}
-                  style={{
-                    height: '40px',
-                    padding: '0 12px',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    border: '1px solid var(--border-strong, #cbd5e1)',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    background: '#fff',
-                    color: 'var(--text-heading)',
-                    boxSizing: 'border-box',
-                    width: '100%',
-                  }}
+            <Row gutter={[16, 12]} align="bottom">
+              <Col xs={24} sm={11} lg={6}>
+                <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>From Date</Typography.Text>
+                <DatePicker
+                  value={customFrom ? dayjs(customFrom, 'YYYY-MM-DD') : null}
+                  format="DD-MM-YYYY"
+                  allowClear={false}
+                  disabledDate={(d) => !!customTo && d.isAfter(dayjs(customTo, 'YYYY-MM-DD'), 'day')}
+                  onChange={(d) => handleFromChange(d ? d.format('YYYY-MM-DD') : '')}
+                  style={{ width: '100%' }}
                 />
-              </div>
+              </Col>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '22px', color: 'var(--text-muted)' }}>
-                <ArrowRight size={18} />
-              </div>
+              <Col xs={0} sm={2} lg={1}>
+                <Flex justify="center" align="center" style={{ height: 42, color: 'var(--text-muted)' }}>
+                  <ArrowRight size={18} />
+                </Flex>
+              </Col>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px', flex: '1 1 200px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span>To Date</span>
-                </label>
-                <input
-                  type="date"
-                  value={customTo}
-                  min={customFrom}
-                  onChange={(e) => handleToChange(e.target.value)}
-                  style={{
-                    height: '40px',
-                    padding: '0 12px',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    border: '1px solid var(--border-strong, #cbd5e1)',
-                    fontSize: '13px',
-                    fontFamily: 'inherit',
-                    outline: 'none',
-                    background: '#fff',
-                    color: 'var(--text-heading)',
-                    boxSizing: 'border-box',
-                    width: '100%',
-                  }}
+              <Col xs={24} sm={11} lg={6}>
+                <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>To Date</Typography.Text>
+                <DatePicker
+                  value={customTo ? dayjs(customTo, 'YYYY-MM-DD') : null}
+                  format="DD-MM-YYYY"
+                  allowClear={false}
+                  disabledDate={(d) => !!customFrom && d.isBefore(dayjs(customFrom, 'YYYY-MM-DD'), 'day')}
+                  onChange={(d) => handleToChange(d ? d.format('YYYY-MM-DD') : '')}
+                  style={{ width: '100%' }}
                 />
-              </div>
+              </Col>
 
-              <div style={{ display: 'flex', alignItems: 'flex-end', flex: '2 1 240px', minHeight: '40px', paddingTop: '22px' }}>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '9px 14px',
-                    borderRadius: 'var(--radius-md, 8px)',
-                    background: 'var(--color-brand-tint, #ecfdf5)',
-                    border: '1px solid var(--color-brand, #059669)',
-                    color: 'var(--kr-green-900, #064e3b)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                  }}
-                >
-                  <Clock size={15} style={{ color: 'var(--color-brand)' }} />
-                  <span>
-                    {effectiveDays} day{effectiveDays !== 1 ? 's' : ''} duration ({formatShortDate(customFrom)} – {formatShortDate(customTo)})
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+              <Col xs={24} lg={11}>
+                <Alert
+                  type="success"
+                  showIcon
+                  icon={<Clock size={15} />}
+                  title={`${effectiveDays} day${effectiveDays !== 1 ? 's' : ''} duration (${formatShortDate(customFrom)} – ${formatShortDate(customTo)})`}
+                />
+              </Col>
+            </Row>
+          </Card>
         )}
-      </div>
+      </Flex>
 
       {/* 4 KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: '16px' }}>
+      <Row gutter={[16, 16]}>
         {ad.kpis.map(([label, value, sub, color], idx) => (
-          <div
-            key={idx}
-            style={{
-              background: '#fff',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '16px 18px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-            }}
-          >
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-              {label}
-            </div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '30px', letterSpacing: '-0.02em', color: 'var(--text-heading)', marginTop: '6px', lineHeight: 1 }}>
-              {value}
-            </div>
-            <div style={{ fontSize: '13px', color, marginTop: '6px' }}>{sub}</div>
-          </div>
+          <Col key={idx} xs={24} sm={12} lg={6}>
+            <Card className="tms-kpi" style={{ height: '100%', '--kpi': color === 'var(--text-muted)' ? 'var(--color-brand)' : color }}>
+              <Statistic
+                title={<span className="tms-kpi-label">{label}</span>}
+                value={value}
+                formatter={(v) => v}
+              />
+              <Typography.Text style={{ display: 'block', fontSize: 13, color, marginTop: 6 }}>{sub}</Typography.Text>
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
       {/* Chart & Table */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: '24px' }}>
+      <Row gutter={[24, 24]}>
         {/* Chart Column */}
-        <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-              {ad.chartTitle}
-            </h2>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-brand)', background: 'var(--color-brand-tint, #ecfdf5)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', border: '1px solid var(--color-brand)' }}>
-              {periodInfo.badgeText}
-            </span>
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>{ad.chartSub}</div>
+        <Col xs={24} lg={12}>
+          <Card
+            title={ad.chartTitle}
+            extra={<Tag color="success" style={{ marginInlineEnd: 0 }}>{periodInfo.badgeText}</Tag>}
+            style={{ height: '100%' }}
+          >
+            <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 16 }}>{ad.chartSub}</Typography.Paragraph>
 
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '180px', borderBottom: '1px solid var(--border-default)', paddingTop: '10px' }}>
-            {ad.series.map((item, i) => {
-              const h = Math.max(8, Math.round((item.val / mx) * 100)) + '%';
-              const isLast = i === ad.series.length - 1;
-              const color = isLast ? 'var(--kr-green-800)' : 'var(--color-brand)';
+            <Flex align="flex-end" gap={6} style={{ height: 180, borderBottom: '1px solid var(--border-default)', paddingTop: 10 }}>
+              {ad.series.map((item, i) => {
+                const h = Math.max(8, Math.round((item.val / mx) * 100)) + '%';
+                const isLast = i === ad.series.length - 1;
+                const color = isLast ? 'var(--kr-green-800)' : 'var(--color-brand)';
 
-              return (
-                <div
-                  key={i}
-                  title={item.tooltip}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-end',
-                    height: '100%',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: h,
-                      background: color,
-                      borderRadius: '3px 3px 0 0',
-                      transition: 'height 0.3s ease-out, background 0.2s',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.filter = 'brightness(1.15)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.filter = 'none'; }}
-                  />
-                </div>
-              );
-            })}
-          </div>
+                return (
+                  <Tooltip key={i} title={item.tooltip}>
+                    <Flex vertical justify="flex-end" style={{ flex: 1, height: '100%', cursor: 'pointer' }}>
+                      <div
+                        style={{
+                          height: h,
+                          background: color,
+                          borderRadius: '3px 3px 0 0',
+                          transition: 'height 0.3s ease-out, background 0.2s',
+                        }}
+                      />
+                    </Flex>
+                  </Tooltip>
+                );
+              })}
+            </Flex>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 600 }}>
-            <span>{periodInfo.startLabel}</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>{periodInfo.midLabel}</span>
-            <span>{periodInfo.endLabel}</span>
-          </div>
-        </section>
+            <Flex justify="space-between" style={{ marginTop: 8 }}>
+              <Typography.Text type="secondary" strong style={{ fontSize: 12 }}>{periodInfo.startLabel}</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>{periodInfo.midLabel}</Typography.Text>
+              <Typography.Text type="secondary" strong style={{ fontSize: 12 }}>{periodInfo.endLabel}</Typography.Text>
+            </Flex>
+          </Card>
+        </Col>
 
         {/* Breakdown Table Column */}
-        <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <h2 style={{ margin: 0, padding: '14px 18px', borderBottom: '1px solid var(--border-default)', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-            {ad.tableTitle}
-          </h2>
-          {ad.rows.map(([k, v, sub], idx) => (
-            <div
-              key={idx}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr auto',
-                gap: '12px',
-                padding: '11px 18px',
-                borderBottom: idx === ad.rows.length - 1 ? 'none' : '1px solid var(--border-default)',
-                fontSize: '14px',
-                alignItems: 'center',
-              }}
-            >
-              <span>
-                <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-heading)' }}>{k}</span>
-                <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)' }}>{sub}</span>
-              </span>
-              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                {v}
-              </span>
-            </div>
-          ))}
-        </section>
-      </div>
-    </div>
+        <Col xs={24} lg={12}>
+          <Card title={ad.tableTitle} style={{ height: '100%' }} styles={{ body: { padding: 0 } }}>
+            {ad.rows.map(([k, v, sub], idx) => (
+              <Flex
+                key={idx}
+                justify="space-between"
+                align="center"
+                gap={12}
+                style={{ padding: '11px 18px', borderBottom: idx === ad.rows.length - 1 ? 'none' : '1px solid var(--border-default)' }}
+              >
+                <Flex vertical style={{ minWidth: 0 }}>
+                  <Typography.Text strong style={{ color: 'var(--text-heading)' }}>{k}</Typography.Text>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>{sub}</Typography.Text>
+                </Flex>
+                <Typography.Text strong style={{ fontSize: 16, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                  {v}
+                </Typography.Text>
+              </Flex>
+            ))}
+          </Card>
+        </Col>
+      </Row>
+    </Flex>
   );
 };
 

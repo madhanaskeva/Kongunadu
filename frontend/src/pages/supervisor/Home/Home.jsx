@@ -1,64 +1,67 @@
 import React from 'react';
+import { Avatar, Card, Flex, Typography } from 'antd';
+import { ArrowRight, CalendarCheck, Check, History } from 'lucide-react';
 import { ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
+
+const { Text } = Typography;
+
+// Enter / Space activate a tile, as the old <button> tiles did.
+const tileKey = (fn) => (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(e); } };
 
 export const Home = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "20px 16px 32px", gap: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <div style={{ fontSize: "14px", color: "var(--text-muted)" }}>{v.todayLong}</div>
-        <div style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-heading)" }}>{v.activeCount} {v.tripWord} {ENROUTE_LABEL_LOWER}</div>
-      </div>
-      <button onClick={v.goAttMark} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: "14px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "1px solid var(--border-default)", borderLeft: "6px solid var(--color-brand)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-sm)", transition: "background var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h3 sv-h7 sv-a4">
-        <span style={{ flex: "none", width: "44px", height: "44px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", background: "var(--color-brand-tint)", color: "var(--color-brand)" }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <path d="M16 2v4M8 2v4M3 10h18" />
-            <path d="m9 16 2 2 4-4" />
-          </svg>
-        </span>
-        <div style={{ flex: "1", minWidth: "0" }}>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "22px", letterSpacing: "-0.02em", textTransform: "uppercase", color: "var(--text-heading)" }}>
-            Attendance
+    <Flex vertical gap={16} style={{ flex: 1, padding: "20px 16px 32px" }}>
+      <Flex justify="space-between" align="baseline" gap={8} wrap>
+        <Text type="secondary">{v.todayLong}</Text>
+        <Text strong>{v.activeCount} {v.tripWord} {ENROUTE_LABEL_LOWER}</Text>
+      </Flex>
+      <Card hoverable role="button" tabIndex={0} onClick={v.goAttMark} onKeyDown={tileKey(v.goAttMark)} className="sv-home-tile sv-home-tile--tint">
+        <Flex align="center" gap={14}>
+          <Avatar shape="square" size={44} className="sv-home-tile-icon" icon={<CalendarCheck size={24} strokeWidth={2.2} />} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="sv-home-tile-title sv-home-tile-title--sm">Attendance</div>
+            <Text className="sv-home-tile-sub">{v.attendanceMarked} of {v.attendanceTotal} drivers marked today</Text>
           </div>
-          <div style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "2px" }}>{v.attendanceMarked} of {v.attendanceTotal} drivers marked today</div>
-        </div>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M5 12h14m-6-6 6 6-6 6" />
-        </svg>
-      </button>
-      <button onClick={v.goOpen} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand)", color: "#fff", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast)" }} className="sv-h5 sv-a4">
-        <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Open Trip</div>
-          <div style={{ fontSize: "14px", opacity: ".85", marginTop: "4px" }}>Truck loaded. Start a new trip.</div>
-        </div>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
-      </button>
-      <button onClick={v.goCloseList} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "2px solid var(--border-strong)", borderRadius: "var(--radius-lg)", borderLeft: "6px solid var(--color-brand)", transition: "background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h7 sv-a4">
-        <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Close Trip</div>
-          <div style={{ fontSize: "14px", opacity: ".85", marginTop: "4px" }}>Unloading done. Record closing details.</div>
-        </div>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5L20 7" /></svg>
-      </button>
-      <button onClick={v.goUnclosed} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand)", color: "#fff", borderRadius: "var(--radius-lg)", transition: "background var(--dur-fast)" }} className="sv-h5 sv-a4">
-        <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Unclosed Trips</div>
-          <div style={{ fontSize: "14px",  opacity: ".85", marginTop: "4px" }}>{v.unclosedHint}</div>
-        </div>
-        <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "34px", letterSpacing: "-0.02em", }}>{v.activeCount}</span>
-      </button>
-      <button onClick={v.goHistory} style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", minHeight: "104px", padding: "22px 22px", background: "var(--color-brand-tint)", color: "var(--text-heading)", border: "2px solid var(--border-strong)", borderRadius: "var(--radius-lg)",borderLeft: "6px solid var(--color-brand)", transition: "background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-fast)" }} className="sv-h7 sv-a4">
-        <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "26px", letterSpacing: "-0.02em", textTransform: "uppercase" }}>Trip History</div>
-          <div style={{ fontSize: "14px", color: "var(--text-body)", marginTop: "4px" }}>{v.histHomeHint}</div>
-        </div>
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--color-brand)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
-          <path d="M3 3v5h5" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      </button>
-    </div>
+          <ArrowRight size={24} strokeWidth={2.5} color="var(--color-brand)" />
+        </Flex>
+      </Card>
+      <Card hoverable role="button" tabIndex={0} onClick={v.goOpen} onKeyDown={tileKey(v.goOpen)} className="sv-home-tile sv-home-tile--solid">
+        <Flex align="center" justify="space-between" gap={16}>
+          <div>
+            <div className="sv-home-tile-title">Open Trip</div>
+            <Text className="sv-home-tile-sub">Truck loaded. Start a new trip.</Text>
+          </div>
+          <ArrowRight size={28} strokeWidth={2.5} />
+        </Flex>
+      </Card>
+      <Card hoverable role="button" tabIndex={0} onClick={v.goCloseList} onKeyDown={tileKey(v.goCloseList)} className="sv-home-tile sv-home-tile--tint">
+        <Flex align="center" justify="space-between" gap={16}>
+          <div>
+            <div className="sv-home-tile-title">Close Trip</div>
+            <Text className="sv-home-tile-sub">Unloading done. Record closing details.</Text>
+          </div>
+          <Check size={28} strokeWidth={2.5} />
+        </Flex>
+      </Card>
+      <Card hoverable role="button" tabIndex={0} onClick={v.goUnclosed} onKeyDown={tileKey(v.goUnclosed)} className="sv-home-tile sv-home-tile--solid">
+        <Flex align="center" justify="space-between" gap={16}>
+          <div>
+            <div className="sv-home-tile-title">Unclosed Trips</div>
+            <Text className="sv-home-tile-sub">{v.unclosedHint}</Text>
+          </div>
+          <span className="sv-home-tile-title sv-home-tile-count">{v.activeCount}</span>
+        </Flex>
+      </Card>
+      <Card hoverable role="button" tabIndex={0} onClick={v.goHistory} onKeyDown={tileKey(v.goHistory)} className="sv-home-tile sv-home-tile--tint">
+        <Flex align="center" justify="space-between" gap={16}>
+          <div>
+            <div className="sv-home-tile-title">Trip History</div>
+            <Text className="sv-home-tile-sub">{v.histHomeHint}</Text>
+          </div>
+          <History size={30} strokeWidth={2.4} color="var(--color-brand)" aria-hidden="true" />
+        </Flex>
+      </Card>
+    </Flex>
   </>
 );
 

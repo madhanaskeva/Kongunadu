@@ -1,5 +1,5 @@
 import React from 'react';
-import { ConfigProvider } from 'antd';
+import { App as AntApp, ConfigProvider } from 'antd';
 
 /**
  * AntdProvider — wraps the app with antd's ConfigProvider.
@@ -28,12 +28,24 @@ const TMS_THEME = {
     colorWarningBg: '#fdebd3',        // --kr-saffron-100
 
     colorSuccess: '#0b7e52',          // --status-success
+    // Explicit tints: antd's derived ones from #0b7e52 come out grey-green and
+    // make "Active" / "Approved" tags look disabled.
+    colorSuccessBg: '#dff5e9',
+    colorSuccessBgHover: '#c8ecd9',
+    colorSuccessBorder: '#86d1ab',
+    colorSuccessBorderHover: '#5fbf8f',
+    colorSuccessText: '#00623f',
+
+    colorLink: '#00623f',             // --link
+    colorLinkHover: '#004a31',        // --link-hover
+    colorLinkActive: '#003021',
 
     /* ── Neutral / surface ── */
     colorTextBase: '#4a4a46',         // --text-body / --kr-grey-700
     colorText: '#4a4a46',
-    colorTextSecondary: '#7c7c76',    // --text-muted / --kr-grey-500
+    colorTextSecondary: '#62645e',    // --text-muted (darkened for contrast)
     colorTextDisabled: '#7c7c76',
+    colorTextPlaceholder: '#6f716b',  // readable placeholders (antd default is 25% grey)
     colorTextHeading: '#1c1c1a',      // --text-heading / --kr-grey-900
     colorBgBase: '#ffffff',
     colorBgContainer: '#ffffff',
@@ -43,7 +55,7 @@ const TMS_THEME = {
 
     /* ── Typography ── */
     fontFamily:
-      '"Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      '"Source Sans 3", "Source Sans Pro", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
     fontFamilyCode:
       'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
     fontSize: 14,
@@ -86,7 +98,7 @@ const TMS_THEME = {
       controlHeightSM: 32,
       controlHeightLG: 48,
       fontFamily:
-        '"Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        '"Archivo", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       paddingInline: 16,
       paddingInlineSM: 10,
       paddingInlineLG: 24,
@@ -114,7 +126,7 @@ const TMS_THEME = {
       activeBorderColor: '#00623f',
       activeOutlineColor: 'rgba(0, 98, 63, 0.35)', // --focus-ring
       controlOutlineWidth: 3,
-      colorTextPlaceholder: '#7c7c76', // --text-muted
+      colorTextPlaceholder: '#6f716b',
       colorText: '#1c1c1a',           // --text-heading
       optionHeight: 40,
       optionPadding: '9px 12px',
@@ -131,7 +143,7 @@ const TMS_THEME = {
       headerBg: '#f6f6f4',            // --surface-muted
       headerColor: '#7c7c76',         // --text-muted
       headerSplitColor: '#dcdcd6',
-      rowHoverBg: '#f6f6f4',
+      rowHoverBg: '#edf8f3',          // --color-brand-tint (light green)
       cellPaddingBlock: 14,
       cellPaddingInline: 16,
       headerCellSplitColor: '#dcdcd6',
@@ -157,6 +169,52 @@ const TMS_THEME = {
       itemActiveColor: '#00623f',
       itemSelectedColor: '#00623f',
       itemHoverColor: '#004a31',
+      itemColor: '#7c7c76',           // --text-muted
+      titleFontSize: 14,
+      horizontalMargin: '0',
+    },
+    /* Admin shell: white 72px top bar, page canvas #f3f6f5, sidebar paints
+       its own brand gradient (.tms-sidebar in adminLayout.css). */
+    Layout: {
+      headerBg: '#ffffff',
+      headerHeight: 72,
+      headerPadding: 0,
+      bodyBg: '#f3f6f5',
+      siderBg: 'transparent',
+    },
+    /* Sidebar menu sits on the green gradient, so it uses the dark variant. */
+    Menu: {
+      darkItemBg: 'transparent',
+      darkSubMenuItemBg: 'transparent',
+      darkItemColor: 'rgba(255, 255, 255, 0.92)',
+      darkItemHoverColor: '#ffffff',
+      darkItemHoverBg: 'rgba(218, 241, 231, 0.16)',
+      darkItemSelectedBg: '#daf1e7',  // --kr-green-100
+      darkItemSelectedColor: '#004a31', // --kr-green-800
+      darkGroupTitleColor: 'rgba(255, 255, 255, 0.62)',
+      itemBorderRadius: 10,
+      itemHeight: 38,
+      itemMarginBlock: 2,
+      itemMarginInline: 0,
+      itemPaddingInline: 14,
+      iconSize: 19,
+      iconMarginInlineEnd: 12,
+      groupTitleFontSize: 10.5,
+    },
+    Pagination: {
+      itemSize: 36,
+      itemActiveBg: '#00623f',        // filled green current page
+      itemActiveColor: '#ffffff',
+      itemActiveColorHover: '#ffffff',
+    },
+    Card: {
+      headerFontSize: 16,
+      bodyPadding: 18,
+      headerPadding: 18,
+    },
+    Statistic: {
+      titleFontSize: 13,
+      contentFontSize: 26,
     },
     Spin: {
       colorPrimary: '#00623f',
@@ -177,7 +235,8 @@ const TMS_THEME = {
 export const AntdProvider = ({ children }) => {
   return (
     <ConfigProvider theme={TMS_THEME}>
-      {children}
+      {/* antd <App> gives message / notification / modal hooks the theme above */}
+      <AntApp>{children}</AntApp>
     </ConfigProvider>
   );
 };

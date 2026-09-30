@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { CalendarDays, ChevronRight } from 'lucide-react';
+import { Button, Card, Drawer, Empty, Flex, Layout, Typography } from 'antd';
+import { CalendarDays } from 'lucide-react';
 import { useTMSAdmin, TMSAdminProvider } from '../../context/TMSAdminContext';
 import AdminSidebar from './AdminSidebar';
 import AdminHeader from './AdminHeader';
@@ -83,135 +84,119 @@ const AdminLayoutContent = () => {
       ]
     : [];
 
+  const sidebar = <AdminSidebar onClose={() => setNavOpen(false)} />;
+
   return (
-    <div className="tms-shell">
+    <Layout className="tms-shell">
       <AdminHeader onOpenNav={() => setNavOpen(true)} narrow={narrow} />
 
-      <div className="tms-body">
-      {/* Mobile Scrim / Desktop Sidebar */}
-      {(narrow ? navOpen : true) && (
-        <div
-          onClick={() => setNavOpen(false)}
-          style={{
-            position: narrow ? 'fixed' : 'relative',
-            inset: 0,
-            zIndex: 40,
-            background: narrow ? 'rgba(20,32,43,.45)' : 'transparent',
-            display: 'flex',
-            flex: 'none',
-            width: narrow ? 'auto' : '246px',
-          }}
-        >
-          <div onClick={(e) => e.stopPropagation()} className={narrow ? 'tms-sidebar-drawer' : undefined}>
-            <AdminSidebar onClose={() => setNavOpen(false)} />
-          </div>
-        </div>
-      )}
-
-      {/* Main Column */}
-      <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        {/* Global Search Overlay */}
-        {searching ? (
-          <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-                {searchResults.length} results for &ldquo;{globalQ}&rdquo;
-              </div>
-              <button
-                onClick={() => setGlobalQ('')}
-                style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-              >
-                Close search
-              </button>
-            </div>
-            {searchResults.map((r, i) => (
-              <button
-                key={i}
-                onClick={() => navTo(r.route, { selectedTrip: r.id })}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  gap: '16px',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  padding: '14px 16px',
-                  background: '#fff',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 'var(--radius-lg)',
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-muted)',
-                    width: '80px',
-                  }}
-                >
-                  {r.kind}
-                </span>
-                <span style={{ fontWeight: 700, color: 'var(--text-heading)' }}>{r.title}</span>
-                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>{r.sub}</span>
-              </button>
-            ))}
-            {searchResults.length === 0 && (
-              <div style={{ padding: '40px', textAlign: 'center', background: '#fff', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-lg)' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
-                  Nothing matches
-                </div>
-                <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  Search by trip number, vehicle registration, driver or client name.
-                </p>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div
-            key={location.pathname}
-            className="tms-page-enter"
-            style={{ padding: narrow ? '16px' : '20px 28px 28px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, boxSizing: 'border-box' }}
+      <Layout hasSider className="tms-body">
+        {/* Desktop: fixed sidebar column. Phones/tablets: slide-in drawer. */}
+        {narrow ? (
+          <Drawer
+            placement="left"
+            open={navOpen}
+            onClose={() => setNavOpen(false)}
+            closable={false}
+            size={246}
+            rootClassName="tms-sidebar-drawer"
+            styles={{ body: { padding: 0 }, mask: { background: 'rgba(20,32,43,.45)' } }}
           >
-            {/* Pages listed in OWN_HEAD render their own heading, so this one is skipped */}
-            {!meta.hideHead && (
-              <div className="tms-pagehead">
-                <div style={{ minWidth: 0 }}>
-                  <div className="tms-pagehead-crumb">
-                    {meta.crumb}
-                    <ChevronRight size={14} />
-                    <strong>{meta.title}</strong>
-                  </div>
-                  <h1>{meta.title}</h1>
-                  {meta.sub && <p>{meta.sub}</p>}
-                </div>
-                <div className="tms-pagehead-date">
-                  <CalendarDays size={20} color="var(--kr-grey-700)" />
-                  <span>
-                    <strong>Today, {todayLabel}</strong>
-                    <small>{dayLabel}</small>
-                  </span>
-                </div>
-              </div>
-            )}
-            {!blocked ? (
-              <Outlet />
-            ) : firstPath ? (
-              <Navigate to={firstPath} replace />
-            ) : (
-              <div style={{ padding: '48px 24px', textAlign: 'center', background: '#fff', border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-lg)' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>No modules assigned</div>
-                <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  Your account has no module access yet. Ask an administrator to grant access in Users &amp; roles.
-                </p>
-              </div>
-            )}
-          </div>
+            {sidebar}
+          </Drawer>
+        ) : (
+          <Layout.Sider width={246} className="tms-sider">
+            {sidebar}
+          </Layout.Sider>
         )}
-      </main>
-      </div>
+
+        {/* Main Column */}
+        <Layout.Content style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          {/* Global Search Overlay */}
+          {searching ? (
+            <Flex vertical gap={12} style={{ padding: 24 }}>
+              <Flex justify="space-between" align="center">
+                <Typography.Text type="secondary">
+                  {searchResults.length} results for &ldquo;{globalQ}&rdquo;
+                </Typography.Text>
+                <Button type="link" onClick={() => setGlobalQ('')}>Close search</Button>
+              </Flex>
+              {searchResults.map((r, i) => (
+                <Card
+                  key={i}
+                  size="small"
+                  hoverable
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navTo(r.route, { selectedTrip: r.id })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') navTo(r.route, { selectedTrip: r.id }); }}
+                >
+                  <Flex gap={16} align="center" wrap>
+                    <span className="tms-kicker" style={{ width: 80, margin: 0, color: 'var(--text-muted)' }}>{r.kind}</span>
+                    <Typography.Text strong>{r.title}</Typography.Text>
+                    <Typography.Text type="secondary">{r.sub}</Typography.Text>
+                  </Flex>
+                </Card>
+              ))}
+              {searchResults.length === 0 && (
+                <Card>
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <>
+                        <Typography.Title level={5} style={{ margin: 0 }}>Nothing matches</Typography.Title>
+                        <Typography.Text type="secondary">Search by trip number, vehicle registration, driver or client name.</Typography.Text>
+                      </>
+                    }
+                  />
+                </Card>
+              )}
+            </Flex>
+          ) : (
+            <Flex
+              vertical
+              gap={20}
+              key={location.pathname}
+              className="tms-page-enter"
+              style={{ padding: narrow ? '16px' : '20px 28px 28px', flex: 1, boxSizing: 'border-box' }}
+            >
+              {/* Pages listed in OWN_HEAD render their own heading, so this one is skipped */}
+              {!meta.hideHead && (
+                <div className="tms-pagehead">
+                  <div style={{ minWidth: 0 }}>
+                    <h1>{meta.title}</h1>
+                    {meta.sub && <p>{meta.sub}</p>}
+                  </div>
+                  <div className="tms-pagehead-date">
+                    <CalendarDays size={20} color="var(--kr-grey-700)" />
+                    <span>
+                      <strong>Today, {todayLabel}</strong>
+                      <small>{dayLabel}</small>
+                    </span>
+                  </div>
+                </div>
+              )}
+              {!blocked ? (
+                <Outlet />
+              ) : firstPath ? (
+                <Navigate to={firstPath} replace />
+              ) : (
+                <Card>
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
+                      <>
+                        <Typography.Title level={5} style={{ margin: 0 }}>No modules assigned</Typography.Title>
+                        <Typography.Text type="secondary">Your account has no module access yet. Ask an administrator to grant access in Users &amp; roles.</Typography.Text>
+                      </>
+                    }
+                  />
+                </Card>
+              )}
+            </Flex>
+          )}
+        </Layout.Content>
+      </Layout>
 
       {/* Global Slide-In Drawer */}
       <AdminDrawer />
@@ -221,7 +206,7 @@ const AdminLayoutContent = () => {
 
       {/* Global Toast Alert */}
       <AdminToast />
-    </div>
+    </Layout>
   );
 };
 

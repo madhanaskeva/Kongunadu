@@ -1,101 +1,131 @@
 import React from 'react';
-import { Button, Input, Select } from '../components/ds';
+import { Alert, Button, Card, Col, Empty, Flex, Form, Input, Row, Select, Tag, Typography } from 'antd';
+
+const { Text, Title } = Typography;
 
 export const VehicleIdleStatus = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div className="sv-screen">
+      <Flex vertical gap={16} className="sv-screen-body">
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>{v.todayDM} · {v.nowHM}</div>
-          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>Mark each {v.branchName} vehicle that is standing idle and say why. Vehicles on a trip are running and cannot be marked.</div>
+          <Title level={4} style={{ margin: 0 }}>{v.todayDM} · {v.nowHM}</Title>
+          <Text type="secondary" style={{ fontSize: 13 }}>Mark each {v.branchName} vehicle that is standing idle and say why. Vehicles on a trip are running and cannot be marked.</Text>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "8px" }}>
-          <div style={{ padding: "12px", background: "var(--color-hazard-soft)", borderRadius: "var(--radius-md)" }}>
-            <div style={{ fontSize: "12px", color: "#7A4300" }}>Idle</div>
-            <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "22px", color: "#7A4300" }}>{v.idleStats.idle}</div>
-          </div>
-          <div style={{ padding: "12px", background: "var(--st-enroute-bg)", borderRadius: "var(--radius-md)" }}>
-            <div style={{ fontSize: "12px", color: "var(--st-enroute-fg)" }}>On trip</div>
-            <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "22px", color: "var(--st-enroute-fg)" }}>{v.idleStats.running}</div>
-          </div>
-          <div style={{ padding: "12px", background: "var(--surface-muted)", borderRadius: "var(--radius-md)" }}>
-            <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Ready</div>
-            <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "22px", color: "var(--text-heading)" }}>{v.idleStats.ready}</div>
-          </div>
-        </div>
+        <Row gutter={8}>
+          <Col span={8}>
+            <Card size="small" variant="borderless" style={{ background: "var(--color-hazard-soft)", color: "#7A4300" }}>
+              <div style={{ fontSize: 12 }}>Idle</div>
+              <div className="sv-figure" style={{ fontSize: 22, color: "inherit" }}>{v.idleStats.idle}</div>
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small" variant="borderless" style={{ background: "var(--st-enroute-bg)", color: "var(--st-enroute-fg)" }}>
+              <div style={{ fontSize: 12 }}>On trip</div>
+              <div className="sv-figure" style={{ fontSize: 22, color: "inherit" }}>{v.idleStats.running}</div>
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small" variant="borderless" style={{ background: "var(--surface-muted)" }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Ready</Text>
+              <div className="sv-figure" style={{ fontSize: 22 }}>{v.idleStats.ready}</div>
+            </Card>
+          </Col>
+        </Row>
         {v.idleHasErrors ? (
           <>
-            <div role="alert" style={{ padding: "12px 14px", background: "var(--kr-red-50)", border: "1px solid var(--kr-red-100)", borderRadius: "var(--radius-md)", color: "var(--kr-red-800)", fontSize: "14px", fontWeight: "600" }}>
-              {v.idleErrorText}
-            </div>
+            <Alert type="error" showIcon title={v.idleErrorText} />
           </>
         ) : null}
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <Flex gap={8} wrap>
           {(v.idleFilters || []).map((f, fIdx) => (
             <React.Fragment key={fIdx}>
-              <button data-f={f.id} onClick={v.setIdleFilter} style={{ all: "unset", cursor: "pointer", padding: "8px 14px", minHeight: "36px", boxSizing: "border-box", borderRadius: "var(--radius-pill)", fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", border: `2px solid ${f.border}`, background: f.bg, color: f.color }}>
+              <Button data-f={f.id} onClick={v.setIdleFilter} shape="round" type={f.on ? 'primary' : 'default'}>
                 {f.label}
-              </button>
+              </Button>
             </React.Fragment>
           ))}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {(v.idleVehicles || []).map((v, vIdx) => (
+        </Flex>
+        <Flex vertical gap={10}>
+          {(v.idleVehicles || []).map((row, vIdx) => (
             <React.Fragment key={vIdx}>
-              <div style={{ padding: "12px 14px", border: "1px solid var(--border-default)", borderLeft: `4px solid ${v.edge}`, borderRadius: "var(--radius-md)", background: v.bg, display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ flex: "1", minWidth: "0" }}>
-                    <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-heading)" }}>{v.number}</div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{v.sub}</div>
+              <Card size="small" className="sv-edge-card" style={{ borderLeftColor: row.edge, background: row.bg }}>
+                <Flex align="center" gap={12}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text strong style={{ display: "block", fontSize: 15 }}>{row.number}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{row.sub}</Text>
                   </div>
-                  {v.running ? (
+                  {row.running ? (
                     <>
-                      <span style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", padding: "3px 8px", borderRadius: "var(--radius-sm)", background: "var(--st-enroute-bg)", color: "var(--st-enroute-fg)" }}>
+                      <Tag color="processing" className="sv-tag">
                         On trip
-                      </span>
+                      </Tag>
                     </>
                   ) : null}
-                  {v.canMark ? (
+                  {row.canMark ? (
                     <>
-                      <button data-id={v.id} onClick={v.toggleIdle} aria-pressed={v.on} style={{ all: "unset", cursor: "pointer", minWidth: "84px", height: "40px", padding: "0 12px", boxSizing: "border-box", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", fontFamily: "var(--font-display)", fontWeight: "700", fontSize: "13px", letterSpacing: "0.04em", textTransform: "uppercase", border: `2px solid ${v.tBorder}`, background: v.tBg, color: v.tFg }}>
-                        {v.tLabel}
-                      </button>
+                      <Button data-id={row.id} onClick={v.toggleIdle} aria-pressed={row.on} color={row.on ? 'orange' : 'default'} variant={row.on ? 'solid' : 'outlined'} style={{ minWidth: 84 }}>
+                        {row.tLabel}
+                      </Button>
                     </>
                   ) : null}
-                </div>
-                {v.on ? (
+                </Flex>
+                {row.on ? (
                   <>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <Select label="Idle reason" placeholder="Select reason" options={v.idleReasonOptions} value={v.reason} onChange={v.setReason} />
-                      {v.reasonErr ? (
+                    <Form layout="vertical" component={false}>
+                      <Form.Item
+                        label="Idle reason"
+                        validateStatus={row.reasonErr ? 'error' : undefined}
+                        help={row.reasonErr ? 'Select why this vehicle is idle.' : undefined}
+                        style={{ margin: "10px 0 8px" }}
+                      >
+                        {/* Row values come from `row`; toggleIdle and idleReasonOptions live on the screen view model `v` */}
+                        <Select
+                          size="large"
+                          placeholder={(v.idleReasonOptions || []).length ? 'Select reason' : 'None available'}
+                          options={v.idleReasonOptions || []}
+                          disabled={!(v.idleReasonOptions || []).length}
+                          value={row.reason || undefined}
+                          onChange={(val) => row.setReason && row.setReason({ target: { value: val == null ? '' : String(val) } })}
+                        />
+                      </Form.Item>
+                      {row.isOther ? (
                         <>
-                          <div style={{ fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>Select why this vehicle is idle.</div>
+                          <Form.Item
+                            label="Describe the reason"
+                            validateStatus={row.noteErr ? 'error' : undefined}
+                            help={row.noteErr}
+                            style={{ marginBottom: 8 }}
+                          >
+                            <Input size="large" placeholder="e.g. Waiting for FC renewal at RTO" value={row.note ?? ''} onChange={row.setNote} readOnly={!row.setNote} />
+                          </Form.Item>
                         </>
                       ) : null}
-                      {v.isOther ? (
-                        <>
-                          <Input label="Describe the reason" placeholder="e.g. Waiting for FC renewal at RTO" value={v.note} onChange={v.setNote} error={v.noteErr} />
-                        </>
-                      ) : null}
-                      <div style={{ fontSize: "13px", fontWeight: "600", color: v.sinceColor }}>{v.sinceText}</div>
-                    </div>
+                    </Form>
+                    <Text strong style={{ fontSize: 13, color: row.sinceColor }}>{row.sinceText}</Text>
                   </>
                 ) : null}
-              </div>
+              </Card>
             </React.Fragment>
           ))}
           {v.idleListEmpty ? (
             <>
-              <div style={{ padding: "32px 20px", textAlign: "center", border: "2px dashed var(--border-default)", borderRadius: "var(--radius-lg)" }}>
-                <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>{v.idleEmptyTitle}</div>
-                <p style={{ margin: "6px 0 0", fontSize: "14px", color: "var(--text-muted)" }}>{v.idleEmptyText}</p>
-              </div>
+              <Card style={{ borderStyle: "dashed", borderWidth: 2 }}>
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={
+                    <>
+                      <Text strong style={{ display: "block", fontSize: 18 }}>{v.idleEmptyTitle}</Text>
+                      <Text type="secondary">{v.idleEmptyText}</Text>
+                    </>
+                  }
+                />
+              </Card>
             </>
           ) : null}
-        </div>
-      </div>
-      <div style={{ position: "sticky", bottom: "0", marginTop: "auto", padding: "12px 16px 40px", background: "#fff", borderTop: "1px solid var(--border-default)" }}>
-        <Button size="lg" fullWidth={true} onClick={v.saveIdle} style={v.bigBtn}>Save idle status</Button>
+        </Flex>
+      </Flex>
+      <div className="sv-actionbar">
+        <Button type="primary" size="large" block onClick={v.saveIdle} style={v.bigBtn}>Save idle status</Button>
       </div>
     </div>
   </>

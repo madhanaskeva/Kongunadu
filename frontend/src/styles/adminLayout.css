@@ -68,73 +68,23 @@
   min-width: 0;
 }
 
-.tms-topbar-icon {
-  all: unset;
-  cursor: pointer;
-  position: relative;
+.tms-topbar-icon.ant-btn {
   flex: none;
   width: 42px;
   height: 42px;
-  display: grid;
-  place-items: center;
   border-radius: 10px;
   color: var(--kr-grey-900);
 }
 
-.tms-topbar-icon:hover {
+.tms-topbar-icon.ant-btn:hover {
   background: var(--color-brand-tint);
 }
 
-.tms-topbar-send-notice-btn {
-  all: unset;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 16px;
+.tms-topbar-send-notice-btn.ant-btn {
   height: 38px;
-  background: var(--kr-green-700, #005a36);
-  color: #ffffff;
-  font-family: var(--font-display);
+  padding: 0 16px;
   font-size: 13.5px;
-  font-weight: 700;
-  border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 48, 33, 0.08);
-  transition: background 0.15s ease, transform 0.1s ease;
-  white-space: nowrap;
-}
-
-.tms-topbar-send-notice-btn:hover {
-  background: var(--kr-green-800, #00462a);
-}
-
-.tms-topbar-send-notice-btn:active {
-  transform: scale(0.98);
-}
-
-.tms-topbar-notif-btn {
-  position: relative;
-}
-
-.tms-topbar-notif-badge {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
-  box-sizing: border-box;
-  background: var(--kr-red-600, #d32f2f);
-  color: #ffffff;
-  border-radius: 10px;
-  font-family: var(--font-display);
-  font-size: 10.5px;
-  font-weight: 800;
-  line-height: 15px;
-  text-align: center;
-  border: 1.5px solid #ffffff;
-  pointer-events: none;
 }
 
 .tms-topbar-actions {
@@ -165,13 +115,8 @@
   outline-offset: 2px;
 }
 
-.tms-topbar-avatar {
+.tms-topbar-avatar.ant-avatar {
   flex: none;
-  width: 42px;
-  height: 42px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
   background: var(--kr-green-700);
   color: #ffffff;
   font-family: var(--font-display);
@@ -179,12 +124,9 @@
   font-weight: 700;
 }
 
-.tms-topbar-menu {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 35;
-  width: 240px;
+/* Profile dropdown (antd Dropdown popupRender): name/role head + menu, brand top edge */
+.tms-topbar-dropdown {
+  width: 260px;
   background: #ffffff;
   border: 1px solid var(--border-default);
   border-top: 4px solid var(--color-brand);
@@ -193,22 +135,17 @@
   overflow: hidden;
 }
 
-.tms-topbar-menu button {
-  all: unset;
-  cursor: pointer;
-  box-sizing: border-box;
-  width: 100%;
+.tms-topbar-dropdown-head {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-heading);
+  flex-direction: column;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--kr-grey-100);
 }
 
-.tms-topbar-menu button:hover {
-  background: var(--surface-muted);
+.tms-topbar-dropdown .ant-dropdown-menu {
+  box-shadow: none;
+  border-radius: 0;
+  padding: 6px;
 }
 
 /* ---------- Sidebar ---------- */
@@ -233,90 +170,97 @@
   display: none;
 }
 
+/* antd Layout.Sider holding the sticky sidebar */
+.tms-sider.ant-layout-sider {
+  flex: none;
+}
+
 .tms-sidebar-drawer .tms-sidebar {
   top: 0;
   height: 100vh;
 }
 
-.tms-sidebar-group {
-  position: relative;
-  padding: 2px 0 8px;
+/* Sidebar menu — antd Menu (theme="dark") on the green gradient.
+   Colours, radius and heights come from the Menu tokens in AntdProvider;
+   these rules add the brand typography and the full-row click target. */
+.tms-sidebar-menu.ant-menu {
+  background: transparent;
+  border-inline-end: none !important;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-.tms-sidebar-group-label {
+.tms-sidebar-menu .ant-menu-item-group-title {
   padding: 8px 14px 4px;
-  color: rgba(255, 255, 255, 0.62);
   font-family: var(--font-display);
-  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
-.tms-sidebar-group:not(:last-of-type)::after {
-  content: "";
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 4px;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.14);
+.tms-sidebar-menu .ant-menu-item-divider {
+  margin: 4px 14px 6px;
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
-.tms-sidebar-group:first-of-type::after {
-  display: none;
-}
-
-.tms-sidebar-item {
-  box-sizing: border-box;
+.tms-sidebar-menu .ant-menu-item {
   width: 100%;
-  min-height: 38px;
-  margin: 2px 0;
-  padding: 0 12px 0 14px;
-  border-radius: 10px;
+}
+
+.tms-sidebar-menu .ant-menu-item-selected {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14);
+  font-weight: 700;
+}
+
+.tms-sidebar-link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  box-shadow: inset 0 0 0 1px transparent;
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  gap: 8px;
+  color: inherit !important;
 }
 
-.tms-sidebar-icon {
-  flex: none;
-  opacity: 0.95;
+/* The whole row (icon included) follows the link */
+.tms-sidebar-link::before {
+  content: "";
+  position: absolute;
+  inset: 0;
 }
 
-.tms-sidebar-item:hover {
-  background: rgba(218, 241, 231, 0.16);
-  color: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-}
-
-.tms-sidebar-item.active,
-.tms-sidebar-item.active:hover {
-  background: var(--kr-green-100);
-  color: var(--kr-green-800);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14);
+.tms-sidebar-link-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tms-sidebar-badge {
   flex: none;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
+  margin-inline-end: 2px;
+}
+
+/* Count pill: full width for two/three digits, no outer ring to get clipped. */
+.tms-sidebar-badge .ant-badge-count {
+  min-width: 24px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
   font-family: var(--font-display);
   font-size: 11.5px;
   font-weight: 700;
+  line-height: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* The brand-green count would vanish on the green sidebar: show it as a white
+   pill with green digits instead. */
+.tms-sidebar-badge--brand .ant-badge-count {
+  background: #ffffff !important;
+  color: var(--kr-green-800);
+}
+
+.tms-sidebar-menu .ant-menu-item-selected .tms-sidebar-badge--brand .ant-badge-count {
+  background: var(--kr-green-700) !important;
   color: #ffffff;
-  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
 }
 
 .tms-sidebar-footer {
@@ -343,18 +287,21 @@
 /* ---------- Page head ---------- */
 .tms-pagehead {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
 }
 
-.tms-pagehead-crumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.tms-pagehead-crumb.ant-breadcrumb {
   font-size: 13px;
   color: var(--text-muted);
+}
+
+.tms-pagehead-crumb .ant-breadcrumb-separator {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
 }
 
 .tms-pagehead-crumb strong {
@@ -363,7 +310,7 @@
 }
 
 .tms-pagehead h1 {
-  margin: 6px 0 0;
+  margin: 0;
   font-family: var(--font-display);
   font-size: 26px;
   font-weight: 800;
@@ -443,7 +390,7 @@
 
 /* Phones: "Send notice" collapses to its icon so the top bar fits */
 @media (max-width: 600px) {
-  .tms-topbar-send-notice-btn {
+  .tms-topbar-send-notice-btn.ant-btn {
     width: 38px;
     padding: 0;
   }
@@ -599,18 +546,19 @@
     padding: 4px 2px;
   }
 
-  .tms-topbar-avatar {
+  .tms-topbar-avatar.ant-avatar {
     width: 36px;
     height: 36px;
+    line-height: 36px;
     font-size: 13px;
   }
 
-  .tms-topbar-send-notice-btn {
+  .tms-topbar-send-notice-btn.ant-btn {
     width: 36px;
     height: 36px;
   }
 
-  .tms-topbar-icon {
+  .tms-topbar-icon.ant-btn {
     width: 38px;
     height: 38px;
   }

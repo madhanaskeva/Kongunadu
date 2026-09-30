@@ -1,8 +1,12 @@
 import React from 'react';
+import { Button, Card, Col, DatePicker, Input, Row, Tooltip } from 'antd';
+import dayjs from 'dayjs';
 import { Trash2 } from 'lucide-react';
 import { MODULE_FIELDS, getDependentOptions } from '../reportEngine';
 import { ReportCustomSelect } from './ReportCustomSelect';
 import { ReportMultiSelect } from './ReportMultiSelect';
+
+const DATE_FMT = 'YYYY-MM-DD';
 
 export const ReportFilterRow = ({
   filter,
@@ -55,133 +59,68 @@ export const ReportFilterRow = ({
     label: f.label,
   }));
 
+  // dayjs <-> 'YYYY-MM-DD' string (same shape as the former <input type="date">)
+  const toDay = (s) => (s ? dayjs(s) : null);
+  const toStr = (d) => (d ? d.format(DATE_FMT) : '');
+
   return (
-    <div
-      className="report-filter-row-container"
-      style={{
-        position: 'relative',
-        zIndex: (filters.length - index) * 10 + 5,
-      }}
-    >
-      {/* 1. Field Selector */}
-      <ReportCustomSelect
-        value={fieldKey}
-        options={fieldSelectOptions}
-        onChange={handleFieldChange}
-        placeholder="Select Field"
-      />
-
-      {/* 2. Direct Value / Multi-Select Selector (without intermediate operator) */}
-      <div style={{ minWidth: 0, width: '100%' }}>
-        {isDateRange ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <input
-              type="date"
-              value={val?.from || ''}
-              onChange={(e) => handleValueChange({ ...(val || {}), from: e.target.value })}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                boxSizing: 'border-box',
-                height: '36px',
-                padding: '0 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-strong, #cbd5e1)',
-                fontSize: '11.5px',
-                color: 'var(--text-heading, #1e293b)',
-                outline: 'none',
-                background: '#ffffff',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-brand, #00623f)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong, #cbd5e1)'; }}
-            />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)' }}>–</span>
-            <input
-              type="date"
-              value={val?.to || ''}
-              onChange={(e) => handleValueChange({ ...(val || {}), to: e.target.value })}
-              style={{
-                flex: 1,
-                minWidth: 0,
-                boxSizing: 'border-box',
-                height: '36px',
-                padding: '0 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-strong, #cbd5e1)',
-                fontSize: '11.5px',
-                color: 'var(--text-heading, #1e293b)',
-                outline: 'none',
-                background: '#ffffff',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-brand, #00623f)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong, #cbd5e1)'; }}
-            />
-          </div>
-        ) : availableOptions.length > 0 ? (
-          /* Multi-Select with Checkboxes, Live Search & Select All */
-          <ReportMultiSelect
-            values={val}
-            options={availableOptions}
-            onChange={handleValueChange}
-            placeholder={`— Select ${currentFieldDef?.label || 'Choice'}(s) —`}
-            fieldName={currentFieldDef?.label || 'Choice'}
+    <Card size="small" styles={{ body: { padding: '8px 10px' } }}>
+      <Row gutter={[8, 8]} align="middle">
+        {/* 1. Field Selector */}
+        <Col xs={24} sm={{ flex: '150px' }} xl={{ flex: '160px' }}>
+          <ReportCustomSelect
+            value={fieldKey}
+            options={fieldSelectOptions}
+            onChange={handleFieldChange}
+            placeholder="Select Field"
           />
-        ) : (
-          /* Text input fallback for free-form fields */
-          <input
-            type="text"
-            placeholder={`Enter ${currentFieldDef?.label || ''}…`}
-            value={typeof val === 'string' ? val : (Array.isArray(val) ? val.join(', ') : '')}
-            onChange={(e) => handleValueChange(e.target.value)}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              height: '36px',
-              padding: '0 10px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-strong, #cbd5e1)',
-              fontSize: '12px',
-              color: 'var(--text-heading, #1e293b)',
-              outline: 'none',
-              background: '#ffffff',
-            }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-brand, #00623f)'; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-strong, #cbd5e1)'; }}
-          />
-        )}
-      </div>
+        </Col>
 
-      {/* 3. Remove Button */}
-      <button
-        type="button"
-        title="Remove"
-        onClick={() => onRemoveFilter(index)}
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          width: '32px',
-          height: '32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '6px',
-          color: 'var(--kr-grey-500, #94a3b8)',
-          background: 'var(--kr-grey-50, #f8fafc)',
-          transition: 'all 0.15s ease',
-          flexShrink: 0,
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.color = '#dc2626';
-          e.currentTarget.style.background = '#fee2e2';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.color = 'var(--kr-grey-500, #94a3b8)';
-          e.currentTarget.style.background = 'var(--kr-grey-50, #f8fafc)';
-        }}
-      >
-        <Trash2 size={15} />
-      </button>
-    </div>
+        {/* 2. Direct Value / Multi-Select Selector (without intermediate operator) */}
+        <Col flex="auto" style={{ minWidth: 0 }}>
+          {isDateRange ? (
+            <DatePicker.RangePicker
+              value={[toDay(val?.from), toDay(val?.to)]}
+              allowEmpty={[true, true]}
+              format={DATE_FMT}
+              onChange={(dates) =>
+                handleValueChange({ ...(val || {}), from: toStr(dates?.[0]), to: toStr(dates?.[1]) })
+              }
+              style={{ width: '100%' }}
+            />
+          ) : availableOptions.length > 0 ? (
+            /* Multi-Select with Live Search & Select All */
+            <ReportMultiSelect
+              values={val}
+              options={availableOptions}
+              onChange={handleValueChange}
+              placeholder={`— Select ${currentFieldDef?.label || 'Choice'}(s) —`}
+              fieldName={currentFieldDef?.label || 'Choice'}
+            />
+          ) : (
+            /* Text input fallback for free-form fields */
+            <Input
+              placeholder={`Enter ${currentFieldDef?.label || ''}…`}
+              value={typeof val === 'string' ? val : (Array.isArray(val) ? val.join(', ') : '')}
+              onChange={(e) => handleValueChange(e.target.value)}
+            />
+          )}
+        </Col>
+
+        {/* 3. Remove Button */}
+        <Col flex="none">
+          <Tooltip title="Remove">
+            <Button
+              type="text"
+              danger
+              aria-label="Remove"
+              icon={<Trash2 size={15} />}
+              onClick={() => onRemoveFilter(index)}
+            />
+          </Tooltip>
+        </Col>
+      </Row>
+    </Card>
   );
 };
 

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { SelectField } from './SelectField';
+import { Flex, Pagination as AntPagination, Typography } from 'antd';
 
 /**
  * Client-side paging for a table's rows.
@@ -32,112 +31,48 @@ export const usePagination = (items = [], resetKeys = [], initialSize = 10) => {
   };
 };
 
-const pageBtn = (active, disabled) => ({
-  all: 'unset',
-  cursor: disabled ? 'default' : 'pointer',
-  boxSizing: 'border-box',
-  minWidth: '36px',
-  height: '36px',
-  padding: '0 8px',
-  display: 'grid',
-  placeItems: 'center',
-  borderRadius: '8px',
-  fontSize: '14px',
-  fontWeight: 700,
-  border: `1px solid ${active ? 'var(--kr-green-700)' : '#d5dfda'}`,
-  background: active ? 'var(--kr-green-700)' : '#fff',
-  color: active ? '#fff' : disabled ? 'var(--kr-grey-300)' : 'var(--text-heading)',
-});
-
-const sizeSelect = {
-  width: '110px',
-  height: '36px',
-  boxSizing: 'border-box',
-  padding: '0 30px 0 12px',
-  appearance: 'none',
-  WebkitAppearance: 'none',
-  borderRadius: '10px',
-  border: '1px solid #d5dfda',
-  background: '#fff',
-  fontSize: '14px',
-  fontWeight: 600,
-  color: 'var(--text-heading)',
-  cursor: 'pointer',
+const pageSizeList = (sizes) => {
+  const raw = Array.isArray(sizes) && sizes.length > 0 ? sizes : [10, 20, 50, 100];
+  return Array.from(new Set([10, ...raw])).sort((a, b) => a - b);
 };
 
-// Page numbers to show: all of them when few, otherwise first, last and the
-// neighbours of the current page with '…' gaps.
-const pageList = (cur, count) => {
-  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
-  const set = new Set([1, count, cur - 1, cur, cur + 1]);
-  if (cur <= 3) [2, 3, 4].forEach(n => set.add(n));
-  if (cur >= count - 2) [count - 3, count - 2, count - 1].forEach(n => set.add(n));
-  const nums = [...set].filter(n => n >= 1 && n <= count).sort((a, b) => a - b);
-  const out = [];
-  nums.forEach((n, i) => { if (i && n - nums[i - 1] > 1) out.push('gap' + n); out.push(n); });
-  return out;
+/**
+ * The antd pagination props for a usePagination() result.
+ */
+export const antPaginationProps = ({ page, pageSize = 10, total, setPage, setPageSize, sizes }) => ({
+  current: page,
+  pageSize,
+  total,
+  showSizeChanger: true,
+  pageSizeOptions: pageSizeList(sizes).map(String),
+  onChange: (p, size) => {
+    if (size !== pageSize) setPageSize(Number(size));
+    else setPage(p);
+  },
+});
+
+export const showingText = ({ page, pageSize = 10, total }, noun = 'records') => {
+  const first = total ? (page - 1) * pageSize + 1 : 0;
+  const last = Math.min(page * pageSize, total);
+  return `Showing ${first} to ${last} of ${total} ${noun}`;
 };
 
 export const Pagination = ({
   page,
-  pageCount,
   pageSize = 10,
   total,
   setPage,
   setPageSize,
   noun = 'records',
-  sizes = [10, 20, 50, 100],
+  sizes,
   style,
 }) => {
-  const rawSizes = Array.isArray(sizes) && sizes.length > 0 ? sizes : [10, 20, 50, 100];
-  const pageSizes = Array.from(new Set([10, ...rawSizes])).sort((a, b) => a - b);
-  const effectiveSize = pageSize || 10;
-  const first = total ? (page - 1) * effectiveSize + 1 : 0;
-  const last = Math.min(page * effectiveSize, total);
+  const pg = { page, pageSize: pageSize || 10, total, setPage, setPageSize, sizes };
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: '12px',
-        flexWrap: 'wrap',
-        padding: '14px 20px',
-        borderTop: '1px solid #e3e9e6',
-        fontSize: '13px',
-        color: 'var(--text-muted)',
-        ...style,
-      }}
-    >
-      <span>Showing {first} to {last} of {total} {noun}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        <button disabled={page === 1} onClick={() => setPage(page - 1)} aria-label="Previous page" style={pageBtn(false, page === 1)}>
-          <ChevronLeft size={18} />
-        </button>
-        {pageList(page, pageCount).map(n =>
-          typeof n === 'string' ? (
-            <span key={n} style={{ minWidth: '20px', textAlign: 'center' }}>…</span>
-          ) : (
-            <button key={n} onClick={() => setPage(n)} aria-current={n === page ? 'page' : undefined} style={pageBtn(n === page, false)}>
-              {n}
-            </button>
-          )
-        )}
-        <button disabled={page === pageCount} onClick={() => setPage(page + 1)} aria-label="Next page" style={pageBtn(false, page === pageCount)}>
-          <ChevronRight size={18} />
-        </button>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginLeft: '12px' }}>
-          <SelectField
-            value={effectiveSize}
-            onChange={(v) => setPageSize(Number(v))}
-            options={pageSizes.map(n => ({ value: n, label: `${n} / page` }))}
-            ariaLabel="Rows per page"
-            width="128px"
-            height={36}
-          />
-        </div>
-      </div>
-    </div>
+    <Flex justify="space-between" align="center" gap={12} wrap className="tms-pagination" style={style}>
+      <Typography.Text type="secondary">{showingText(pg, noun)}</Typography.Text>
+      <AntPagination {...antPaginationProps(pg)} />
+    </Flex>
   );
 };
 

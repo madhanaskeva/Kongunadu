@@ -1,60 +1,82 @@
 import React from 'react';
-import { Button } from '../supervisor/components/ds';
+import { Alert, Button, Flex, Input, Progress, Typography } from 'antd';
 import logoImg from '@/assets/images/logo-1600.png';
+
+// Input.OTP reports its cells; the screen's digit handler takes one change at a
+// time in the old per-box event shape (index + typed text), so it is fed that.
+const otpInput = (v, cells) => {
+  const prev = (v.otpBoxes || []).map(b => b.v || '');
+  const next = prev.map((_, k) => cells[k] || '');
+  const changed = next.map((c, k) => (c !== prev[k] ? k : -1)).filter(k => k >= 0);
+  if (!changed.length) return;
+  const i = changed[0];
+  const value = changed.length > 1 ? next.slice(i).join('') : next[i];
+  v.setOtpDigit({ target: { dataset: { i: String(i) }, value, closest: () => ({ querySelectorAll: () => [] }) } });
+};
 
 export const SupervisorVerifyOtp = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "calc(40px + env(safe-area-inset-top)) 24px 40px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><img src={logoImg} alt="" style={{ height: "44px", width: "auto" }} /></div>
-      <div style={{ marginTop: "10px", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", letterSpacing: "-0.01em", color: "var(--text-heading)" }}>
+    <Flex vertical style={{ flex: 1, padding: 'calc(40px + env(safe-area-inset-top)) 24px 40px' }}>
+      <Flex align="center" gap={12}><img src={logoImg} alt="" style={{ height: 44, width: 'auto' }} /></Flex>
+      <Typography.Title level={4} style={{ margin: '10px 0 0' }}>
         Kongunadu Road Lines
-      </div>
-      <div style={{ marginTop: "28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-brand)" }}>
+      </Typography.Title>
+      <Flex align="center" justify="space-between" gap={12} style={{ marginTop: 28 }}>
+        <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-brand)' }}>
           Step 2 of 3 · Verify
-        </span>
-        <span style={{ display: "flex", gap: "6px" }} aria-hidden="true">
-          {(v.obSteps || []).map((st, stIdx) => (
-            <React.Fragment key={stIdx}>
-              <span style={{ width: "22px", height: "4px", borderRadius: "2px", background: st.bg }} />
-            </React.Fragment>
-          ))}
-        </span>
-      </div>
-      <h2 style={{ margin: "6px 0 0", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "30px", letterSpacing: "-0.02em", lineHeight: "1.1", color: "var(--text-heading)" }}>
+        </Typography.Text>
+        <Progress
+          aria-hidden="true"
+          steps={(v.obSteps || []).length}
+          percent={(v.obSteps || []).length ? ((v.obSteps || []).filter(st => st.bg === 'var(--color-brand)').length / (v.obSteps || []).length) * 100 : 0}
+          showInfo={false}
+          size={[22, 4]}
+          strokeColor="var(--color-brand)"
+          railColor="var(--kr-grey-200)"
+        />
+      </Flex>
+      <Typography.Title level={2} style={{ margin: '6px 0 0', lineHeight: 1.1 }}>
         Enter OTP
-      </h2>
-      <p style={{ margin: "8px 0 24px", fontSize: "15px", color: "var(--text-muted)" }}>Head Office approved +91 {v.obPhoneText}. Enter the 4-digit OTP they shared with you.</p>
+      </Typography.Title>
+      <Typography.Paragraph type="secondary" style={{ margin: '8px 0 24px', fontSize: 15 }}>Head Office approved +91 {v.obPhoneText}. Enter the 4-digit OTP they shared with you.</Typography.Paragraph>
       {v.obOtpShared ? (
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", marginBottom: "20px", background: "var(--color-brand-tint)", borderRadius: "var(--radius-md)", fontSize: "14px", color: "var(--kr-green-900)" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m5 12 5 5L20 7" />
-            </svg>
-            <span>
-              <strong>OTP received</strong>
-              {' '}from Head Office and filled in.
-            </span>
-          </div>
+          <Alert
+            type="success"
+            showIcon
+            style={{ marginBottom: 20 }}
+            title={
+              <span>
+                <strong>OTP received</strong>
+                {' '}from Head Office and filled in.
+              </span>
+            }
+          />
         </>
       ) : null}
-      <div role="group" aria-label="4-digit OTP" data-otp-group="" style={{ display: "flex", justifyContent: "center", gap: "12px" }}>
-        {(v.otpBoxes || []).map((b, bIdx) => (
-          <React.Fragment key={bIdx}>
-            <input data-i={b.i} value={b.v} onChange={v.setOtpDigit} onKeyDown={v.otpKey} onFocus={v.selectAll} inputMode="numeric" autoComplete="one-time-code" maxLength="4" aria-label={b.label} style={{ boxSizing: "border-box", width: "64px", height: "72px", padding: "0", textAlign: "center", fontFamily: "var(--font-mono)", fontSize: "30px", fontWeight: "700", color: "var(--text-heading)", background: b.bg, border: `2px solid ${b.border}`, borderRadius: "var(--radius-md)", outline: "0" }} className="sv-f1" />
-          </React.Fragment>
-        ))}
-      </div>
+      <Flex justify="center" role="group" aria-label="4-digit OTP">
+        <Input.OTP
+          length={4}
+          size="large"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          formatter={str => str.replace(/[^\d ]/g, '')}
+          status={v.obOtpErr ? 'error' : undefined}
+          value={(v.otpBoxes || []).map(b => b.v || '').join('')}
+          onInput={cells => otpInput(v, cells)}
+          style={{ columnGap: 12 }}
+        />
+      </Flex>
       {v.obOtpErr ? (
         <>
-          <div role="alert" style={{ marginTop: "12px", textAlign: "center", fontSize: "14px", fontWeight: "600", color: "var(--status-danger)" }}>{v.obOtpErr}</div>
+          <Typography.Text type="danger" strong role="alert" style={{ display: 'block', marginTop: 12, textAlign: 'center' }}>{v.obOtpErr}</Typography.Text>
         </>
       ) : null}
-      <div style={{ marginTop: "auto", paddingTop: "28px", display: "flex", flexDirection: "column", gap: "8px" }}>
-        <Button size="lg" fullWidth={true} onClick={v.verifyOtp} style={v.bigBtn}>Verify OTP</Button>
-        <Button variant="ghost" size="lg" fullWidth={true} onClick={v.restartApproval}>Request approval again</Button>
-      </div>
-    </div>
+      <Flex vertical gap={8} style={{ marginTop: 'auto', paddingTop: 28 }}>
+        <Button type="primary" size="large" block onClick={v.verifyOtp} style={v.bigBtn}>Verify OTP</Button>
+        <Button type="text" size="large" block onClick={v.restartApproval}>Request approval again</Button>
+      </Flex>
+    </Flex>
   </>
 );
 

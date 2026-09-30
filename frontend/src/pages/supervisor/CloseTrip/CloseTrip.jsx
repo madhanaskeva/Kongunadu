@@ -1,374 +1,399 @@
 import React from 'react';
-import { Button, Input, Select } from '../components/ds';
+import { Alert, Avatar, Button, Card, Flex, Form, Input, Select, Typography, Upload } from 'antd';
+import { Camera, Image as ImageIcon, X } from 'lucide-react';
+
+// The screen handlers read e.target.value (a string, as the old select gave);
+// antd Select hands over the bare value, so it is passed on in that shape.
+const asEvent = value => ({ target: { value: value == null ? '' : String(value) } });
+// A value that is not one of the options shows the placeholder, as before.
+const pick = (options, value) => ((options || []).some(o => String(o.value) === String(value)) ? value : undefined);
 
 export const CloseTrip = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "18px" }}>
+    <Flex vertical style={{ flex: 1 }}>
+      <Flex vertical gap={18} style={{ padding: 16 }}>
         {v.resumeHere ? (
           <>
-            <div role="status" style={{ display: "flex", gap: "10px", alignItems: "flex-start", padding: "12px 14px", background: "var(--color-hazard-soft)", borderRadius: "var(--radius-md)", fontSize: "14px", lineHeight: "1.45", color: "#7A4300" }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none", marginTop: "1px" }}>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 8v4M12 16h.01" />
-              </svg>
-              <span>
-                <strong>Close this trip first.</strong>
-                {' '}You go back to Open Trip for {v.resumeVehicle} as soon as it is closed.
-              </span>
-            </div>
+            <Alert
+              type="warning"
+              showIcon
+              role="status"
+              title={
+                <span>
+                  <strong>Close this trip first.</strong>
+                  {' '}You go back to Open Trip for {v.resumeVehicle} as soon as it is closed.
+                </span>
+              }
+            />
           </>
         ) : null}
-        <div style={{ padding: "14px", background: "var(--color-brand)", borderRadius: "var(--radius-lg)", color: "#fff" }}>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "16px", fontWeight: "700" }}>{v.sel.number}</div>
-          <div style={{ fontSize: "14px", opacity: ".85", marginTop: "4px" }}>{v.sel.crewLine} · {v.sel.partyName}</div>
-          <div style={{ display: "flex", gap: "20px", marginTop: "12px", fontSize: "13px" }}>
+        {/* Trip summary on the brand colour */}
+        <Card size="small" variant="borderless" style={{ background: 'var(--color-brand)', color: '#fff' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700 }}>{v.sel.number}</div>
+          <div style={{ fontSize: 14, opacity: 0.85, marginTop: 4 }}>{v.sel.crewLine} · {v.sel.partyName}</div>
+          <Flex wrap gap={20} style={{ marginTop: 12, fontSize: 13 }}>
             <span>
-              <span style={{ opacity: ".6" }}>Start KM</span>
+              <span style={{ opacity: 0.6 }}>Start KM</span>
               <br />
-              <strong style={{ fontSize: "16px" }}>{v.sel.startKm}</strong>
+              <strong style={{ fontSize: 16 }}>{v.sel.startKm}</strong>
             </span>
             <span>
-              <span style={{ opacity: ".6" }}>Fixed route</span>
+              <span style={{ opacity: 0.6 }}>Fixed route</span>
               <br />
-              <strong style={{ fontSize: "16px" }}>{v.sel.fixedKm} km</strong>
+              <strong style={{ fontSize: 16 }}>{v.sel.fixedKm} km</strong>
             </span>
             <span>
-              <span style={{ opacity: ".6" }}>GPS so far</span>
+              <span style={{ opacity: 0.6 }}>GPS so far</span>
               <br />
-              <strong style={{ fontSize: "16px" }}>{v.sel.gpsKm} km</strong>
+              <strong style={{ fontSize: 16 }}>{v.sel.gpsKm} km</strong>
             </span>
             <span>
-              <span style={{ opacity: ".6" }}>Tank</span>
+              <span style={{ opacity: 0.6 }}>Tank</span>
               <br />
-              <strong style={{ fontSize: "16px" }}>{v.tankLabel}</strong>
+              <strong style={{ fontSize: 16 }}>{v.tankLabel}</strong>
             </span>
-          </div>
-        </div>
+          </Flex>
+        </Card>
         {v.closeHasErrors ? (
           <>
-            <div role="alert" style={{ padding: "12px 14px", background: "var(--kr-red-50)", border: "1px solid var(--kr-red-100)", borderRadius: "var(--radius-md)", color: "var(--kr-red-800)", fontSize: "14px", fontWeight: "600" }}>
-              The trip cannot close until the required fields are filled.
-            </div>
+            <Alert type="error" title="The trip cannot close until the required fields are filled." />
           </>
         ) : null}
-        <Input label="Loading invoice number" placeholder="e.g. SP/INV/22890" value={v.cf.invoice} onChange={v.setCf.invoice} error={v.cerr.invoice} />
-        <Input label="LR number (optional)" placeholder="Lorry receipt" value={v.cf.lr} onChange={v.setCf.lr} />
-        {/* ODOMETER · point-to-point readings with photos */}
-        <section style={{ border: `1px solid ${v.legBox.border}`, borderRadius: "var(--radius-lg)", padding: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px" }}>
-            <span style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-              Odometer readings
-            </span>
-            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>From → to, with photo</span>
-          </div>
-          {(v.legCards || []).map((l, lIdx) => (
-            <React.Fragment key={lIdx}>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", padding: "10px", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)", background: l.bg }}>
-                <div aria-hidden="true" style={{ flex: "none", boxSizing: "border-box", width: "56px", height: "44px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-default)", background: "#fff", display: "grid", placeItems: "center", overflow: "hidden", color: "var(--text-muted)" }}>
-                  {l.url ? (
-                    <>
-                      <img src={l.url} alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
-                    </>
-                  ) : null}
-                  {l.noPhoto ? (
-                    <>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                        <circle cx="8.5" cy="8.5" r="1.5" />
-                        <path d="M21 15l-5-5L5 21" />
-                      </svg>
-                    </>
-                  ) : null}
-                </div>
-                <div style={{ flex: "1", minWidth: "0" }}>
-                  <div style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-muted)" }}>{l.title}</div>
-                  <div style={{ fontWeight: "700", fontSize: "14px", color: "var(--text-heading)", lineHeight: "1.3" }}>{l.route}</div>
-                  <div style={{ fontSize: "13px", color: "var(--text-body)" }}>
-                    {l.reading} ·{' '}
-                    <strong style={{ color: "var(--text-brand)" }}>{l.km}</strong>
-                  </div>
-                </div>
-                <div style={{ flex: "none", display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <button data-i={l.i} onClick={v.editLeg} style={{ all: "unset", cursor: "pointer", minHeight: "32px", padding: "0 8px", fontSize: "13px", fontWeight: "700", color: "var(--text-brand)" }}>
-                    Edit
-                  </button>
-                  <button data-i={l.i} onClick={v.removeLeg} style={{ all: "unset", cursor: "pointer", minHeight: "32px", padding: "0 8px", fontSize: "13px", fontWeight: "700", color: "var(--kr-red-600)" }}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </React.Fragment>
-          ))}
-          {v.legSummary ? (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--surface-muted)", borderRadius: "var(--radius-md)" }}>
-                <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>Closing odometer</span>
-                <span style={{ textAlign: "right" }}>
-                  <strong style={{ fontFamily: "var(--font-display)", fontSize: "17px", color: "var(--text-heading)" }}>{v.legSummary.close}</strong>
-                  <br />
-                  <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>{v.legSummary.dist}</span>
-                </span>
-              </div>
-            </>
-          ) : null}
-          {v.legEditorOpen ? (
-            <>
-              <div style={{ padding: "12px", border: "2px dashed var(--color-brand)", borderRadius: "var(--radius-md)", background: "var(--color-brand-tint)", display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--kr-green-900)" }}>
-                  {v.legEditorTitle}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <Select label="From" placeholder="Select point" options={v.pointOptions} value={v.cf.legDraft.from} onChange={v.setLegFrom} />
-                  <Select label="To" placeholder="Select point" options={v.pointOptions} value={v.cf.legDraft.to} onChange={v.setLegTo} />
-                </div>
-                {v.legErr.route ? (
-                  <>
-                    <div style={{ marginTop: "-4px", fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>{v.legErr.route}</div>
-                  </>
-                ) : null}
-                <Input label="Odometer End KM" placeholder={v.legPrevText} value={v.cf.legDraft.reading} onChange={v.setLegReading} inputMode="numeric" suffix="km" error={v.legErr.reading} hint={v.legReadingHint} />
-                <div>
-                  <div style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>Odometer photo</div>
-                  {v.legPhotoEmpty ? (
-                    <>
-                      <label style={{ marginTop: "8px", position: "relative", boxSizing: "border-box", display: "flex", alignItems: "center", gap: "12px", minHeight: "64px", padding: "10px 12px", border: `2px dashed ${v.legPhotoBorder}`, borderRadius: "var(--radius-md)", background: "#fff", cursor: "pointer" }}>
-                        <input type="file" accept="image/*" aria-label="Odometer photo" onChange={v.pickLegPhoto} style={{ position: "absolute", inset: "0", width: "100%", height: "100%", opacity: "0", cursor: "pointer" }} />
-                        <span aria-hidden="true" style={{ flex: "none", width: "40px", height: "40px", borderRadius: "var(--radius-md)", background: "var(--color-brand-tint)", color: "var(--color-brand)", display: "grid", placeItems: "center" }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                            <circle cx="12" cy="13" r="4" />
-                          </svg>
-                        </span>
-                        <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ fontWeight: "700", fontSize: "14px", color: "var(--text-heading)" }}>Take photo of the odometer</span>
-                          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Reading must be clearly visible</span>
-                        </span>
-                      </label>
-                    </>
-                  ) : null}
-                  {v.legPhotoSet ? (
-                    <>
-                      <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "12px", padding: "8px", border: "2px solid var(--color-brand)", borderRadius: "var(--radius-md)", background: "#fff" }}>
-                        <div aria-hidden="true" style={{ flex: "none", boxSizing: "border-box", width: "64px", height: "48px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-default)", background: "var(--surface-muted)", overflow: "hidden" }}>
-                          {v.legPhoto.url ? (
-                            <>
-                              <img src={v.legPhoto.url} alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
-                            </>
-                          ) : null}
-                        </div>
-                        <div style={{ flex: "1", minWidth: "0" }}>
-                          <div style={{ fontWeight: "700", fontSize: "13px", color: "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {v.legPhoto.name}
-                          </div>
-                          <div style={{ fontSize: "12px", color: "var(--kr-green-800)" }}>{v.legPhoto.size} · attached</div>
-                        </div>
-                        <button onClick={v.clearLegPhoto} aria-label="Remove odometer photo" style={{ all: "unset", cursor: "pointer", flex: "none", width: "40px", height: "40px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", color: "var(--kr-red-600)" }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                            <path d="M6 6l12 12M18 6 6 18" />
-                          </svg>
-                        </button>
+        <Form layout="vertical" requiredMark={false} component="div">
+          <Form.Item label="Loading invoice number" validateStatus={v.cerr.invoice ? 'error' : undefined} help={v.cerr.invoice || undefined}>
+            <Input size="large" placeholder="e.g. SP/INV/22890" value={v.cf.invoice ?? ''} onChange={v.setCf.invoice} />
+          </Form.Item>
+          <Form.Item label="LR number (optional)">
+            <Input size="large" placeholder="Lorry receipt" value={v.cf.lr ?? ''} onChange={v.setCf.lr} />
+          </Form.Item>
+          {/* ODOMETER · point-to-point readings with photos */}
+          <Card
+            size="small"
+            title={<Typography.Text type="secondary" strong style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Odometer readings</Typography.Text>}
+            extra={<Typography.Text type="secondary" style={{ fontSize: 12 }}>From → to, with photo</Typography.Text>}
+            style={{ borderColor: v.legBox.border, marginBottom: 18 }}
+          >
+            <Flex vertical gap={12}>
+              {(v.legCards || []).map((l, lIdx) => (
+                <React.Fragment key={lIdx}>
+                  <Card size="small" style={{ background: l.bg }}>
+                    <Flex gap={12} align="center">
+                      <Avatar shape="square" size={48} aria-hidden="true" src={l.url || undefined} icon={l.noPhoto ? <ImageIcon size={18} /> : undefined} style={{ flex: 'none', background: '#fff', color: 'var(--text-muted)', border: '1px solid var(--border-default)' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Typography.Text type="secondary" strong style={{ display: 'block', fontSize: 12 }}>{l.title}</Typography.Text>
+                        <Typography.Text strong style={{ display: 'block', lineHeight: 1.3 }}>{l.route}</Typography.Text>
+                        <Typography.Text style={{ fontSize: 13 }}>
+                          {l.reading} ·{' '}
+                          <strong style={{ color: 'var(--text-brand)' }}>{l.km}</strong>
+                        </Typography.Text>
                       </div>
-                    </>
-                  ) : null}
-                  {v.legErr.photo ? (
-                    <>
-                      <div style={{ marginTop: "4px", fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>{v.legErr.photo}</div>
-                    </>
-                  ) : null}
-                </div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <Button size="md" onClick={v.saveLeg}>{v.legSaveLabel}</Button>
-                  {v.legCanCancel ? (
-                    <>
-                      <Button variant="ghost" size="md" onClick={v.cancelLeg}>Cancel</Button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          ) : null}
-          {v.legAddShown ? (
-            <>
-              <Button variant="secondary" size="md" fullWidth={true} onClick={v.openLegEditor}>+ Add reading</Button>
-            </>
-          ) : null}
-          {v.cerr.legs ? (
-            <>
-              <div style={{ fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>{v.cerr.legs}</div>
-            </>
-          ) : null}
-        </section>
-        {/* DIESEL · one entry per bunk */}
-        <section style={{ border: `1px solid ${v.fillBox.border}`, borderRadius: "var(--radius-lg)", padding: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px" }}>
-            <span style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)" }}>
-              Diesel given
-            </span>
-            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Bunk, quantity and rate</span>
-          </div>
-          {(v.fillCards || []).map((d, dIdx) => (
-            <React.Fragment key={dIdx}>
-              <div style={{ display: "flex", gap: "12px", alignItems: "center", padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)", background: d.bg }}>
-                <span aria-hidden="true" style={{ flex: "none", width: "36px", height: "36px", borderRadius: "50%", background: "var(--color-brand-tint)", color: "var(--color-brand)", display: "grid", placeItems: "center", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "14px" }}>
-                  {d.n}
-                </span>
-                <div style={{ flex: "1", minWidth: "0" }}>
-                  <div style={{ fontWeight: "700", fontSize: "14px", color: "var(--text-heading)", lineHeight: "1.3" }}>{d.bunk}</div>
-                  <div style={{ fontSize: "13px", color: d.lineColor }}>{d.line}</div>
-                </div>
-                <div style={{ flex: "none", display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <button data-i={d.i} onClick={v.editFill} style={{ all: "unset", cursor: "pointer", minHeight: "32px", padding: "0 8px", fontSize: "13px", fontWeight: "700", color: "var(--text-brand)" }}>
-                    Edit
-                  </button>
-                  <button data-i={d.i} onClick={v.removeFill} style={{ all: "unset", cursor: "pointer", minHeight: "32px", padding: "0 8px", fontSize: "13px", fontWeight: "700", color: "var(--kr-red-600)" }}>
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </React.Fragment>
-          ))}
-          {v.fillEditorOpen ? (
-            <>
-              <div style={{ padding: "12px", border: "2px dashed var(--color-brand)", borderRadius: "var(--radius-md)", background: "var(--color-brand-tint)", display: "flex", flexDirection: "column", gap: "10px" }}>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--kr-green-900)" }}>
-                  {v.fillEditorTitle}
-                </div>
-                {v.authorizedBunkOptions ? (
-                  <>
-                    <Select
-                      label="Authorized Fuel Bunk"
-                      placeholder="Select authorized bunk for route"
-                      options={v.authorizedBunkOptions}
-                      value={v.selectedBunkChoice || ''}
-                      onChange={v.selectBunkChoice}
-                      error={v.fillErr.bunk}
-                      hint={v.fillBunkHint}
-                    />
-                    {(v.selectedBunkChoice === 'NEW_BUNK' || (!v.authorizedBunkOptions.some(o => o.value === v.selectedBunkChoice) && v.selectedBunkChoice)) && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <Input
-                          label="New fuel bunk name"
-                          placeholder="e.g. Sri Krishna Bunk – Salem Bypass"
-                          value={v.cf.fillDraft.customBunk || v.cf.fillDraft.bunk || ''}
-                          onChange={v.setCustomBunkName}
-                          error={v.fillErr.bunk}
-                        />
-                        <div style={{ padding: '8px 10px', background: 'var(--color-hazard-soft)', borderRadius: 'var(--radius-md)', fontSize: '12px', color: '#7A4300', lineHeight: 1.4 }}>
-                          <strong>Note:</strong> This bunk is not listed as authorized for this route. Entering it will submit a request to Head Office Admin for approval. Once approved, it will automatically become authorized for this route.
-                        </div>
+                      <Flex vertical gap={2} style={{ flex: 'none' }}>
+                        <Button type="link" size="small" data-i={l.i} onClick={v.editLeg}>Edit</Button>
+                        <Button type="link" size="small" danger data-i={l.i} onClick={v.removeLeg}>Remove</Button>
+                      </Flex>
+                    </Flex>
+                  </Card>
+                </React.Fragment>
+              ))}
+              {v.legSummary ? (
+                <>
+                  <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }}>
+                    <Flex justify="space-between" align="center">
+                      <Typography.Text type="secondary">Closing odometer</Typography.Text>
+                      <span style={{ textAlign: 'right' }}>
+                        <Typography.Text strong style={{ fontSize: 17 }}>{v.legSummary.close}</Typography.Text>
+                        <br />
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{v.legSummary.dist}</Typography.Text>
+                      </span>
+                    </Flex>
+                  </Card>
+                </>
+              ) : null}
+              {v.legEditorOpen ? (
+                <>
+                  <Card size="small" style={{ borderStyle: 'dashed', borderWidth: 2, borderColor: 'var(--color-brand)', background: 'var(--color-brand-tint)' }}>
+                    <Typography.Text strong style={{ display: 'block', marginBottom: 10, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--kr-green-900)' }}>
+                      {v.legEditorTitle}
+                    </Typography.Text>
+                    <Form.Item label="From" style={{ marginBottom: 10 }}>
+                      <Select
+                        size="large"
+                        placeholder={(v.pointOptions || []).length ? 'Select point' : 'None available'}
+                        disabled={!(v.pointOptions || []).length}
+                        options={v.pointOptions}
+                        value={pick(v.pointOptions, v.cf.legDraft.from)}
+                        onChange={val => v.setLegFrom(asEvent(val))}
+                      />
+                    </Form.Item>
+                    <Form.Item label="To" validateStatus={v.legErr.route ? 'error' : undefined} help={v.legErr.route || undefined} style={{ marginBottom: 10 }}>
+                      <Select
+                        size="large"
+                        placeholder={(v.pointOptions || []).length ? 'Select point' : 'None available'}
+                        disabled={!(v.pointOptions || []).length}
+                        options={v.pointOptions}
+                        value={pick(v.pointOptions, v.cf.legDraft.to)}
+                        onChange={val => v.setLegTo(asEvent(val))}
+                      />
+                    </Form.Item>
+                    <Form.Item label="Odometer End KM" validateStatus={v.legErr.reading ? 'error' : undefined} help={v.legErr.reading || v.legReadingHint} style={{ marginBottom: 10 }}>
+                      <Input size="large" placeholder={v.legPrevText} value={v.cf.legDraft.reading ?? ''} onChange={v.setLegReading} inputMode="numeric" suffix="km" />
+                    </Form.Item>
+                    <Form.Item label="Odometer photo" validateStatus={v.legErr.photo ? 'error' : undefined} help={v.legErr.photo || undefined} style={{ marginBottom: 12 }}>
+                      {v.legPhotoEmpty ? (
+                        <>
+                          <Upload.Dragger
+                            accept="image/*"
+                            aria-label="Odometer photo"
+                            showUploadList={false}
+                            fileList={[]}
+                            beforeUpload={file => { v.pickLegPhoto({ target: { files: [file], value: '' } }); return false; }}
+                            style={{ borderColor: v.legPhotoBorder, background: '#fff' }}
+                          >
+                            <Flex align="center" gap={12} style={{ padding: '0 12px', textAlign: 'left' }}>
+                              <Avatar shape="square" size={40} icon={<Camera size={20} />} style={{ flex: 'none', background: 'var(--color-brand-tint)', color: 'var(--color-brand)' }} />
+                              <Flex vertical gap={2}>
+                                <Typography.Text strong>Take photo of the odometer</Typography.Text>
+                                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Reading must be clearly visible</Typography.Text>
+                              </Flex>
+                            </Flex>
+                          </Upload.Dragger>
+                        </>
+                      ) : null}
+                      {v.legPhotoSet ? (
+                        <>
+                          <Card size="small" style={{ borderWidth: 2, borderColor: 'var(--color-brand)' }} styles={{ body: { padding: 8 } }}>
+                            <Flex align="center" gap={12}>
+                              <Avatar shape="square" size={48} aria-hidden="true" src={v.legPhoto.url || undefined} style={{ flex: 'none', width: 64, background: 'var(--surface-muted)', border: '1px solid var(--border-default)' }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <Typography.Text strong ellipsis style={{ display: 'block', fontSize: 13 }}>
+                                  {v.legPhoto.name}
+                                </Typography.Text>
+                                <Typography.Text style={{ fontSize: 12, color: 'var(--kr-green-800)' }}>{v.legPhoto.size} · attached</Typography.Text>
+                              </div>
+                              <Button type="text" danger size="large" icon={<X size={18} strokeWidth={2.5} />} onClick={v.clearLegPhoto} aria-label="Remove odometer photo" style={{ flex: 'none' }} />
+                            </Flex>
+                          </Card>
+                        </>
+                      ) : null}
+                    </Form.Item>
+                    <Flex wrap gap={8}>
+                      <Button type="primary" size="large" onClick={v.saveLeg}>{v.legSaveLabel}</Button>
+                      {v.legCanCancel ? (
+                        <>
+                          <Button type="text" size="large" onClick={v.cancelLeg}>Cancel</Button>
+                        </>
+                      ) : null}
+                    </Flex>
+                  </Card>
+                </>
+              ) : null}
+              {v.legAddShown ? (
+                <>
+                  <Button size="large" block onClick={v.openLegEditor}>+ Add reading</Button>
+                </>
+              ) : null}
+              {v.cerr.legs ? (
+                <>
+                  <Typography.Text type="danger" strong style={{ fontSize: 13 }}>{v.cerr.legs}</Typography.Text>
+                </>
+              ) : null}
+            </Flex>
+          </Card>
+          {/* DIESEL · one entry per bunk */}
+          <Card
+            size="small"
+            title={<Typography.Text type="secondary" strong style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Diesel given</Typography.Text>}
+            extra={<Typography.Text type="secondary" style={{ fontSize: 12 }}>Bunk, quantity and rate</Typography.Text>}
+            style={{ borderColor: v.fillBox.border, marginBottom: 18 }}
+          >
+            <Flex vertical gap={12}>
+              {(v.fillCards || []).map((d, dIdx) => (
+                <React.Fragment key={dIdx}>
+                  <Card size="small" style={{ background: d.bg }}>
+                    <Flex gap={12} align="center">
+                      <Avatar aria-hidden="true" size={36} style={{ flex: 'none', background: 'var(--color-brand-tint)', color: 'var(--color-brand)', fontWeight: 800 }}>
+                        {d.n}
+                      </Avatar>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Typography.Text strong style={{ display: 'block', lineHeight: 1.3 }}>{d.bunk}</Typography.Text>
+                        <div style={{ fontSize: 13, color: d.lineColor }}>{d.line}</div>
                       </div>
+                      <Flex vertical gap={2} style={{ flex: 'none' }}>
+                        <Button type="link" size="small" data-i={d.i} onClick={v.editFill}>Edit</Button>
+                        <Button type="link" size="small" danger data-i={d.i} onClick={v.removeFill}>Remove</Button>
+                      </Flex>
+                    </Flex>
+                  </Card>
+                </React.Fragment>
+              ))}
+              {v.fillEditorOpen ? (
+                <>
+                  <Card size="small" style={{ borderStyle: 'dashed', borderWidth: 2, borderColor: 'var(--color-brand)', background: 'var(--color-brand-tint)' }}>
+                    <Typography.Text strong style={{ display: 'block', marginBottom: 10, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--kr-green-900)' }}>
+                      {v.fillEditorTitle}
+                    </Typography.Text>
+                    {v.authorizedBunkOptions ? (
+                      <>
+                        <Form.Item label="Authorized Fuel Bunk" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || v.fillBunkHint} style={{ marginBottom: 10 }}>
+                          <Select
+                            size="large"
+                            placeholder={v.authorizedBunkOptions.length ? 'Select authorized bunk for route' : 'None available'}
+                            disabled={!v.authorizedBunkOptions.length}
+                            options={v.authorizedBunkOptions}
+                            value={pick(v.authorizedBunkOptions, v.selectedBunkChoice || '')}
+                            onChange={val => v.selectBunkChoice(asEvent(val))}
+                          />
+                        </Form.Item>
+                        {(v.selectedBunkChoice === 'NEW_BUNK' || (!v.authorizedBunkOptions.some(o => o.value === v.selectedBunkChoice) && v.selectedBunkChoice)) && (
+                          <Flex vertical gap={8} style={{ marginBottom: 10 }}>
+                            <Form.Item label="New fuel bunk name" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || undefined} style={{ marginBottom: 0 }}>
+                              <Input
+                                size="large"
+                                placeholder="e.g. Sri Krishna Bunk – Salem Bypass"
+                                value={v.cf.fillDraft.customBunk || v.cf.fillDraft.bunk || ''}
+                                onChange={v.setCustomBunkName}
+                              />
+                            </Form.Item>
+                            <Alert
+                              type="warning"
+                              title={
+                                <span style={{ fontSize: 12, lineHeight: 1.4 }}>
+                                  <strong>Note:</strong> This bunk is not listed as authorized for this route. Entering it will submit a request to Head Office Admin for approval. Once approved, it will automatically become authorized for this route.
+                                </span>
+                              }
+                            />
+                          </Flex>
+                        )}
+                      </>
+                    ) : (
+                      <Form.Item label="Bunk name" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || v.fillBunkHint} style={{ marginBottom: 10 }}>
+                        <Input size="large" placeholder="e.g. IOC – Sriperumbudur Highway" value={v.cf.fillDraft.bunk ?? ''} onChange={v.setFillBunk} />
+                      </Form.Item>
                     )}
-                  </>
-                ) : (
-                  <Input label="Bunk name" placeholder="e.g. IOC – Sriperumbudur Highway" value={v.cf.fillDraft.bunk} onChange={v.setFillBunk} error={v.fillErr.bunk} hint={v.fillBunkHint} />
-                )}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "10px" }}>
-                  <Input label="Quantity" suffix="L" value={v.cf.fillDraft.litres} onChange={v.setFillLitres} inputMode="decimal" error={v.fillErr.litres} hint={v.qtyHint} />
-                  <Input label="Rate" prefix="₹" suffix="/L" value={v.cf.fillDraft.rate} onChange={v.setFillRate} inputMode="decimal" error={v.fillErr.rate} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "14px" }}>
-                  <span style={{ color: "var(--text-muted)" }}>Amount</span>
-                  <strong style={{ color: "var(--text-heading)" }}>{v.fillDraftAmount}</strong>
-                </div>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  <Button size="md" onClick={v.saveFill}>{v.fillSaveLabel}</Button>
-                  {v.fillCanCancel ? (
-                    <>
-                      <Button variant="ghost" size="md" onClick={v.cancelFill}>Cancel</Button>
-                    </>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          ) : null}
-          {v.fillAddShown ? (
-            <>
-              <Button variant="secondary" size="md" fullWidth={true} onClick={v.openFillEditor}>+ Add bunk</Button>
-            </>
-          ) : null}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--surface-muted)", borderRadius: "var(--radius-md)" }}>
-            <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>{v.dieselTotalLabel}</span>
-            <strong style={{ fontFamily: "var(--font-display)", fontSize: "18px", color: "var(--text-heading)" }}>{v.dieselAmount}</strong>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 }}>
+                      <Form.Item label="Quantity" validateStatus={v.fillErr.litres ? 'error' : undefined} help={v.fillErr.litres || v.qtyHint} style={{ marginBottom: 10 }}>
+                        <Input size="large" suffix="L" value={v.cf.fillDraft.litres ?? ''} onChange={v.setFillLitres} inputMode="decimal" />
+                      </Form.Item>
+                      <Form.Item label="Rate" validateStatus={v.fillErr.rate ? 'error' : undefined} help={v.fillErr.rate || undefined} style={{ marginBottom: 10 }}>
+                        <Input size="large" prefix="₹" suffix="/L" value={v.cf.fillDraft.rate ?? ''} onChange={v.setFillRate} inputMode="decimal" />
+                      </Form.Item>
+                    </div>
+                    <Flex justify="space-between" align="center" style={{ marginBottom: 10 }}>
+                      <Typography.Text type="secondary">Amount</Typography.Text>
+                      <Typography.Text strong>{v.fillDraftAmount}</Typography.Text>
+                    </Flex>
+                    <Flex wrap gap={8}>
+                      <Button type="primary" size="large" onClick={v.saveFill}>{v.fillSaveLabel}</Button>
+                      {v.fillCanCancel ? (
+                        <>
+                          <Button type="text" size="large" onClick={v.cancelFill}>Cancel</Button>
+                        </>
+                      ) : null}
+                    </Flex>
+                  </Card>
+                </>
+              ) : null}
+              {v.fillAddShown ? (
+                <>
+                  <Button size="large" block onClick={v.openFillEditor}>+ Add bunk</Button>
+                </>
+              ) : null}
+              <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }}>
+                <Flex justify="space-between" align="center">
+                  <Typography.Text type="secondary">{v.dieselTotalLabel}</Typography.Text>
+                  <Typography.Text strong style={{ fontSize: 18 }}>{v.dieselAmount}</Typography.Text>
+                </Flex>
+              </Card>
+              {v.cerr.fills ? (
+                <>
+                  <Typography.Text type="danger" strong style={{ fontSize: 13 }}>{v.cerr.fills}</Typography.Text>
+                </>
+              ) : null}
+            </Flex>
+          </Card>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 12 }}>
+            <Form.Item label="Loading qty" validateStatus={v.cerr.qtyLoad ? 'error' : undefined} help={v.cerr.qtyLoad || undefined}>
+              <Input size="large" value={v.cf.qtyLoad ?? ''} onChange={v.setCf.qtyLoad} />
+            </Form.Item>
+            <Form.Item label="Unloading qty" validateStatus={v.cerr.qtyUnload ? 'error' : undefined} help={v.cerr.qtyUnload || undefined}>
+              <Input size="large" value={v.cf.qtyUnload ?? ''} onChange={v.setCf.qtyUnload} />
+            </Form.Item>
           </div>
-          {v.cerr.fills ? (
-            <>
-              <div style={{ fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>{v.cerr.fills}</div>
-            </>
-          ) : null}
-        </section>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "12px" }}>
-          <Input label="Loading qty" value={v.cf.qtyLoad} onChange={v.setCf.qtyLoad} error={v.cerr.qtyLoad} />
-          <Input label="Unloading qty" value={v.cf.qtyUnload} onChange={v.setCf.qtyUnload} error={v.cerr.qtyUnload} />
-        </div>
-        {/* Expense breakdown — every box feeds the total, so nothing is typed twice */}
-        <section style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px 12px", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)" }}>
-          <div style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>
-            Trip expenses
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "12px" }}>
-            <Input label="1. Diesel cash" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.dieselCash} onChange={e => v.setExpBreakdown('dieselCash', e.target.value)} />
-            <Input label="2. Driver bata" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.driverBata} onChange={e => v.setExpBreakdown('driverBata', e.target.value)} />
-            <Input label="3. Cleaner bata" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.cleanerBata} onChange={e => v.setExpBreakdown('cleanerBata', e.target.value)} />
-            <Input label="4. R.T.O. & P.C. exp" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.rto} onChange={e => v.setExpBreakdown('rto', e.target.value)} />
-            <Input label="5. Toll cash exp" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.toll} onChange={e => v.setExpBreakdown('toll', e.target.value)} />
-            <Input label="6. Weighment exp" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.weighment} onChange={e => v.setExpBreakdown('weighment', e.target.value)} />
-          </div>
+          {/* Expense breakdown — every box feeds the total, so nothing is typed twice */}
+          <Card size="small" title="Trip expenses" style={{ marginBottom: 18 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', columnGap: 12 }}>
+              <Form.Item label="1. Diesel cash">
+                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.dieselCash ?? ''} onChange={e => v.setExpBreakdown('dieselCash', e.target.value)} />
+              </Form.Item>
+              <Form.Item label="2. Driver bata">
+                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.driverBata ?? ''} onChange={e => v.setExpBreakdown('driverBata', e.target.value)} />
+              </Form.Item>
+              <Form.Item label="3. Cleaner bata">
+                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.cleanerBata ?? ''} onChange={e => v.setExpBreakdown('cleanerBata', e.target.value)} />
+              </Form.Item>
+              <Form.Item label="4. R.T.O. & P.C. exp">
+                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.rto ?? ''} onChange={e => v.setExpBreakdown('rto', e.target.value)} />
+              </Form.Item>
+              <Form.Item label="5. Toll cash exp">
+                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.toll ?? ''} onChange={e => v.setExpBreakdown('toll', e.target.value)} />
+              </Form.Item>
+              <Form.Item label="6. Weighment exp">
+                <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.weighment ?? ''} onChange={e => v.setExpBreakdown('weighment', e.target.value)} />
+              </Form.Item>
+            </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>
-              7. Other expenses
-            </span>
-            {v.otherExpenses.map((row, i) => (
-              <div key={i} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <Input style={{ flex: "1 1 auto", minWidth: 0 }} placeholder="What it was for" value={row.name} onChange={e => v.setOtherExpense(i, 'name', e.target.value)} />
-                <Input style={{ flex: "0 0 128px" }} prefix="₹" placeholder="0" inputMode="numeric" value={row.amount} onChange={e => v.setOtherExpense(i, 'amount', e.target.value)} />
-                <button
-                  type="button"
-                  onClick={() => v.removeOtherExpense(i)}
-                  aria-label={`Remove other expense ${i + 1}`}
-                  style={{ all: "unset", cursor: "pointer", flex: "none", width: "32px", height: "32px", display: "grid", placeItems: "center", borderRadius: "var(--radius-sm)", color: "var(--status-danger)", fontSize: "20px", fontWeight: "700" }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <Button variant="secondary" size="sm" onClick={v.addOtherExpense}>Add more expenses</Button>
-          </div>
-        </section>
+            <Form.Item label="7. Other expenses" style={{ marginBottom: 0 }}>
+              <Flex vertical gap={8}>
+                {v.otherExpenses.map((row, i) => (
+                  <Flex key={i} gap={8} align="center">
+                    <Input size="large" style={{ flex: '1 1 auto', minWidth: 0 }} placeholder="What it was for" value={row.name ?? ''} onChange={e => v.setOtherExpense(i, 'name', e.target.value)} />
+                    <Input size="large" style={{ flex: '0 0 128px', width: 128 }} prefix="₹" placeholder="0" inputMode="numeric" value={row.amount ?? ''} onChange={e => v.setOtherExpense(i, 'amount', e.target.value)} />
+                    <Button type="text" danger icon={<X size={20} strokeWidth={3} />} onClick={() => v.removeOtherExpense(i)} aria-label={`Remove other expense ${i + 1}`} style={{ flex: 'none' }} />
+                  </Flex>
+                ))}
+                <div>
+                  <Button onClick={v.addOtherExpense}>Add more expenses</Button>
+                </div>
+              </Flex>
+            </Form.Item>
+          </Card>
 
-        {/* Total is the sum of the boxes above — it is shown, never typed */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", padding: "12px 14px", background: "var(--color-brand-tint)", borderRadius: "var(--radius-md)" }}>
-          <span>
-            <span style={{ display: "block", fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>Total expense</span>
-            <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)" }}>{v.totalExpenseHint}</span>
-          </span>
-          <strong style={{ fontFamily: "var(--font-display)", fontSize: "22px", color: "var(--text-heading)", whiteSpace: "nowrap" }}>{v.totalExpenseDisplay}</strong>
-        </div>
-        {v.cerr.totalExpense ? (
-          <div style={{ fontSize: "13px", color: "var(--status-danger)", fontWeight: "600" }}>{v.cerr.totalExpense}</div>
-        ) : null}
-        <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>Remarks</span>
-            <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>Optional · {v.closeRemarksCount}/250</span>
-          </span>
-          <textarea value={v.cf.remarks} onChange={v.setCloseRemarks} maxLength="250" rows="3" placeholder="Delays, short delivery, extra stops or anything Head Office should know" style={{ boxSizing: "border-box", width: "100%", minHeight: "88px", padding: "10px 12px", fontFamily: "inherit", fontSize: "16px", lineHeight: "1.4", color: "var(--text-heading)", background: "#fff", border: "2px solid var(--border-strong)", borderRadius: "var(--radius-md)", outline: "0", resize: "vertical" }} className="sv-f1" />
-        </label>
+          {/* Total is the sum of the boxes above — it is shown, never typed */}
+          <Card size="small" variant="borderless" style={{ background: 'var(--color-brand-tint)', marginBottom: v.cerr.totalExpense ? 4 : 18 }}>
+            <Flex justify="space-between" align="center" gap={12}>
+              <span>
+                <Typography.Text strong style={{ display: 'block', fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Total expense</Typography.Text>
+                <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{v.totalExpenseHint}</Typography.Text>
+              </span>
+              <Typography.Text strong style={{ fontSize: 22, whiteSpace: 'nowrap' }}>{v.totalExpenseDisplay}</Typography.Text>
+            </Flex>
+          </Card>
+          {v.cerr.totalExpense ? (
+            <Typography.Text type="danger" strong style={{ display: 'block', marginBottom: 18, fontSize: 13 }}>{v.cerr.totalExpense}</Typography.Text>
+          ) : null}
+          <Form.Item label={<Flex gap={12} align="baseline">Remarks <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>Optional · {v.closeRemarksCount}/250</Typography.Text></Flex>}>
+            <Input.TextArea value={v.cf.remarks} onChange={v.setCloseRemarks} maxLength={250} rows={3} placeholder="Delays, short delivery, extra stops or anything Head Office should know" style={{ minHeight: 88, fontSize: 16 }} />
+          </Form.Item>
+        </Form>
         {v.closeManualException ? (
           <>
-            <div style={{ padding: "12px 14px", background: "var(--color-hazard-soft)", borderRadius: "var(--radius-md)", fontSize: "14px", color: "#7A4300" }}>
-              <strong>Manual exception.</strong>
-              {' '}GPS and odometer both unavailable for this trip. Admin will receive an exception report; enter the closing reading from the dashboard photo.
-            </div>
+            <Alert
+              type="warning"
+              title={
+                <span>
+                  <strong>Manual exception.</strong>
+                  {' '}GPS and odometer both unavailable for this trip. Admin will receive an exception report; enter the closing reading from the dashboard photo.
+                </span>
+              }
+            />
           </>
         ) : null}
-      </div>
-      <div style={{ position: "sticky", bottom: "0", marginTop: "auto", padding: "12px 16px 40px", background: "#fff", borderTop: "1px solid var(--border-default)", display: "flex", flexDirection: "column", gap: "8px" }}>
-        <Button size="lg" fullWidth={true} onClick={v.submitClose} style={v.bigBtn}>Close trip</Button>
-        <Button variant="ghost" size="lg" fullWidth={true} onClick={v.back}>Back</Button>
-      </div>
-    </div>
+      </Flex>
+      <Flex vertical gap={8} style={{ position: 'sticky', bottom: 0, marginTop: 'auto', padding: '12px 16px 40px', background: '#fff', borderTop: '1px solid var(--border-default)' }}>
+        <Button type="primary" size="large" block onClick={v.submitClose} style={v.bigBtn}>Close trip</Button>
+        <Button type="text" size="large" block onClick={v.back}>Back</Button>
+      </Flex>
+    </Flex>
   </>
 );
 

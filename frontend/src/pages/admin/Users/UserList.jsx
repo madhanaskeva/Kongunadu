@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, KeyRound } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
-import { RowActions } from '../../../components/common/RowActions';
+import { Button, Card, Flex, Space, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
 import { ModuleAccess, MODULE_TOTAL, accessCount, userAccess } from './ModuleAccess';
 
 export const UserList = () => {
@@ -12,7 +11,6 @@ export const UserList = () => {
   const { can } = useModuleAccess();
 
   const users = tms.users || [];
-  const usersPg = usePagination(users);
   const branchOptions = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
 
   const userTabs = [
@@ -94,170 +92,116 @@ export const UserList = () => {
     setUserTab('roles');
   };
 
-  const userCols = ['Name', 'Email', 'Password', 'Role', 'Branch scope', 'Module access', 'Status', 'Last active', 'Actions'];
+  const nowrap = { whiteSpace: 'nowrap' };
+  const userColumns = [
+    { title: 'Name', dataIndex: 'name', key: 'name', onCell: () => ({ style: nowrap }), render: v => <Typography.Text strong>{v}</Typography.Text> },
+    { title: 'Email', dataIndex: 'email', key: 'email', onCell: () => ({ style: nowrap }), render: v => <Typography.Text type="secondary">{v}</Typography.Text> },
+    {
+      title: 'Password',
+      key: 'password',
+      onCell: () => ({ style: nowrap }),
+      render: (_, u) =>
+        u.password ? (
+          <Space size={8}>
+            <span style={{ fontFamily: shownPw[u.id] ? 'var(--font-mono)' : 'inherit', letterSpacing: shownPw[u.id] ? 0 : '0.15em', color: 'var(--text-heading)' }}>
+              {shownPw[u.id] ? u.password : '••••••••'}
+            </span>
+            <Button
+              type="text"
+              size="small"
+              onClick={() => setShownPw({ ...shownPw, [u.id]: !shownPw[u.id] })}
+              aria-label={shownPw[u.id] ? `Hide password for ${u.name}` : `Show password for ${u.name}`}
+              icon={shownPw[u.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+            />
+          </Space>
+        ) : (
+          <Typography.Text type="secondary">Not set</Typography.Text>
+        ),
+    },
+    { title: 'Role', dataIndex: 'role', key: 'role', onCell: () => ({ style: nowrap }) },
+    { title: 'Branch scope', dataIndex: 'branch', key: 'branch', onCell: () => ({ style: nowrap }) },
+    {
+      title: 'Module access',
+      key: 'access',
+      onCell: () => ({ style: nowrap }),
+      render: (_, u) => (
+        <Button type="link" size="small" style={{ padding: 0, fontWeight: 700 }} onClick={() => manageAccess(u)}>
+          {accessCount(userAccess(u))} of {MODULE_TOTAL} modules
+        </Button>
+      ),
+    },
+    // Anything other than Active reads as a warning here (as it did before).
+    { title: 'Status', dataIndex: 'status', key: 'status', render: v => <Tag color={v === 'Active' ? 'success' : 'warning'}>{v}</Tag> },
+    { title: 'Last active', dataIndex: 'last', key: 'last', onCell: () => ({ style: nowrap }), render: v => <Typography.Text type="secondary">{v}</Typography.Text> },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      render: (_, u) => (
+        <Space size={8} onClick={e => e.stopPropagation()}>
+          <Tooltip title="Manage module access">
+            <Button type="text" size="small" className="tms-row-action tms-row-action--accent" icon={<KeyRound size={16} strokeWidth={2} />} aria-label="Manage module access" onClick={() => manageAccess(u)} />
+          </Tooltip>
+          {can('users', 'edit') && (
+            <Tooltip title={`Edit ${u.name}`}>
+              <Button type="text" size="small" className="tms-row-action" icon={<Pencil size={16} strokeWidth={2} />} aria-label={`Edit ${u.name}`} onClick={() => handleEditUser(u)} />
+            </Tooltip>
+          )}
+          {can('users', 'delete') && (
+            <Tooltip title={`Remove ${u.name}`}>
+              <Button type="text" size="small" className="tms-row-action" danger icon={<Trash2 size={16} strokeWidth={2} />} aria-label={`Remove ${u.name}`} onClick={() => handleDeleteUser(u)} />
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Top Tabs */}
-      <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '0 18px', overflowX: 'auto' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {userTabs.map(t => (
-            <button
-              key={t.value}
-              onClick={() => setUserTab(t.value)}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '12px 16px',
-                fontFamily: 'var(--font-display)',
-                fontSize: '14px',
-                fontWeight: 700,
-                color: userTab === t.value ? 'var(--color-brand)' : 'var(--text-muted)',
-                borderBottom: `3px solid ${userTab === t.value ? 'var(--color-brand)' : 'transparent'}`,
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <Flex vertical gap={20}>
+      <Card styles={{ body: { padding: '0 18px' } }}>
+        <Tabs
+          activeKey={userTab}
+          onChange={setUserTab}
+          items={userTabs.map(t => ({ key: t.value, label: t.label }))}
+        />
+      </Card>
 
-      {/* Users Tab View */}
       {userTab === 'users' && (
-        <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 18px', borderBottom: '1px solid var(--border-default)' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              <strong style={{ color: 'var(--text-heading)' }}>{users.length}</strong> users
-            </span>
-            {can('users', 'add') && (
-              <button
-                onClick={handleAddUser}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  padding: '0 14px',
-                  height: '32px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-brand)',
-                  color: '#fff',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                }}
-              >
+        <Card
+          title={
+            <Typography.Text type="secondary" style={{ fontWeight: 400 }}>
+              <Typography.Text strong>{users.length}</Typography.Text> users
+            </Typography.Text>
+          }
+          extra={
+            can('users', 'add') && (
+              <Button type="primary" onClick={handleAddUser}>
                 Add user
-              </button>
-            )}
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '720px' }}>
-              <thead>
-                <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                  {userCols.map((c, i) => (
-                    <th
-                      key={i}
-                      style={{
-                        padding: '10px 14px',
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.1em',
-                        textTransform: 'uppercase',
-                        color: 'var(--text-muted)',
-                        whiteSpace: 'nowrap',
-                        textAlign: c === 'Actions' ? 'center' : 'left',
-                      }}
-                    >
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {usersPg.rows.map((u, idx) => {
-                  const isActive = u.status === 'Active';
-                  return (
-                    <tr key={u.id || idx} style={{ borderTop: '1px solid var(--border-default)' }}>
-                      <td style={{ padding: '12px 14px', fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                        {u.name}
-                      </td>
-                      <td style={{ padding: '12px 14px', color: 'var(--text-muted)' }}>{u.email}</td>
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                        {u.password ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontFamily: shownPw[u.id] ? 'var(--font-mono)' : 'inherit', letterSpacing: shownPw[u.id] ? 0 : '0.15em', color: 'var(--text-heading)' }}>
-                              {shownPw[u.id] ? u.password : '••••••••'}
-                            </span>
-                            <button
-                              onClick={() => setShownPw({ ...shownPw, [u.id]: !shownPw[u.id] })}
-                              aria-label={shownPw[u.id] ? `Hide password for ${u.name}` : `Show password for ${u.name}`}
-                              style={{ all: 'unset', cursor: 'pointer', display: 'grid', color: 'var(--text-muted)' }}
-                            >
-                              {shownPw[u.id] ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>Not set</span>
-                        )}
-                      </td>
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{u.role}</td>
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{u.branch}</td>
-                      <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                        <button
-                          onClick={() => manageAccess(u)}
-                          style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-                        >
-                          {accessCount(userAccess(u))} of {MODULE_TOTAL} modules
-                        </button>
-                      </td>
-                      <td style={{ padding: '12px 14px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            fontFamily: 'var(--font-display)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '0.1em',
-                            textTransform: 'uppercase',
-                            padding: '3px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: isActive ? 'var(--color-brand-soft)' : 'var(--color-hazard-soft)',
-                            color: isActive ? 'var(--kr-green-800)' : '#7A4300',
-                          }}
-                        >
-                          {u.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                        {u.last}
-                      </td>
-                      <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                        <RowActions
-                          actions={[{ key: 'access', icon: KeyRound, label: 'Manage module access', onClick: () => manageAccess(u) }]}
-                          onEdit={can('users', 'edit') ? () => handleEditUser(u) : undefined}
-                          onDelete={can('users', 'delete') ? () => handleDeleteUser(u) : undefined}
-                          editLabel={`Edit ${u.name}`}
-                          deleteLabel={`Remove ${u.name}`}
-                          buttonAriaLabel={`Actions for ${u.name}`}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <Pagination {...usersPg} noun="users" />
-        </div>
+              </Button>
+            )
+          }
+          styles={{ body: { padding: 0 } }}
+        >
+          <Table
+            columns={userColumns}
+            dataSource={users}
+            rowKey="id"
+            tableLayout="auto"
+            scroll={{ x: 720 }}
+            pagination={{
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} users`,
+            }}
+          />
+        </Card>
       )}
 
-      {/* Module Access Tab View */}
       {userTab === 'roles' && (
         <ModuleAccess users={users} selectedId={accessUserId} onSelect={setAccessUserId} showToast={showToast} />
       )}
-    </div>
+    </Flex>
   );
 };
 

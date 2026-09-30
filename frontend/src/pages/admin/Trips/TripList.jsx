@@ -1,62 +1,34 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ArrowDown, Building2, CircleCheck, Download,
-  Flag, ClockAlert, Play, Search, Tag, TriangleAlert, Truck, X,
+  ArrowDown,
+  Building2,
+  CircleCheck,
+  Download,
+  Flag,
+  ClockAlert,
+  Play,
+  Search,
+  Tag as TagIcon,
+  TriangleAlert,
+  Truck,
+  X,
+  Eye,
 } from 'lucide-react';
+import {
+  Avatar, Button, Card, Col, Empty, Flex, Form, Input, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography,
+} from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
-import { RowActions } from '../../../components/common/RowActions';
-import { MultiSelect } from '../../../components/common/MultiSelect';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
-import { SelectField } from '../../../components/common/SelectField';
 import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 // Scoped filter-bar styles (.tl-filters) live with the other Trips page CSS.
-import '../../../styles/TripDetail.css';
+import '../../../styles/tripDetail.css';
 import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 
 // Tab id for the exception filter — not a trip status, so it is matched separately.
 const PENDING_TAB = 'pending';
-
-const filterLabel = { display: 'block', marginBottom: '8px', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' };
-const fieldWrap = { position: 'relative', display: 'flex', alignItems: 'center' };
-const fieldStyle = {
-  width: '100%',
-  height: '44px',
-  boxSizing: 'border-box',
-  padding: '0 34px 0 38px',
-  appearance: 'none',
-  WebkitAppearance: 'none',
-  borderRadius: '10px',
-  border: '1px solid #d5dfda',
-  background: '#fff',
-  fontSize: '14px',
-  color: 'var(--text-heading)',
-  cursor: 'pointer',
-};
-const iconLeft = { position: 'absolute', left: '12px', pointerEvents: 'none', color: 'var(--kr-grey-700)' };
-const iconRight = { position: 'absolute', right: '12px', pointerEvents: 'none', color: 'var(--kr-grey-700)' };
-
-const FilterSelect = ({ label, icon, value, onChange, allLabel, options, width }) => (
-  <SelectField
-    label={label}
-    icon={icon}
-    value={value}
-    onChange={onChange}
-    allLabel={allLabel}
-    options={options}
-    width={width}
-  />
-);
-
-const FilterMultiSelect = ({ label, noun, width, ...rest }) => (
-  <div style={{ width, flex: 'none' }}>
-    <label style={filterLabel} id={`${noun}-filter-label`}>{label}</label>
-    <MultiSelect noun={noun} labelledBy={`${noun}-filter-label`} {...rest} />
-  </div>
-);
 
 export const TripList = () => {
   const {
@@ -147,7 +119,6 @@ export const TripList = () => {
 
   const setVehicles = (ids) => setTf({ ...tf, vehicles: ids });
 
-  const tripCols = ['Trip number', 'Branch', 'Vehicle', 'Driver', 'Client · unloading', 'Type', 'Opened', 'Status', 'Flags', 'Actions'];
   const tripEnrouteCount = tripRows.filter(t => t.status === 'Enroute').length;
 
   const [draftQ, setDraftQ] = useState(tf.q || '');
@@ -165,8 +136,27 @@ export const TripList = () => {
     });
   }, [debouncedDraftQ]);
 
-  const tripPg = usePagination(tripRows, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
+  // Table paging; any filter change sends the table back to page 1.
+  const [tripPage, setTripPage] = useState(1);
+  const [tripPageSize, setTripPageSize] = useState(10);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setTripPage(1); }, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
 
+  // Search text inside the vehicle dropdown (drives its "Select these n" action).
+  const [vehQ, setVehQ] = useState('');
+  const shownVehicles = vehicleOptions.filter(o => matchesSearch(vehQ, o.label, o.sub));
+  const shownVehicleIds = shownVehicles.map(o => o.value);
+  const allShownOn = shownVehicleIds.length > 0 && shownVehicleIds.every(id => pickedVehicles.includes(id));
+  const toggleAllShown = () =>
+    setVehicles(allShownOn
+      ? pickedVehicles.filter(id => !shownVehicleIds.includes(id))
+      : [...new Set([...pickedVehicles, ...shownVehicleIds])]);
+  // Everything ticked narrows nothing, so it reads the same as nothing ticked.
+  const vehicleTriggerText = pickedVehicles.length === vehicleOptions.length && vehicleOptions.length > 1
+    ? 'All vehicles'
+    : pickedVehicles.length === 1
+    ? (vehicleOptions.find(o => o.value === pickedVehicles[0]) || {}).label || '1 vehicle'
+    : `${pickedVehicles.length} vehicles`;
 
   const clearTf = () => {
     setDraftQ('');
@@ -208,106 +198,212 @@ export const TripList = () => {
     { label: 'Exceptions', value: trips.filter(t => t.hasFlags).length, note: 'Flagged trips', icon: TriangleAlert, bg: 'var(--kr-red-100)', fg: 'var(--kr-red-600)', apply: { status: '', flag: 'flagged' }, on: tf.flag === 'flagged' },
   ];
 
+  const statusTabs = [
+    { id: '', label: 'All', count: statusPool.length },
+    { id: 'Enroute', label: ENROUTE_LABEL, count: statusPool.filter(t => t.status === 'Enroute').length },
+    { id: 'Closed', label: 'Closed', count: statusPool.filter(t => t.status === 'Closed').length },
+    { id: PENDING_TAB, label: PENDING_CLOSE_LABEL, count: statusPool.filter(t => t.pendingClose).length, color: 'gold', icon: ClockAlert },
+  ];
+
+  const nowrap = { whiteSpace: 'nowrap' };
+  const tripColumns = [
+    { title: 'Trip number', dataIndex: 'number', key: 'number', onCell: () => ({ style: nowrap }), render: v => <Typography.Text strong>{v}</Typography.Text> },
+    { title: 'Branch', dataIndex: 'branchName', key: 'branch', onCell: () => ({ style: nowrap }) },
+    { title: 'Vehicle', dataIndex: 'vehicleNumber', key: 'vehicle', onCell: () => ({ style: nowrap }), render: v => <Typography.Text strong>{v}</Typography.Text> },
+    { title: 'Driver', dataIndex: 'driverName', key: 'driver', onCell: () => ({ style: nowrap }) },
+    {
+      title: 'Client · unloading',
+      key: 'client',
+      onCell: () => ({ style: { maxWidth: 260 } }),
+      render: (_, t) => (
+        <Flex vertical>
+          <Typography.Text strong>{t.clientName}</Typography.Text>
+          <Typography.Text type="secondary" ellipsis style={{ fontSize: 12 }}>{t.unloading}</Typography.Text>
+        </Flex>
+      ),
+    },
+    { title: 'Type', dataIndex: 'typeLabel', key: 'type', onCell: () => ({ style: { maxWidth: 150, fontSize: 13 } }) },
+    {
+      title: <Space size={4}>Opened<ArrowDown size={13} /></Space>,
+      dataIndex: 'opened',
+      key: 'opened',
+      onCell: () => ({ style: nowrap }),
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      // Trip states carry their own palette (var(--st-*)), which no preset colour matches.
+      render: (_, t) => (
+        <Tag variant="filled" className="tl-status-tag" style={{ background: t.badgeBg, color: t.badgeFg }}>
+          <span className="tl-status-dot" />
+          {t.badge}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Flags',
+      key: 'flags',
+      onCell: () => ({ style: { minWidth: 200, maxWidth: 260 } }),
+      // One chip per flag (flagText is a comma-joined list), then the
+      // pending-closure note as its own amber chip underneath.
+      render: (_, t) => {
+        const flags = t.hasFlags ? String(t.flagText || '').split(/\s*,\s*/).filter(Boolean) : [];
+        if (!flags.length && !t.pendingClose) return <Typography.Text type="secondary">—</Typography.Text>;
+        return (
+          <ul className="tl-flags" style={{ '--flag': t.flagColor || 'var(--kr-red-600)' }}>
+            {flags.map((f, i) => (
+              <li key={i} className="tl-flag">
+                <Flag size={12} fill="currentColor" className="tl-flag-icon" />
+                <span>{f}</span>
+              </li>
+            ))}
+            {t.pendingClose && (
+              <li className="tl-flag tl-flag--pending">
+                <ClockAlert size={13} className="tl-flag-icon" />
+                <span>{t.pendingCloseDetail}</span>
+              </li>
+            )}
+          </ul>
+        );
+      },
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      render: (_, t) => (
+        <Tooltip title={`View trip ${t.number}`}>
+          <Button type="text" size="small" className="tms-row-action tms-row-action--view" icon={<Eye size={16} strokeWidth={2} />} aria-label={`View trip ${t.number}`} onClick={() => openTrip(t.id)} />
+        </Tooltip>
+      ),
+    },
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '16px' }}>
+      <Row gutter={[16, 16]}>
         {kpis.map(k => {
           const Icon = k.icon;
+          const apply = () => setTf({ ...tf, ...k.apply });
           return (
-            <button
-              key={k.label}
-              type="button"
-              onClick={() => setTf({ ...tf, ...k.apply })}
-              aria-pressed={k.on}
-              className="tms-card"
-              style={{
-                font: 'inherit', textAlign: 'left', cursor: 'pointer', width: '100%', boxSizing: 'border-box',
-                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '10px', padding: '16px 18px',
-                // The whole card carries its own colour, not just the top bar.
-                border: `1px solid ${k.fg}`,
-                borderTop: `4px solid ${k.fg}`,
-                boxShadow: k.on ? `inset 0 0 0 1px ${k.fg}, 0 2px 10px rgba(0, 48, 33, 0.10)` : '0 1px 3px rgba(0, 48, 33, 0.05)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontSize: '12.5px', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: k.fg, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {k.label}
-                </span>
-                <span style={{ flex: 'none', width: '32px', height: '32px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: k.bg, color: k.fg }}>
-                  <Icon size={18} strokeWidth={2.2} />
-                </span>
-              </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '32px', fontWeight: 800, color: 'var(--kr-grey-900)', lineHeight: 1.1 }}>
-                {k.value}
-              </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                {k.note}
-              </div>
-            </button>
+            <Col key={k.label} flex="1 1 230px">
+              <Card
+                hoverable
+                role="button"
+                tabIndex={0}
+                aria-pressed={k.on}
+                onClick={apply}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); } }}
+                className={`tms-kpi tms-kpi--link tl-kpi${k.on ? ' tms-kpi--on' : ''}`}
+                style={{ '--kpi': k.fg, '--tl-kpi-fg': k.fg, height: '100%' }}
+                styles={{ body: { padding: '16px 18px' } }}
+              >
+                <Flex vertical gap={10}>
+                  <Flex align="center" justify="space-between" gap={8}>
+                    <Typography.Text ellipsis className="tl-kpi-label">{k.label}</Typography.Text>
+                    <Avatar size={32} icon={<Icon size={18} strokeWidth={2.2} />} style={{ background: k.bg, color: k.fg, flex: 'none' }} />
+                  </Flex>
+                  <Statistic value={k.value} className="tl-kpi-value" />
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>{k.note}</Typography.Text>
+                </Flex>
+              </Card>
+            </Col>
           );
         })}
-      </div>
+      </Row>
 
       {/* Filters Bar */}
-      <div className="tms-card tl-filters" style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', alignItems: 'flex-end', padding: '18px 20px' }}>
-        <FilterSelect
-          label="Branch"
-          icon={Building2}
-          width="190px"
-          value={tf.branch}
-          allLabel="All branches"
-          options={branchOptions}
-          // Switching branch drops any ticked vehicle that branch does not own,
-          // otherwise the table would silently come back empty.
-          onChange={(v) => setTf({
-            ...tf,
-            branch: v,
-            vehicles: pickedVehicles.filter(id => !v || (tms.V[id] || {}).branch === v),
-          })}
-        />
-        <FilterMultiSelect
-          label="Vehicle"
-          icon={Truck}
-          noun="vehicle"
-          width="210px"
-          allLabel="All vehicles"
-          options={vehicleOptions}
-          value={pickedVehicles}
-          onChange={setVehicles}
-        />
-        <FilterSelect label="Type" icon={Tag} width="160px" value={tf.type} allLabel="All types" options={typeOptions} onChange={(v) => setTf({ ...tf, type: v })} />
-        <FilterSelect label="Flags" icon={Flag} width="160px" value={tf.flag} allLabel="All flags" options={flagOptions} onChange={(v) => setTf({ ...tf, flag: v })} />
+      <Card className="tl-filters" styles={{ body: { padding: '18px 20px' } }}>
+        <Form layout="vertical" onFinish={runSearch}>
+          <Flex gap={14} wrap align="flex-end">
+            <Form.Item label="Branch" className="tl-filter" style={{ width: 190 }}>
+              <Select
+                prefix={<Building2 size={17} />}
+                value={tf.branch || ''}
+                options={[{ value: '', label: 'All branches' }, ...branchOptions]}
+                popupMatchSelectWidth={false}
+                // Switching branch drops any ticked vehicle that branch does not own,
+                // otherwise the table would silently come back empty.
+                onChange={(v) => setTf({
+                  ...tf,
+                  branch: v,
+                  vehicles: pickedVehicles.filter(id => !v || (tms.V[id] || {}).branch === v),
+                })}
+              />
+            </Form.Item>
+            <Form.Item label="Vehicle" className="tl-filter" style={{ width: 210 }}>
+              <Select
+                mode="multiple"
+                prefix={<Truck size={17} />}
+                placeholder="All vehicles"
+                value={pickedVehicles}
+                options={vehicleOptions}
+                onChange={setVehicles}
+                maxTagCount={0}
+                maxTagPlaceholder={() => vehicleTriggerText}
+                popupMatchSelectWidth={280}
+                showSearch={{
+                  searchValue: vehQ,
+                  onSearch: setVehQ,
+                  autoClearSearchValue: false,
+                  filterOption: (input, o) => matchesSearch(input, o.label, o.sub),
+                }}
+                onOpenChange={open => { if (!open) setVehQ(''); }}
+                notFoundContent={`No vehicle matches “${vehQ}”.`}
+                optionRender={o => (
+                  <Flex align="center" gap={10}>
+                    <Flex vertical flex={1} style={{ minWidth: 0 }}>
+                      <Typography.Text ellipsis>{o.data.label}</Typography.Text>
+                      {o.data.sub && <Typography.Text type="secondary" ellipsis style={{ fontSize: 12 }}>{o.data.sub}</Typography.Text>}
+                    </Flex>
+                    {o.data.count != null && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{o.data.count}</Typography.Text>}
+                  </Flex>
+                )}
+                popupRender={menu => (
+                  <>
+                    <Flex justify="space-between" align="center" gap={8} className="tl-veh-head">
+                      <Button type="link" size="small" onClick={toggleAllShown} disabled={shownVehicles.length === 0}>
+                        {allShownOn ? 'Clear these' : vehQ ? `Select these ${shownVehicles.length}` : 'Select all'}
+                      </Button>
+                      <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>{pickedVehicles.length} selected</Typography.Text>
+                    </Flex>
+                    {menu}
+                  </>
+                )}
+              />
+            </Form.Item>
+            <Form.Item label="Type" className="tl-filter" style={{ width: 160 }}>
+              <Select
+                prefix={<TagIcon size={17} />}
+                value={tf.type || ''}
+                options={[{ value: '', label: 'All types' }, ...typeOptions]}
+                popupMatchSelectWidth={false}
+                onChange={(v) => setTf({ ...tf, type: v })}
+              />
+            </Form.Item>
+            <Form.Item label="Flags" className="tl-filter" style={{ width: 160 }}>
+              <Select
+                prefix={<Flag size={17} />}
+                value={tf.flag || ''}
+                options={[{ value: '', label: 'All flags' }, ...flagOptions]}
+                popupMatchSelectWidth={false}
+                onChange={(v) => setTf({ ...tf, flag: v })}
+              />
+            </Form.Item>
 
-        <form
-          onSubmit={(e) => { e.preventDefault(); runSearch(); }}
-          className="tms-trip-search"
-          style={{ flex: 1, minWidth: '260px', display: 'flex', gap: '10px', alignItems: 'center' }}
-        >
-          <div style={{ ...fieldWrap, flex: 1 }}>
-            <Search size={17} style={iconLeft} />
-            <input
-              type="text"
-              placeholder="Trip no., vehicle, driver, client..."
-              value={draftQ}
-              onChange={(e) => setDraftQ(e.target.value)}
-              style={{ ...fieldStyle, cursor: 'text', padding: '0 12px 0 38px' }}
-            />
-          </div>
-          <button
-            type="submit"
-            style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none', height: '44px', boxSizing: 'border-box', padding: '0 24px', borderRadius: '10px', background: 'var(--kr-green-700)', color: '#fff', fontSize: '14px', fontWeight: 700 }}
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            onClick={clearTf}
-            style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none', height: '44px', boxSizing: 'border-box', padding: '0 20px', borderRadius: '10px', border: '1px solid #d5dfda', background: '#fff', fontSize: '14px', fontWeight: 700, color: 'var(--text-heading)' }}
-          >
-            Clear
-          </button>
-        </form>
+            <Flex gap={10} align="center" className="tl-search">
+              <Input
+                prefix={<Search size={17} />}
+                placeholder="Trip no., vehicle, driver, client..."
+                value={draftQ}
+                onChange={(e) => setDraftQ(e.target.value)}
+              />
+              <Button type="primary" htmlType="submit">Search</Button>
+              <Button onClick={clearTf}>Clear</Button>
+            </Flex>
+          </Flex>
+        </Form>
 
         {/* Ticked vehicles stay visible, so a narrow result is never a mystery.
             Everything ticked is the same as nothing ticked, so that case just says so. */}
@@ -316,302 +412,128 @@ export const TripList = () => {
           const chips = everyOne ? [] : allChips ? pickedVehicles : pickedVehicles.slice(0, CHIP_CAP);
           const hidden = pickedVehicles.length - chips.length;
           return (
-            <div
-              style={{
-                flexBasis: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                flexWrap: 'wrap',
-                marginTop: '2px',
-                paddingTop: '14px',
-                borderTop: '1px solid #edf1ef',
-              }}
-            >
-              <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--kr-grey-700)', marginRight: '2px' }}>
+            <Flex align="center" gap={6} wrap className="tl-chips">
+              <Typography.Text type="secondary" strong style={{ fontSize: 12.5 }}>
                 {everyOne
                   ? `All ${vehicleOptions.length} vehicles`
                   : `${pickedVehicles.length} of ${vehicleOptions.length} vehicles`}
-              </span>
+              </Typography.Text>
               {chips.map(id => (
-                <span
+                <Tag
                   key={id}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    height: '26px',
-                    padding: '0 4px 0 9px',
-                    borderRadius: '999px',
-                    background: 'var(--kr-green-100)',
-                    color: 'var(--kr-green-800)',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
+                  color="success"
+                  bordered={false}
+                  className="tl-chip"
+                  closable={{
+                    closeIcon: <X size={12} strokeWidth={2.5} />,
+                    'aria-label': `Remove ${(tms.V[id] || {}).number || id} from the filter`,
                   }}
+                  onClose={(e) => { e.preventDefault(); setVehicles(pickedVehicles.filter(x => x !== id)); }}
                 >
                   {(tms.V[id] || {}).number || id}
-                  <button
-                    type="button"
-                    onClick={() => setVehicles(pickedVehicles.filter(x => x !== id))}
-                    aria-label={`Remove ${(tms.V[id] || {}).number || id} from the filter`}
-                    style={{ all: 'unset', cursor: 'pointer', display: 'grid', placeItems: 'center', width: '18px', height: '18px', borderRadius: '50%' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,74,49,.15)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <X size={12} strokeWidth={2.5} />
-                  </button>
-                </span>
+                </Tag>
               ))}
               {hidden > 0 && !everyOne && (
-                <button
-                  type="button"
-                  onClick={() => setAllChips(true)}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    height: '26px',
-                    boxSizing: 'border-box',
-                    padding: '0 10px',
-                    borderRadius: '999px',
-                    border: '1px dashed #c3d5cc',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    color: 'var(--kr-grey-700)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                  }}
-                >
+                <Button type="dashed" size="small" shape="round" onClick={() => setAllChips(true)}>
                   +{hidden} more
-                </button>
+                </Button>
               )}
               {allChips && !everyOne && pickedVehicles.length > CHIP_CAP && (
-                <button
-                  type="button"
-                  onClick={() => setAllChips(false)}
-                  style={{ all: 'unset', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--kr-grey-700)' }}
-                >
+                <Button type="text" size="small" onClick={() => setAllChips(false)}>
                   Show less
-                </button>
+                </Button>
               )}
-              <button
-                type="button"
-                onClick={() => { setVehicles([]); setAllChips(false); }}
-                style={{ all: 'unset', cursor: 'pointer', marginLeft: '2px', fontSize: '12.5px', fontWeight: 700, color: 'var(--text-brand)' }}
-              >
+              <Button type="link" size="small" onClick={() => { setVehicles([]); setAllChips(false); }}>
                 Clear
-              </button>
-            </div>
+              </Button>
+            </Flex>
           );
         })()}
-      </div>
+      </Card>
 
       {/* Table Container */}
-      <div className="tms-card" style={{ overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid #e3e9e6', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Status Tabs */}
+      <Card styles={{ body: { padding: 0 } }}>
+        <Flex justify="space-between" align="center" gap={12} wrap className="tl-table-head">
           {/* Status filters — press one to narrow the list, press it again to go back to All. */}
-          <div className="tms-tabrow" style={{ display: 'flex', gap: '8px', alignItems: 'center', padding: '12px 0' }}>
-            {[
-              { id: '', label: 'All', count: statusPool.length },
-              { id: 'Enroute', label: ENROUTE_LABEL, count: statusPool.filter(t => t.status === 'Enroute').length },
-              { id: 'Closed', label: 'Closed', count: statusPool.filter(t => t.status === 'Closed').length },
-              { id: PENDING_TAB, label: PENDING_CLOSE_LABEL, count: statusPool.filter(t => t.pendingClose).length, accent: 'var(--st-pending-fg)', edge: 'var(--st-pending-edge)', soft: 'var(--st-pending-bg)', icon: ClockAlert },
-            ].map(tab => {
+          <Flex gap={8} wrap align="center" className="tl-status-tabs">
+            {statusTabs.map(tab => {
               const on = (tf.status || '') === tab.id;
-              const accent = tab.accent || 'var(--kr-green-700)';
-              const edge = tab.edge || 'var(--kr-green-700)';
-              const soft = tab.soft || 'var(--kr-green-100)';
               const TabIcon = tab.icon;
               return (
-                <button
+                <Button
                   key={tab.id}
-                  type="button"
+                  shape="round"
+                  color={on ? (tab.color || 'primary') : 'default'}
+                  variant={on ? 'filled' : 'outlined'}
                   aria-pressed={on}
                   title={on ? `Clear the ${tab.label} filter` : `Show only ${tab.label}`}
+                  icon={TabIcon && <TabIcon size={15} className="tl-tab-icon" />}
                   onClick={() => setTf({ ...tf, status: on ? '' : tab.id })}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    boxSizing: 'border-box',
-                    height: '38px',
-                    padding: '0 16px',
-                    borderRadius: 'var(--radius-pill, 999px)',
-                    border: `1.5px solid ${on ? edge : 'var(--border-strong, #cbd5e1)'}`,
-                    background: on ? soft : '#fff',
-                    color: on ? accent : 'var(--text-heading)',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '7px',
-                    transition: 'background var(--dur-fast, 0.15s), border-color var(--dur-fast, 0.15s)',
-                  }}
                 >
-                  {TabIcon && <TabIcon size={15} style={{ color: on ? accent : 'var(--st-pending-edge)' }} />}
                   {tab.label}
-                  <span style={{ fontSize: '13px', fontWeight: 600, color: on ? accent : 'var(--text-muted)' }}>{tab.count}</span>
-                </button>
+                  <Typography.Text type={on ? undefined : 'secondary'} className="tl-tab-count">{tab.count}</Typography.Text>
+                </Button>
               );
             })}
-          </div>
+          </Flex>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '10px 0', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              <strong style={{ color: 'var(--text-heading)' }}>{tripRows.length}</strong> trips · {tripEnrouteCount} {ENROUTE_LABEL_LOWER}
+          <Flex align="center" gap={16} wrap className="tl-table-extra">
+            <Typography.Text className="tl-summary">
+              <Typography.Text strong>{tripRows.length}</Typography.Text> trips · <Typography.Text strong style={{ color: 'var(--kr-green-700)' }}>{tripEnrouteCount}</Typography.Text> {ENROUTE_LABEL_LOWER}
               {pendingCloseCount > 0 && (
-                <> · <strong style={{ color: 'var(--st-pending-fg)' }}>{pendingCloseCount}</strong> pending closure</>
+                <> · <Typography.Text strong style={{ color: 'var(--st-pending-fg)' }}>{pendingCloseCount}</Typography.Text> pending closure</>
               )}
-            </span>
+            </Typography.Text>
             {can('trips', 'export') && (
               // Exports the trips matching the current filters and search.
-              <button
-                type="button"
+              <Button
+                color="primary"
+                variant="outlined"
+                icon={<Download size={17} />}
                 onClick={FILE_TRANSFER_ENABLED ? exportTrips : undefined}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  height: '38px',
-                  padding: '0 16px',
-                  boxSizing: 'border-box',
-                  borderRadius: '10px',
-                  color: 'var(--kr-green-800)',
-                  border: '1px solid var(--kr-green-700)',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                }}
               >
-                <Download size={17} />
                 Export Excel
-              </button>
+              </Button>
             )}
-          </div>
-        </div>
+          </Flex>
+        </Flex>
 
-        {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '1080px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', background: '#f7faf9' }}>
-                {tripCols.map((c) => (
-                  <th
-                    key={c}
-                    style={{
-                      padding: '12px 16px',
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '11.5px',
-                      fontWeight: 700,
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      color: 'var(--kr-grey-700)',
-                      whiteSpace: 'nowrap',
-                      textAlign: c === 'Actions' ? 'center' : 'left',
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      {c}
-                      {c === 'Opened' && <ArrowDown size={13} />}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tripPg.rows.map((t) => (
-                <tr
-                  key={t.id}
-                  style={{ borderTop: '1px solid #edf1ef' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f5faf7'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                    {t.number}
-                  </td>
-                  <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>{t.branchName}</td>
-                  <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', color: 'var(--text-heading)', fontWeight: 700 }}>{t.vehicleNumber}</td>
-                  <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>{t.driverName}</td>
-                  <td style={{ padding: '12px 16px', maxWidth: '260px' }}>
-                    <span style={{ display: 'block', color: 'var(--text-heading)', fontWeight: 600 }}>{t.clientName}</span>
-                    <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {t.unloading}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', maxWidth: '150px' }}>{t.typeLabel}</td>
-                  <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', color: 'var(--text-body)' }}>{t.opened}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontFamily: 'var(--font-display)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.08em',
-                        textTransform: 'uppercase',
-                        whiteSpace: 'nowrap',
-                        padding: '4px 10px',
-                        borderRadius: '999px',
-                        background: t.badgeBg,
-                        color: t.badgeFg,
-                      }}
-                    >
-                      <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'currentColor' }} />
-                      {t.badge}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: t.flagColor, minWidth: '160px', maxWidth: '220px' }}>
-                    {t.hasFlags ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: '6px', lineHeight: 1.4 }}>
-                        <Flag size={13} fill="currentColor" style={{ flex: 'none', marginTop: '2px' }} />
-                        {t.flagText}
-                      </span>
-                    ) : t.pendingClose ? null : '—'}
-                    {t.pendingClose && (
-                      <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginTop: t.hasFlags ? '4px' : 0, lineHeight: 1.4, color: 'var(--st-pending-fg)' }}>
-                        <ClockAlert size={13} style={{ flex: 'none', marginTop: '2px' }} />
-                        {t.pendingCloseDetail}
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                    <RowActions
-                      onView={() => openTrip(t.id)}
-                      viewLabel={`View trip ${t.number}`}
-                      buttonAriaLabel={`Actions for ${t.number}`}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {tripRows.length === 0 && (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
-              No trips match these filters
-            </div>
-            <p style={{ margin: '6px 0 16px', color: 'var(--text-muted)', fontSize: '14px' }}>
-              Every recorded movement is kept. Try widening the branch, status or type filter.
-            </p>
-            <button
-              onClick={clearTf}
-              style={{ all: 'unset', cursor: 'pointer', padding: '0 18px', height: '36px', borderRadius: 'var(--radius-md)', background: 'var(--color-brand-tint)', color: 'var(--color-brand)', fontWeight: 700, fontSize: '14px' }}
-            >
-              Clear filters
-            </button>
-          </div>
-        )}
-
-        {/* Pagination */}
-        <Pagination {...tripPg} noun="trips" />
-      </div>
-    </div>
+        <Table
+          columns={tripColumns}
+          dataSource={tripRows}
+          rowKey="id"
+          tableLayout="auto"
+          scroll={{ x: 1080 }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <Flex vertical gap={6} align="center">
+                    <Typography.Text strong style={{ fontSize: 18 }}>No trips match these filters</Typography.Text>
+                    <Typography.Text type="secondary">
+                      Every recorded movement is kept. Try widening the branch, status or type filter.
+                    </Typography.Text>
+                  </Flex>
+                }
+              >
+                <Button color="primary" variant="filled" onClick={clearTf}>Clear filters</Button>
+              </Empty>
+            ),
+          }}
+          pagination={{
+            current: tripPage,
+            pageSize: tripPageSize,
+            onChange: (p, size) => {
+              if (size !== tripPageSize) { setTripPageSize(size); setTripPage(1); } else setTripPage(p);
+            },
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} trips`,
+          }}
+        />
+      </Card>
+    </Flex>
   );
 };
 

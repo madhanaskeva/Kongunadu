@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { barFill } from './fill';
 
 export const BarChart = ({
   data = [],
@@ -82,7 +83,7 @@ export const BarChart = ({
                   style={{
                     height: '14px',
                     background: 'var(--kr-grey-100, #ecece8)',
-                    borderRadius: '3px',
+                    borderRadius: '999px',
                     overflow: 'hidden',
                     position: 'relative',
                   }}
@@ -91,8 +92,8 @@ export const BarChart = ({
                     style={{
                       height: '100%',
                       width: `${widthPercent}%`,
-                      backgroundColor: item.color || barColor,
-                      borderRadius: '3px',
+                      background: barFill(item.color || barColor),
+                      borderRadius: '999px',
                       transition: 'width 0.4s ease, filter 0.2s ease',
                       filter: isHovered ? 'brightness(1.1)' : 'none',
                     }}
@@ -182,8 +183,8 @@ export const BarChart = ({
                   width: '100%',
                   maxWidth: '36px',
                   height: `${heightPercent}%`,
-                  backgroundColor: item.color || barColor,
-                  borderRadius: '3px 3px 0 0',
+                  background: barFill(item.color || barColor, 'column'),
+                  borderRadius: '6px 6px 0 0',
                   transition: 'height 0.4s ease, filter 0.2s ease, transform 0.2s ease',
                   filter: isHovered ? 'brightness(1.15)' : 'none',
                   transform: isHovered ? 'scaleY(1.02)' : 'none',

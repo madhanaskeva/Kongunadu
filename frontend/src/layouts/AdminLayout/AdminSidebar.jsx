@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+import { Badge, Menu } from 'antd';
 import {
   Building2, CalendarCheck, ChartColumn, ChevronRight, Contact, FileText, House, MapPin, MapPinned,
   Route, Settings, ShieldCheck, Truck, User, Users, UsersRound,
@@ -13,6 +14,7 @@ export const AdminSidebar = ({ onClose }) => {
   const { T, devReqs, drvReqs, approvals, deleted } = useTMSAdmin();
   const tms = T();
   const { can } = useModuleAccess();
+  const { pathname } = useLocation();
 
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id));
   const enrouteCount = trips.filter(t => t.status === 'Enroute').length;
@@ -65,42 +67,54 @@ export const AdminSidebar = ({ onClose }) => {
     },
   ];
 
+  // Active item: the longest nav path the URL starts with, so
+  // /admin/trips/42 still highlights "Trips" (NavLink did the same).
+  const visibleGroups = navGroups
+    .map(g => ({ ...g, items: g.items.filter(n => can(moduleForPath(n.path))) }))
+    .filter(g => g.items.length);
+  const activeKey = visibleGroups
+    .flatMap(g => g.items.map(n => n.path))
+    .filter(p => (p === '/admin/dashboard' ? pathname === p : pathname === p || pathname.startsWith(p + '/')))
+    .sort((a, b) => b.length - a.length)[0];
+
+  const toItem = (n) => {
+    const Icon = n.icon;
+    return {
+      key: n.path,
+      icon: <Icon size={19} strokeWidth={1.9} />,
+      label: (
+        <NavLink to={n.path} end={n.path === '/admin/dashboard'} onClick={onClose} className="tms-sidebar-link">
+          <span className="tms-sidebar-link-text">{n.label}</span>
+          {n.count ? (
+            <Badge
+              count={n.count}
+              color={n.countBg}
+              className={`tms-sidebar-badge${n.countBg === 'var(--color-brand)' ? ' tms-sidebar-badge--brand' : ''}`}
+            />
+          ) : (
+            activeKey === n.path && <ChevronRight size={18} />
+          )}
+        </NavLink>
+      ),
+    };
+  };
+
+  const menuItems = visibleGroups.flatMap((g, gIdx) => [
+    ...(gIdx > 0 ? [{ type: 'divider', key: `div-${gIdx}` }] : []),
+    g.group
+      ? { type: 'group', key: `grp-${gIdx}`, label: g.group, children: g.items.map(toItem) }
+      : g.items.map(toItem),
+  ].flat());
+
   return (
     <nav aria-label="Main" className="tms-sidebar">
-      {navGroups
-        .map(g => ({ ...g, items: g.items.filter(n => can(moduleForPath(n.path))) }))
-        .filter(g => g.items.length)
-        .map((g, gIdx) => (
-        <section key={gIdx} className="tms-sidebar-group">
-          {g.group && <div className="tms-sidebar-group-label">{g.group}</div>}
-          {g.items.map((n) => {
-            const Icon = n.icon;
-            return (
-              <NavLink
-                key={n.path}
-                to={n.path}
-                end={n.path === '/admin/dashboard'}
-                className={({ isActive }) => `tms-sidebar-item ${isActive ? 'active' : ''}`}
-                onClick={onClose}
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icon size={19} strokeWidth={1.9} className="tms-sidebar-icon" />
-                    <span style={{ flex: 1, minWidth: 0 }}>{n.label}</span>
-                    {n.count ? (
-                      <span className="tms-sidebar-badge" style={{ backgroundColor: n.countBg }}>
-                        {n.count}
-                      </span>
-                    ) : (
-                      isActive && <ChevronRight size={18} />
-                    )}
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
-        </section>
-      ))}
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={activeKey ? [activeKey] : []}
+        items={menuItems}
+        className="tms-sidebar-menu"
+      />
 
       <div className="tms-sidebar-footer">
         On every road

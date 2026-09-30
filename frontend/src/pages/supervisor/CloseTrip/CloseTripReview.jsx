@@ -1,65 +1,72 @@
 import React from 'react';
-import { Button } from '../components/ds';
+import { Alert, Button, Card, Descriptions, Flex, Typography } from 'antd';
 
 export const CloseTripReview = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column" }}>
-        <p style={{ margin: "0", fontSize: "15px" }}>Check the details before closing. Once closed, the trip is locked and the vehicle is free for the next assignment.</p>
+    <Flex vertical style={{ flex: 1 }}>
+      <Flex vertical gap={16} style={{ padding: 16 }}>
+        <Typography.Paragraph style={{ margin: 0, fontSize: 15 }}>Check the details before closing. Once closed, the trip is locked and the vehicle is free for the next assignment.</Typography.Paragraph>
         {(v.closeSummary || []).map((sec, secIdx) => (
           <React.Fragment key={secIdx}>
-            <div style={{ marginTop: "16px" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "6px" }}>
-                {sec.title}
-              </div>
-              <div style={{ border: "1px solid var(--border-default)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-                {(sec.rows || []).map((r, rIdx) => (
-                  <React.Fragment key={rIdx}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "16px", padding: "11px 14px", borderBottom: "1px solid var(--border-default)", fontSize: "14px", background: r.bg }}>
-                      <span style={{ flex: "none", maxWidth: "48%", color: "var(--text-muted)" }}>{r.k}</span>
-                      <span style={{ fontWeight: "700", color: "var(--text-heading)", textAlign: "right", overflowWrap: "anywhere" }}>{r.v}</span>
-                    </div>
-                  </React.Fragment>
-                ))}
-              </div>
-            </div>
+            <Descriptions
+              title={<Typography.Text type="secondary" strong style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{sec.title}</Typography.Text>}
+              bordered
+              column={1}
+              size="small"
+              items={(sec.rows || []).map((r, rIdx) => ({
+                key: rIdx,
+                label: r.k,
+                children: <Typography.Text strong style={{ overflowWrap: 'anywhere' }}>{r.v}</Typography.Text>,
+                styles: r.bg ? { label: { background: r.bg }, content: { background: r.bg } } : undefined,
+              }))}
+            />
           </React.Fragment>
         ))}
         {v.hasClosePhotos ? (
           <>
-            <div style={{ marginTop: "16px" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "6px" }}>
+            <div>
+              <Typography.Text type="secondary" strong style={{ display: 'block', marginBottom: 6, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                 Odometer photos
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "10px" }}>
+              </Typography.Text>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 }}>
                 {(v.closePhotos || []).map((ph, phIdx) => (
                   <React.Fragment key={phIdx}>
-                    <div style={{ border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
-                      <div aria-hidden="true" style={{ height: "96px", background: "var(--surface-muted)", overflow: "hidden" }}>
-                        {ph.url ? (
-                          <>
-                            <img src={ph.url} alt="" style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
-                          </>
-                        ) : null}
-                      </div>
-                      <div style={{ padding: "6px 8px", fontSize: "12px", color: "var(--text-body)" }}>{ph.caption}</div>
-                    </div>
+                    <Card
+                      size="small"
+                      styles={{ body: { padding: '6px 8px' } }}
+                      cover={
+                        <div aria-hidden="true" style={{ height: 96, background: 'var(--surface-muted)', overflow: 'hidden' }}>
+                          {ph.url ? (
+                            <>
+                              <img src={ph.url} alt="" style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </>
+                          ) : null}
+                        </div>
+                      }
+                    >
+                      <Typography.Text style={{ fontSize: 12 }}>{ph.caption}</Typography.Text>
+                    </Card>
                   </React.Fragment>
                 ))}
               </div>
             </div>
           </>
         ) : null}
-        <div style={{ marginTop: "16px", padding: "12px 14px", background: v.verify.bg, borderRadius: "var(--radius-md)", fontSize: "14px", color: v.verify.fg }}>
-          <strong>{v.closeReviewHead}</strong>
-          {' '}{v.closeReviewNote}
-        </div>
-      </div>
-      <div style={{ position: "sticky", bottom: "0", marginTop: "auto", padding: "12px 16px 40px", background: "#fff", borderTop: "1px solid var(--border-default)", display: "flex", flexDirection: "column", gap: "8px" }}>
-        <Button size="lg" fullWidth={true} onClick={v.confirmClose} style={v.bigBtn}>Confirm and close trip</Button>
-        <Button variant="ghost" size="lg" fullWidth={true} onClick={v.back}>Edit details</Button>
-      </div>
-    </div>
+        <Alert
+          type={v.verify.bg === 'var(--color-hazard-soft)' ? 'warning' : 'success'}
+          title={
+            <span>
+              <strong>{v.closeReviewHead}</strong>
+              {' '}{v.closeReviewNote}
+            </span>
+          }
+        />
+      </Flex>
+      <Flex vertical gap={8} style={{ position: 'sticky', bottom: 0, marginTop: 'auto', padding: '12px 16px 40px', background: '#fff', borderTop: '1px solid var(--border-default)' }}>
+        <Button type="primary" size="large" block onClick={v.confirmClose} style={v.bigBtn}>Confirm and close trip</Button>
+        <Button type="text" size="large" block onClick={v.back}>Edit details</Button>
+      </Flex>
+    </Flex>
   </>
 );
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import NotificationCard from '../../../components/common/NotificationCard';
+import { Badge, Button, Card, Empty, Flex, Space, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 
 // Every admin notification, newest first. Opened from "View all" in the header's notifications popup.
@@ -11,79 +11,54 @@ export const Notifications = () => {
   const unread = list.filter(isUnread).length;
 
   return (
-    <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
-        <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-          <strong style={{ color: 'var(--text-heading)' }}>{list.length}</strong> {list.length === 1 ? 'notification' : 'notifications'}
+    <Card
+      title={
+        <Typography.Text type="secondary" style={{ fontWeight: 400 }}>
+          <Typography.Text strong>{list.length}</Typography.Text> {list.length === 1 ? 'notification' : 'notifications'}
           {unread ? ` · ${unread} unread` : ''}
-        </div>
-        {unread > 0 && markAdminNotifsRead && (
-          <button
-            type="button"
-            onClick={markAdminNotifsRead}
-            style={{ all: 'unset', cursor: 'pointer', padding: '0 14px', height: '34px', display: 'inline-flex', alignItems: 'center', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}
-          >
-            Mark all as read
-          </button>
-        )}
-      </div>
+        </Typography.Text>
+      }
+      extra={
+        unread > 0 && markAdminNotifsRead && (
+          <Button onClick={markAdminNotifsRead}>Mark all as read</Button>
+        )
+      }
+    >
+      <Flex vertical gap={12}>
+        {list.map(item => {
+          const itemUnread = isUnread(item);
+          return (
+            <Card
+              key={item.id}
+              size="small"
+              // Unread items keep their brand-coloured outline.
+              style={itemUnread ? { borderColor: 'var(--color-brand)' } : undefined}
+            >
+              <Flex vertical gap={6}>
+                <Flex justify="space-between" align="flex-start" gap={8}>
+                  <Typography.Text strong style={{ fontSize: 15 }}>{item.title}</Typography.Text>
+                  {itemUnread && <Badge status="success" title="Unread message" />}
+                </Flex>
+                <Typography.Text>{item.body}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{item.time}</Typography.Text>
+                {item.kind === 'bunkApproval' && item.bunkRequestId ? (
+                  <Space size={8} wrap style={{ marginTop: 4 }}>
+                    <Button type="primary" size="small" onClick={() => decideBunkRequest(item.bunkRequestId, 'Approved')}>
+                      Approve Bunk & Authorize
+                    </Button>
+                    <Button danger size="small" onClick={() => decideBunkRequest(item.bunkRequestId, 'Rejected')}>
+                      Reject
+                    </Button>
+                  </Space>
+                ) : null}
+              </Flex>
+            </Card>
+          );
+        })}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '18px' }}>
-        {list.map(item => (
-          <NotificationCard
-            key={item.id}
-            title={item.title}
-            body={item.body}
-            time={item.time}
-            unread={isUnread(item)}
-            actions={
-              item.kind === 'bunkApproval' && item.bunkRequestId ? (
-                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                  <button
-                    type="button"
-                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Approved')}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      background: 'var(--color-brand)',
-                      color: '#fff',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    Approve Bunk & Authorize
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => decideBunkRequest(item.bunkRequestId, 'Rejected')}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--kr-red-600)',
-                      color: 'var(--kr-red-600)',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    Reject
-                  </button>
-                </div>
-              ) : null
-            }
-          />
-        ))}
-
-        {list.length === 0 && (
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-            No notifications yet
-          </div>
-        )}
-      </div>
-    </div>
+        {list.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No notifications yet" />}
+      </Flex>
+    </Card>
   );
 };
 

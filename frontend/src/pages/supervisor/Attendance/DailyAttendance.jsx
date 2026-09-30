@@ -1,68 +1,83 @@
 import React from 'react';
-import { Button } from '../components/ds';
+import { Button, Card, Flex, Progress, Radio, Typography } from 'antd';
 
 export const DailyAttendance = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "16px", display: "flex", flexDirection: "column", gap: "18px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <Flex vertical style={{ flex: 1 }}>
+      <Flex vertical gap={18} style={{ padding: 16 }}>
+        <Flex justify="space-between" align="center">
           <div>
-            <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", color: "var(--text-heading)" }}>{v.todayDM}</div>
-            <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>{v.attendanceMarked} of {v.attendanceTotal} drivers marked</div>
+            <Typography.Title level={4} style={{ margin: 0 }}>{v.todayDM}</Typography.Title>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>{v.attendanceMarked} of {v.attendanceTotal} drivers marked</Typography.Text>
           </div>
           {v.showAttMonth ? (
             <>
-              <button onClick={v.goAttMonth} style={{ all: "unset", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-brand)", padding: "10px 0" }}>
+              <Button type="link" onClick={v.goAttMonth}>
                 Month view →
-              </button>
+              </Button>
             </>
           ) : null}
-        </div>
-        <div style={{ height: "6px", background: "var(--kr-grey-100)", borderRadius: "3px", overflow: "hidden" }}>
-          <div style={{ height: "100%", width: v.attendancePct, background: "var(--color-brand)", transition: "width var(--dur-base) var(--ease-out)" }} />
-        </div>
+        </Flex>
+        <Progress percent={parseFloat(v.attendancePct) || 0} showInfo={false} size="small" strokeColor="var(--color-brand)" railColor="var(--kr-grey-100)" />
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}>
+          <Typography.Text type="secondary" strong style={{ display: 'block', marginBottom: 8, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
             Drivers
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          </Typography.Text>
+          <Flex vertical gap={8}>
             {(v.attDrivers || []).map((d, dIdx) => (
               <React.Fragment key={dIdx}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)" }}>
-                  <div style={{ flex: "1", minWidth: "0" }}>
-                    <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-heading)" }}>{d.name}</div>
-                    <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>{d.sub}</div>
-                  </div>
-                  <button data-id={d.id} data-v="P" onClick={v.markDriver} style={{ all: "unset", cursor: "pointer", minWidth: "44px", height: "44px", padding: "0 12px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", fontFamily: "var(--font-display)", fontWeight: "700", fontSize: "13px", border: `2px solid ${d.pBorder}`, background: d.pBg, color: d.pFg }}>
-                    P
-                  </button>
-                  <button data-id={d.id} data-v="A" onClick={v.markDriver} style={{ all: "unset", cursor: "pointer", minWidth: "44px", height: "44px", padding: "0 12px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", fontFamily: "var(--font-display)", fontWeight: "700", fontSize: "13px", border: `2px solid ${d.aBorder}`, background: d.aBg, color: d.aFg }}>
-                    A
-                  </button>
-                </div>
+                <Card size="small">
+                  <Flex align="center" gap={10}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Typography.Text strong style={{ display: 'block', fontSize: 15 }}>{d.name}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{d.sub}</Typography.Text>
+                    </div>
+                    <Radio.Group
+                      optionType="button"
+                      buttonStyle="solid"
+                      size="large"
+                      aria-label={`Attendance for ${d.name}`}
+                      value={d.pBg === 'var(--color-brand)' ? 'P' : d.aBg === 'var(--kr-red-600)' ? 'A' : undefined}
+                      onChange={e => v.markDriver({ currentTarget: { dataset: { id: d.id, v: e.target.value } } })}
+                      options={[
+                        { value: 'P', label: 'P' },
+                        { value: 'A', label: 'A' },
+                      ]}
+                    />
+                  </Flex>
+                </Card>
               </React.Fragment>
             ))}
-          </div>
+          </Flex>
         </div>
         <div>
-          <div style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: "8px" }}>
+          <Typography.Text type="secondary" strong style={{ display: 'block', marginBottom: 8, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
             Vehicle status
-          </div>
-          <button onClick={v.goIdle} style={{ all: "unset", cursor: "pointer", boxSizing: "border-box", width: "100%", display: "flex", alignItems: "center", gap: "12px", padding: "12px 14px", border: "1px solid var(--border-default)", borderRadius: "var(--radius-md)" }} className="sv-h2">
-            <div style={{ flex: "1", minWidth: "0" }}>
-              <div style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-heading)" }}>{v.idleSummary}</div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>Idle vehicles and reasons are recorded in Vehicle idle status.</div>
-            </div>
-            <span style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-brand)" }}>
-              Record →
-            </span>
-          </button>
+          </Typography.Text>
+          <Card
+            hoverable
+            size="small"
+            role="button"
+            tabIndex={0}
+            onClick={v.goIdle}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); v.goIdle(e); } }}
+          >
+            <Flex align="center" gap={12}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Typography.Text strong style={{ display: 'block', fontSize: 15 }}>{v.idleSummary}</Typography.Text>
+                <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>Idle vehicles and reasons are recorded in Vehicle idle status.</Typography.Text>
+              </div>
+              <Typography.Link strong style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Record →
+              </Typography.Link>
+            </Flex>
+          </Card>
         </div>
+      </Flex>
+      <div style={{ position: 'sticky', bottom: 0, marginTop: 'auto', padding: '12px 16px 40px', background: '#fff', borderTop: '1px solid var(--border-default)' }}>
+        <Button type="primary" size="large" block onClick={v.saveAttendance} style={v.bigBtn}>Save attendance</Button>
       </div>
-      <div style={{ position: "sticky", bottom: "0", marginTop: "auto", padding: "12px 16px 40px", background: "#fff", borderTop: "1px solid var(--border-default)" }}>
-        <Button size="lg" fullWidth={true} onClick={v.saveAttendance} style={v.bigBtn}>Save attendance</Button>
-      </div>
-    </div>
+    </Flex>
   </>
 );
 

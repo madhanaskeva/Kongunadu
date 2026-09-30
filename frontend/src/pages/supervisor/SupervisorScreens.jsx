@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, Toast } from './components/ds';
+import { Alert, Avatar, Badge, Button, Dropdown, Flex, Modal, Radio, Tag, Typography } from 'antd';
+import { AlertTriangle, Bell, ChevronDown, ChevronLeft, LogOut, User } from 'lucide-react';
 import DeviceApproval from '../auth/SupervisorDeviceApproval';
 import VerifyOtp from '../auth/SupervisorVerifyOtp';
 import Register from '../auth/SupervisorRegister';
@@ -28,8 +29,13 @@ import GpsPermission from './Home/GpsPermission';
 import Offline from './Home/Offline';
 import SupervisorProfile from './Profile/SupervisorProfile';
 
+const { Title, Text, Paragraph } = Typography;
+
+// ds Toast tones → antd Alert types.
+const TOAST_TYPE = { success: 'success', danger: 'error', warning: 'warning', info: 'info' };
+
 export const SupervisorScreens = ({ v }) => (
-    <div style={{ minHeight: "100%", display: "flex", flexDirection: "column", background: "#fff", fontFamily: "var(--font-body)", color: "var(--text-body)", position: "relative" }}>
+    <div className="sv-screens">
       {/* ============ DEVICE APPROVAL ============ */}
       {v.is.approval && <DeviceApproval v={v} />}
       {/* ============ OTP ============ */}
@@ -39,8 +45,8 @@ export const SupervisorScreens = ({ v }) => (
       {/* AUTH TOAST */}
       {v.authToast ? (
         <>
-          <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: "448px", bottom: "calc(24px + env(safe-area-inset-bottom))", zIndex: "40", display: "flex", justifyContent: "center" }}>
-            <Toast tone={v.toast.tone} title={v.toast.title} message={v.toast.message} onDismiss={v.hideToast} style={v.toastStyle} />
+          <div className="sv-toast">
+            <Alert showIcon type={TOAST_TYPE[v.toast.tone] || 'success'} title={v.toast.title} description={v.toast.message} closable={{ onClose: v.hideToast }} style={v.toastStyle} />
           </div>
         </>
       ) : null}
@@ -49,180 +55,54 @@ export const SupervisorScreens = ({ v }) => (
       {/* ============ APP SHELL ============ */}
       {v.isApp ? (
         <>
-          <header style={{ padding: "calc(12px + env(safe-area-inset-top)) 16px 12px", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid var(--border-default)", background: "#fff", position: "sticky", top: "0", zIndex: "5" }}>
+          <Flex component="header" align="center" gap={10} className="sv-appbar">
             {v.showBack ? (
               <>
-                <button onClick={v.back} aria-label="Back" style={{ all: "unset", cursor: "pointer", width: "44px", height: "44px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", color: "var(--text-heading)" }} className="sv-h2">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m15 18-6-6 6-6" />
-                  </svg>
-                </button>
+                <Button type="text" size="large" onClick={v.back} aria-label="Back" icon={<ChevronLeft size={22} strokeWidth={2.5} />} />
               </>
             ) : null}
-            <div style={{ flex: "1", minWidth: "0" }}>
-              <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "18px", letterSpacing: "-0.01em", color: "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div className="sv-appbar-title">
+              <Title level={5} ellipsis style={{ margin: 0 }}>
                 {v.title}
-              </div>
-              <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: "600", letterSpacing: "0.04em", textTransform: "uppercase" }}>{v.branchName} · {v.supName}</div>
+              </Title>
+              <Text type="secondary" className="sv-appbar-sub">{v.branchName} · {v.supName}</Text>
             </div>
-            <span title="GPS status" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: v.gpsColor }}>
-              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: v.gpsColor, animation: "tmsPulse 1.6s ease-in-out infinite" }} />
-              {v.gpsLabel}
+            <span title="GPS status">
+              <Badge status="processing" color={v.gpsColor} text={<Text strong className="sv-gps-label" style={{ color: v.gpsColor }}>{v.gpsLabel}</Text>} />
             </span>
-            <div style={{ position: "relative", flex: "none" }}>
-              <button onClick={v.goNotifications} aria-label={v.bellLabel} style={{ all: "unset", cursor: "pointer", position: "relative", width: "44px", height: "44px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", color: "var(--text-heading)", background: v.bellBg }} className="sv-h2">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-                </svg>
-                {v.notifHasUnread ? (
-                  <>
-                    <span style={{ position: "absolute", top: "6px", right: "5px", minWidth: "18px", height: "18px", padding: "0 4px", boxSizing: "border-box", display: "grid", placeItems: "center", borderRadius: "999px", border: "2px solid #fff", background: "var(--kr-red-600)", color: "#fff", fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: "800", lineHeight: "1" }}>
-                      {v.notifUnread}
-                    </span>
-                  </>
-                ) : null}
-              </button>
-            </div>
+            <Badge count={v.notifHasUnread ? v.notifUnread : 0} size="small" offset={[-6, 8]}>
+              <Button type="text" size="large" onClick={v.goNotifications} aria-label={v.bellLabel} icon={<Bell size={22} strokeWidth={2.2} />} style={{ background: v.bellBg }} />
+            </Badge>
             {/* Profile Avatar Pill & Dropdown */}
-            <div style={{ position: "relative", flex: "none" }}>
-              <button
-                type="button"
-                onClick={v.toggleProfileMenu}
-                aria-label="Profile menu"
-                aria-expanded={v.profileMenuOpen}
-                style={{
-                  all: "unset",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "4px 8px 4px 4px",
-                  borderRadius: "var(--radius-pill, 9999px)",
-                  background: "var(--color-brand-tint, #f0fdf4)",
-                  border: "1px solid var(--border-default)",
-                }}
-                className="sv-h2"
-              >
-                <span
-                  style={{
-                    width: "30px",
-                    height: "30px",
-                    borderRadius: "50%",
-                    background: "var(--color-brand, #006039)",
-                    color: "#fff",
-                    display: "grid",
-                    placeItems: "center",
-                    fontFamily: "var(--font-display)",
-                    fontWeight: "800",
-                    fontSize: "11px",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  {v.supInitials || "SV"}
-                </span>
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{
-                    transform: v.profileMenuOpen ? "rotate(180deg)" : "rotate(0deg)",
-                    transition: "transform 0.15s ease",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-
-              {/* Profile Dropdown Popup */}
-              {v.profileMenuOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: "0",
-                    top: "calc(100% + 8px)",
-                    zIndex: "60",
-                    background: "#fff",
-                    border: "1px solid var(--border-default)",
-                    borderTop: "4px solid var(--color-brand)",
-                    borderRadius: "var(--radius-lg)",
-                    boxShadow: "var(--shadow-lg)",
-                    minWidth: "220px",
-                    padding: "12px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px",
-                  }}
-                >
-                  <div style={{ paddingBottom: "8px", borderBottom: "1px solid var(--border-default)" }}>
-                    <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "14px", color: "var(--text-heading)" }}>
-                      {v.supFullName || v.supName || "Supervisor"}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600", marginTop: "2px" }}>
-                      {v.supRoleText}
-                    </div>
+            <Dropdown
+              trigger={['click']}
+              placement="bottomRight"
+              open={v.profileMenuOpen}
+              onOpenChange={(open, info) => { if (info && info.source === 'menu') return; /* goProfile / onSignOut close it themselves */ if (open !== v.profileMenuOpen) v.toggleProfileMenu(); }}
+              popupRender={(menu) => (
+                <div className="sv-profile-menu">
+                  <div className="sv-profile-menu-head">
+                    <Text strong>{v.supFullName || v.supName || "Supervisor"}</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 11 }}>{v.supRoleText}</Text>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={v.goProfile}
-                    style={{
-                      all: "unset",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: "var(--text-heading)",
-                      padding: "6px 8px",
-                      borderRadius: "var(--radius-md)",
-                    }}
-                    className="sv-h2"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                    Supervisor Profile
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={v.onSignOut}
-                    style={{
-                      all: "unset",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      fontSize: "13px",
-                      fontWeight: "600",
-                      color: "var(--status-danger, #dc2626)",
-                      padding: "6px 8px",
-                      borderRadius: "var(--radius-md)",
-                      borderTop: "1px solid var(--border-default)",
-                      paddingTop: "10px",
-                    }}
-                    className="sv-h14"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    Sign out
-                  </button>
+                  {menu}
                 </div>
               )}
-            </div>
-          </header>
+              menu={{
+                items: [
+                  { key: 'profile', label: 'Supervisor Profile', icon: <User size={16} strokeWidth={2.2} />, onClick: v.goProfile },
+                  { type: 'divider' },
+                  { key: 'signout', label: 'Sign out', danger: true, icon: <LogOut size={16} strokeWidth={2.2} />, onClick: v.onSignOut },
+                ],
+              }}
+            >
+              <Button shape="round" aria-label="Profile menu" aria-expanded={v.profileMenuOpen} className="sv-profile-pill">
+                <Avatar size={30} className="sv-avatar">{v.supInitials || "SV"}</Avatar>
+                <ChevronDown size={14} strokeWidth={2.5} style={{ transform: v.profileMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
+              </Button>
+            </Dropdown>
+          </Flex>
           {/* HOME */}
           {v.is.home && <Home v={v} />}
           {/* PROFILE */}
@@ -268,124 +148,124 @@ export const SupervisorScreens = ({ v }) => (
           {v.is.gpsPerm && <GpsPermission v={v} />}
           {/* OFFLINE / ERROR */}
           {v.is.offline && <Offline v={v} />}
-          {/* UNCLOSED TRIP ALERT */}
-          {v.unclosedAlertOpen ? (
-            <>
-              <div style={{ position: "fixed", inset: "0", background: "rgba(20,32,43,.6)", zIndex: "30" }}>
-                {/* sticky layer the height of the phone screen, so the popup stays centred however far the form is scrolled */}
-                <div style={{ height: "100%", maxWidth: "480px", margin: "0 auto", boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-                  <div role="alertdialog" aria-modal="true" aria-labelledby="unclosed-alert-title" aria-describedby="unclosed-alert-body" style={{ width: "100%", maxWidth: "340px", background: "#fff", borderRadius: "var(--radius-lg)", borderTop: "6px solid var(--color-hazard)", boxShadow: "var(--shadow-lg)", padding: "24px 20px 20px", textAlign: "center" }}>
-                    <div style={{ width: "56px", height: "56px", margin: "0 auto 14px", borderRadius: "50%", background: "var(--color-hazard-soft)", display: "grid", placeItems: "center" }}>
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7A4300" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01" />
-                      </svg>
-                    </div>
-                    <h3 id="unclosed-alert-title" style={{ margin: "0", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", lineHeight: "1.2", color: "var(--text-heading)" }}>
-                      Trip not closed
-                    </h3>
-                    <p id="unclosed-alert-body" style={{ margin: "8px 0 14px", fontSize: "15px", lineHeight: "1.5", color: "var(--text-body)" }}>
-                      <strong style={{ color: "var(--text-heading)" }}>{v.ua.vehicle}</strong>
-                      {' '}still has an unclosed trip. Please close that trip before opening a new one.
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "10px 12px", marginBottom: "18px", background: "var(--surface-muted)", borderRadius: "var(--radius-md)", textAlign: "left", fontSize: "13px", color: "var(--text-muted)" }}>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: "700", color: "var(--text-heading)" }}>{v.ua.number}</span>
-                      <span>{v.ua.route}</span>
-                      <span>Opened {v.ua.opened} · {v.ua.hoursOpen} h open</span>
-                    </div>
-                    <Button size="lg" fullWidth={true} onClick={v.ackUnclosedAlert} style={v.bigBtn}>OK</Button>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : null}
+          {/* UNCLOSED TRIP ALERT · must be acknowledged, so no mask/escape close */}
+          <Modal
+            open={!!v.unclosedAlertOpen}
+            centered
+            width={340}
+            closable={false}
+            mask={{ closable: false }}
+            keyboard={false}
+            footer={null}
+            className="sv-alert-modal"
+          >
+            {v.unclosedAlertOpen ? (
+              <Flex vertical align="center" gap={8} role="alertdialog" aria-labelledby="unclosed-alert-title" aria-describedby="unclosed-alert-body">
+                <Avatar size={56} className="sv-hazard-icon" icon={<AlertTriangle size={28} strokeWidth={2.2} />} />
+                <Title level={4} id="unclosed-alert-title" style={{ margin: 0 }}>
+                  Trip not closed
+                </Title>
+                <Paragraph id="unclosed-alert-body" style={{ textAlign: "center", marginBottom: 6 }}>
+                  <Text strong>{v.ua.vehicle}</Text>
+                  {' '}still has an unclosed trip. Please close that trip before opening a new one.
+                </Paragraph>
+                <Alert
+                  type="warning"
+                  style={{ width: "100%" }}
+                  title={<Text strong code>{v.ua.number}</Text>}
+                  description={<Flex vertical><span>{v.ua.route}</span><span>Opened {v.ua.opened} · {v.ua.hoursOpen} h open</span></Flex>}
+                />
+                <Button type="primary" size="large" block onClick={v.ackUnclosedAlert} style={{ ...v.bigBtn, marginTop: 10 }}>OK</Button>
+              </Flex>
+            ) : null}
+          </Modal>
           {/* DRIVER PICKER · available drivers, or request a new one */}
-          {v.drvPickOpen ? (
-            <>
-              <div onClick={v.closeDrvPick} style={{ position: "fixed", inset: "0", background: "rgba(20,32,43,.6)", zIndex: "30" }}>
-                {/* sticky layer the height of the phone screen, so the sheet stays in view however far the form is scrolled */}
-                <div style={{ height: "100%", maxWidth: "480px", margin: "0 auto", boxSizing: "border-box", display: "flex", alignItems: "flex-end", padding: "12px 12px 28px" }}>
-                  <div role="dialog" aria-modal="true" aria-labelledby="drv-pick-title" onClick={v.stop} style={{ width: "100%", maxHeight: "640px", display: "flex", flexDirection: "column", background: "#fff", borderRadius: "var(--radius-lg)", borderTop: "6px solid var(--color-brand)", boxShadow: "var(--shadow-lg)", overflow: "hidden" }}>
-                    <div style={{ flex: "none", display: "flex", alignItems: "flex-start", gap: "12px", padding: "18px 16px 14px", borderBottom: "1px solid var(--border-default)" }}>
-                      <div style={{ flex: "1", minWidth: "0" }}>
-                        <h3 id="drv-pick-title" style={{ margin: "0", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", lineHeight: "1.2", color: "var(--text-heading)" }}>
-                          Choose driver
-                        </h3>
-                        <p style={{ margin: "4px 0 0", fontSize: "13px", lineHeight: "1.45", color: "var(--text-muted)" }}>{v.pickSub}</p>
-                      </div>
-                      <button onClick={v.closeDrvPick} aria-label="Close" style={{ all: "unset", cursor: "pointer", flex: "none", width: "44px", height: "44px", margin: "-8px -8px 0 0", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", color: "var(--text-heading)" }} className="sv-h2">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                          <path d="M6 6l12 12M18 6 6 18" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div role="listbox" aria-labelledby="drv-pick-title" style={{ flex: "1", minHeight: "0", overflowY: "auto" }}>
-                      {(v.pickList || []).map((d, dIdx) => (
-                        <React.Fragment key={dIdx}>
-                          <button role="option" aria-selected={d.on} data-id={d.id} onClick={v.pickDriver} style={{ all: "unset", cursor: "pointer", boxSizing: "border-box", width: "100%", display: "flex", alignItems: "center", gap: "12px", minHeight: "64px", padding: "10px 16px", borderBottom: "1px solid var(--border-default)", background: d.bg }}>
-                            <span aria-hidden="true" style={{ flex: "none", width: "40px", height: "40px", borderRadius: "50%", background: d.avatarBg, color: d.avatarFg, display: "grid", placeItems: "center", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "14px" }}>
-                              {d.initials}
-                            </span>
-                            <span style={{ flex: "1", minWidth: "0", display: "flex", flexDirection: "column", gap: "2px" }}>
-                              <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: "0" }}>
-                                <span style={{ fontWeight: "700", fontSize: "16px", color: "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                  {d.name}
-                                </span>
-                                {d.hasTag ? (
-                                  <>
-                                    <span style={{ flex: "none", fontFamily: "var(--font-display)", fontSize: "10px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 6px", borderRadius: "var(--radius-sm)", background: d.tagBg, color: d.tagFg }}>
-                                      {d.tag}
-                                    </span>
-                                  </>
-                                ) : null}
-                              </span>
-                              <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>{d.sub}</span>
-                            </span>
-                            <span aria-hidden="true" style={{ flex: "none", boxSizing: "border-box", width: "24px", height: "24px", borderRadius: "50%", border: `2px solid ${d.ring}`, display: "grid", placeItems: "center" }}>
-                              <span style={{ width: "12px", height: "12px", borderRadius: "50%", background: d.dot }} />
-                            </span>
-                          </button>
-                        </React.Fragment>
-                      ))}
-                      {v.pickEmpty ? (
-                        <>
-                          <div style={{ padding: "28px 20px", textAlign: "center" }}>
-                            <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "17px", color: "var(--text-heading)" }}>No free drivers right now</div>
-                            <p style={{ margin: "6px 0 0", fontSize: "14px", color: "var(--text-muted)" }}>
-                              Every {v.branchName} driver is on a trip, absent or inactive. Request a new driver below.
-                            </p>
-                          </div>
-                        </>
-                      ) : null}
-                    </div>
-                    <div style={{ flex: "none", padding: "14px 16px 16px", borderTop: "1px solid var(--border-default)", background: "var(--surface-muted)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <div style={{ fontSize: "13px", color: "var(--text-muted)", textAlign: "center" }}>Driver not in the list? New drivers need Head Office approval.</div>
-                      <Button variant="secondary" size="lg" fullWidth={true} onClick={v.goReqDriverFromOpen}>+ Request new driver</Button>
-                    </div>
-                  </div>
-                </div>
+          <Modal
+            open={!!v.drvPickOpen}
+            onCancel={v.closeDrvPick}
+            width={456}
+            wrapClassName="sv-sheet-wrap"
+            className="sv-sheet"
+            title={
+              <div>
+                <Title level={4} id="drv-pick-title" style={{ margin: 0 }}>Choose driver</Title>
+                <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>{v.pickSub}</Text>
               </div>
-            </>
-          ) : null}
+            }
+            footer={
+              <Flex vertical gap={8}>
+                <Text type="secondary" style={{ textAlign: "center", fontSize: 13 }}>Driver not in the list? New drivers need Head Office approval.</Text>
+                <Button color="primary" variant="outlined" size="large" block onClick={v.goReqDriverFromOpen}>+ Request new driver</Button>
+              </Flex>
+            }
+          >
+            <div role="listbox" aria-labelledby="drv-pick-title" className="sv-drv-list">
+              {(v.pickList || []).map((d, dIdx) => (
+                <React.Fragment key={dIdx}>
+                  <Flex
+                    role="option"
+                    tabIndex={0}
+                    aria-selected={d.on}
+                    data-id={d.id}
+                    onClick={v.pickDriver}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); v.pickDriver(e); } }}
+                    align="center"
+                    gap={12}
+                    className={d.on === 'true' ? 'sv-drv-row is-on' : 'sv-drv-row'}
+                  >
+                    <Avatar size={40} aria-hidden="true" style={{ flex: "none", background: d.avatarBg, color: d.avatarFg, fontWeight: 800 }}>
+                      {d.initials}
+                    </Avatar>
+                    <Flex vertical gap={2} style={{ flex: 1, minWidth: 0 }}>
+                      <Flex align="center" gap={8} style={{ minWidth: 0 }}>
+                        <Text strong ellipsis style={{ fontSize: 16 }}>{d.name}</Text>
+                        {d.hasTag ? (
+                          <>
+                            <Tag color={d.tagColor} style={{ flex: "none", marginInlineEnd: 0 }}>{d.tag}</Tag>
+                          </>
+                        ) : null}
+                      </Flex>
+                      <Text type="secondary" style={{ fontSize: 13 }}>{d.sub}</Text>
+                    </Flex>
+                    <Radio checked={d.on === 'true'} aria-hidden="true" tabIndex={-1} style={{ pointerEvents: "none", marginInlineEnd: 0 }} />
+                  </Flex>
+                </React.Fragment>
+              ))}
+              {v.pickEmpty ? (
+                <>
+                  <div style={{ padding: "28px 20px", textAlign: "center" }}>
+                    <Title level={5} style={{ margin: 0 }}>No free drivers right now</Title>
+                    <Paragraph type="secondary" style={{ margin: "6px 0 0" }}>
+                      Every {v.branchName} driver is on a trip, absent or inactive. Request a new driver below.
+                    </Paragraph>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </Modal>
           {/* DISCARD CONFIRM */}
-          {v.discardOpen ? (
-            <>
-              <div onClick={v.cancelDiscard} style={{ position: "fixed", inset: "0", background: "rgba(20,32,43,.6)", zIndex: "30", display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "16px" }}>
-                <div role="dialog" onClick={v.stop} style={{ width: "100%", maxWidth: "448px", background: "#fff", borderRadius: "var(--radius-lg)", borderTop: "6px solid var(--color-brand)", boxShadow: "var(--shadow-lg)", padding: "20px 20px 24px" }}>
-                  <h3 style={{ margin: "0", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", color: "var(--text-heading)" }}>Discard this trip?</h3>
-                  <p style={{ margin: "8px 0 20px", fontSize: "15px" }}>Nothing has been saved yet. The truck is loaded, so make sure the trip is opened before it leaves the yard.</p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <Button variant="accent" size="lg" fullWidth={true} onClick={v.confirmDiscard}>Discard</Button>
-                    <Button variant="ghost" size="lg" fullWidth={true} onClick={v.cancelDiscard}>Keep editing</Button>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : null}
+          <Modal
+            open={!!v.discardOpen}
+            onCancel={v.cancelDiscard}
+            closable={false}
+            width={448}
+            wrapClassName="sv-sheet-wrap"
+            className="sv-sheet"
+            title="Discard this trip?"
+            footer={
+              <Flex vertical gap={8}>
+                <Button type="primary" danger size="large" block onClick={v.confirmDiscard}>Discard</Button>
+                <Button type="text" size="large" block onClick={v.cancelDiscard}>Keep editing</Button>
+              </Flex>
+            }
+          >
+            <Paragraph style={{ fontSize: 15, margin: "8px 0 12px" }}>Nothing has been saved yet. The truck is loaded, so make sure the trip is opened before it leaves the yard.</Paragraph>
+          </Modal>
           {/* TOAST */}
           {v.toast ? (
             <>
-              <div style={{ position: "fixed", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: "448px", bottom: "calc(24px + env(safe-area-inset-bottom))", zIndex: "40", display: "flex", justifyContent: "center" }}>
-                <Toast tone={v.toast.tone} title={v.toast.title} message={v.toast.message} onDismiss={v.hideToast} style={v.toastStyle} />
+              <div className="sv-toast">
+                <Alert showIcon type={TOAST_TYPE[v.toast.tone] || 'success'} title={v.toast.title} description={v.toast.message} closable={{ onClose: v.hideToast }} style={v.toastStyle} />
               </div>
             </>
           ) : null}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SelectField } from '../../../components/common/SelectField';
+import { Button, Card, Col, Empty, Flex, Form, Input, Row, Segmented, Select, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { CHART_TYPES, CHART_LABELS } from '../../../components/charts';
 
@@ -120,535 +120,302 @@ export const Settings = () => {
     showToast('info', 'Settings reset', 'Restored system thresholds to defaults.');
   };
 
+  // Section heading: title + one-line description (wraps inside the Card header)
+  const sectionTitle = (title, sub) => (
+    <div style={{ whiteSpace: 'normal', paddingBlock: 12 }}>
+      <Typography.Title level={5} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+        {title}
+      </Typography.Title>
+      <Typography.Text type="secondary" style={{ fontWeight: 400 }}>{sub}</Typography.Text>
+    </div>
+  );
+
+  const subTitle = text => (
+    <Typography.Title level={5} style={{ margin: 0, fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      {text}
+    </Typography.Title>
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <Flex vertical gap={24}>
       {/* Dashboard Layout Customizer Section */}
-      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap', padding: '18px 18px 0' }}>
-          <div>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-              Dashboard layout
-            </h2>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              Add a card, chart or list with the form. Its values are fetched automatically and it appears on the dashboard straight away.
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <button
-              onClick={handleRestoreAll}
-              style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)' }}
-            >
+      <Card
+        title={sectionTitle(
+          'Dashboard layout',
+          'Add a card, chart or list with the form. Its values are fetched automatically and it appears on the dashboard straight away.'
+        )}
+        extra={
+          <Space size={8} wrap>
+            <Button type="text" onClick={handleRestoreAll}>
               Restore defaults
-            </button>
-            <button
-              onClick={() => navTo('dashboard')}
-              style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-            >
+            </Button>
+            <Button type="link" onClick={() => navTo('dashboard')}>
               View dashboard &rarr;
-            </button>
-          </div>
-        </div>
-
+            </Button>
+          </Space>
+        }
+        styles={{ body: { padding: 0 } }}
+      >
         {/* View Tabs */}
-        <div style={{ padding: '0 18px', borderBottom: '1px solid var(--border-default)', display: 'flex', gap: '8px' }}>
-          {dashTabs.map(t => (
-            <button
-              key={t.value}
-              onClick={() => {
-                setDashTab(t.value);
-                setDashFormErr('');
-              }}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '12px 16px',
-                fontFamily: 'var(--font-display)',
-                fontSize: '14px',
-                fontWeight: 700,
-                color: dt === t.value ? 'var(--color-brand)' : 'var(--text-muted)',
-                borderBottom: `3px solid ${dt === t.value ? 'var(--color-brand)' : 'transparent'}`,
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          activeKey={dt}
+          onChange={key => {
+            setDashTab(key);
+            setDashFormErr('');
+          }}
+          items={dashTabs.map(t => ({ key: t.value, label: t.label }))}
+          tabBarStyle={{ paddingInline: 18, marginBottom: 0 }}
+        />
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          {/* Add Form Column */}
-          <div
-            style={{
-              flex: '1 1 300px',
-              maxWidth: '100%',
-              boxSizing: 'border-box',
-              padding: '18px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              background: 'var(--surface-muted)',
-              borderRight: '1px solid var(--border-default)',
-              alignSelf: 'stretch',
-            }}
-          >
-            <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-              Add a {dashNoun}
-            </h3>
+        <Row>
+          {/* Add Form Column (muted panel) */}
+          <Col xs={24} lg={8} style={{ padding: 18, background: 'var(--surface-muted)', borderRight: '1px solid var(--border-default)' }}>
+            <Form layout="vertical" component="div">
+              <Flex vertical gap={14}>
+                {subTitle(`Add a ${dashNoun}`)}
 
-            {/* Module Select */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                Module
-              </label>
-              <SelectField
-                value={df.module || ''}
-                onChange={(v) => setDashForm({ ...df, module: v, fields: [] })}
-                options={modulesList.map(m => ({ value: m.id, label: m.label }))}
-                placeholder="Choose a module…"
-                ariaLabel="Module"
-                height={42}
-              />
-            </div>
+                {/* Module Select */}
+                <Form.Item label="Module" style={{ marginBottom: 0 }}>
+                  <Select
+                    value={df.module || undefined}
+                    onChange={(v) => setDashForm({ ...df, module: v, fields: [] })}
+                    options={modulesList.map(m => ({ value: m.id, label: m.label }))}
+                    placeholder="Choose a module…"
+                    aria-label="Module"
+                  />
+                </Form.Item>
 
-            {/* Title Input */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                Label name
-              </label>
-              <input
-                type="text"
-                placeholder={fm ? fm.label : 'e.g. Trips this week'}
-                value={df.title || ''}
-                onChange={(e) => setDashForm({ ...df, title: e.target.value.slice(0, 60) })}
-                style={{
-                  height: '38px',
-                  padding: '0 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-strong)',
-                  fontSize: '14px',
-                  outline: 'none',
-                  background: '#fff',
-                }}
-              />
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                Shown as the heading on the dashboard. Blank uses the module name.
-              </span>
-            </div>
+                {/* Title Input */}
+                <Form.Item
+                  label="Label name"
+                  extra="Shown as the heading on the dashboard. Blank uses the module name."
+                  style={{ marginBottom: 0 }}
+                >
+                  <Input
+                    placeholder={fm ? fm.label : 'e.g. Trips this week'}
+                    value={df.title || ''}
+                    onChange={(e) => setDashForm({ ...df, title: e.target.value.slice(0, 60) })}
+                  />
+                </Form.Item>
 
-            {/* Chart Type Select (Only for Chart view) */}
-            {dt === 'charts' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                  Chart view type
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                  {CHART_TYPES.map((ct) => {
-                    const Icon = ct.icon;
-                    const isSelected = (df.chartType || 'bar') === ct.value;
-                    return (
-                      <button
-                        key={ct.value}
-                        type="button"
-                        onClick={() => setDashForm({ ...df, chartType: ct.value })}
-                        style={{
-                          all: 'unset',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          height: '42px',
-                          padding: '0 12px',
-                          borderRadius: 'var(--radius-md)',
-                          border: `1.5px solid ${isSelected ? 'var(--color-brand)' : 'var(--border-strong)'}`,
-                          background: isSelected ? 'var(--color-brand-tint, #edf8f3)' : '#fff',
-                          color: isSelected ? 'var(--color-brand)' : 'var(--text-heading)',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          transition: 'all 0.15s ease',
-                          boxSizing: 'border-box',
-                        }}
-                      >
-                        <Icon size={16} strokeWidth={isSelected ? 2.5 : 2} />
-                        <span>{ct.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Headings Selection */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                  Headings
-                </span>
-                {fm && (
-                  <span style={{ display: 'flex', gap: '10px', alignItems: 'baseline', fontSize: '12px', color: 'var(--text-muted)' }}>
-                    {df.fields.length} of {fm.cols.length} selected
-                    <button
-                      onClick={() => setDashForm({ ...df, fields: [...fm.cols] })}
-                      style={{ all: 'unset', cursor: 'pointer', fontWeight: 700, color: 'var(--text-brand)' }}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setDashForm({ ...df, fields: [] })}
-                      style={{ all: 'unset', cursor: 'pointer', fontWeight: 700, color: 'var(--text-muted)' }}
-                    >
-                      None
-                    </button>
-                  </span>
+                {/* Chart Type Select (Only for Chart view) */}
+                {dt === 'charts' && (
+                  <Form.Item label="Chart view type" style={{ marginBottom: 0 }}>
+                    <Row gutter={[8, 8]}>
+                      {CHART_TYPES.map((ct) => {
+                        const Icon = ct.icon;
+                        const isSelected = (df.chartType || 'bar') === ct.value;
+                        return (
+                          <Col key={ct.value} span={12}>
+                            <Button
+                              block
+                              type={isSelected ? 'primary' : 'default'}
+                              ghost={isSelected}
+                              icon={<Icon size={16} strokeWidth={isSelected ? 2.5 : 2} />}
+                              onClick={() => setDashForm({ ...df, chartType: ct.value })}
+                              style={{ justifyContent: 'flex-start' }}
+                            >
+                              {ct.label}
+                            </Button>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  </Form.Item>
                 )}
-              </div>
 
-              {!fm && (
-                <div style={{ border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-md)', padding: '14px', fontSize: '13px', color: 'var(--text-muted)', background: '#fff' }}>
-                  Choose a module to see its headings.
-                </div>
-              )}
+                {/* Headings Selection */}
+                <Flex vertical gap={8}>
+                  <Flex justify="space-between" align="baseline" gap={8} wrap>
+                    <Typography.Text strong>Headings</Typography.Text>
+                    {fm && (
+                      <Space size={4} align="baseline">
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          {df.fields.length} of {fm.cols.length} selected
+                        </Typography.Text>
+                        <Button type="link" size="small" onClick={() => setDashForm({ ...df, fields: [...fm.cols] })}>
+                          All
+                        </Button>
+                        <Button type="text" size="small" onClick={() => setDashForm({ ...df, fields: [] })}>
+                          None
+                        </Button>
+                      </Space>
+                    )}
+                  </Flex>
 
-              {fm && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {fm.cols.map(h => {
-                    const on = (df.fields || []).includes(h);
-                    return (
-                      <button
-                        key={h}
-                        onClick={() => {
-                          const cur = df.fields || [];
-                          const next = cur.includes(h) ? cur.filter(x => x !== h) : [...cur, h];
-                          setDashForm({ ...df, fields: next });
-                        }}
-                        style={{
-                          all: 'unset',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          height: '32px',
-                          padding: '0 12px',
-                          borderRadius: 'var(--radius-pill)',
-                          fontFamily: 'var(--font-display)',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
-                          border: `2px solid ${on ? 'var(--color-brand)' : 'var(--border-strong)'}`,
-                          background: on ? 'var(--color-brand)' : '#fff',
-                          color: on ? '#fff' : 'var(--text-heading)',
-                        }}
-                      >
-                        {on && <span style={{ marginRight: '6px' }}>✓</span>}
-                        {h}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                  {!fm && (
+                    <Card size="small" style={{ borderStyle: 'dashed' }}>
+                      <Typography.Text type="secondary">Choose a module to see its headings.</Typography.Text>
+                    </Card>
+                  )}
 
-              {dashFormErr && (
-                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--kr-red-700)' }}>
-                  {dashFormErr}
-                </div>
-              )}
-            </div>
+                  {fm && (
+                    <Flex wrap gap={8}>
+                      {fm.cols.map(h => {
+                        const on = (df.fields || []).includes(h);
+                        return (
+                          <Tag.CheckableTag
+                            key={h}
+                            checked={on}
+                            onChange={() => {
+                              const cur = df.fields || [];
+                              const next = cur.includes(h) ? cur.filter(x => x !== h) : [...cur, h];
+                              setDashForm({ ...df, fields: next });
+                            }}
+                          >
+                            {on && '✓ '}
+                            {h}
+                          </Tag.CheckableTag>
+                        );
+                      })}
+                    </Flex>
+                  )}
 
-            {/* Add Button */}
-            <button
-              onClick={handleAddDashItem}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                height: '40px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-brand)',
-                color: '#fff',
-                fontFamily: 'var(--font-display)',
-                fontSize: '13px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-              }}
-            >
-              Add to dashboard
-            </button>
-          </div>
+                  {dashFormErr && <Typography.Text type="danger" strong>{dashFormErr}</Typography.Text>}
+                </Flex>
+
+                {/* Add Button */}
+                <Button type="primary" block onClick={handleAddDashItem}>
+                  Add to dashboard
+                </Button>
+              </Flex>
+            </Form>
+          </Col>
 
           {/* On the Dashboard Column */}
-          <div style={{ flex: '3 1 420px', maxWidth: '100%', boxSizing: 'border-box', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--kr-grey-800)' }}>
-                On the dashboard ({dtItems.length})
-              </h3>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                Shown in this order. Changes apply immediately.
+          <Col xs={24} lg={16} style={{ padding: 18 }}>
+            <Flex vertical gap={14}>
+              <div>
+                {subTitle(`On the dashboard (${dtItems.length})`)}
+                <Typography.Text type="secondary">Shown in this order. Changes apply immediately.</Typography.Text>
               </div>
-            </div>
 
-            {dtItems.length === 0 && (
-              <div style={{ border: '1px dashed var(--border-strong)', borderRadius: 'var(--radius-lg)', padding: '28px 16px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
-                Nothing here yet. Add a {dashNoun} with the form.
-              </div>
-            )}
+              {dtItems.length === 0 && (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`Nothing here yet. Add a ${dashNoun} with the form.`} />
+              )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: '14px' }}>
-              {dtItems.map((w, i) => {
-                const itemLabel = w.title || (w.module ? modById[w.module]?.label : w.src) || w.uid;
-                return (
-                  <div
-                    key={w.uid || i}
-                    style={{
-                      background: '#fff',
-                      border: '1px solid var(--border-default)',
-                      borderRadius: 'var(--radius-lg)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                      <span style={{ display: 'block', height: '4px', width: '36px', borderRadius: '2px', background: 'var(--color-brand)' }}></span>
-                      <span style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                        {itemLabel}
-                      </span>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        {w.fields ? `${w.fields.length} headings` : 'Standard metric'}
-                      </span>
-                      {dt === 'charts' && (
-                        <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                            Chart View
-                          </span>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', background: 'var(--surface-muted, #f6f6f4)', padding: '2px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-default)' }}>
-                            {CHART_TYPES.map((ct) => {
-                              const Icon = ct.icon;
-                              const isActive = (w.chartType || 'bar') === ct.value;
-                              return (
-                                <button
-                                  key={ct.value}
-                                  type="button"
-                                  onClick={() => handleUpdateChartType(w.uid, ct.value)}
-                                  title={ct.label}
-                                  style={{
-                                    all: 'unset',
-                                    cursor: 'pointer',
-                                    height: '28px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    borderRadius: '4px',
-                                    background: isActive ? '#fff' : 'transparent',
-                                    color: isActive ? 'var(--color-brand)' : 'var(--text-muted)',
-                                    boxShadow: isActive ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
-                                    transition: 'all 0.15s ease',
-                                  }}
-                                >
-                                  <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', borderTop: '1px solid var(--border-default)', background: 'var(--surface-muted)' }}>
-                      <button
-                        onClick={() => moveDashItem(w.uid, -1)}
-                        disabled={i === 0}
-                        style={{
-                          all: 'unset',
-                          cursor: i === 0 ? 'default' : 'pointer',
-                          opacity: i === 0 ? 0.3 : 1,
-                          width: '28px',
-                          height: '28px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '15px',
-                          color: 'var(--text-heading)',
-                        }}
+              <Row gutter={[14, 14]}>
+                {dtItems.map((w, i) => {
+                  const itemLabel = w.title || (w.module ? modById[w.module]?.label : w.src) || w.uid;
+                  return (
+                    <Col key={w.uid || i} xs={24} sm={12} xxl={8}>
+                      <Card
+                        size="small"
+                        style={{ height: '100%' }}
+                        actions={[
+                          <Tooltip key="left" title="Move left">
+                            <Button type="text" size="small" aria-label="Move left" disabled={i === 0} onClick={() => moveDashItem(w.uid, -1)}>
+                              &larr;
+                            </Button>
+                          </Tooltip>,
+                          <Tooltip key="right" title="Move right">
+                            <Button type="text" size="small" aria-label="Move right" disabled={i === dtItems.length - 1} onClick={() => moveDashItem(w.uid, 1)}>
+                              &rarr;
+                            </Button>
+                          </Tooltip>,
+                          <Button key="remove" type="text" size="small" danger onClick={() => removeDashItem(w.uid)}>
+                            Remove
+                          </Button>,
+                        ]}
                       >
-                        &larr;
-                      </button>
-                      <button
-                        onClick={() => moveDashItem(w.uid, 1)}
-                        disabled={i === dtItems.length - 1}
-                        style={{
-                          all: 'unset',
-                          cursor: i === dtItems.length - 1 ? 'default' : 'pointer',
-                          opacity: i === dtItems.length - 1 ? 0.3 : 1,
-                          width: '28px',
-                          height: '28px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '15px',
-                          color: 'var(--text-heading)',
-                        }}
-                      >
-                        &rarr;
-                      </button>
-                      <span style={{ flex: 1 }}></span>
-                      <button
-                        onClick={() => removeDashItem(w.uid)}
-                        style={{
-                          all: 'unset',
-                          cursor: 'pointer',
-                          padding: '4px 8px',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          color: 'var(--kr-red-700)',
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </section>
+                        <Flex vertical gap={6}>
+                          {/* Brand accent bar */}
+                          <span style={{ display: 'block', height: 4, width: 36, borderRadius: 2, background: 'var(--color-brand)' }} />
+                          <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                            {itemLabel}
+                          </Typography.Text>
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                            {w.fields ? `${w.fields.length} headings` : 'Standard metric'}
+                          </Typography.Text>
+                          {dt === 'charts' && (
+                            <Flex vertical gap={4} style={{ marginTop: 8 }}>
+                              <Typography.Text type="secondary" strong style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                                Chart View
+                              </Typography.Text>
+                              <Segmented
+                                block
+                                size="small"
+                                value={w.chartType || 'bar'}
+                                onChange={v => handleUpdateChartType(w.uid, v)}
+                                options={CHART_TYPES.map(ct => {
+                                  const Icon = ct.icon;
+                                  const isActive = (w.chartType || 'bar') === ct.value;
+                                  return {
+                                    value: ct.value,
+                                    label: (
+                                      <Tooltip title={ct.label}>
+                                        <Flex align="center" justify="center" style={{ height: 24 }} aria-label={ct.label}>
+                                          <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
+                                        </Flex>
+                                      </Tooltip>
+                                    ),
+                                  };
+                                })}
+                              />
+                            </Flex>
+                          )}
+                        </Flex>
+                      </Card>
+                    </Col>
+                  );
+                })}
+              </Row>
+            </Flex>
+          </Col>
+        </Row>
+      </Card>
 
       {/* Thresholds & Security Sections */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: '24px', alignItems: 'start' }}>
+      <Row gutter={[24, 24]} align="top">
         {/* Validation Thresholds */}
-        <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-              Validation thresholds
-            </h2>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Applied to every trip at close.</div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600 }}>Distance variance flag (%)</label>
-            <input
-              type="number"
-              value={st.variance || '5'}
-              onChange={(e) => setSt({ ...st, variance: e.target.value })}
-              style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-            />
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Fixed vs GPS vs odometer. Trips above this are flagged.</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600 }}>Default safe radius (m)</label>
-            <input
-              type="number"
-              value={st.radius || '100'}
-              onChange={(e) => setSt({ ...st, radius: e.target.value })}
-              style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-            />
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Loading and unloading locations. Per-location override in Loading Locations.</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600 }}>Long open trip alert (h)</label>
-            <input
-              type="number"
-              value={st.longOpen || '8'}
-              onChange={(e) => setSt({ ...st, longOpen: e.target.value })}
-              style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-            />
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Hours beyond route duration before an alert is raised.</span>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600 }}>Idle detection (min)</label>
-            <input
-              type="number"
-              value={st.idle || '15'}
-              onChange={(e) => setSt({ ...st, idle: e.target.value })}
-              style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 600 }}>GPS failure after (min)</label>
-            <input
-              type="number"
-              value={st.gpsFail || '30'}
-              onChange={(e) => setSt({ ...st, gpsFail: e.target.value })}
-              style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-            />
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No fix for this long switches distance source to odometer.</span>
-          </div>
-        </section>
+        <Col xs={24} lg={12}>
+          <Card title={sectionTitle('Validation thresholds', 'Applied to every trip at close.')}>
+            <Form layout="vertical" component="div">
+              <Form.Item label="Distance variance flag (%)" extra="Fixed vs GPS vs odometer. Trips above this are flagged.">
+                <Input type="number" value={st.variance || '5'} onChange={(e) => setSt({ ...st, variance: e.target.value })} />
+              </Form.Item>
+              <Form.Item label="Default safe radius (m)" extra="Loading and unloading locations. Per-location override in Loading Locations.">
+                <Input type="number" value={st.radius || '100'} onChange={(e) => setSt({ ...st, radius: e.target.value })} />
+              </Form.Item>
+              <Form.Item label="Long open trip alert (h)" extra="Hours beyond route duration before an alert is raised.">
+                <Input type="number" value={st.longOpen || '8'} onChange={(e) => setSt({ ...st, longOpen: e.target.value })} />
+              </Form.Item>
+              <Form.Item label="Idle detection (min)">
+                <Input type="number" value={st.idle || '15'} onChange={(e) => setSt({ ...st, idle: e.target.value })} />
+              </Form.Item>
+              <Form.Item label="GPS failure after (min)" extra="No fix for this long switches distance source to odometer." style={{ marginBottom: 0 }}>
+                <Input type="number" value={st.gpsFail || '30'} onChange={(e) => setSt({ ...st, gpsFail: e.target.value })} />
+              </Form.Item>
+            </Form>
+          </Card>
+        </Col>
 
         {/* Non-business trip purposes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '18px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div>
-              <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                Non-business trips
-              </h2>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Purposes a supervisor may pick when the trip is not billable.</div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600 }}>Non-business reasons</label>
-              <input
-                type="text"
-                value={st.reasons || ''}
-                onChange={(e) => setSt({ ...st, reasons: e.target.value })}
-                style={{ height: '36px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-              />
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Comma separated. Shown to supervisors when trip type is Non-Business.</span>
-            </div>
-          </section>
-        </div>
-      </div>
+        <Col xs={24} lg={12}>
+          <Card title={sectionTitle('Non-business trips', 'Purposes a supervisor may pick when the trip is not billable.')}>
+            <Form layout="vertical" component="div">
+              <Form.Item
+                label="Non-business reasons"
+                extra="Comma separated. Shown to supervisors when trip type is Non-Business."
+                style={{ marginBottom: 0 }}
+              >
+                <Input value={st.reasons || ''} onChange={(e) => setSt({ ...st, reasons: e.target.value })} />
+              </Form.Item>
+            </Form>
+          </Card>
+        </Col>
+      </Row>
 
       {/* Footer Save & Reset Buttons */}
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-        <button
-          onClick={handleResetSettings}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            padding: '0 20px',
-            height: '40px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            borderRadius: 'var(--radius-md)',
-            background: 'transparent',
-            color: 'var(--text-muted)',
-            fontSize: '14px',
-            fontWeight: 700,
-          }}
-        >
+      <Flex gap={8} justify="flex-end" wrap>
+        <Button type="text" onClick={handleResetSettings}>
           Reset
-        </button>
-        <button
-          onClick={handleSaveSettings}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            padding: '0 20px',
-            height: '40px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--color-brand)',
-            color: '#fff',
-            fontFamily: 'var(--font-display)',
-            fontSize: '14px',
-            fontWeight: 800,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-          }}
-        >
+        </Button>
+        <Button type="primary" onClick={handleSaveSettings}>
           Save settings
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Flex>
+    </Flex>
   );
 };
 

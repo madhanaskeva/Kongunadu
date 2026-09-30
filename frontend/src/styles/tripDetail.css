@@ -1,15 +1,269 @@
-/* Trip detail layout */
-.td-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+/* ==========================================================================
+   Trips pages (TripList + TripDetail). Layout, cards, tables, tags and
+   buttons are antd; what is left here is genuinely custom to these pages.
+   ========================================================================== */
+
+/* ---------- Trip list ---------------------------------------------------- */
+
+/* KPI cards: each card carries its own colour on every edge, heavier on top. */
+.tl-kpi-label.ant-typography {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tl-kpi-fg);
 }
 
-@media (max-width: 900px) {
-  .td-summary-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
+.tl-kpi-value .ant-statistic-content {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--kr-grey-900);
+}
+
+/* Filter bar: fields sit on one wrapping row, labels bold. */
+.tl-filters .ant-form-item {
+  margin-bottom: 0;
+}
+
+.tl-filters .ant-form-item-label > label {
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.tl-search {
+  flex: 1;
+  min-width: 260px;
+}
+
+.tl-search .ant-input-affix-wrapper {
+  flex: 1;
+}
+
+/* Ticked-vehicle chips under the filter row. */
+.tl-chips {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #edf1ef;
+}
+
+.tl-chip.ant-tag {
+  margin-inline-end: 0;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+/* Vehicle dropdown header: "Select all" + count. */
+.tl-veh-head {
+  padding: 4px 8px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #edf1ef;
+}
+
+/* Status toggles + summary above the trips table. */
+.tl-table-head {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.tl-tab-count.ant-typography {
+  font-size: 13px;
+  font-weight: 600;
+  color: inherit;
+}
+
+.tl-status-tabs .ant-btn[aria-pressed='false'] .tl-tab-count.ant-typography {
+  color: var(--text-muted);
+}
+
+.tl-status-tabs .ant-btn[aria-pressed='false']:not(:disabled):hover {
+  /* Hover only tints the pill; the coloured border is reserved for the
+     selected filter so it reads as "on" only after a click. */
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-heading);
+}
+
+.tl-status-tabs .ant-btn[aria-pressed='true'] {
+  border: 1px solid currentColor;
+}
+
+.tl-status-tabs .ant-btn[aria-pressed='false'] .tl-tab-icon {
+  color: var(--st-pending-edge);
+}
+
+/* Trip status tag: brand status palette with a leading dot. */
+.tl-status-tag.ant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tl-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Flags column: a left-aligned stack of chips, icon in a fixed 14px column
+   so every label starts on the same line. Colour comes from --flag. */
+.tl-flags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tl-flag {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  align-items: start;
+  column-gap: 6px;
+  max-width: 100%;
+  padding: 3px 9px 3px 7px;
+  border: 1px solid color-mix(in srgb, var(--flag) 28%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--flag) 8%, #ffffff);
+  color: color-mix(in srgb, var(--flag) 85%, #1c1c1a);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.tl-flag--pending {
+  --flag: var(--st-pending-edge);
+  color: var(--st-pending-fg);
+  font-weight: 500;
+}
+
+.tl-flag-icon {
+  justify-self: center;
+  margin-top: 2px;
+}
+
+@media (max-width: 600px) {
+  .tl-filters .tl-filter {
+    width: 100% !important;
   }
+
+  .tl-search {
+    flex-wrap: wrap;
+    min-width: 0;
+    flex-basis: 100%;
+  }
+
+  .tl-search .ant-input-affix-wrapper {
+    flex-basis: 100%;
+  }
+
+  .tl-search > .ant-btn {
+    flex: 1;
+  }
+}
+
+/* ---------- Trip detail -------------------------------------------------- */
+
+/* Section headings: display font, uppercase. */
+.td-card .ant-card-head-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-heading);
+}
+
+/* Cards whose left edge reports a state (distance verdict, verification). */
+.td-card--edge.ant-card {
+  border-left: 4px solid var(--td-edge);
+}
+
+.td-scroll-target {
+  scroll-margin-top: 16px;
+}
+
+.td-head-count.ant-typography {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.td-back.ant-btn {
+  padding: 0;
+  height: auto;
+}
+
+.td-title-row {
+  margin-top: 6px;
+}
+
+.td-trip-number.ant-typography {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.td-caps-tag.ant-tag {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.td-caps {
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.td-attention-link.ant-btn {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.td-small.ant-typography,
+.td-small {
+  font-size: 13px;
+}
+
+.td-heading-text.ant-typography {
+  color: var(--text-heading);
+}
+
+.td-mono.ant-typography {
+  font-family: var(--font-mono);
+}
+
+.td-nowrap {
+  white-space: nowrap;
+}
+
+.td-flex-none {
+  flex: none;
+}
+
+.td-muted-panel {
+  padding: 12px;
+  background: var(--surface-muted);
+  border-radius: var(--radius-md);
 }
 
 /* Distance variation rows: label · bar · value + delta */
@@ -20,18 +274,94 @@
   align-items: center;
 }
 
+.td-dist-row .ant-progress {
+  margin: 0;
+  line-height: 1;
+}
+
+.td-dist-value {
+  text-align: right;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.td-dist-delta.ant-typography {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 @media (max-width: 420px) {
   .td-dist-row {
     grid-template-columns: minmax(0, 1fr) auto;
   }
   /* The bar drops to its own full-width line under the label and value */
-  .td-dist-row > span:nth-child(2) {
+  .td-dist-row > .ant-progress {
     grid-column: 1 / -1;
     order: 3;
   }
 }
 
-/* Trip expense & verification: figures beside the validation results */
+.td-verdict {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+
+.td-verdict-pct {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--kr-grey-700);
+}
+
+.td-verdict-pct--bad {
+  color: var(--kr-red-700);
+}
+
+.td-verdict-pct--good {
+  color: var(--kr-green-800);
+}
+
+.td-link-sm.ant-btn {
+  padding: 0;
+  font-size: 12px;
+}
+
+.td-note.ant-typography {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.td-note--flush.ant-typography {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.td-lifecycle {
+  margin-top: 4px;
+}
+
+.td-empty {
+  padding: 36px 24px;
+}
+
+.td-empty .ant-empty-image {
+  height: auto;
+}
+
+.td-empty-title.ant-typography {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text-heading);
+}
+
+/* Trip expense & verification: figures beside the validation results,
+   split by a 1px rule. */
 .td-verify-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -43,7 +373,13 @@
   background-color: #fff;
 }
 
+.td-verify-pane {
+  padding: 16px 18px;
+  min-width: 0;
+}
+
 .td-verify-head {
+  display: block;
   margin: 0 0 12px;
   font-family: var(--font-display);
   font-size: 14px;
@@ -53,14 +389,134 @@
   color: var(--kr-green-700);
 }
 
+.td-verify-after {
+  margin-top: 14px;
+}
+
 @media (max-width: 820px) {
   .td-verify-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
+/* One label / value line in the diesel and expense lists. */
+.td-stat-row {
+  padding: 9px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.td-stat-row:last-child {
+  border-bottom: none;
+}
+
+.td-stat-value.ant-typography {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--text-heading);
+}
+
+.td-stat-value--bad.ant-typography {
+  color: var(--kr-red-700);
+}
+
+.td-stat-value--good.ant-typography {
+  color: var(--kr-green-800);
+}
+
+.td-stat-value--empty.ant-typography {
+  color: var(--kr-grey-500);
+}
+
+.td-verdict-alert-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.td-verdict-alert-title--sm {
+  font-size: 16px;
+}
+
+.td-escalated {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.td-other-exp {
+  margin-top: 12px;
+  padding: 10px 12px;
+}
+
+.td-other-exp-head.ant-typography {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+
+.td-other-exp-row {
+  padding: 5px 0;
+  font-size: 13px;
+  border-top: 1px solid var(--border-default);
+}
+
+.td-other-exp-head + .td-other-exp-row {
+  border-top: none;
+}
+
+/* Total expense strip on the brand tint. */
+.td-total {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--color-brand-tint);
+  border-radius: var(--radius-md);
+}
+
+.td-total-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kr-green-900);
+}
+
+.td-total-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+
+.td-mismatch.ant-typography {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #7a4300;
+}
+
+.td-verify-foot {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-muted);
+}
+
+.td-deduction.ant-alert {
+  margin-bottom: 12px;
+}
+
+.td-hint.ant-typography {
+  font-size: 12.5px;
+}
+
 /* Trip record: six grouped panels divided by 1px rules (same device as the
-   verification grid), each holding a small label / value field list. */
+   verification grid), each holding an antd Descriptions list. */
 .td-rec-groups {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -74,25 +530,12 @@
   min-width: 0;
 }
 
-.td-rec-fields {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 16px;
-  margin: 0;
+.td-rec-fields .ant-descriptions-header {
+  margin-bottom: 0;
 }
 
-.td-rec-field {
-  min-width: 0;
-}
-
-.td-rec-field--wide {
-  grid-column: 1 / -1;
-}
-
-/* Small, muted, uppercase label — grey-600 keeps AA contrast at 11px,
-   where --text-muted (grey-500) would not. */
-.td-rec-label {
-  margin: 0 0 4px;
+/* Small uppercase label — grey-900 keeps AA contrast at 12px. */
+.td-rec-fields .ant-descriptions-item-label {
   font-family: var(--font-display);
   font-size: 12px;
   font-weight: 700;
@@ -102,8 +545,7 @@
   color: var(--kr-grey-900);
 }
 
-.td-rec-value {
-  margin: 0;
+.td-rec-fields .ant-descriptions-item-content {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
@@ -112,33 +554,12 @@
   overflow-wrap: anywhere;
 }
 
-.td-rec-pill {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 9px;
+.td-rec-pill.ant-tag {
   border-radius: var(--radius-pill);
   font-size: 12.5px;
   font-weight: 700;
-  line-height: 1.5;
   max-width: 100%;
-}
-
-.td-rec-pill--bad {
-  background: var(--kr-red-50);
-  color: var(--kr-red-700);
-  box-shadow: inset 0 0 0 1px var(--kr-red-100);
-}
-
-.td-rec-pill--good {
-  background: var(--kr-green-50);
-  color: var(--kr-green-800);
-  box-shadow: inset 0 0 0 1px var(--kr-green-100);
-}
-
-.td-rec-pill--neutral {
-  background: var(--kr-grey-50);
-  color: var(--kr-grey-700);
-  box-shadow: inset 0 0 0 1px var(--kr-grey-200);
+  white-space: normal;
 }
 
 @media (max-width: 1100px) {
@@ -153,8 +574,7 @@
   }
 }
 
-@media (max-width: 380px) {
-  .td-rec-fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.tl-summary.ant-typography {
+  color: var(--text-body);
+  font-size: 13.5px;
 }

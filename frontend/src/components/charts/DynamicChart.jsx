@@ -3,6 +3,7 @@ import { BarChart } from './BarChart';
 import { PieChart } from './PieChart';
 import { LineChart } from './LineChart';
 import { DonutChart } from './DonutChart';
+import { barFill } from './fill';
 
 export const DynamicChart = ({ chart = {} }) => {
   const chartType = chart.chartType || 'bar';
@@ -75,13 +76,13 @@ export const DynamicChart = ({ chart = {} }) => {
                       style={{
                         height: '14px',
                         background: 'var(--kr-grey-100)',
-                        borderRadius: '2px',
+                        borderRadius: '999px',
                         overflow: 'hidden',
                         display: 'flex',
                       }}
                     >
                       {b.segs.map((g, gi) => (
-                        <span key={gi} style={{ width: g.w, background: g.color }} />
+                        <span key={gi} style={{ width: g.w, background: barFill(g.color) }} />
                       ))}
                     </span>
                     <span style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
@@ -161,13 +162,13 @@ export const DynamicChart = ({ chart = {} }) => {
               style={{
                 height: '14px',
                 background: 'var(--kr-grey-100)',
-                borderRadius: '2px',
+                borderRadius: '999px',
                 overflow: 'hidden',
                 display: 'flex',
               }}
             >
               {b.segs.map((g, gi) => (
-                <span key={gi} style={{ width: g.w, background: g.color }} />
+                <span key={gi} style={{ width: g.w, background: barFill(g.color) }} />
               ))}
             </span>
             <span style={{ textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -180,7 +181,7 @@ export const DynamicChart = ({ chart = {} }) => {
           <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--text-muted)', paddingTop: '4px' }}>
             {chart.legend.map((l, li) => (
               <span key={li} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '10px', height: '10px', background: l.color }} />
+                <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: barFill(l.color) }} />
                 {l.label}
               </span>
             ))}
@@ -212,7 +213,7 @@ export const DynamicChart = ({ chart = {} }) => {
               <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', textAlign: 'center' }}>
                 {b.val}
               </span>
-              <div style={{ height: b.h, background: b.color, borderRadius: '2px 2px 0 0' }} />
+              <div style={{ height: b.h, background: barFill(b.color, 'column'), borderRadius: '6px 6px 0 0' }} />
             </div>
           ))}
         </div>
@@ -238,9 +239,9 @@ export const DynamicChart = ({ chart = {} }) => {
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', height: '10px', borderRadius: '2px', overflow: 'hidden', gap: '2px' }}>
+        <div style={{ display: 'flex', height: '10px', borderRadius: '999px', overflow: 'hidden', gap: '2px' }}>
           {chart.stats.map((x, xi) => (
-            <span key={xi} title={x.label} style={{ width: x.w, background: x.color }} />
+            <span key={xi} title={x.label} style={{ width: x.w, background: barFill(x.color) }} />
           ))}
         </div>
         {chart.note && <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)' }}>{chart.note}</p>}

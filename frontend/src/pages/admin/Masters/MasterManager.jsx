@@ -1,254 +1,118 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCheck, Eye, Pencil, Trash2, X, Plus, Fuel } from 'lucide-react';
+import { BadgeCheck, Check, Clock, Eye, Fuel, Hash, MapPin, Pencil, Plus, Search, Trash2, User, UserCheck, X } from 'lucide-react';
+import { Alert, Button, Card, Empty, Flex, Input, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { readSheet } from '../../../utils/spreadsheet';
-import { RowActions } from '../../../components/common/RowActions';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
-import { SelectField } from '../../../components/common/SelectField';
 import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 
 const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
   const rawBunks = route.authorizedBunks || [];
   const bunkNames = rawBunks.map(bId => (tms.F[bId] || {}).name || bId);
   const count = bunkNames.length;
-  const cellRef = useRef(null);
 
-  // Close popover when clicking outside
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleOutsideClick = (e) => {
-      if (cellRef.current && !cellRef.current.contains(e.target)) {
-        onToggle();
-      }
-    };
-    document.addEventListener('mousedown', handleOutsideClick);
-    document.addEventListener('touchstart', handleOutsideClick);
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
-    };
-  }, [isOpen, onToggle]);
+  const openEditForm = () => {
+    onToggle();
+    onEditRoute();
+  };
 
-  return (
-    <div ref={cellRef} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-      <span
-        style={{
-          fontFamily: 'var(--font-display)',
-          fontSize: '12px',
-          fontWeight: 700,
-          padding: '4px 10px',
-          borderRadius: 'var(--radius-md)',
-          background: count > 0 ? 'var(--color-brand-tint)' : 'var(--surface-muted)',
-          color: count > 0 ? 'var(--kr-green-900)' : 'var(--text-muted)',
-          border: `1px solid ${count > 0 ? 'rgba(0, 98, 63, 0.25)' : 'var(--border-default)'}`,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-        }}
-      >
-        <Fuel size={13} style={{ color: count > 0 ? 'var(--color-brand)' : 'var(--text-muted)' }} />
-        {count} {count === 1 ? 'Bunk' : 'Bunks'}
-      </span>
-
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-        title="View authorized fuel bunks list"
-        aria-label="View authorized fuel bunks"
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '28px',
-          height: '28px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-strong)',
-          background: isOpen ? 'var(--color-brand)' : '#fff',
-          color: isOpen ? '#fff' : 'var(--text-heading)',
-          transition: 'all 0.15s ease',
-        }}
-      >
-        <Eye size={15} />
-      </button>
-
-      {isOpen && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            top: isNearBottom ? 'auto' : 'calc(100% + 8px)',
-            bottom: isNearBottom ? 'calc(100% + 8px)' : 'auto',
-            right: 0,
-            zIndex: 100,
-            width: '320px',
-            maxWidth: 'min(320px, calc(100vw - 32px))',
-            boxSizing: 'border-box',
-            background: '#fff',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-strong)',
-            boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
-            padding: '12px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          {/* Pointer indicator arrow aligned directly beneath/above the eye button */}
-          <div
-            style={{
-              position: 'absolute',
-              top: isNearBottom ? 'auto' : '-5px',
-              bottom: isNearBottom ? '-5px' : 'auto',
-              right: '9px',
-              width: '10px',
-              height: '10px',
-              background: '#fff',
-              borderLeft: isNearBottom ? 'none' : '1px solid var(--border-strong)',
-              borderTop: isNearBottom ? 'none' : '1px solid var(--border-strong)',
-              borderRight: isNearBottom ? '1px solid var(--border-strong)' : 'none',
-              borderBottom: isNearBottom ? '1px solid var(--border-strong)' : 'none',
-              transform: 'rotate(45deg)',
-              zIndex: 1,
-            }}
-          />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-default)', paddingBottom: '8px', position: 'relative', zIndex: 2 }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 800, color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Fuel size={15} style={{ color: 'var(--color-brand)' }} />
-              Authorized Fuel Bunks ({count})
-            </span>
-            <button
-              type="button"
-              onClick={onToggle}
-              style={{ all: 'unset', cursor: 'pointer', color: 'var(--text-muted)', display: 'grid', placeItems: 'center' }}
-            >
-              <X size={16} />
-            </button>
-          </div>
-
-          {count === 0 ? (
-            <div style={{ padding: '12px 8px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
-              <div>No authorized bunks added for this route.</div>
-              <button
-                type="button"
-                onClick={() => {
-                  onToggle();
-                  onEditRoute();
-                }}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  marginTop: '8px',
-                  padding: '4px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-brand)',
-                  color: '#fff',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <Plus size={14} /> Add Bunks in Edit Form
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto' }}>
-              {bunkNames.map((bunkName, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '10px',
-                    padding: '8px 10px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--surface-muted)',
-                    border: '1px solid var(--border-default)',
-                    fontSize: '13px',
-                  }}
-                >
-                  <span
-                    title={bunkName}
-                    style={{
-                      fontWeight: 600,
-                      color: 'var(--text-heading)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flex: 1,
-                      minWidth: 0,
-                    }}
-                  >
-                    <strong style={{ color: 'var(--color-brand)', marginRight: '6px' }}>{idx + 1}.</strong>
-                    {bunkName}
-                  </span>
-
-                  <div style={{ display: 'flex', gap: '4px', flex: 'none' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onToggle();
-                        onEditRoute();
-                      }}
-                      title="Edit route authorized bunks"
-                      style={{
-                        all: 'unset',
-                        cursor: 'pointer',
-                        padding: '4px 6px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: '#fff',
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--color-brand)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        transition: 'background 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-muted)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = '#fff')}
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      type="button"
+  const popoverContent = (
+    // Fixed-width popover body, capped to the viewport on phones.
+    <div className="rb-pop">
+      {count === 0 ? (
+        <Flex vertical align="center" gap={10} className="rb-empty">
+          <span className="rb-empty-icon"><Fuel size={20} strokeWidth={2} /></span>
+          <Typography.Text type="secondary">No authorized bunks added for this route.</Typography.Text>
+          <Button type="primary" size="small" icon={<Plus size={14} />} onClick={openEditForm}>
+            Add bunks
+          </Button>
+        </Flex>
+      ) : (
+        <>
+          <ol className="rb-list">
+            {bunkNames.map((bunkName, idx) => (
+              <li key={idx} className="rb-row">
+                <span className="rb-num">{idx + 1}</span>
+                <Typography.Text ellipsis={{ tooltip: bunkName }} className="rb-name">
+                  {bunkName}
+                </Typography.Text>
+                <Space size={6} className="rb-actions">
+                  <Tooltip title="Edit route authorized bunks">
+                    <Button
+                      type="text"
+                      size="small"
+                      className="tms-row-action"
+                      icon={<Pencil size={15} strokeWidth={2} />}
+                      aria-label="Edit route authorized bunks"
+                      onClick={openEditForm}
+                    />
+                  </Tooltip>
+                  <Tooltip title="Delete this authorized bunk">
+                    <Button
+                      type="text"
+                      size="small"
+                      className="tms-row-action"
+                      danger
+                      icon={<Trash2 size={15} strokeWidth={2} />}
+                      aria-label="Delete this authorized bunk"
                       onClick={() => onDeleteBunk(bunkName)}
-                      title="Delete this authorized bunk"
-                      style={{
-                        all: 'unset',
-                        cursor: 'pointer',
-                        padding: '4px 6px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: 'var(--kr-red-50)',
-                        border: '1px solid var(--kr-red-100)',
-                        color: 'var(--kr-red-600)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        transition: 'background 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#fee2e2')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--kr-red-50)')}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    />
+                  </Tooltip>
+                </Space>
+              </li>
+            ))}
+          </ol>
+          <div className="rb-foot">
+            <Button block icon={<Plus size={15} />} onClick={openEditForm}>
+              Add or edit bunks
+            </Button>
+          </div>
+        </>
       )}
     </div>
+  );
+
+  return (
+    <Space size={8} onClick={(e) => e.stopPropagation()}>
+      <Tag color={count > 0 ? 'success' : 'default'} icon={<Fuel size={13} />}>
+        {count} {count === 1 ? 'Bunk' : 'Bunks'}
+      </Tag>
+
+      <Popover
+        trigger="click"
+        open={isOpen}
+        onOpenChange={(next) => { if (next !== isOpen) onToggle(); }}
+        placement={isNearBottom ? 'topRight' : 'bottomRight'}
+        classNames={{ root: 'rb-popover' }}
+        title={
+          <Flex justify="space-between" align="center" gap={10} className="rb-head">
+            <Flex align="center" gap={10} style={{ minWidth: 0 }}>
+              <span className="rb-head-icon"><Fuel size={17} strokeWidth={2} /></span>
+              <Flex vertical style={{ minWidth: 0 }}>
+                <span className="rb-head-title">Authorized fuel bunks</span>
+                <span className="rb-head-sub">
+                  {count} {count === 1 ? 'bunk' : 'bunks'} on {route.name || 'this route'}
+                </span>
+              </Flex>
+            </Flex>
+            <Button type="text" size="small" className="tms-row-action tms-row-action--plain" icon={<X size={16} strokeWidth={2} />} aria-label="Close" onClick={onToggle} />
+          </Flex>
+        }
+        content={popoverContent}
+      >
+        <Button
+          type="text"
+          size="small"
+          className={`tms-row-action tms-row-action--view${isOpen ? ' is-active' : ''}`}
+          icon={<Eye size={16} strokeWidth={2} />}
+          title="View authorized fuel bunks list"
+          aria-label="View authorized fuel bunks"
+        />
+      </Popover>
+    </Space>
   );
 };
 
@@ -366,28 +230,29 @@ export const MasterManager = ({ type }) => {
     });
   };
 
+  // Status pill tone → antd Tag preset colour
+  // (green good / amber waiting / red refused / grey switched off).
   const statusBadge = (v) => ({
     v: v || '—',
     badge: true,
     text: false,
-    bg: /Active|Approved/.test(v)
-      ? 'var(--color-brand-soft)'
-      : /Pending|hold|review/i.test(v)
-      ? 'var(--color-hazard-soft)'
-      : 'var(--kr-grey-100)',
-    fg: /Active|Approved/.test(v)
-      ? 'var(--kr-green-800)'
-      : /Pending|hold|review/i.test(v)
-      ? '#7A4300'
-      : 'var(--kr-grey-700)',
+    tag: /Inactive/i.test(v)
+      ? 'default'
+      : /Active|Approved|Registered/i.test(v)
+      ? 'success'
+      : /Pending|hold|review|Maintenance/i.test(v)
+      ? 'warning'
+      : /Reject|Suspend|Block|Expired|Fail/i.test(v)
+      ? 'error'
+      : 'default',
   });
 
   const txtCell = (v, strong = false) => ({
     v: v == null ? '—' : String(v),
     text: true,
     badge: false,
-    color: strong ? 'var(--text-heading)' : 'var(--text-body)',
-    weight: strong ? 600 : 400,
+    strong,
+    brand: false,
   });
 
   const mastersConfig = {
@@ -711,7 +576,7 @@ export const MasterManager = ({ type }) => {
       rowLink: c => `/admin/masters/clients/${c.id}`,
       cols: ['Client', 'GSTIN', 'Branch', 'Loading Locations', 'Phone', 'Supervisors', 'Customers', 'Status'],
       cells: c => [
-        { ...txtCell(c.name, true), color: 'var(--text-brand)' },
+        { ...txtCell(c.name, true), brand: true },
         txtCell(c.gst),
         txtCell(bn(c.branch)),
         txtCell(c.loadingLocation || '—', true),
@@ -792,7 +657,7 @@ export const MasterManager = ({ type }) => {
       cols: ['Location', 'Client', 'Branch', 'Address', 'Safe radius', 'Gps Coordinates', 'Status'],
       cells: l => [
         txtCell(l.name, true),
-        { ...txtCell(l.clientName || '—', true), color: l.clientName && l.clientName !== '—' ? 'var(--text-brand)' : 'var(--text-body)' },
+        { ...txtCell(l.clientName || '—', true), brand: !!(l.clientName && l.clientName !== '—') },
         txtCell(bn(l.branch)),
         txtCell(l.address),
         txtCell(l.radius ? l.radius + ' m' : '—'),
@@ -929,7 +794,11 @@ export const MasterManager = ({ type }) => {
     matchesSearch(debouncedMasterQ, Object.values(r), (tms.B[r.branch] || {}).name) &&
     (type !== 'drivers' || !driverApprovalFilter || (approvals[r.id] || r.approval || 'Approved') === driverApprovalFilter)
   );
-  const rowsPg = usePagination(rows, [type, debouncedMasterQ, driverApprovalFilter, locClient]);
+  // Table paging: jump back to page 1 whenever the master or a filter changes.
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [type, debouncedMasterQ, driverApprovalFilter, locClient]);
+  const pageRowCount = Math.max(0, Math.min(pageSize, rows.length - (Math.min(page, Math.max(1, Math.ceil(rows.length / pageSize))) - 1) * pageSize));
 
   // Nothing to add on the Loading Location page until a client is picked.
   const addBlocked = type === 'locations' && !locClient;
@@ -1205,517 +1074,299 @@ export const MasterManager = ({ type }) => {
     );
   };
 
+  const nowrap = { whiteSpace: 'nowrap' };
+  // m.cells(r) builds every cell of a row at once; cache it so each column reuses the same result.
+  const cellCache = new Map();
+  const cellsOf = r => {
+    if (!cellCache.has(r.id)) cellCache.set(r.id, m.cells(r));
+    return cellCache.get(r.id);
+  };
+
+  const recordColumns = [
+    ...m.cols.map((c, ci) => ({
+      title: c,
+      key: `col-${ci}`,
+      onCell: () => ({ style: nowrap }),
+      render: (_, r, rIdx) => {
+        const cell = cellsOf(r)[ci];
+        const isBunksCol = c === 'Authorized Fuel Bunks';
+        if (isBunksCol) {
+          const isNearBottom = rIdx >= pageRowCount - 2 && pageRowCount > 2;
+          return (
+            <RouteBunksCell
+              route={r}
+              tms={tms}
+              isOpen={activeBunksPopover === r.id}
+              onToggle={() => setActiveBunksPopover(activeBunksPopover === r.id ? null : r.id)}
+              onEditRoute={() => handleEditRecord(r)}
+              onDeleteBunk={(bunkName) => handleDeleteBunkFromRoute(r, bunkName)}
+              isNearBottom={isNearBottom}
+            />
+          );
+        }
+        if (cell.badge) return <Tag color={cell.tag}>{cell.v}</Tag>;
+        if (cell.brand) return <Typography.Text strong style={{ color: 'var(--text-brand)' }}>{cell.v}</Typography.Text>;
+        return cell.strong ? <Typography.Text strong>{cell.v}</Typography.Text> : cell.v;
+      },
+    })),
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => {
+        const isPendingDriver = type === 'drivers' && (approvals[r.id] || r.approval) === 'Pending approval';
+        return (
+          <Space size={8} onClick={e => e.stopPropagation()} aria-label={`Actions for ${r.name || r.number}`}>
+            {m.rowLink && (
+              <Tooltip title={`Open ${m.singular} profile`}>
+                <Button type="text" size="small" className="tms-row-action tms-row-action--view" icon={<Eye size={16} strokeWidth={2} />} aria-label={`Open ${m.singular} profile`} onClick={() => navigate(m.rowLink(r))} />
+              </Tooltip>
+            )}
+            {canEdit && (
+              <Tooltip title={`Edit ${m.singular}`}>
+                <Button type="text" size="small" className="tms-row-action" icon={<Pencil size={16} strokeWidth={2} />} aria-label={`Edit ${m.singular}`} onClick={() => handleEditRecord(r)} />
+              </Tooltip>
+            )}
+            {canDelete && (
+              <Tooltip title={`Delete ${m.singular}`}>
+                <Button type="text" size="small" className="tms-row-action" danger icon={<Trash2 size={16} strokeWidth={2} />} aria-label={`Delete ${m.singular}`} onClick={() => handleDeleteRecord(r)} />
+              </Tooltip>
+            )}
+            {isPendingDriver && (
+              <Tooltip title="Review driver request">
+                <Button
+                  type="text"
+                  size="small"
+                  className="tms-row-action tms-row-action--accent"
+                  icon={<UserCheck size={16} strokeWidth={2} />}
+                  aria-label="Review driver request"
+                  onClick={() => setDrawer({ isDriverReq: true, reqId: r.id, kicker: 'Pending driver', title: r.name })}
+                />
+              </Tooltip>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
+
+  const pendingBunkReqs = (bunkReqs || []).filter(r => r.status === 'Pending');
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       {/* Bunk Approval Queue banner for Routes / Bunks */}
-      {(type === 'routes' || type === 'bunks') && (bunkReqs || []).filter(r => r.status === 'Pending').length > 0 && (
-        <section
-          aria-label="Bunk approval queue"
-          style={{
-            background: 'var(--color-hazard-soft)',
-            border: '1px solid rgba(230, 160, 0, 0.3)',
-            borderLeft: '4px solid var(--kr-saffron-500)',
-            borderRadius: 'var(--radius-lg)',
-            color: '#7A4300',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ padding: '14px 18px 12px' }}>
-            <strong style={{ fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              Pending Bunk Approvals · {(bunkReqs || []).filter(r => r.status === 'Pending').length} requested
-            </strong>
-            <div style={{ fontSize: '14px', marginTop: '2px' }}>
-              New bunks entered by supervisors during trip closing. Approving a bunk adds it to Master Bunks and automatically authorizes it for the route.
+      {(type === 'routes' || type === 'bunks') && pendingBunkReqs.length > 0 && (
+        <section className="tms-approvals" aria-label="Bunk approval queue">
+          <header className="tms-approvals-head">
+            <span className="tms-approvals-icon"><Fuel size={20} strokeWidth={2} /></span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <Flex align="center" gap={8} wrap>
+                <h2 className="tms-approvals-title">Pending bunk approvals</h2>
+                <span className="tms-approvals-count">{pendingBunkReqs.length} requested</span>
+              </Flex>
+              <p className="tms-approvals-desc">
+                New bunks entered by supervisors during trip closing. Approving a bunk adds it to Master Bunks and automatically authorizes it for the route.
+              </p>
             </div>
-          </div>
-
-          {(bunkReqs || []).filter(r => r.status === 'Pending').map(q => (
-            <div
-              key={q.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                flexWrap: 'wrap',
-                padding: '12px 18px',
-                borderTop: '1px solid rgba(230, 160, 0, 0.2)',
-                background: '#fff',
-              }}
-            >
-              <div style={{ flex: 1, minWidth: '240px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text-heading)' }}>{q.bunkName}</span>
-                  <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--color-hazard-soft)', color: '#7A4300' }}>
-                    New Bunk Request
-                  </span>
+          </header>
+          <ul className="tms-approvals-list">
+            {pendingBunkReqs.map(q => (
+              <li key={q.id} className="tms-approval">
+                <div className="tms-approval-main">
+                  <Flex align="center" gap={8} wrap>
+                    <span className="tms-approval-name">{q.bunkName}</span>
+                    <Tag color="warning">New bunk request</Tag>
+                  </Flex>
+                  <div className="tms-approval-meta">
+                    <span><MapPin size={13} /> <strong>{q.routeName || '—'}</strong></span>
+                    <span><User size={13} /> {q.supervisorName}</span>
+                    <span><Hash size={13} /> {q.tripNumber || 'Close Trip'}</span>
+                    <span><Clock size={13} /> {q.requestedAt}</span>
+                  </div>
                 </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Route: <strong>{q.routeName || '—'}</strong> · Requested by {q.supervisorName} (Trip #{q.tripNumber || 'Close Trip'}) · {q.requestedAt}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={() => decideBunkRequest(q.id, 'Approved')}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    height: '32px',
-                    padding: '0 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-brand)',
-                    color: '#fff',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                  }}
-                >
-                  Approve & Authorize
-                </button>
-                <button
-                  type="button"
-                  onClick={() => decideBunkRequest(q.id, 'Rejected')}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    height: '32px',
-                    padding: '0 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--kr-red-600)',
-                    color: 'var(--kr-red-600)',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                  }}
-                >
-                  Reject
-                </button>
-              </div>
-            </div>
-          ))}
+                <Space wrap size={8}>
+                  <Button type="primary" icon={<Check size={16} strokeWidth={2.4} />} onClick={() => decideBunkRequest(q.id, 'Approved')}>
+                    Approve &amp; authorize
+                  </Button>
+                  <Button danger icon={<X size={16} strokeWidth={2.4} />} onClick={() => decideBunkRequest(q.id, 'Rejected')}>
+                    Reject
+                  </Button>
+                </Space>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
       {/* Driver Approval Queue banner */}
       {/* {type === 'drivers' && drvQueue.length > 0 && (
-        <section
+        <Alert
+          type="success"
           aria-label="Driver approval queue"
-          style={{
-            background: 'var(--color-brand-soft)',
-            border: '1px solid rgba(0,98,63,.22)',
-            borderLeft: '4px solid var(--color-brand)',
-            borderRadius: 'var(--radius-lg)',
-            color: 'var(--kr-green-800)',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ padding: '14px 18px 12px' }}>
-            <strong style={{ fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              Approval queue · {drvQueue.length} pending
-            </strong>
-            <div style={{ fontSize: '14px', marginTop: '2px' }}>
-              Driver requests from supervisors. Drivers cannot be assigned until approved; the supervisor app updates as soon as you decide.
-            </div>
-          </div>
-
-          {drvQueue.map(q => (
-            <div
-              key={q.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                flexWrap: 'wrap',
-                padding: '12px 18px',
-                borderTop: '1px solid rgba(0,98,63,.16)',
-                background: 'var(--color-brand-tint)',
-              }}
-            >
-              <span
-                style={{
-                  flex: 'none',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: '#fff',
-                  border: '2px solid var(--color-brand)',
-                  color: 'var(--color-brand)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 800,
-                  fontSize: '14px',
-                }}
-              >
-                {q.initials}
-              </span>
-              <div style={{ flex: 1, minWidth: '240px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 700, fontSize: '15px', color: 'var(--text-heading)' }}>{q.name}</span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: '10px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: '#fff', color: 'var(--color-brand)', border: '1px solid rgba(0,98,63,.25)' }}>
-                    {q.tag}
-                  </span>
-                  {q.hasDocs && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>· {q.docs}</span>}
-                </div>
-                <div style={{ fontSize: '13px', color: 'var(--text-body)', marginTop: '2px' }}>{q.sub}</div>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={q.review}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border-strong)',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: 'var(--text-heading)',
-                    background: '#fff',
-                  }}
-                >
-                  Review
-                </button>
-                {canEdit && (
-                  <button
-                    onClick={q.approve}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      padding: '6px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--color-brand)',
-                      color: '#fff',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    Approve
-                  </button>
-                )}
-                {canEdit && (
-                  <button
-                    onClick={q.reject}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      padding: '6px 14px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--kr-red-600)',
-                      background: 'var(--kr-red-50)',
-                      color: 'var(--kr-red-700)',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                    }}
-                  >
-                    Reject
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </section>
+          title={<Typography.Text strong>Approval queue · {drvQueue.length} pending</Typography.Text>}
+          description={
+            <Flex vertical gap={10}>
+              <Typography.Text>
+                Driver requests from supervisors. Drivers cannot be assigned until approved; the supervisor app updates as soon as you decide.
+              </Typography.Text>
+              {drvQueue.map(q => (
+                <Card key={q.id} size="small">
+                  <Flex align="center" gap={14} wrap>
+                    <Tag>{q.initials}</Tag>
+                    <Flex vertical gap={2} style={{ flex: 1, minWidth: 0 }}>
+                      <Flex align="center" gap={8} wrap>
+                        <Typography.Text strong>{q.name}</Typography.Text>
+                        <Tag color="success">{q.tag}</Tag>
+                        {q.hasDocs && <Typography.Text type="secondary">· {q.docs}</Typography.Text>}
+                      </Flex>
+                      <Typography.Text>{q.sub}</Typography.Text>
+                    </Flex>
+                    <Space wrap>
+                      <Button onClick={q.review}>Review</Button>
+                      {canEdit && <Button type="primary" onClick={q.approve}>Approve</Button>}
+                      {canEdit && <Button danger onClick={q.reject}>Reject</Button>}
+                    </Space>
+                  </Flex>
+                </Card>
+              ))}
+            </Flex>
+          }
+        />
       )} */}
 
       {/* Main Table Card */}
-      <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-            padding: '12px 18px',
-            borderBottom: '1px solid var(--border-default)',
-          }}
+      <Card styles={{ body: { padding: 0 } }}>
+        <Flex
+          justify="space-between"
+          align="center"
+          gap={12}
+          wrap
+          style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-default)' }}
         >
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              <strong style={{ color: 'var(--text-heading)' }}>{rows.length}</strong> {m.plural}
-            </span>
-            <input
-              type="text"
+          <Flex gap={12} align="center" wrap>
+            <Typography.Text type="secondary" style={nowrap}>
+              <Typography.Text strong>{rows.length}</Typography.Text> {m.plural}
+            </Typography.Text>
+            <Input
+              className="tms-search"
+              prefix={<Search size={16} strokeWidth={2} />}
+              allowClear
               placeholder={m.searchPh}
               value={masterQ}
               onChange={(e) => setMasterQ(e.target.value)}
-              style={{
-                width: '240px',
-                height: '36px',
-                padding: '0 12px',
-                fontSize: '14px',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                outline: 'none',
-              }}
+              style={{ width: 240, maxWidth: '100%' }}
             />
 
             {/* Loading Location Master: choose the client before adding anything */}
             {type === 'locations' && (
-              <SelectField
-                value={locClient}
-                onChange={setLocClient}
-                options={clientOpts}
-                allLabel="Select a client…"
-                ariaLabel="Client"
-                width="230px"
-                height={36}
+              <Select
+                value={locClient === '' || locClient == null ? undefined : locClient}
+                onChange={(v) => setLocClient(v === undefined ? '' : v)}
+                options={[{ value: '', label: 'Select a client…' }, ...clientOpts]}
+                placeholder="Select a client…"
+                aria-label="Client"
+                showSearch
+                optionFilterProp="label"
+                popupMatchSelectWidth={false}
+                style={{ width: 230, maxWidth: '100%' }}
               />
             )}
 
-            {/* Driver Approval Filter Pills */}
+            {/* Driver Approval Filter Pills (click the active one again to clear it) */}
             {type === 'drivers' && (
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
+              <Space size={8}>
+                <Button
+                  className="tms-filter-pill"
+                  style={{ '--pill': 'var(--color-brand)' }}
+                  aria-pressed={driverApprovalFilter === 'Approved'}
+                  icon={<BadgeCheck size={16} strokeWidth={2} />}
                   onClick={() => setDriverApprovalFilter(driverApprovalFilter === 'Approved' ? '' : 'Approved')}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    height: '36px',
-                    padding: '0 12px',
-                    boxSizing: 'border-box',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    border: `2px solid ${driverApprovalFilter === 'Approved' ? 'var(--color-brand)' : 'var(--border-strong)'}`,
-                    borderRadius: 'var(--radius-md)',
-                    background: driverApprovalFilter === 'Approved' ? 'var(--color-brand)' : '#fff',
-                    color: driverApprovalFilter === 'Approved' ? '#fff' : 'var(--text-heading)',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                  }}
                 >
                   Approved
-                </button>
-                <button
+                </Button>
+                <Button
+                  className="tms-filter-pill"
+                  style={{ '--pill': '#c26a00' }}
+                  aria-pressed={driverApprovalFilter === 'Pending approval'}
+                  icon={<Clock size={16} strokeWidth={2} />}
                   onClick={() => setDriverApprovalFilter(driverApprovalFilter === 'Pending approval' ? '' : 'Pending approval')}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    height: '36px',
-                    padding: '0 12px',
-                    boxSizing: 'border-box',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    border: `2px solid ${driverApprovalFilter === 'Pending approval' ? 'var(--color-hazard)' : 'var(--border-strong)'}`,
-                    borderRadius: 'var(--radius-md)',
-                    background: driverApprovalFilter === 'Pending approval' ? 'var(--color-hazard-soft)' : '#fff',
-                    color: driverApprovalFilter === 'Pending approval' ? '#7A4300' : 'var(--text-heading)',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                  }}
                 >
                   Request approval
-                </button>
-              </div>
+                </Button>
+              </Space>
             )}
-          </div>
+          </Flex>
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <Space wrap>
+            {/* Hidden native file picker, opened by the Import button (keeps handleImportFile's change-event contract). */}
             {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
             {canAdd && (
-              <button
-                type="button"
+              <Button
                 onClick={() => FILE_TRANSFER_ENABLED && importRef.current && importRef.current.click()}
                 title="Import .xlsx or .csv — headings in the first row"
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  padding: '0 14px',
-                  height: '32px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-strong)',
-                  background: '#fff',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'var(--text-heading)',
-                }}
               >
                 Import from Excel
-              </button>
+              </Button>
             )}
             {canAdd && (
-              <button
+              <Button
+                type="primary"
                 onClick={handleNewRecord}
                 disabled={addBlocked}
                 title={addBlocked ? 'Select a client first — a loading location belongs to one client.' : m.addLabel}
-                style={{
-                  all: 'unset',
-                  cursor: addBlocked ? 'not-allowed' : 'pointer',
-                  opacity: addBlocked ? 0.5 : 1,
-                  padding: '0 14px',
-                  height: '32px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-brand)',
-                  color: '#fff',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                }}
               >
                 {m.addLabel}
-              </button>
+              </Button>
             )}
-          </div>
-        </div>
+          </Space>
+        </Flex>
 
         {/* Records Table */}
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '760px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                {m.cols.map((c, i) => (
-                  <th
-                    key={i}
-                    style={{
-                      padding: '10px 14px',
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-heading)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {c}
-                  </th>
-                ))}
-                <th
-                  style={{
-                    padding: '10px 14px',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-heading)',
-                    whiteSpace: 'nowrap',
-                    textAlign: 'center',
-                  }}
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rowsPg.rows.map((r, rIdx) => {
-                const cells = m.cells(r);
-                const isPendingDriver = type === 'drivers' && (approvals[r.id] || r.approval) === 'Pending approval';
-                const isNearBottom = rIdx >= rowsPg.rows.length - 2 && rowsPg.rows.length > 2;
-                return (
-                  <tr
-                    key={r.id}
-                    style={{ borderTop: '1px solid var(--border-default)' }}
-                  >
-                    {cells.map((c, ci) => {
-                      const isBunksCol = m.cols[ci] === 'Authorized Fuel Bunks';
-                      if (isBunksCol) {
-                        return (
-                          <td key={ci} style={{ padding: '12px 14px', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                            <RouteBunksCell
-                              route={r}
-                              tms={tms}
-                              isOpen={activeBunksPopover === r.id}
-                              onToggle={() => setActiveBunksPopover(activeBunksPopover === r.id ? null : r.id)}
-                              onEditRoute={() => handleEditRecord(r)}
-                              onDeleteBunk={(bunkName) => handleDeleteBunkFromRoute(r, bunkName)}
-                              isNearBottom={isNearBottom}
-                            />
-                          </td>
-                        );
-                      }
-                      return (
-                        <td key={ci} style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: c.color, fontWeight: c.weight }}>
-                          {c.badge ? (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                fontFamily: 'var(--font-display)',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                letterSpacing: '0.1em',
-                                textTransform: 'uppercase',
-                                padding: '3px 8px',
-                                borderRadius: 'var(--radius-sm)',
-                                background: c.bg,
-                                color: c.fg,
-                              }}
-                            >
-                              {c.v}
-                            </span>
-                          ) : (
-                            c.v
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                      <RowActions
-                        actions={isPendingDriver ? [
-                          {
-                            key: 'review',
-                            icon: UserCheck,
-                            label: 'Review driver request',
-                            onClick: () => setDrawer({ isDriverReq: true, reqId: r.id, kicker: 'Pending driver', title: r.name }),
-                            colorHover: '#7A4300',
-                            bgHover: 'var(--color-hazard-soft)',
-                          },
-                        ] : []}
-                        onView={m.rowLink ? () => navigate(m.rowLink(r)) : undefined}
-                        viewLabel={`Open ${m.singular} profile`}
-                        onEdit={canEdit ? () => handleEditRecord(r) : undefined}
-                        onDelete={canDelete ? () => handleDeleteRecord(r) : undefined}
-                        editLabel={`Edit ${m.singular}`}
-                        deleteLabel={`Delete ${m.singular}`}
-                        buttonAriaLabel={`Actions for ${r.name || r.number}`}
-                      />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {rows.length > 0 && <Pagination {...rowsPg} noun={m.plural} />}
-        {rows.length === 0 && (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
-              {addBlocked ? 'Select a client to begin' : `No ${m.plural} found`}
-            </div>
-            <p style={{ margin: '6px 0 16px', color: 'var(--text-muted)', fontSize: '14px' }}>
-              {addBlocked
-                ? 'A loading location belongs to one client. Pick the client above to see its locations and add new ones.'
-                : <>Nothing matches &ldquo;{masterQ}&rdquo;. Add the record or clear the search.</>}
-            </p>
-            {canAdd && !addBlocked && (
-              <button
-                onClick={handleNewRecord}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  padding: '0 20px',
-                  height: '40px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-brand)',
-                  color: '#fff',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                }}
+        <Table
+          columns={recordColumns}
+          dataSource={rows}
+          rowKey="id"
+          tableLayout="auto"
+          scroll={{ x: 760 }}
+          pagination={{
+            current: page,
+            pageSize,
+            onChange: (p, size) => {
+              if (size !== pageSize) { setPageSize(size); setPage(1); } else setPage(p);
+            },
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} ${m.plural}`,
+          }}
+          locale={{
+            emptyText: (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <Flex vertical gap={4}>
+                    <Typography.Title level={5} style={{ margin: 0 }}>
+                      {addBlocked ? 'Select a client to begin' : `No ${m.plural} found`}
+                    </Typography.Title>
+                    <Typography.Text type="secondary">
+                      {addBlocked
+                        ? 'A loading location belongs to one client. Pick the client above to see its locations and add new ones.'
+                        : <>Nothing matches &ldquo;{masterQ}&rdquo;. Add the record or clear the search.</>}
+                    </Typography.Text>
+                  </Flex>
+                }
               >
-                {m.addLabel}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+                {canAdd && !addBlocked && (
+                  <Button type="primary" onClick={handleNewRecord}>
+                    {m.addLabel}
+                  </Button>
+                )}
+              </Empty>
+            ),
+          }}
+        />
+      </Card>
+    </Flex>
   );
 };
 

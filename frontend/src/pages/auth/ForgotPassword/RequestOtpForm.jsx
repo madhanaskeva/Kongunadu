@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
+import { Alert, Button, Divider, Flex, Form, Input, Typography } from 'antd';
 import { Mail, ArrowLeft } from 'lucide-react';
-import Button from '../../../components/common/Button';
-import FormInput from '../../../components/forms/FormInput';
 
 /**
  * RequestOtpForm — Step 1 of Forgot Password
@@ -18,8 +17,8 @@ export const RequestOtpForm = ({
   const [email, setEmail] = useState(initialEmail);
   const [localError, setLocalError] = useState('');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  // Called from antd Form onFinish (antd prevents the native submission).
+  const handleSubmit = () => {
     setLocalError('');
 
     const trimmed = email.trim();
@@ -43,108 +42,62 @@ export const RequestOtpForm = ({
   const displayError = error || localError;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       <div>
-        <button
-          type="button"
+        <Button
+          color="default"
+          variant="link"
+          icon={<ArrowLeft size={16} />}
           onClick={onBack}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: 'var(--text-muted, #7c7c76)',
-            marginBottom: '12px',
-            transition: 'color var(--dur-fast, 0.15s)',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-brand, #00623f)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted, #7c7c76)')}
+          style={{ padding: 0, marginBottom: 12 }}
         >
-          <ArrowLeft size={16} />
-          <span>Back to login</span>
-        </button>
+          Back to login
+        </Button>
 
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-display)',
-            fontWeight: 800,
-            fontSize: '28px',
-            color: 'var(--kr-green-900, #003021)',
-          }}
-        >
+        <Typography.Title level={3} style={{ margin: 0 }}>
           Reset your password
-        </h2>
-        <p style={{ margin: '6px 0 0', fontSize: '14px', color: 'var(--text-muted, #7c7c76)', lineHeight: 1.5 }}>
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ margin: '6px 0 0' }}>
           Enter the registered email associated with your account. We will send a 6-digit OTP verification code.
-        </p>
+        </Typography.Paragraph>
       </div>
 
-      {displayError && (
-        <div
-          role="alert"
-          style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--kr-red-50, #fdf3f2)',
-            border: '1px solid var(--kr-red-100, #fbe0e0)',
-            borderRadius: 'var(--radius-md, 8px)',
-            color: 'var(--kr-red-800, #b31114)',
-            fontSize: '13px',
-            fontWeight: 600,
-          }}
-        >
-          {displayError}
-        </div>
-      )}
+      {displayError && <Alert type="error" showIcon title={displayError} />}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <FormInput
+      <Form layout="vertical" onFinish={handleSubmit}>
+        <Form.Item
           label="Registered Email Address"
-          type="email"
-          value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setLocalError('');
-          }}
-          placeholder="e.g. admin@gmail.com"
-          icon={Mail}
           required
-          autoFocus
-        />
-
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          fullWidth
-          loading={loading}
-          style={{ marginTop: '8px' }}
+          validateStatus={displayError ? 'error' : undefined}
         >
+          <Input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setLocalError('');
+            }}
+            placeholder="e.g. admin@gmail.com"
+            prefix={<Mail size={18} />}
+            autoFocus
+          />
+        </Form.Item>
+
+        <Button type="primary" htmlType="submit" size="large" block loading={loading}>
           Send Verification OTP
         </Button>
-      </form>
+      </Form>
 
-      <div style={{ textAlign: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-default, #d5dfda)' }}>
-        <span style={{ fontSize: '13px', color: 'var(--text-muted, #7c7c76)' }}>
-          Remember your password?{' '}
-          <button
-            type="button"
-            onClick={onBack}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              fontWeight: 700,
-              color: 'var(--text-brand, #00623f)',
-            }}
-          >
+      <div>
+        <Divider style={{ margin: '0 0 8px' }} />
+        <Flex justify="center" align="center" wrap>
+          <Typography.Text type="secondary">Remember your password?</Typography.Text>
+          <Button type="link" size="small" onClick={onBack}>
             Sign in
-          </button>
-        </span>
+          </Button>
+        </Flex>
       </div>
-    </div>
+    </Flex>
   );
 };
 

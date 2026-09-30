@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
-import { CircleCheck, SearchCheck } from 'lucide-react';
+import { Button, Card, Col, Empty, Flex, Input, Progress, Row, Space, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
+import { CircleCheck, Eye, SearchCheck, Search } from 'lucide-react';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
 
@@ -83,7 +83,10 @@ export const DistanceVariation = () => {
   const distRows = distAll
     .filter(d => matchesSearch(debouncedDistQ, d.vehicleNumber, d.number, d.route, d.branchName))
     .sort((a, b) => b.pct - a.pct);
-  const distPg = usePagination(distRows, [debouncedDistQ]);
+  // Back to page 1 whenever the search changes (as the old usePagination did).
+  const [distPage, setDistPage] = useState(1);
+  const [distPageSize, setDistPageSize] = useState(10);
+  useEffect(() => { setDistPage(1); }, [debouncedDistQ, distPageSize]);
   const distAlerts = distAll.filter(d => d.canClose).sort((a, b) => b.pct - a.pct);
   const distAvg = distAll.reduce((t, d) => t + d.pct, 0) / (distAll.length || 1);
 
@@ -94,395 +97,279 @@ export const DistanceVariation = () => {
     { label: 'Average variance', value: distAvg.toFixed(1) + '%', sub: 'Furthest source vs fixed KM', edge: 'var(--kr-grey-300)', color: 'var(--text-heading)' },
   ];
 
-  const distCols = ['Trip', 'Route', 'Fixed KM · Google Maps', 'GPS KM', 'Odometer KM', 'Variance', 'Actions'];
+  // Review status → antd Tag preset (red / amber / grey / green as before).
+  const reviewTag = review =>
+    review === 'Open' ? 'error' : review === 'Under review' ? 'warning' : review === 'Reviewed' ? 'default' : 'success';
+
+  const nowrap = { whiteSpace: 'nowrap' };
+  const distColumns = [
+    {
+      title: 'Trip',
+      key: 'trip',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => (
+        <>
+          <Typography.Text strong style={{ display: 'block', color: 'var(--text-heading)' }}>{r.vehicleNumber}</Typography.Text>
+          <Typography.Text type="secondary" style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{r.number}</Typography.Text>
+        </>
+      ),
+    },
+    {
+      title: 'Route',
+      key: 'route',
+      render: (_, r) => (
+        <>
+          <Typography.Text style={{ display: 'block', color: 'var(--text-heading)' }}>{r.route}</Typography.Text>
+          <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{r.branchName} · closed {r.closed}</Typography.Text>
+        </>
+      ),
+    },
+    {
+      title: 'Fixed KM · Google Maps',
+      dataIndex: 'fixedText',
+      key: 'fixed',
+      onCell: () => ({ style: nowrap }),
+      render: v => <Typography.Text strong style={{ color: 'var(--text-heading)' }}>{v}</Typography.Text>,
+    },
+    {
+      title: 'GPS KM',
+      key: 'gps',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => (
+        <>
+          <Typography.Text style={{ display: 'block', color: 'var(--text-heading)' }}>{r.gpsText}</Typography.Text>
+          <Typography.Text style={{ display: 'block', fontSize: 12, color: r.gpsDeltaColor }}>{r.gpsDelta}</Typography.Text>
+        </>
+      ),
+    },
+    {
+      title: 'Odometer KM',
+      key: 'odo',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => (
+        <>
+          <Typography.Text style={{ display: 'block', color: 'var(--text-heading)' }}>{r.odoText}</Typography.Text>
+          <Typography.Text style={{ display: 'block', fontSize: 12, color: r.odoDeltaColor }}>{r.odoDelta}</Typography.Text>
+        </>
+      ),
+    },
+    {
+      title: 'Variance',
+      key: 'variance',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) => (
+        <Space size={10}>
+          {/* Custom mini-meter: the tick marks the threshold, so it stays hand-drawn. */}
+          <Tooltip title={`Tick marks the ${distThr}% threshold`}>
+            <span style={{ position: 'relative', display: 'inline-block', width: '90px', height: '8px', background: 'var(--kr-grey-100)', borderRadius: '2px' }}>
+              <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: r.pctW, background: r.barColor, borderRadius: '2px' }}></span>
+              <span style={{ position: 'absolute', left: '33.3%', top: '-3px', bottom: '-3px', width: '2px', background: 'var(--kr-grey-700)' }}></span>
+            </span>
+          </Tooltip>
+          <Typography.Text strong style={{ color: r.pctColor }}>{r.pctText}</Typography.Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      onCell: () => ({ style: nowrap }),
+      render: (_, r) =>
+        r.hasTrip || r.canClose ? (
+          <Space size={4} role="group" aria-label={`Actions for trip ${r.number}`} onClick={e => e.stopPropagation()}>
+            {r.hasTrip && (
+              <Tooltip title={`View trip ${r.number}`}>
+                <Button type="text" size="small" aria-label={`View trip ${r.number}`} icon={<Eye size={16} />} onClick={() => navTo('trip', { selectedTrip: r.trip })} />
+              </Tooltip>
+            )}
+            {r.review === 'Open' && (
+              <Tooltip title="Mark under review">
+                <Button type="text" size="small" aria-label="Mark under review" icon={<SearchCheck size={16} />} onClick={() => setReview(r, 'Under review')} />
+              </Tooltip>
+            )}
+            {r.canClose && (
+              <Tooltip title="Mark reviewed">
+                <Button type="text" size="small" aria-label="Mark reviewed" icon={<CircleCheck size={16} />} onClick={() => setReview(r, 'Reviewed')} />
+              </Tooltip>
+            )}
+          </Space>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
+    },
+  ];
+
+  // Colour swatch + label heading used by the three source explanation cards.
+  const sourceCards = [
+    { swatch: 'var(--kr-grey-700)', title: 'Fixed route KM', kicker: 'Google Maps reference', body: 'Set once per route in Route Master. This is the billing baseline.' },
+    { swatch: 'var(--color-brand)', title: 'GPS KM', kicker: 'Device track', body: 'Distance summed from GPS fixes between trip open and close.' },
+    { swatch: 'var(--kr-saffron-500)', title: 'Odometer KM', kicker: 'Closing − opening', body: 'Readings entered by the supervisor when the trip opens and closes.' },
+    { title: 'Distance comparison', kicker: `Flag above ${distThr}%`, body: 'The source furthest from the fixed KM sets the trip variance. Flagged trips go to review.', tint: true },
+  ];
+
+  const sectionTitle = { margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, letterSpacing: '0.02em', textTransform: 'uppercase' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       {/* Top Description & Settings link */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
-        <div></div>
-        <button
-          onClick={() => navTo('settings')}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: 'var(--text-brand)',
-            whiteSpace: 'nowrap',
-          }}
-        >
+      <Flex justify="flex-end" wrap>
+        <Button type="link" onClick={() => navTo('settings')} style={{ paddingInline: 0 }}>
           Threshold {distThr}% · change in Settings &rarr;
-        </button>
-      </div>
+        </Button>
+      </Flex>
 
       {/* 4 KPI Tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: '12px' }}>
+      <Row gutter={[12, 12]}>
         {distTiles.map((k, idx) => (
-          <div
-            key={idx}
-            style={{
-              background: '#fff',
-              border: '1px solid var(--border-default)',
-              borderTop: `4px solid ${k.edge}`,
-              borderRadius: 'var(--radius-lg)',
-              padding: '12px 14px',
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{k.label}</div>
-            <div
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: '24px',
-                color: k.color,
-                lineHeight: 1.1,
-                marginTop: '4px',
-              }}
-            >
-              {k.value}
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{k.sub}</div>
-          </div>
+          <Col key={idx} xs={24} sm={12} lg={6}>
+            <Card size="small" className="tms-kpi" style={{ height: '100%', '--kpi': k.edge }}>
+              <Statistic groupSeparator=""
+                title={<span className="tms-kpi-label">{k.label}</span>}
+                value={k.value}
+                styles={{ content: { color: k.color } }}
+              />
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>{k.sub}</Typography.Text>
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
       {/* 4 Explanation Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(210px,1fr))', gap: '12px' }}>
-        <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '14px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--kr-grey-700)' }}></span>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', color: 'var(--text-heading)' }}>
-              Fixed route KM
-            </span>
-          </div>
-          <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Google Maps reference
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-body)', marginTop: '6px' }}>
-            Set once per route in Route Master. This is the billing baseline.
-          </div>
-        </div>
-
-        <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '14px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--color-brand)' }}></span>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', color: 'var(--text-heading)' }}>
-              GPS KM
-            </span>
-          </div>
-          <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Device track
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-body)', marginTop: '6px' }}>
-            Distance summed from GPS fixes between trip open and close.
-          </div>
-        </div>
-
-        <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '14px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: 'var(--kr-saffron-500)' }}></span>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', color: 'var(--text-heading)' }}>
-              Odometer KM
-            </span>
-          </div>
-          <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Closing − opening
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-body)', marginTop: '6px' }}>
-            Readings entered by the supervisor when the trip opens and closes.
-          </div>
-        </div>
-
-        <div style={{ background: 'var(--color-brand-tint)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '14px 16px' }}>
-          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '14px', color: 'var(--text-heading)' }}>
-            Distance comparison
-          </div>
-          <div style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Flag above {distThr}%
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-body)', marginTop: '6px' }}>
-            The source furthest from the fixed KM sets the trip variance. Flagged trips go to review.
-          </div>
-        </div>
-      </div>
+      <Row gutter={[12, 12]}>
+        {sourceCards.map(c => (
+          <Col key={c.title} xs={24} sm={12} lg={6}>
+            <Card size="small" style={{ height: '100%', ...(c.tint ? { background: 'var(--color-brand-tint)' } : {}) }}>
+              <Space size={8}>
+                {c.swatch && <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: c.swatch }}></span>}
+                <Typography.Text strong style={{ fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--text-heading)' }}>{c.title}</Typography.Text>
+              </Space>
+              <Typography.Text type="secondary" strong style={{ display: 'block', fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', marginTop: 4 }}>
+                {c.kicker}
+              </Typography.Text>
+              <Typography.Paragraph style={{ fontSize: 13, margin: '6px 0 0' }}>{c.body}</Typography.Paragraph>
+            </Card>
+          </Col>
+        ))}
+      </Row>
 
       {/* Review Alerts Section */}
-      <section style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: '15px',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase',
-              color: 'var(--text-heading)',
-            }}
-          >
-            Review alerts
-          </h2>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+      <Flex vertical gap={12} component="section">
+        <Flex justify="space-between" align="baseline" gap={12} wrap>
+          <Typography.Title level={2} style={sectionTitle}>Review alerts</Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
             {distAlerts.length} trips with variance over {distThr}% of fixed route KM
-          </span>
-        </div>
+          </Typography.Text>
+        </Flex>
 
         {distAlerts.length === 0 && (
-          <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: '32px 24px', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
-              No distance alerts to review
-            </div>
-            <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-              All flagged trips have been reviewed.
-            </p>
-          </div>
+          <Card>
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <>
+                  <Typography.Title level={4} style={{ margin: 0 }}>No distance alerts to review</Typography.Title>
+                  <Typography.Text type="secondary">All flagged trips have been reviewed.</Typography.Text>
+                </>
+              }
+            />
+          </Card>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(330px,1fr))', gap: '16px' }}>
+        <Row gutter={[16, 16]}>
           {distAlerts.map(a => (
-            <div
-              key={a.id}
-              style={{
-                background: '#fff',
-                border: '1px solid var(--border-default)',
-                borderLeft: `4px solid ${a.edge}`,
-                borderRadius: 'var(--radius-lg)',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                  {a.vehicleNumber}
-                </span>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: a.statusBg,
-                    color: a.statusFg,
-                  }}
-                >
-                  {a.review}
-                </span>
-              </div>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>{a.route}</div>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)' }}>{a.number}</span> · {a.branchName} · closed {a.closed}
-                </div>
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  padding: '12px',
-                  background: 'var(--surface-muted)',
-                  borderRadius: 'var(--radius-md)',
-                }}
-              >
-                {a.bars.map((b, bIdx) => (
-                  <div key={bIdx} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0,1fr) 72px', gap: '10px', alignItems: 'center', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>{b.label}</span>
-                    <span style={{ height: '10px', background: '#fff', borderRadius: '2px', overflow: 'hidden' }}>
-                      <span style={{ display: 'block', height: '100%', width: b.w, background: b.color }}></span>
-                    </span>
-                    <span style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                      {b.value}
-                    </span>
+            <Col key={a.id} xs={24} md={12} xl={8}>
+              <Card size="small" style={{ height: '100%', borderLeft: `4px solid ${a.edge}` }} styles={{ body: { padding: 16 } }}>
+                <Flex vertical gap={12}>
+                  <Flex justify="space-between" align="center" gap={8}>
+                    <Typography.Text strong style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-heading)' }}>
+                      {a.vehicleNumber}
+                    </Typography.Text>
+                    <Tag color={reviewTag(a.review)} style={{ marginInlineEnd: 0, textTransform: 'uppercase', fontWeight: 700 }}>{a.review}</Tag>
+                  </Flex>
+                  <div>
+                    <Typography.Text strong style={{ display: 'block', fontSize: 15, color: 'var(--text-heading)' }}>{a.route}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                      <span style={{ fontFamily: 'var(--font-mono)' }}>{a.number}</span> · {a.branchName} · closed {a.closed}
+                    </Typography.Text>
                   </div>
-                ))}
-              </div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: '12px',
-                  flexWrap: 'wrap',
-                  paddingTop: '10px',
-                  borderTop: '1px solid var(--border-default)',
-                }}
-              >
-                <span>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '22px', color: 'var(--kr-red-700)' }}>
-                    {a.pctText}
-                  </span>{' '}
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{a.diffText}</span>
-                </span>
-                {a.hasTrip && (
-                  <button
-                    onClick={() => navTo('trip', { selectedTrip: a.trip })}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color: 'var(--text-brand)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    View trip &rarr;
-                  </button>
-                )}
-              </div>
-            </div>
+                  <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }}>
+                    <Flex vertical gap={4}>
+                      {a.bars.map((b, bIdx) => (
+                        <Flex key={bIdx} align="center" gap={10} style={{ fontSize: 13 }}>
+                          <Typography.Text type="secondary" style={{ flex: '0 0 96px', fontSize: 13 }}>{b.label}</Typography.Text>
+                          <Progress
+                            percent={parseFloat(b.w)}
+                            showInfo={false}
+                            strokeColor={b.color}
+                            railColor="#fff"
+                            size={{ height: 10 }}
+                            style={{ flex: 1, minWidth: 0, margin: 0 }}
+                          />
+                          <Typography.Text strong style={{ flex: '0 0 72px', textAlign: 'right', whiteSpace: 'nowrap', fontSize: 13, color: 'var(--text-heading)' }}>
+                            {b.value}
+                          </Typography.Text>
+                        </Flex>
+                      ))}
+                    </Flex>
+                  </Card>
+                  <Flex justify="space-between" align="center" gap={12} wrap style={{ paddingTop: 10, borderTop: '1px solid var(--border-default)' }}>
+                    <span>
+                      <Typography.Text style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, color: 'var(--kr-red-700)' }}>
+                        {a.pctText}
+                      </Typography.Text>{' '}
+                      <Typography.Text type="secondary" style={{ fontSize: 13 }}>{a.diffText}</Typography.Text>
+                    </span>
+                    {a.hasTrip && (
+                      <Button type="link" size="small" onClick={() => navTo('trip', { selectedTrip: a.trip })} style={{ paddingInline: 0 }}>
+                        View trip &rarr;
+                      </Button>
+                    )}
+                  </Flex>
+                </Flex>
+              </Card>
+            </Col>
           ))}
-        </div>
-      </section>
+        </Row>
+      </Flex>
 
       {/* Closed Trips Comparison Table */}
-      <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-            flexWrap: 'wrap',
-            padding: '12px 18px',
-            borderBottom: '1px solid var(--border-default)',
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: '15px',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase',
-              color: 'var(--text-heading)',
-            }}
-          >
-            Distance comparison · closed trips
-          </h2>
-          <input
-            type="text"
+      <Card
+        title={<Typography.Title level={2} style={sectionTitle}>Distance comparison · closed trips</Typography.Title>}
+        extra={
+          <Input
+            className="tms-search"
+            prefix={<Search size={16} strokeWidth={2} />}
+            allowClear
             placeholder="Search vehicle, trip, route or branch"
             value={distQ}
             onChange={(e) => setDistQ(e.target.value)}
-            style={{
-              width: '320px',
-              maxWidth: '100%',
-              boxSizing: 'border-box',
-              height: '36px',
-              padding: '0 12px',
-              fontSize: '14px',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              outline: 'none',
-            }}
+            style={{ width: 320, maxWidth: '100%' }}
           />
-        </div>
-
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '960px' }}>
-            <thead>
-              <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                {distCols.map((c, i) => (
-                  <th
-                    key={i}
-                    style={{
-                      padding: '10px 14px',
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
-                      whiteSpace: 'nowrap',
-                      textAlign: c === 'Actions' ? 'center' : 'left',
-                    }}
-                  >
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {distPg.rows.map(r => (
-                <tr
-                  key={r.id}
-                  style={{
-                    borderTop: '1px solid var(--border-default)',
-                  }}
-                  className="tms-table-row"
-                >
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-heading)' }}>{r.vehicleNumber}</span>
-                    <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>{r.number}</span>
-                  </td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <span style={{ display: 'block', color: 'var(--text-heading)' }}>{r.route}</span>
-                    <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)' }}>{r.branchName} · closed {r.closed}</span>
-                  </td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-heading)' }}>
-                    {r.fixedText}
-                  </td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                    <span style={{ display: 'block', color: 'var(--text-heading)' }}>{r.gpsText}</span>
-                    <span style={{ display: 'block', fontSize: '12px', color: r.gpsDeltaColor }}>{r.gpsDelta}</span>
-                  </td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                    <span style={{ display: 'block', color: 'var(--text-heading)' }}>{r.odoText}</span>
-                    <span style={{ display: 'block', fontSize: '12px', color: r.odoDeltaColor }}>{r.odoDelta}</span>
-                  </td>
-                  <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
-                      <span
-                        title={`Tick marks the ${distThr}% threshold`}
-                        style={{ position: 'relative', width: '90px', height: '8px', background: 'var(--kr-grey-100)', borderRadius: '2px' }}
-                      >
-                        <span style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: r.pctW, background: r.barColor, borderRadius: '2px' }}></span>
-                        <span style={{ position: 'absolute', left: '33.3%', top: '-3px', bottom: '-3px', width: '2px', background: 'var(--kr-grey-700)' }}></span>
-                      </span>
-                      <span style={{ fontWeight: 700, color: r.pctColor }}>{r.pctText}</span>
-                    </span>
-                  </td>
-                  <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                    {r.hasTrip || r.canClose ? (
-                      <RowActions
-                        actions={[
-                          ...(r.review === 'Open' ? [{ key: 'review', icon: SearchCheck, label: 'Mark under review', onClick: () => setReview(r, 'Under review') }] : []),
-                          ...(r.canClose ? [{ key: 'done', icon: CircleCheck, label: 'Mark reviewed', onClick: () => setReview(r, 'Reviewed') }] : []),
-                        ]}
-                        onView={r.hasTrip ? () => navTo('trip', { selectedTrip: r.trip }) : undefined}
-                        viewLabel={`View trip ${r.number}`}
-                        buttonAriaLabel={`Actions for trip ${r.number}`}
-                      />
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {distRows.length > 0 && <Pagination {...distPg} noun="trips" />}
-        {distRows.length === 0 && (
-          <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-            No trips match this search.
-          </div>
-        )}
-      </div>
-    </div>
+        }
+        styles={{ header: { flexWrap: 'wrap', gap: 12, paddingBlock: 12 }, body: { padding: 0 } }}
+      >
+        <Table
+          columns={distColumns}
+          dataSource={distRows}
+          rowKey="id"
+          tableLayout="auto"
+          scroll={{ x: 960 }}
+          locale={{ emptyText: <Typography.Text type="secondary">No trips match this search.</Typography.Text> }}
+          pagination={
+            distRows.length > 0 && {
+              current: distPage,
+              pageSize: distPageSize,
+              onChange: (p, size) => { setDistPage(p); setDistPageSize(size); },
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              showTotal: (t, [a, b]) => `Showing ${a} to ${b} of ${t} trips`,
+            }
+          }
+        />
+      </Card>
+    </Flex>
   );
 };
 
 export default DistanceVariation;
-

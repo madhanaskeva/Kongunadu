@@ -1,10 +1,44 @@
-import React, { useState } from 'react';
-import { MapPin, Clock, TriangleAlert, Search, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { MapPin, Clock, TriangleAlert, Search } from 'lucide-react';
+import {
+  Alert, Button, Card, Col, Descriptions, Empty, Flex, Input, Pagination, Row, Segmented,
+  Select, Space, Statistic, Table, Tag, Timeline, Typography,
+} from 'antd';
+import { AimOutlined, ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
-import { SelectField } from '../../../components/common/SelectField';
 import { useDebounce } from '../../../utils/debounce';
+
+// Client-side paging for the card grids (default 10 / page). Any change to `resetKeys`
+// (filters, search) or the page size sends the grid back to page 1.
+const usePagedCards = (items, resetKeys, noun) => {
+  const [current, setCurrent] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setCurrent(1); }, [pageSize, ...resetKeys]);
+  const total = items.length;
+  const page = Math.min(current, Math.max(1, Math.ceil(total / pageSize)));
+  return {
+    rows: items.slice((page - 1) * pageSize, page * pageSize),
+    pagination: {
+      current: page,
+      pageSize,
+      total,
+      showSizeChanger: true,
+      pageSizeOptions: [10, 20, 50, 100],
+      showTotal: (t, [a, b]) => `Showing ${a} to ${b} of ${t} ${noun}`,
+      onChange: (p, size) => {
+        if (size !== pageSize) setPageSize(size);
+        else setCurrent(p);
+      },
+    },
+  };
+};
+
+// Status / state → antd Tag preset (green / amber / blue / red / grey as before).
+const STATUS_TAG = { Running: 'success', Idle: 'warning', Maintenance: 'processing' };
+const GPS_TAG = { OK: 'success', Weak: 'warning' };
+const DIVERSION_TAG = { 'Off route now': 'error', Rejoined: 'warning', Reviewed: 'default' };
 
 // Card edge + status chip colours, one entry per vehicle status.
 const FLEET_TONES = {
@@ -82,7 +116,7 @@ export const FleetMonitor = () => {
   });
 
   // A branch can run hundreds of vehicles, so the grid is paged like every other list (default 10 / page).
-  const fleetPg = usePagination(fleetCards, [ff, idleDurationFilter, debouncedFleetQ], 10);
+  const fleetPg = usePagedCards(fleetCards, [ff, idleDurationFilter, debouncedFleetQ], 'vehicles');
 
   const gpsTone = g => g === 'OK' ? 'var(--kr-green-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
@@ -138,7 +172,7 @@ export const FleetMonitor = () => {
       (d.at && d.at.toLowerCase().includes(q))
     );
   });
-  const divPg = usePagination(filteredDivCards, [ff, debouncedFleetQ], 10);
+  const divPg = usePagedCards(filteredDivCards, [ff, debouncedFleetQ], 'flagged routes');
 
   const divSummary = {
     count: divCards.length,
@@ -197,7 +231,7 @@ export const FleetMonitor = () => {
       (n.fromTo && n.fromTo.toLowerCase().includes(q))
     );
   });
-  const nbPg = usePagination(filteredNbCards, [ff, debouncedFleetQ], 10);
+  const nbPg = usePagedCards(filteredNbCards, [ff, debouncedFleetQ], 'movements');
 
   const nbReasons = Object.entries(
     nbTrips.reduce((m, t) => {
@@ -246,7 +280,7 @@ export const FleetMonitor = () => {
       (r.away && r.away.toLowerCase().includes(q))
     );
   });
-  const rbPg = usePagination(filteredRbCards, [ff, debouncedFleetQ], 10);
+  const rbPg = usePagedCards(filteredRbCards, [ff, debouncedFleetQ], 'alerts');
 
   // Every card in this view is an open breach, so they carry a tint by default.
   const rbTiles = [
@@ -265,22 +299,14 @@ export const FleetMonitor = () => {
     { id: 'diversion', label: 'Route diversion' },
     { id: 'nonbill', label: 'Non-billable trips' },
     { id: 'radius', label: 'Radius alert' },
-  ].map(f => {
-    const a = f.id === ff;
-    return {
-      ...f,
-      border: a ? 'var(--color-brand)' : 'var(--border-strong)',
-      bg: a ? 'var(--color-brand)' : '#fff',
-      color: a ? '#fff' : 'var(--text-heading)',
-    };
-  });
+  ];
 
   const fleetTiles = [
     { label: 'Fleet', value: 722, edge: 'var(--color-brand)' },
     { label: 'Running', value: 281, edge: 'var(--color-brand)' },
-    { label: 'Idle · no business', value: 296, edge: 'var(--kr-green-100)' },
+    { label: 'Idle · no business', value: 296, edge: 'var(--st-enroute-edge)' },
     { label: 'Idle · no driver', value: 88, edge: 'var(--kr-saffron-500)' },
-    { label: 'Maintenance', value: 57, edge: 'var(--kr-grey-300)' },
+    { label: 'Maintenance', value: 57, edge: 'var(--kr-grey-500)' },
   ];
 
   const fallbackRows = [
@@ -295,417 +321,175 @@ export const FleetMonitor = () => {
   const fleetShowNonBill = ff === 'nonbill';
   const fleetShowRadius = ff === 'radius';
 
+  const fallbackColumns = [
+    { title: 'Odometer', dataIndex: 'o', key: 'o' },
+    { title: 'GPS', dataIndex: 'g', key: 'g' },
+    { title: 'Action', dataIndex: 'a', key: 'a', render: (v, r) => <Typography.Text strong style={{ color: r.color }}>{v}</Typography.Text> },
+  ];
+
+  const kicker = { fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' };
+  const bigValue = { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, color: 'var(--text-heading)', whiteSpace: 'nowrap' };
+  const unitStyle = { fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' };
+  const dot = (color, size = 7, animation) => (
+    <span style={{ display: 'inline-block', width: size, height: size, borderRadius: '50%', background: color, flex: 'none', animation }} />
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <style>{`
-        .tms-fleet-card:hover, .tms-fleet-card:focus-visible {
-          box-shadow: 0 8px 20px rgba(0, 60, 40, 0.12) !important;
-          transform: translateY(-2px);
-          outline: none;
-        }
-        .tms-fleet-search-wrap {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          height: 34px;
-          background: #ffffff;
-          border: 1.5px solid #d5dfda;
-          border-radius: var(--radius-pill, 9999px);
-          padding: 0 10px 0 34px;
-          min-width: 250px;
-          max-width: 360px;
-          flex: 1 1 250px;
-          box-shadow: 0 1px 3px rgba(0, 48, 33, 0.05);
-          transition: border-color var(--dur-fast, 0.15s), box-shadow var(--dur-fast, 0.15s);
-          box-sizing: border-box;
-        }
-        .tms-fleet-search-wrap:hover {
-          border-color: #b5c7bf;
-        }
-        .tms-fleet-search-wrap:focus-within {
-          border-color: var(--kr-green-700, #006241) !important;
-          box-shadow: 0 0 0 3px rgba(0, 98, 65, 0.14) !important;
-        }
-        .tms-fleet-search-icon {
-          position: absolute;
-          left: 11px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-muted, #7c9489);
-          pointer-events: none;
-          transition: color var(--dur-fast, 0.15s);
-        }
-        .tms-fleet-search-wrap:focus-within .tms-fleet-search-icon {
-          color: var(--kr-green-700, #006241) !important;
-        }
-        .tms-fleet-search-input {
-          all: unset;
-          width: 100%;
-          height: 100%;
-          font-family: var(--font-body, inherit);
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--text-heading, #0f2d24);
-          box-sizing: border-box;
-        }
-        .tms-fleet-search-input::placeholder {
-          color: var(--text-muted, #8a9e96);
-          font-size: 12.5px;
-        }
-        .tms-fleet-search-clear {
-          all: unset;
-          cursor: pointer;
-          display: inline-grid;
-          place-items: center;
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          color: var(--text-muted, #7c9489);
-          background: #f1f5f3;
-          margin-left: 4px;
-          flex: none;
-          transition: background 0.15s, color 0.15s;
-        }
-        .tms-fleet-search-clear:hover {
-          background: #e1e9e5;
-          color: var(--text-heading, #0f2d24);
-        }
-        @media (max-width: 768px) {
-          .tms-fleet-search-wrap {
-            width: 100% !important;
-            min-width: 100% !important;
-            max-width: 100% !important;
-            margin-top: 4px;
-            height: 38px !important;
-          }
-          .tms-fleet-duration-wrap {
-            width: 100%;
-            margin-left: 0 !important;
-          }
-        }
-      `}</style>
+    <Flex vertical gap={20}>
       {/* 5 KPI Tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: '12px' }}>
+      <Row gutter={[12, 12]}>
         {fleetTiles.map((k, idx) => (
-          <div
-            key={idx}
-            style={{
-              background: '#fff',
-              border: '1px solid var(--border-default)',
-              borderTop: `4px solid ${k.edge}`,
-              borderRadius: 'var(--radius-lg)',
-              padding: '12px 14px',
-            }}
-          >
-            <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{k.label}</div>
-            <div
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: '24px',
-                color: 'var(--text-heading)',
-                lineHeight: 1.1,
-                marginTop: '4px',
-              }}
-            >
-              {k.value}
-            </div>
-          </div>
+          <Col key={idx} flex="1 1 150px">
+            <Card size="small" className="tms-kpi" style={{ height: '100%', '--kpi': k.edge }}>
+              <Statistic groupSeparator=""
+                title={<span className="tms-kpi-label">{k.label}</span>}
+                value={k.value}
+              />
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
       {/* Filter Pills, Search Bar, and Right Side Duration Filter Option */}
-      <div className="tms-fleet-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <div className="tms-fleet-pills-row" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', flex: '1 1 auto' }}>
-          {fleetFilters.map(f => (
-            <button
-              key={f.id}
-              onClick={() => {
-                setFleetFilter(f.id);
-                if (f.id !== 'idle') {
+      <Flex justify="space-between" align="center" gap={12} wrap>
+        <Flex gap={8} wrap align="center" style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
+            <Segmented
+              value={ff}
+              onChange={value => {
+                setFleetFilter(value);
+                if (value !== 'idle') {
                   setIdleDurationFilter('all');
                 }
               }}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                padding: '0 14px',
-                height: '34px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                borderRadius: 'var(--radius-pill)',
-                fontFamily: 'var(--font-display)',
-                fontSize: '12px',
-                fontWeight: 700,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                border: `2px solid ${f.border}`,
-                background: f.bg,
-                color: f.color,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-
-          {/* Unique & Mobile Responsive Search Bar on the Right Side of Radius alert tab */}
-          <div
-            className="tms-fleet-search-wrap"
-            style={{
-              position: 'relative',
-              display: 'inline-flex',
-              alignItems: 'center',
-              height: '34px',
-              background: '#ffffff',
-              border: '1.5px solid #d5dfda',
-              borderRadius: 'var(--radius-pill, 9999px)',
-              padding: '0 10px 0 34px',
-              minWidth: '250px',
-              maxWidth: '360px',
-              flex: '1 1 250px',
-              boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
-              boxSizing: 'border-box',
-            }}
-          >
-            <Search
-              size={15}
-              className="tms-fleet-search-icon"
-              style={{
-                position: 'absolute',
-                left: '11px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted, #7c9489)',
-                pointerEvents: 'none',
-              }}
+              options={fleetFilters.map(f => ({ value: f.id, label: f.label }))}
             />
-            <input
-              type="text"
-              className="tms-fleet-search-input"
-              style={{
-                all: 'unset',
-                width: '100%',
-                height: '100%',
-                fontFamily: 'var(--font-body, inherit)',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: 'var(--text-heading, #0f2d24)',
-                boxSizing: 'border-box',
-              }}
-              placeholder={
-                ff === 'diversion'
-                  ? 'Search route diversions...'
-                  : ff === 'nonbill'
-                  ? 'Search non-billable trips...'
-                  : ff === 'radius'
-                  ? 'Search radius alerts...'
-                  : 'Search vehicles, drivers, routes...'
-              }
-              value={fleetQ}
-              onChange={(e) => setFleetQ(e.target.value)}
-              aria-label="Search fleet vehicles and GPS health"
-            />
-            {fleetQ && (
-              <button
-                type="button"
-                className="tms-fleet-search-clear"
-                onClick={() => setFleetQ('')}
-                aria-label="Clear search"
-                title="Clear search"
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  display: 'inline-grid',
-                  placeItems: 'center',
-                  width: '18px',
-                  height: '18px',
-                  borderRadius: '50%',
-                  color: 'var(--text-muted, #7c9489)',
-                  background: '#f1f5f3',
-                  marginLeft: '4px',
-                  flex: 'none',
-                }}
-              >
-                <X size={14} />
-              </button>
-            )}
           </div>
-        </div>
+
+          <Input
+            allowClear
+            prefix={<Search size={15} style={{ color: 'var(--text-muted)' }} />}
+            placeholder={
+              ff === 'diversion'
+                ? 'Search route diversions...'
+                : ff === 'nonbill'
+                ? 'Search non-billable trips...'
+                : ff === 'radius'
+                ? 'Search radius alerts...'
+                : 'Search vehicles, drivers, routes...'
+            }
+            value={fleetQ}
+            onChange={(e) => setFleetQ(e.target.value)}
+            aria-label="Search fleet vehicles and GPS health"
+            style={{ flex: '1 1 250px', maxWidth: 360 }}
+          />
+        </Flex>
 
         {/* Right side duration filter option — ONLY shown in IDLE section */}
         {ff === 'idle' && (
-          <div className="tms-fleet-duration-wrap" style={{ marginLeft: 'auto' }}>
-            <SelectField
-              value={idleDurationFilter}
-              onChange={setIdleDurationFilter}
-              options={[
-                { value: 'all', label: 'All durations' },
-                { value: '1', label: 'More than 1 hour' },
-                { value: '2', label: 'More than 2 hours' },
-                { value: '3', label: 'More than 3 hours' },
-                { value: '4', label: 'More than 4 hours' },
-              ]}
-              icon={Clock}
-              ariaLabel="Idle duration"
-              width="200px"
-              height={38}
-            />
-          </div>
+          <Select
+            value={idleDurationFilter}
+            onChange={setIdleDurationFilter}
+            options={[
+              { value: 'all', label: 'All durations' },
+              { value: '1', label: 'More than 1 hour' },
+              { value: '2', label: 'More than 2 hours' },
+              { value: '3', label: 'More than 3 hours' },
+              { value: '4', label: 'More than 4 hours' },
+            ]}
+            prefix={<Clock size={15} />}
+            aria-label="Idle duration"
+            style={{ width: 200, maxWidth: '100%', marginLeft: 'auto' }}
+          />
         )}
-      </div>
+      </Flex>
 
       {/* VEHICLES VIEW */}
       {fleetShowVehicles && (
         fleetCards.length === 0 ? (
-          <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
-            {fleetQ ? (
-              <div>
-                <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
-                  No vehicles matching "{fleetQ}"
-                </div>
-                <div style={{ fontSize: '13px' }}>Try searching by registration number, driver, branch, or route.</div>
-                <button
-                  type="button"
-                  onClick={() => setFleetQ('')}
-                  style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-                >
+          <Card>
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                fleetQ ? (
+                  <>
+                    <Typography.Text strong style={{ display: 'block' }}>No vehicles matching "{fleetQ}"</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>Try searching by registration number, driver, branch, or route.</Typography.Text>
+                  </>
+                ) : (
+                  `No idle vehicles match the selected duration filter ${idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.`
+                )
+              }
+            >
+              {fleetQ && (
+                <Button type="link" onClick={() => setFleetQ('')}>
                   Clear search &rarr;
-                </button>
-              </div>
-            ) : (
-              `No idle vehicles match the selected duration filter ${idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.`
-            )}
-          </div>
+                </Button>
+              )}
+            </Empty>
+          </Card>
         ) : (
           <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '16px', alignItems: 'stretch' }}>
+          <Row gutter={[16, 16]}>
             {fleetPg.rows.map(v => (
-              <div
-                key={v.id}
-                role="button"
-                tabIndex={0}
-                aria-label={`Track ${v.number} on the map`}
-                onClick={() => setTrackId(v.id)}
-                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTrackId(v.id); } }}
-                className="tms-fleet-card"
-                style={{
-                  background: '#fff',
-                  border: '1px solid var(--border-default)',
-                  borderLeft: `4px solid ${v.tone.edge}`,
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '14px 16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
-                  transition: 'border-color var(--dur-fast), box-shadow var(--dur-fast), transform var(--dur-fast)',
-                }}
-              >
-                {/* Plate + GPS state */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                    {v.number}
-                  </span>
-                  <span
-                    title={`GPS ${v.gps}`}
-                    style={{
-                      flex: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-pill, 999px)',
-                      background: v.gpsBg,
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '10.5px',
-                      fontWeight: 700,
-                      letterSpacing: '0.08em',
-                      textTransform: 'uppercase',
-                      color: v.gpsColor,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: v.gpsColor }} />
-                    {v.gps}
-                  </span>
-                </div>
+              <Col key={v.id} xs={24} sm={12} xl={8} xxl={6}>
+                <Card
+                  hoverable
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Track ${v.number} on the map`}
+                  onClick={() => setTrackId(v.id)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTrackId(v.id); } }}
+                  style={{ height: '100%', borderLeft: `4px solid ${v.tone.edge}` }}
+                  styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px' } }}
+                >
+                  {/* Plate + GPS state */}
+                  <Flex justify="space-between" align="center" gap={8}>
+                    <Typography.Text style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+                      {v.number}
+                    </Typography.Text>
+                    <Tag color={GPS_TAG[v.gps] || 'error'} title={`GPS ${v.gps}`} style={{ ...kicker, fontSize: 10.5, marginInlineEnd: 0 }}>
+                      {v.gps}
+                    </Tag>
+                  </Flex>
 
-                <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {v.type} · {v.branchName}
-                </div>
+                  <Typography.Text type="secondary" ellipsis style={{ fontSize: 12.5 }}>
+                    {v.type} · {v.branchName}
+                  </Typography.Text>
 
-                {/* Body takes the slack, so every footer in a row lines up */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', minHeight: '46px' }}>
-                  <div
-                    title={v.route}
-                    style={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                      fontSize: '14px',
-                      lineHeight: 1.4,
-                      fontWeight: 600,
-                      color: 'var(--text-heading)',
-                    }}
-                  >
-                    {v.route}
-                  </div>
-                  {v.radiusAlert && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: '7px',
-                        alignItems: 'flex-start',
-                        fontSize: '12.5px',
-                        lineHeight: 1.45,
-                        padding: '8px 10px',
-                        background: 'var(--color-hazard-soft)',
-                        border: '1px solid var(--kr-saffron-500)',
-                        borderRadius: 'var(--radius-md)',
-                        color: '#7A4300',
-                      }}
+                  {/* Body takes the slack, so every footer in a row lines up */}
+                  <Flex vertical gap={8} style={{ flex: 1, minHeight: 46 }}>
+                    <Typography.Paragraph
+                      strong
+                      ellipsis={{ rows: 2, tooltip: v.route }}
+                      style={{ margin: 0, lineHeight: 1.4, color: 'var(--text-heading)' }}
                     >
-                      <TriangleAlert size={13} style={{ flex: 'none', marginTop: '2px' }} />
-                      <span>{v.radiusAlert}</span>
-                    </div>
-                  )}
-                </div>
+                      {v.route}
+                    </Typography.Paragraph>
+                    {v.radiusAlert && (
+                      <Alert type="warning" showIcon icon={<TriangleAlert size={13} />} title={v.radiusAlert} style={{ fontSize: 12.5, padding: '8px 10px' }} />
+                    )}
+                  </Flex>
 
-                {/* Status, driver and last fix, on one aligned line */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--border-default)', paddingTop: '10px', fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                  <span
-                    style={{
-                      flex: 'none',
-                      padding: '2px 8px',
-                      borderRadius: 'var(--radius-pill, 999px)',
-                      background: v.tone.bg,
-                      color: v.tone.fg,
-                      fontFamily: 'var(--font-display)',
-                      fontSize: '10.5px',
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {v.status}
-                  </span>
-                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.driverName}</span>
-                  <span style={{ marginLeft: 'auto', flex: 'none', whiteSpace: 'nowrap' }}>{v.lastSeen}</span>
-                </div>
+                  {/* Status, driver and last fix, on one aligned line */}
+                  <Flex align="center" gap={8} style={{ borderTop: '1px solid var(--border-default)', paddingTop: 10, fontSize: 12.5 }}>
+                    <Tag color={STATUS_TAG[v.status] || 'default'} style={{ ...kicker, fontSize: 10.5, letterSpacing: '0.06em', marginInlineEnd: 0 }}>
+                      {v.status}
+                    </Tag>
+                    <Typography.Text type="secondary" ellipsis style={{ fontSize: 12.5, minWidth: 0 }}>{v.driverName}</Typography.Text>
+                    <Typography.Text type="secondary" style={{ fontSize: 12.5, marginLeft: 'auto', flex: 'none', whiteSpace: 'nowrap' }}>{v.lastSeen}</Typography.Text>
+                  </Flex>
 
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700, color: 'var(--text-brand)' }}>
-                  <MapPin size={13} /> Track on map
-                </div>
-              </div>
+                  <Space size={6} style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-brand)' }}>
+                    <MapPin size={13} /> Track on map
+                  </Space>
+                </Card>
+              </Col>
             ))}
-          </div>
-          <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-            <Pagination {...fleetPg} noun="vehicles" sizes={[10, 20, 50, 100]} />
-          </div>
+          </Row>
+          <Card size="small">
+            <Pagination align="end" {...fleetPg.pagination} />
+          </Card>
           </>
         )
       )}
@@ -726,561 +510,330 @@ export const FleetMonitor = () => {
 
       {/* DIVERSIONS VIEW */}
       {fleetShowDiversion && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              <strong style={{ color: 'var(--text-heading)' }}>{divSummary.count}</strong> flagged routes · {divSummary.live} off route now · {divSummary.over} over 20 km
-            </span>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+        <Flex vertical gap={16}>
+          <Flex justify="space-between" align="baseline" gap={12} wrap>
+            <Typography.Text type="secondary">
+              <Typography.Text strong>{divSummary.count}</Typography.Text> flagged routes · {divSummary.live} off route now · {divSummary.over} over 20 km
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
               Alert fires when a vehicle leaves its fixed corridor by more than 10 km
-            </span>
-          </div>
+            </Typography.Text>
+          </Flex>
           {filteredDivCards.length === 0 ? (
-            <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
-              {fleetQ ? (
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
-                    No route diversions matching "{fleetQ}"
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFleetQ('')}
-                    style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-                  >
+            <Card>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  fleetQ ? (
+                    <Typography.Text strong>No route diversions matching "{fleetQ}"</Typography.Text>
+                  ) : (
+                    'No active route diversions detected.'
+                  )
+                }
+              >
+                {fleetQ && (
+                  <Button type="link" onClick={() => setFleetQ('')}>
                     Clear search &rarr;
-                  </button>
-                </div>
-              ) : (
-                'No active route diversions detected.'
-              )}
-            </div>
+                  </Button>
+                )}
+              </Empty>
+            </Card>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: '16px' }}>
+              <Row gutter={[16, 16]}>
                 {divPg.rows.map(d => (
-                  <div
-                    key={d.id}
-                    style={{
-                      background: '#fff',
-                      border: '1px solid var(--border-default)',
-                      borderLeft: `4px solid ${d.edge}`,
-                      borderRadius: 'var(--radius-lg)',
-                      padding: '16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                        {d.number}
-                      </span>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontFamily: 'var(--font-display)',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          letterSpacing: '0.1em',
-                          textTransform: 'uppercase',
-                          padding: '3px 8px',
-                          borderRadius: 'var(--radius-sm)',
-                          background: d.stateBg,
-                          color: d.stateFg,
-                        }}
-                      >
-                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: d.stateFg, animation: d.pulse }}></span>
-                        {d.state}
-                      </span>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>{d.crewLine}</div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{d.routeLine}</div>
-                    </div>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '18px 88px minmax(0,1fr)',
-                        gap: '8px 10px',
-                        alignItems: 'baseline',
-                        padding: '12px',
-                        background: 'var(--surface-muted)',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '14px',
-                      }}
-                    >
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--color-brand)', alignSelf: 'center' }}></span>
-                      <span style={{ color: 'var(--text-muted)' }}>Expected</span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{d.expected}</span>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--kr-red-600)', alignSelf: 'center' }}></span>
-                      <span style={{ color: 'var(--text-muted)' }}>Actual</span>
-                      <span style={{ fontWeight: 600, color: 'var(--kr-red-800)' }}>{d.actual}</span>
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="var(--text-muted)"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        style={{ alignSelf: 'center' }}
-                      >
-                        <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"></path>
-                        <circle cx="12" cy="10" r="2.5"></circle>
-                      </svg>
-                      <span style={{ color: 'var(--text-muted)' }}>Left at</span>
-                      <span style={{ fontWeight: 600, color: 'var(--text-heading)' }}>{d.at}</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: '8px' }}>
-                      <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Off corridor</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: d.offColor }}>
-                          {d.offKm}
+                  <Col key={d.id} xs={24} lg={12} xxl={8}>
+                    <Card style={{ height: '100%', borderLeft: `4px solid ${d.edge}` }} styles={{ body: { padding: 16 } }}>
+                      <Flex vertical gap={12}>
+                        <Flex justify="space-between" align="center" gap={8}>
+                          <Typography.Text strong style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-heading)' }}>
+                            {d.number}
+                          </Typography.Text>
+                          <Tag color={DIVERSION_TAG[d.state] || 'default'} style={{ ...kicker, marginInlineEnd: 0 }}>
+                            <Space size={6}>
+                              {dot(d.stateFg, 7, d.pulse)}
+                              {d.state}
+                            </Space>
+                          </Tag>
+                        </Flex>
+                        <div>
+                          <Typography.Text strong style={{ display: 'block', fontSize: 15, color: 'var(--text-heading)' }}>{d.crewLine}</Typography.Text>
+                          <Typography.Text type="secondary" style={{ fontSize: 13 }}>{d.routeLine}</Typography.Text>
                         </div>
-                      </div>
-                      <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Duration</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)' }}>
-                          {d.minutes}
-                        </div>
-                      </div>
-                      <div style={{ padding: '10px', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Extra distance</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)' }}>
-                          {d.extraKm}
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '8px',
-                        paddingTop: '10px',
-                        borderTop: '1px solid var(--border-default)',
-                        fontSize: '13px',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      <span>Detected {d.detected} · <span style={{ color: d.gpsColor, fontWeight: 700 }}>GPS {d.gps}</span></span>
-                      <button
-                        onClick={() => navTo('trip', { selectedTrip: d.id })}
-                        style={{
-                          all: 'unset',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          color: 'var(--text-brand)',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        View trip &rarr;
-                      </button>
-                    </div>
-                  </div>
+                        <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }}>
+                          <Descriptions
+                            column={1}
+                            size="small"
+                            colon={false}
+                            styles={{ label: { width: 110 }, content: { fontWeight: 600, color: 'var(--text-heading)' } }}
+                            items={[
+                              { key: 'expected', label: <Space size={8}>{dot('var(--color-brand)', 10)}Expected</Space>, children: d.expected },
+                              {
+                                key: 'actual',
+                                label: <Space size={8}>{dot('var(--kr-red-600)', 10)}Actual</Space>,
+                                children: <span style={{ color: 'var(--kr-red-800)' }}>{d.actual}</span>,
+                              },
+                              { key: 'at', label: <Space size={8}><EnvironmentOutlined />Left at</Space>, children: d.at },
+                            ]}
+                          />
+                        </Card>
+                        <Row gutter={8}>
+                          {[
+                            ['Off corridor', d.offKm, d.offColor],
+                            ['Duration', d.minutes, 'var(--text-heading)'],
+                            ['Extra distance', d.extraKm, 'var(--text-heading)'],
+                          ].map(([label, value, color]) => (
+                            <Col key={label} span={8}>
+                              <Card size="small" style={{ height: '100%' }} styles={{ body: { padding: 10 } }}>
+                                <Statistic groupSeparator=""
+                                  title={label}
+                                  value={value}
+                                  styles={{ title: { fontSize: 12, marginBottom: 0 }, content: { ...bigValue, color } }}
+                                />
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                        <Flex justify="space-between" align="center" gap={8} style={{ paddingTop: 10, borderTop: '1px solid var(--border-default)' }}>
+                          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                            Detected {d.detected} · <Typography.Text strong style={{ fontSize: 13, color: d.gpsColor }}>GPS {d.gps}</Typography.Text>
+                          </Typography.Text>
+                          <Button type="link" size="small" onClick={() => navTo('trip', { selectedTrip: d.id })} style={{ paddingInline: 0 }}>
+                            View trip &rarr;
+                          </Button>
+                        </Flex>
+                      </Flex>
+                    </Card>
+                  </Col>
                 ))}
-              </div>
-              <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                <Pagination {...divPg} noun="flagged routes" sizes={[10, 20, 50, 100]} />
-              </div>
+              </Row>
+              <Card size="small">
+                <Pagination align="end" {...divPg.pagination} />
+              </Card>
             </>
           )}
-        </div>
+        </Flex>
       )}
 
       {/* NON-BILLABLE VIEW */}
       {fleetShowNonBill && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-              <strong style={{ color: 'var(--text-heading)' }}>{nbSummary.count}</strong> non-billable movements · {nbSummary.km} km by GPS · {nbSummary.reasons}
-            </span>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+        <Flex vertical gap={16}>
+          <Flex justify="space-between" align="baseline" gap={12} wrap>
+            <Typography.Text type="secondary">
+              <Typography.Text strong>{nbSummary.count}</Typography.Text> non-billable movements · {nbSummary.km} km by GPS · {nbSummary.reasons}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
               Not invoiced. Tracked for utilisation and hidden-km checks.
-            </span>
-          </div>
+            </Typography.Text>
+          </Flex>
           {filteredNbCards.length === 0 ? (
-            <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
-              {fleetQ ? (
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
-                    No non-billable movements matching "{fleetQ}"
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFleetQ('')}
-                    style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-                  >
+            <Card>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  fleetQ ? (
+                    <Typography.Text strong>No non-billable movements matching "{fleetQ}"</Typography.Text>
+                  ) : (
+                    'No non-billable movements recorded.'
+                  )
+                }
+              >
+                {fleetQ && (
+                  <Button type="link" onClick={() => setFleetQ('')}>
                     Clear search &rarr;
-                  </button>
-                </div>
-              ) : (
-                'No non-billable movements recorded.'
-              )}
-            </div>
+                  </Button>
+                )}
+              </Empty>
+            </Card>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: '16px' }}>
+              <Row gutter={[16, 16]}>
                 {nbPg.rows.map(n => (
-                  <div
-                    key={n.id}
-                    style={{
-                      background: '#fff',
-                      border: '1px solid var(--border-default)',
-                      borderLeft: '4px solid var(--kr-grey-500)',
-                      borderRadius: 'var(--radius-lg)',
-                      padding: '16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                        {n.number}
-                      </span>
-                      <span style={{ display: 'flex', gap: '6px' }}>
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-display)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '0.1em',
-                            textTransform: 'uppercase',
-                            padding: '3px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: 'var(--kr-grey-100)',
-                            color: 'var(--kr-grey-700)',
-                          }}
-                        >
-                          {n.reason}
-                        </span>
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-display)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '0.1em',
-                            textTransform: 'uppercase',
-                            padding: '3px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: n.badgeBg,
-                            color: n.badgeFg,
-                          }}
-                        >
-                          {n.status}
-                        </span>
-                      </span>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-heading)' }}>{n.crewLine}</div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{n.fromTo}</div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,minmax(0,1fr))', gap: '8px' }}>
-                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>GPS</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                          {n.gpsKm}
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                            {n.gpsUnit}
-                          </span>
+                  <Col key={n.id} xs={24} lg={12} xxl={8}>
+                    <Card style={{ height: '100%', borderLeft: '4px solid var(--kr-grey-500)' }} styles={{ body: { padding: 16 } }}>
+                      <Flex vertical gap={12}>
+                        <Flex justify="space-between" align="center" gap={8} wrap>
+                          <Typography.Text strong style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-heading)' }}>
+                            {n.number}
+                          </Typography.Text>
+                          <Space size={6}>
+                            <Tag style={{ ...kicker, marginInlineEnd: 0 }}>{n.reason}</Tag>
+                            <Tag color={n.status === 'Closed' ? 'default' : 'success'} style={{ ...kicker, marginInlineEnd: 0 }}>{n.status}</Tag>
+                          </Space>
+                        </Flex>
+                        <div>
+                          <Typography.Text strong style={{ display: 'block', fontSize: 15, color: 'var(--text-heading)' }}>{n.crewLine}</Typography.Text>
+                          <Typography.Text type="secondary" style={{ fontSize: 13 }}>{n.fromTo}</Typography.Text>
                         </div>
-                      </div>
-                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Odometer</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                          {n.odoKm}
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                            {n.odoUnit}
-                          </span>
+                        <Row gutter={[8, 8]}>
+                          {[
+                            ['GPS', n.gpsKm, n.gpsUnit],
+                            ['Odometer', n.odoKm, n.odoUnit],
+                            ['Top speed', n.maxSpeed, n.speedUnit],
+                            ['Idle', n.idle, n.idleUnit],
+                          ].map(([label, value, unit]) => (
+                            <Col key={label} xs={12} sm={6}>
+                              <Card size="small" variant="borderless" style={{ height: '100%', background: 'var(--surface-muted)' }} styles={{ body: { padding: 10 } }}>
+                                <Statistic groupSeparator=""
+                                  title={label}
+                                  value={value}
+                                  suffix={unit}
+                                  styles={{ title: { fontSize: 12, marginBottom: 0 }, content: bigValue, suffix: unitStyle }}
+                                />
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                        <div>
+                          <Typography.Text type="secondary" style={{ ...kicker, letterSpacing: '0.12em', display: 'block', marginBottom: 12 }}>
+                            GPS timeline
+                          </Typography.Text>
+                          <Timeline
+                            items={n.points.map((p, pIdx) => ({
+                              key: pIdx,
+                              color: p.dot,
+                              content: (
+                                <Flex justify="space-between" gap={8}>
+                                  <span>
+                                    <Typography.Text type="secondary" style={{ fontFamily: 'var(--font-mono)', fontSize: 13, marginRight: 8 }}>{p.t}</Typography.Text>
+                                    <Typography.Text style={{ color: 'var(--text-heading)' }}>{p.ev}</Typography.Text>
+                                  </span>
+                                  <Typography.Text type="secondary" style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{p.km} km</Typography.Text>
+                                </Flex>
+                              ),
+                            }))}
+                          />
                         </div>
-                      </div>
-                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Top speed</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                          {n.maxSpeed}
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                            {n.speedUnit}
-                          </span>
-                        </div>
-                      </div>
-                      <div style={{ padding: '10px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Idle</div>
-                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                          {n.idle}
-                          <span style={{ fontFamily: 'var(--font-body)', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '3px' }}>
-                            {n.idleUnit}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                        GPS timeline
-                      </div>
-                      {n.points.map((p, pIdx) => (
-                        <div
-                          key={pIdx}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '48px 16px minmax(0,1fr) auto',
-                            gap: '8px',
-                            alignItems: 'start',
-                            minHeight: '34px',
-                          }}
-                        >
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-muted)', paddingTop: '1px' }}>
-                            {p.t}
-                          </span>
-                          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%' }}>
-                            <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: p.dot, marginTop: '5px', flex: 'none' }}></span>
-                            <span style={{ flex: 1, width: '2px', background: p.line }}></span>
-                          </span>
-                          <span style={{ fontSize: '14px', color: 'var(--text-heading)', paddingBottom: '8px' }}>{p.ev}</span>
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{p.km} km</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '8px',
-                        paddingTop: '10px',
-                        borderTop: '1px solid var(--border-default)',
-                        fontSize: '13px',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      <span>{n.when} · <span style={{ color: n.gpsColor, fontWeight: 700 }}>GPS {n.gps}</span> · last fix {n.lastFix}</span>
-                      <button
-                        onClick={() => navTo('trip', { selectedTrip: n.id })}
-                        style={{
-                          all: 'unset',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: 700,
-                          color: 'var(--text-brand)',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        View trip &rarr;
-                      </button>
-                    </div>
-                  </div>
+                        <Flex justify="space-between" align="center" gap={8} style={{ paddingTop: 10, borderTop: '1px solid var(--border-default)' }}>
+                          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                            {n.when} · <Typography.Text strong style={{ fontSize: 13, color: n.gpsColor }}>GPS {n.gps}</Typography.Text> · last fix {n.lastFix}
+                          </Typography.Text>
+                          <Button type="link" size="small" onClick={() => navTo('trip', { selectedTrip: n.id })} style={{ paddingInline: 0 }}>
+                            View trip &rarr;
+                          </Button>
+                        </Flex>
+                      </Flex>
+                    </Card>
+                  </Col>
                 ))}
-              </div>
-              <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                <Pagination {...nbPg} noun="movements" sizes={[10, 20, 50, 100]} />
-              </div>
+              </Row>
+              <Card size="small">
+                <Pagination align="end" {...nbPg.pagination} />
+              </Card>
             </>
           )}
-        </div>
+        </Flex>
       )}
 
       {/* RADIUS ALERT VIEW */}
       {fleetShowRadius && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '4px 12px',
-                borderRadius: 'var(--radius-pill)',
-                background: 'var(--color-brand-tint)',
-                color: 'var(--kr-green-800)',
-                fontSize: '13px',
-                fontWeight: 600,
-              }}
-            >
-              <span
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: 'var(--color-brand)',
-                  animation: 'tmsPulse 1.6s ease-in-out infinite',
-                }}
-              ></span>
-              Live monitoring
-            </span>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+        <Flex vertical gap={16}>
+          <Flex justify="space-between" align="center" gap={12} wrap>
+            <Tag color="success" style={{ fontSize: 13, fontWeight: 600, padding: '4px 12px', borderRadius: 999, marginInlineEnd: 0 }}>
+              <Space size={8}>
+                {dot('var(--color-brand)', 8, 'tmsPulse 1.6s ease-in-out infinite')}
+                Live monitoring
+              </Space>
+            </Tag>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
               Vehicles and supervisors outside their safe radius right now
-            </span>
-          </div>
+            </Typography.Text>
+          </Flex>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,220px))', gap: '12px' }}>
+          <Row gutter={[12, 12]}>
             {rbTiles.map((k, idx) => (
-              <div
-                key={idx}
-                style={{
-                  background: k.bg,
-                  border: `1px solid ${k.edge}`,
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '14px 16px',
-                }}
-              >
-                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '28px', lineHeight: 1.1, color: k.color }}>
-                  {k.value}
-                </div>
-                <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '2px' }}>{k.label}</div>
-              </div>
+              <Col key={idx} xs={24} sm={8} lg={6}>
+                <Card size="small" style={{ background: k.bg, borderColor: k.edge }} styles={{ body: { padding: '14px 16px' } }}>
+                  <Statistic groupSeparator=""
+                    title={k.label}
+                    value={k.value}
+                    styles={{ title: { fontSize: 14 }, content: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 28, lineHeight: 1.1, color: k.color } }}
+                  />
+                </Card>
+              </Col>
             ))}
-          </div>
+          </Row>
 
           {filteredRbCards.length === 0 ? (
-            <div style={{ padding: '36px 20px', textAlign: 'center', background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)', fontSize: '14px' }}>
-              {fleetQ ? (
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-heading)', marginBottom: '4px' }}>
-                    No radius alerts matching "{fleetQ}"
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setFleetQ('')}
-                    style={{ all: 'unset', cursor: 'pointer', marginTop: '12px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-                  >
+            <Card>
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  fleetQ ? (
+                    <Typography.Text strong>No radius alerts matching "{fleetQ}"</Typography.Text>
+                  ) : (
+                    'No active radius breaches right now.'
+                  )
+                }
+              >
+                {fleetQ && (
+                  <Button type="link" onClick={() => setFleetQ('')}>
                     Clear search &rarr;
-                  </button>
-                </div>
-              ) : (
-                'No active radius breaches right now.'
-              )}
-            </div>
+                  </Button>
+                )}
+              </Empty>
+            </Card>
           ) : (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: '12px' }}>
+              <Row gutter={[12, 12]}>
                 {rbPg.rows.map(r => (
-                  <div
-                    key={r.id}
-                    style={{
-                      background: 'var(--kr-red-50, #fdf3f3)',
-                      border: '1px solid var(--kr-red-100)',
-                      borderLeft: '4px solid var(--kr-red-600)',
-                      borderRadius: 'var(--radius-lg)',
-                      padding: '16px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '6px',
-                      boxShadow: '0 1px 3px rgba(120, 20, 20, 0.06)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
-                      <div style={{ minWidth: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)' }}>
-                        {r.kindLabel}: <span style={{ fontFamily: r.nameFont }}>{r.name}</span>
-                      </div>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 'none' }}>
-                        <span
-                          style={{
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            padding: '3px 10px',
-                            borderRadius: 'var(--radius-pill)',
-                            background: 'var(--kr-red-100)',
-                            color: 'var(--kr-red-800)',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          Outside radius
-                        </span>
-                        <svg
-                          width="20"
-                          height="20"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="var(--kr-red-700)"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                          style={{ flex: 'none' }}
-                        >
-                          <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path>
-                          <path d="M12 9v4"></path>
-                          <path d="M12 17h.01"></path>
-                        </svg>
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '14px', color: 'var(--text-body)' }}>
-                      {r.place} · {r.zoneText}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '18px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="9"></circle>
-                          <path d="M12 7v5l3 2"></path>
-                        </svg>
-                        {r.time}
-                      </span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: r.awayColor }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="9"></circle>
-                          <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                        {r.away}
-                      </span>
-                    </div>
-                  </div>
+                  <Col key={r.id} xs={24} md={12} xl={8}>
+                    <Card
+                      style={{ height: '100%', background: 'var(--kr-red-50, #fdf3f3)', borderColor: 'var(--kr-red-100)', borderLeft: '4px solid var(--kr-red-600)' }}
+                      styles={{ body: { padding: 16 } }}
+                    >
+                      <Flex vertical gap={6}>
+                        <Flex justify="space-between" align="flex-start" gap={10}>
+                          <Typography.Text style={{ minWidth: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-heading)' }}>
+                            {r.kindLabel}: <span style={{ fontFamily: r.nameFont }}>{r.name}</span>
+                          </Typography.Text>
+                          <Space size={8} style={{ flex: 'none' }}>
+                            <Tag color="error" style={{ fontWeight: 600, borderRadius: 999, marginInlineEnd: 0 }}>Outside radius</Tag>
+                            <WarningOutlined aria-hidden="true" style={{ fontSize: 20, color: 'var(--kr-red-700)' }} />
+                          </Space>
+                        </Flex>
+                        <Typography.Text>
+                          {r.place} · {r.zoneText}
+                        </Typography.Text>
+                        <Space size={18} wrap>
+                          <Typography.Text type="secondary">
+                            <Space size={6}><ClockCircleOutlined />{r.time}</Space>
+                          </Typography.Text>
+                          <Typography.Text style={{ color: r.awayColor }}>
+                            <Space size={6}><AimOutlined />{r.away}</Space>
+                          </Typography.Text>
+                        </Space>
+                      </Flex>
+                    </Card>
+                  </Col>
                 ))}
-              </div>
-              <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                <Pagination {...rbPg} noun="alerts" sizes={[10, 20, 50, 100]} />
-              </div>
+              </Row>
+              <Card size="small">
+                <Pagination align="end" {...rbPg.pagination} />
+              </Card>
             </>
           )}
-        </div>
+        </Flex>
       )}
 
       {/* Distance Fallback Table */}
-      <section style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-        <h2
-          style={{
-            margin: 0,
-            padding: '14px 18px',
-            borderBottom: '1px solid var(--border-default)',
-            fontFamily: 'var(--font-display)',
-            fontWeight: 800,
-            fontSize: '15px',
-            letterSpacing: '0.02em',
-            textTransform: 'uppercase',
-            color: 'var(--text-heading)',
-          }}
-        >
-          Distance source fallback
-        </h2>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-          <thead>
-            <tr style={{ background: 'var(--surface-muted)', textAlign: 'left' }}>
-              <th style={{ padding: '8px 18px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                Odometer
-              </th>
-              <th style={{ padding: '8px 14px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                GPS
-              </th>
-              <th style={{ padding: '8px 18px', fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {fallbackRows.map((r, idx) => (
-              <tr key={idx} style={{ borderTop: '1px solid var(--border-default)' }}>
-                <td style={{ padding: '10px 18px' }}>{r.o}</td>
-                <td style={{ padding: '10px 14px' }}>{r.g}</td>
-                <td style={{ padding: '10px 18px', fontWeight: 600, color: r.color }}>{r.a}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    </div>
+      <Card
+        title={
+          <Typography.Title level={2} style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 15, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+            Distance source fallback
+          </Typography.Title>
+        }
+        styles={{ body: { padding: 0 } }}
+      >
+        <Table
+          columns={fallbackColumns}
+          dataSource={fallbackRows}
+          rowKey={r => `${r.o}-${r.g}`}
+          tableLayout="auto"
+          pagination={false}
+        />
+      </Card>
+    </Flex>
   );
 };
 

@@ -1,31 +1,115 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  ConfigProvider,
+  Descriptions,
+  Divider,
+  Flex,
+  Form,
+  Image,
+  Input,
+  Modal,
+  Row,
+  Col,
+  Select,
+  Space,
+  Tag,
+  Typography,
+  Upload,
+} from 'antd';
+import { Fuel, MapPin, Plus, Upload as UploadIcon } from 'lucide-react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
-import { Eye, EyeOff, X } from 'lucide-react';
-import { FormCheckboxSelect, FormBunksInput, FormLocationsInput } from '../../components/forms';
-import { SelectField } from '../../components/common/SelectField';
 
-const PasswordField = ({ value, onChange, placeholder }) => {
-  const [show, setShow] = useState(false);
-  return (
-    <div style={{ position: 'relative' }}>
-      <input
-        type={show ? 'text' : 'password'}
-        value={value}
-        placeholder={placeholder}
-        autoComplete="new-password"
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: '100%', boxSizing: 'border-box', height: '40px', padding: '0 40px 0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', fontFamily: 'inherit' }}
-      />
-      <button
-        type="button"
-        onClick={() => setShow(!show)}
-        aria-label={show ? 'Hide password' : 'Show password'}
-        style={{ all: 'unset', cursor: 'pointer', position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', display: 'grid', color: 'var(--text-muted)' }}
-      >
-        {show ? <EyeOff size={18} /> : <Eye size={18} />}
-      </button>
-    </div>
+/* Small uppercase label used for the drawer kicker and the review panels' block titles. */
+const kickerStyle = { fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' };
+
+const SEVERITY_COLOR = { High: 'error', Medium: 'warning' };
+const DRIVER_STATUS_COLOR = { Approved: 'success', Rejected: 'error', Pending: 'warning', 'Pending approval': 'warning' };
+
+/* ── Multi-select helpers ────────────────────────────────────────────
+   Same value contract the old checkbox dropdown had: the stored value is an
+   array of string values (it may also arrive as a comma-separated string of
+   ids or names), and an option counts as picked when a stored entry matches
+   its value, its label, or the start of its label. On change the picked
+   options are emitted as their values; stored entries that match no option
+   are kept, as before. */
+const normalizeCheckOptions = (options) =>
+  (options || []).map((opt) =>
+    typeof opt === 'string'
+      ? { value: opt, label: opt }
+      : { value: String(opt.value ?? opt.id ?? opt.name ?? ''), label: String(opt.label ?? opt.name ?? opt.value ?? '') }
   );
+
+const toValueList = (value) => {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((v) => String(v));
+  if (typeof value === 'string') return value.split(',').map((s) => s.trim()).filter(Boolean);
+  return [String(value)];
+};
+
+const entryMatches = (opt, v) => {
+  const lv = v.toLowerCase();
+  const ll = opt.label.toLowerCase();
+  return (
+    v === opt.value ||
+    v === opt.label ||
+    lv === ll ||
+    lv === opt.value.toLowerCase() ||
+    ll.startsWith(lv + ' ') ||
+    ll.startsWith(lv + ' (') ||
+    ll.startsWith(lv + ' ·')
+  );
+};
+
+/* Props for an antd multiple Select that keeps the contract above.
+   onPick(values, labelString) receives the next stored array and the joined labels. */
+const multiSelectProps = ({ value, options, placeholder, noun, onPick }) => {
+  const opts = normalizeCheckOptions(options);
+  const selectedValues = toValueList(value);
+  const picked = opts.filter((o) => selectedValues.some((v) => entryMatches(o, v))).map((o) => o.value);
+  const unmatched = selectedValues.filter((v) => !opts.some((o) => entryMatches(o, v)));
+  const nounPlural = noun === 'supervisor' ? 'supervisors' : noun === 'client' ? 'clients' : `${noun}s`;
+  const emit = (nextPicked) => {
+    const next = [...unmatched, ...nextPicked];
+    const labels = opts.filter((o) => next.includes(o.value) || next.includes(o.label)).map((o) => o.label);
+    onPick(next, labels.join(', '));
+  };
+  return {
+    mode: 'multiple',
+    value: picked,
+    options: opts,
+    placeholder,
+    allowClear: true,
+    maxTagCount: 'responsive',
+    showSearch: {
+      filterOption: (input, opt) => {
+        const q = input.trim().toLowerCase();
+        return !q || String(opt.label).toLowerCase().includes(q) || String(opt.value).toLowerCase().includes(q);
+      },
+    },
+    notFoundContent: `No matching ${nounPlural} found`,
+    onChange: (vals) => emit(vals || []),
+    popupRender: (menu) => (
+      <>
+        <Flex justify="space-between" align="center" style={{ padding: '2px 8px' }}>
+          <Typography.Text type="secondary">{opts.length} available</Typography.Text>
+          <Space size={0} separator={<Typography.Text type="secondary">|</Typography.Text>}>
+            <Button type="link" size="small" onClick={() => emit(opts.map((o) => o.value))}>
+              Select all
+            </Button>
+            <Button type="link" size="small" onClick={() => emit([])}>
+              Clear
+            </Button>
+          </Space>
+        </Flex>
+        <Divider style={{ margin: '4px 0' }} />
+        {menu}
+      </>
+    ),
+  };
 };
 
 export const AdminDrawer = () => {
@@ -58,9 +142,16 @@ export const AdminDrawer = () => {
   } = useTMSAdmin();
 
   const [fieldErrors, setFieldErrors] = useState({});
+  // Text typed into the "add bunk / add location" boxes, keyed by field.
+  const [listDrafts, setListDrafts] = useState({});
+  // Dropdowns render inside the modal's scrolling body, so a list opened near
+  // the bottom flips upward instead of spilling past the modal to the screen edge.
+  const popupHostRef = useRef(null);
+  const popupContainer = () => popupHostRef.current || document.body;
 
   useEffect(() => {
     setFieldErrors({});
+    setListDrafts({});
   }, [drawer]);
 
   if (!drawer) return null;
@@ -77,8 +168,7 @@ export const AdminDrawer = () => {
     vehicleNumber: v ? v.number : '—',
     tripNumber: tr ? tr.number : '—',
     branchName: (tms.B[exc.branch] || {}).name,
-    sevBg: exc.severity === 'High' ? 'var(--kr-red-100)' : exc.severity === 'Medium' ? 'var(--color-hazard-soft)' : 'var(--kr-grey-100)',
-    sevFg: exc.severity === 'High' ? 'var(--kr-red-800)' : exc.severity === 'Medium' ? '#7A4300' : 'var(--kr-grey-700)',
+    sevColor: SEVERITY_COLOR[exc.severity] || 'default',
     rows: [
       ['Type', exc.type],
       ['Vehicle', v ? v.number : '—'],
@@ -247,9 +337,9 @@ export const AdminDrawer = () => {
     showToast('success', String(saveLabelOf(form)).replace(/^Create|^Save|^Send/, m => ({ Create: 'Created', Save: 'Saved', Send: 'Sent' })[m]), `${drawer.title} · ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`);
   };
 
-  const pickFormUpload = (e, key) => {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
+  // Called from antd Upload's beforeUpload (which returns false, so nothing is
+  // posted anywhere); the photo is shrunk and stored on the form as before.
+  const pickFormUpload = (file, key) => {
     if (!file) return;
     if (!/^image\//.test(file.type)) {
       showToast('warning', 'Not an image', 'Upload a JPG or PNG photo of the document.');
@@ -278,811 +368,548 @@ export const AdminDrawer = () => {
     });
   };
 
-  return (
-    <div
-      onClick={closeDrawer}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 60,
-        background: 'rgba(20,32,43,.45)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-      }}
+
+  const clearFieldError = (key) => {
+    if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
+  };
+
+  const reqList = requiredOf(form);
+
+  // Form.Item error / hint wiring shared by every field row.
+  const itemStatus = (key, hintText) => ({
+    validateStatus: fieldErrors[key] ? 'error' : undefined,
+    help: fieldErrors[key] || undefined,
+    extra: !fieldErrors[key] && hintText ? hintText : undefined,
+    required: reqList.includes(key),
+  });
+
+  const docCard = (url, alt, placeholder, caption) => (
+    <Card
+      size="small"
+      cover={
+        url ? (
+          <Image src={url} alt={alt} height={110} width="100%" style={{ objectFit: 'cover' }} />
+        ) : (
+          <Flex align="center" justify="center" style={{ height: 110, background: 'var(--surface-muted)' }}>
+            <Typography.Text type="secondary">{placeholder}</Typography.Text>
+          </Flex>
+        )
+      }
     >
-      <aside
-        className="tms-drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-label={drawer.title}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: '560px',
-          maxHeight: 'calc(100vh - 32px)',
-          background: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          borderRadius: 'var(--radius-lg, 12px)',
-          boxShadow: 'var(--shadow-lg)',
-          borderTop: '6px solid var(--color-brand)',
-          animation: 'tmsFadeIn var(--dur-base) var(--ease-out)',
-        }}
-      >
-        {/* Drawer Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: '12px',
-            padding: '20px 24px 12px',
-            borderBottom: '1px solid var(--border-default)',
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: 'var(--text-muted)',
-              }}
-            >
-              {drawer.kicker}
-            </div>
-            <h2
-              style={{
-                margin: '4px 0 0',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 800,
-                fontSize: '22px',
-                letterSpacing: '-0.01em',
-                color: 'var(--text-heading)',
-              }}
-            >
-              {drawer.title}
-            </h2>
-          </div>
-          <button
-            onClick={closeDrawer}
-            aria-label="Close"
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              width: '40px',
-              height: '40px',
-              display: 'grid',
-              placeItems: 'center',
-              borderRadius: 'var(--radius-md)',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <X size={20} />
-          </button>
+      <Typography.Text strong>{caption}</Typography.Text>
+    </Card>
+  );
+
+  return (
+    <Modal
+      open={!!drawer}
+      onCancel={closeDrawer}
+      width={560}
+      centered
+      destroyOnHidden
+      mask={{ closable: true }}
+      closable={{ 'aria-label': 'Close' }}
+      styles={{ body: { maxHeight: '70vh', overflowY: 'auto', paddingRight: 4 } }}
+      title={
+        <div>
+          <Typography.Text type="secondary" style={kickerStyle}>
+            {drawer.kicker}
+          </Typography.Text>
+          <Typography.Title level={4} style={{ margin: '2px 0 0' }}>
+            {drawer.title}
+          </Typography.Title>
         </div>
-
-        {/* Drawer Body */}
-        <div
-          className="tms-drawer-body"
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-            padding: '20px 24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-          }}
-        >
-          {/* EXCEPTION DETAILS */}
-          {drawer.isException && (
-            <>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    letterSpacing: '0.1em',
-                    textTransform: 'uppercase',
-                    padding: '3px 8px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: excDetail.sevBg,
-                    color: excDetail.sevFg,
-                  }}
-                >
-                  {excDetail.severity}
-                </span>
-                <span className="tms-badge badge-neutral">{excDetail.status}</span>
-              </div>
-              <p style={{ margin: 0, fontSize: '15px', color: 'var(--text-heading)' }}>
-                {excDetail.detail}
-              </p>
-              <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                {excDetail.rows.map(([k, val], i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      gap: '16px',
-                      padding: '10px 14px',
-                      borderBottom: i === excDetail.rows.length - 1 ? 'none' : '1px solid var(--border-default)',
-                      fontSize: '14px',
-                    }}
-                  >
-                    <span style={{ color: 'var(--text-muted)' }}>{k}</span>
-                    <span style={{ fontWeight: 600, color: 'var(--text-heading)', textAlign: 'right' }}>{val}</span>
-                  </div>
-                ))}
-              </div>
-              {exc.trip && (
-                <button
-                  onClick={() => {
-                    closeDrawer();
-                    navTo('trip', { selectedTrip: exc.trip });
-                  }}
-                  style={{ all: 'unset', cursor: 'pointer', fontSize: '14px', fontWeight: 700, color: 'var(--text-brand)' }}
-                >
-                  Open trip {excDetail.tripNumber} →
-                </button>
-              )}
-              <FormCheckboxSelect
-                label="Alert supervisors"
-                name="excAssignees"
-                required
-                value={excAssignees}
-                options={supervisorOptions}
-                placeholder="Choose supervisors"
-                onChange={(e) => setExcAssignees((e && e.target ? e.target.value : e) || [])}
-                hint={
-                  excAssignees.length === 0
-                    ? 'Each supervisor you tick gets this exception as an alert in their app.'
-                    : `${excAssignees.length} supervisor${excAssignees.length > 1 ? 's' : ''} will be alerted on submit.`
-                }
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                  Message to supervisor <span style={{ fontWeight: 600, color: 'var(--kr-grey-700)' }}>· optional</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="What should they check or do"
-                  value={excNote}
-                  onChange={(e) => setExcNote(e.target.value)}
-                  style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-                />
-              </div>
-            </>
-          )}
-
-          {/* DRIVER APPROVAL REQUEST */}
-          {drawer.isDriverReq && drvReq && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span className="tms-badge badge-warning">{drvStatus}</span>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                  {isReq ? `Requested by ${drvReq.supervisorName} · ${(tms.B[drvReq.branch] || {}).name} · ${drvReq.requestedAt}` : `${(tms.B[drvReq.branch] || {}).name} · already in driver master`}
-                </span>
-              </div>
-              {drvReq.vehicle && (
-                <div style={{ padding: '12px 14px', background: 'var(--color-hazard-soft)', borderRadius: 'var(--radius-md)', fontSize: '13px', lineHeight: 1.5, color: '#7A4300' }}>
-                  The supervisor has already assigned this driver to a trip being opened on {drvReq.vehicle}. Rejecting removes the driver from that trip form.
-                </div>
-              )}
-              {/* Driver Details Table */}
-              <div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                  Driver details
-                </div>
-                <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-default)', fontSize: '14px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Name</span>
-                    <span style={{ fontWeight: 600 }}>{drvReq.name}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-default)', fontSize: '14px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Licence number</span>
-                    <span style={{ fontWeight: 600 }}>{drvReq.licence}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', fontSize: '14px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Mobile</span>
-                    <span style={{ fontWeight: 600 }}>+91 {drvReq.phone}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bank Details Table if attached */}
-              {isReq && (
-                <>
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                      Bank account
-                    </div>
-                    <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-default)', fontSize: '14px' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Account holder</span>
-                        <span style={{ fontWeight: 600 }}>{drvReq.holder || drvReq.name}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border-default)', fontSize: '14px' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Account number</span>
-                        <span style={{ fontWeight: 600 }}>{mask(drvReq.account || '1234567890')}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', fontSize: '14px' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>IFSC</span>
-                        <span style={{ fontWeight: 600 }}>{drvReq.ifsc || 'SBIN0001234'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Documents Section */}
-                  <div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                      Documents
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                      <figure style={{ margin: 0, border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                        <div style={{ height: '110px', display: 'grid', placeItems: 'center', background: 'var(--surface-muted)', fontSize: '12px', color: 'var(--text-muted)' }}>
-                          {drvReq.licImg?.url ? <img src={drvReq.licImg.url} alt="Licence" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'Driving Licence'}
-                        </div>
-                        <figcaption style={{ padding: '8px 10px', borderTop: '1px solid var(--border-default)', fontSize: '12px', fontWeight: 700 }}>
-                          Licence Image
-                        </figcaption>
-                      </figure>
-                      <figure style={{ margin: 0, border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-                        <div style={{ height: '110px', display: 'grid', placeItems: 'center', background: 'var(--surface-muted)', fontSize: '12px', color: 'var(--text-muted)' }}>
-                          {drvReq.aadhaarImg?.url ? <img src={drvReq.aadhaarImg.url} alt="Aadhaar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : 'Aadhaar Card'}
-                        </div>
-                        <figcaption style={{ padding: '8px 10px', borderTop: '1px solid var(--border-default)', fontSize: '12px', fontWeight: 700 }}>
-                          Aadhaar Image
-                        </figcaption>
-                      </figure>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {isPendingDrv && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 700 }}>
-                    Reason if rejecting
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Optional · sent to the supervisor"
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value.slice(0, 200))}
-                    style={{ height: '40px', padding: '0 10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)' }}
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {/* GENERIC RECORD / NOTICE FORM */}
-          {drawer.isForm && (
-            <>
-              {drawer.intro && (
-                <p style={{ margin: 0, padding: '12px 14px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)', fontSize: '13.5px', lineHeight: 1.55, color: 'var(--text-body)' }}>
-                  {drawer.intro}
-                </p>
-              )}
-              {drawer.details && drawer.details.length > 0 && (
-                <div style={{ border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                  {drawer.details.map(([dLabel, dValue, dTone], i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: '12px',
-                        padding: '9px 14px',
-                        fontSize: '13.5px',
-                        background: i % 2 ? 'var(--surface-muted)' : '#fff',
-                      }}
-                    >
-                      <span style={{ color: 'var(--kr-grey-700)' }}>{dLabel}</span>
-                      <span style={{ fontWeight: 700, textAlign: 'right', color: dTone === 'bad' ? 'var(--kr-red-700)' : 'var(--text-heading)' }}>
-                        {dValue == null || dValue === '' ? '—' : dValue}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {formError && (
-                <div
-                  role="alert"
-                  style={{
-                    padding: '12px 14px',
-                    background: 'var(--kr-red-50)',
-                    border: '1px solid var(--kr-red-100)',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--kr-red-800)',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                  }}
-                >
-                  {formError}
-                </div>
-              )}
-
-              {drawer.isNotice && (
-                <div style={{ padding: '12px 14px', background: 'var(--color-brand-tint)', borderRadius: 'var(--radius-md)', fontSize: '13px', lineHeight: 1.5, color: 'var(--kr-green-900)' }}>
-                  Supervisors see this on the Notifications page of the mobile app with your name and the time sent. Urgent notices also pop up on screen.
-                </div>
-              )}
-
-              {drawer.isTripEdit && (
-                <div style={{ padding: '12px 14px', background: 'var(--color-hazard-soft)', borderRadius: 'var(--radius-md)', fontSize: '13px', color: '#7A4300' }}>
-                  Edits to trip records are logged with your user, timestamp and the previous values. Supervisors cannot edit saved trips.
-                </div>
-              )}
-
-              {drawer.fields && drawer.fields.map(([key, label, opts, hint, extra = {}], idx) => {
-                if (extra.when && !extra.when(form)) return null;
-                const isSection = opts === 'section';
-                const isUpload = opts === 'upload';
-                const isArea = opts === 'textarea';
-                const isChecks = opts === 'checks';
-                const isBunksInput = opts === 'bunks-input' || key === 'authorizedBunks';
-                const isLocationsInput = opts === 'locations-input' || key === 'loadingLocations';
-                const isCheckboxSelect = (opts === 'checkbox-select'
-                  || (key === 'clients' && extra && extra.options)
-                  || (key === 'supervisors' && extra && extra.options)) && !isBunksInput && !isLocationsInput;
-                const isSelect = Array.isArray(opts);
-                const raw = form[key];
-                const file = isUpload && raw && typeof raw === 'object' ? raw : null;
-
-                if (isBunksInput) {
-                  return (
-                    <div key={idx}>
-                      <FormBunksInput
-                        label={label}
-                        value={raw}
-                        placeholder={typeof hint === 'string' ? hint : 'Type bunk name manually (e.g. IOC – Salem Highway Hub)'}
-                        onChange={(nextVal) => {
-                          setForm(prev => ({ ...prev, [key]: nextVal }));
-                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                        }}
-                      />
-                      {fieldErrors[key] && (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '2px', display: 'block' }}>
-                          {fieldErrors[key]}
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (isLocationsInput) {
-                  return (
-                    <div key={idx}>
-                      <FormLocationsInput
-                        label={label}
-                        value={raw}
-                        placeholder={typeof hint === 'string' ? hint : undefined}
-                        hint={extra.hint}
-                        onChange={(nextVal) => {
-                          setForm(prev => ({ ...prev, [key]: nextVal }));
-                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                        }}
-                      />
-                      {fieldErrors[key] && (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '2px', display: 'block' }}>
-                          {fieldErrors[key]}
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (isCheckboxSelect) {
-                  const options = (typeof extra.options === 'function' ? extra.options(form) : extra.options) || (Array.isArray(opts) ? opts : []);
-                  return (
-                    <div key={idx}>
-                      <FormCheckboxSelect
-                        label={label}
-                        name={key}
-                        value={raw}
-                        options={options}
-                        error={fieldErrors[key]}
-                        placeholder={hint && typeof hint === 'string' ? hint : `Select ${label.toLowerCase()}`}
-                        itemNoun={extra.itemNoun || (key === 'supervisors' ? 'supervisor' : 'client')}
-                        searchPlaceholder={extra.searchPlaceholder || (key === 'supervisors' ? 'Search supervisors...' : 'Search clients...')}
-                        onChange={(e) => {
-                          const val = e && e.target ? e.target.value : e;
-                          const str = e && e.target && e.target.string ? e.target.string : (Array.isArray(val) ? val.join(', ') : String(val || ''));
-                          setForm(prev => ({
-                            ...prev,
-                            [key]: val,
-                            [`${key}Names`]: str,
-                            ...(key === 'clients' ? { clientIds: val } : {}),
-                            ...(key === 'supervisors' ? { supervisorIds: val } : {}),
-                          }));
-                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                        }}
-                      />
-                      {fieldErrors[key] && (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '2px', display: 'block' }}>
-                          {fieldErrors[key]}
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (isSection) {
-                  return (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        paddingTop: '10px',
-                        marginTop: '4px',
-                        borderTop: '1px solid var(--border-default)',
-                      }}
-                    >
-                      <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                        {label}
-                      </h3>
-                    </div>
-                  );
-                }
-
-                if (isSelect) {
-                  const options = typeof opts[0] === 'string' ? opts.map(o => ({ value: o, label: o })) : opts;
-                  return (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                        {label}
-                      </label>
-                      <SelectField
-                        value={raw ?? ''}
-                        onChange={(v) => {
-                          setForm({ ...form, [key]: v });
-                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                        }}
-                        options={options}
-                        placeholder="Select"
-                        ariaLabel={label}
-                        height={40}
-                        error={!!fieldErrors[key]}
-                      />
-                      {fieldErrors[key] ? (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
-                      ) : hint && typeof hint === 'string' ? (
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{hint}</span>
-                      ) : null}
-                    </div>
-                  );
-                }
-
-                if (isChecks) {
-                  const picked = Array.isArray(raw) ? raw : [];
-                  const options = extra.options || [];
-                  return (
-                    <div key={idx} role="group" aria-label={label} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                        {label}
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {options.map(o => {
-                          const on = picked.includes(o.value);
-                          return (
-                            <button
-                              type="button"
-                              key={o.value}
-                              onClick={() => {
-                                toggleFormCheck(key, o.value);
-                                if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                              }}
-                              style={{
-                                all: 'unset',
-                                cursor: 'pointer',
-                                boxSizing: 'border-box',
-                                minHeight: '38px',
-                                padding: '0 12px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                border: `2px solid ${on ? 'var(--color-brand)' : fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
-                                borderRadius: 'var(--radius-md)',
-                                background: on ? 'var(--color-brand-tint)' : '#fff',
-                                color: 'var(--text-heading)',
-                                fontSize: '13px',
-                                fontWeight: 600,
-                              }}
-                            >
-                              <span style={{ width: '14px', height: '14px', borderRadius: '3px', border: `2px solid ${on ? 'var(--color-brand)' : fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`, background: on ? 'var(--color-brand)' : '#fff', color: '#fff', display: 'grid', placeItems: 'center', fontSize: '10px' }}>
-                                {on ? '✓' : ''}
-                              </span>
-                              {o.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {fieldErrors[key] && (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (isUpload) {
-                  return (
-                    <div key={idx}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '12px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                          {label}
-                        </span>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{hint}</span>
-                      </div>
-                      {!file ? (
-                        <label
-                          style={{
-                            marginTop: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '14px',
-                            minHeight: '64px',
-                            padding: '12px 14px',
-                            border: `2px dashed ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
-                            borderRadius: 'var(--radius-md)',
-                            background: 'var(--surface-muted)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              pickFormUpload(e, key);
-                              if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                            }}
-                            style={{ display: 'none' }}
-                          />
-                          <span style={{ fontWeight: 700, fontSize: '14px', color: fieldErrors[key] ? 'var(--kr-red-700)' : 'var(--text-heading)' }}>
-                            Upload photo (JPG / PNG)
-                          </span>
-                        </label>
-                      ) : (
-                        <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', border: '2px solid var(--color-brand)', borderRadius: 'var(--radius-md)', background: 'var(--color-brand-tint)' }}>
-                          <div style={{ flex: 1, minWidth: 0, fontSize: '13px', fontWeight: 700 }}>
-                            {file.name} ({file.size})
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => clearFormUpload(key)}
-                            style={{ all: 'unset', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--kr-red-700)' }}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      )}
-                      {fieldErrors[key] && (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600, marginTop: '4px', display: 'block' }}>
-                          {fieldErrors[key]}
-                        </span>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (isArea) {
-                  return (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                        {label}
-                      </label>
-                      <textarea
-                        rows={4}
-                        placeholder={hint || ''}
-                        value={raw ?? ''}
-                        onChange={(e) => {
-                          setForm({ ...form, [key]: e.target.value });
-                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                        }}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: `1px solid ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`, fontFamily: 'inherit' }}
-                      />
-                      {fieldErrors[key] && (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
-                      )}
-                    </div>
-                  );
-                }
-
-                if (extra.type === 'password') {
-                  return (
-                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                        {label}
-                      </label>
-                      <PasswordField value={raw ?? ''} placeholder={hint || ''} onChange={v => {
-                        setForm({ ...form, [key]: v });
-                        if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                      }} />
-                      {fieldErrors[key] ? (
-                        <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
-                      ) : extra.hint ? (
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>
-                      ) : null}
-                    </div>
-                  );
-                }
-
-                // Default input text / number
-                return (
-                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontFamily: 'var(--font-display)', fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                      {label}
-                    </label>
-                    <div style={{ display: 'flex', alignItems: 'stretch' }}>
-                      {extra.prefix && (
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '0 12px',
-                            background: 'var(--surface-muted)',
-                            border: `1px solid ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
-                            borderRight: 'none',
-                            borderRadius: 'var(--radius-md) 0 0 var(--radius-md)',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            color: 'var(--text-muted)',
-                          }}
-                        >
-                          {extra.prefix}
-                        </span>
-                      )}
-                      <input
-                        type={extra.clean === 'account' || extra.clean === 'litres' ? 'number' : 'text'}
-                        placeholder={hint || ''}
-                        value={raw ?? ''}
-                        onChange={(e) => {
-                          setForm({ ...form, [key]: e.target.value });
-                          if (fieldErrors[key]) setFieldErrors(prev => ({ ...prev, [key]: undefined }));
-                        }}
-                        style={{
-                          width: '100%',
-                          height: '40px',
-                          padding: '0 10px',
-                          borderRadius: extra.prefix ? '0 var(--radius-md) var(--radius-md) 0' : 'var(--radius-md)',
-                          border: `1px solid ${fieldErrors[key] ? 'var(--kr-red-600)' : 'var(--border-strong)'}`,
-                          fontFamily: 'inherit',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                    {fieldErrors[key] ? (
-                      <span style={{ fontSize: '12px', color: 'var(--kr-red-600)', fontWeight: 600 }}>{fieldErrors[key]}</span>
-                    ) : extra.hint ? (
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{extra.hint}</span>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
-
-        {/* Drawer Footer Actions */}
-        <div
-          className="tms-drawer-footer"
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            flexWrap: 'wrap',
-            gap: '12px',
-            padding: '16px 24px',
-            borderTop: '1px solid var(--border-default)',
-            background: 'var(--surface-muted)',
-          }}
-        >
-          <button
-            onClick={closeDrawer}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              height: '38px',
-              padding: '0 16px',
-              borderRadius: 'var(--radius-md)',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: 'var(--text-heading)',
-            }}
-          >
+      }
+      footer={
+        <Flex justify="flex-end" wrap gap={12}>
+          <Button type="text" onClick={closeDrawer}>
             Cancel
-          </button>
+          </Button>
           {drawer.isException && exc.status !== 'Resolved' && (
-            <button
-              onClick={handleExcSubmit}
-              disabled={!excAssignees.length}
-              style={{
-                all: 'unset',
-                cursor: excAssignees.length ? 'pointer' : 'not-allowed',
-                opacity: excAssignees.length ? 1 : 0.5,
-                height: '38px',
-                padding: '0 20px',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '14px',
-                fontWeight: 700,
-                background: 'var(--color-brand)',
-                color: '#fff',
-              }}
-            >
+            <Button type="primary" onClick={handleExcSubmit} disabled={!excAssignees.length}>
               Submit
-            </button>
+            </Button>
           )}
           {drawer.isDriverReq && isPendingDrv && (
             <>
-              <button
-                onClick={() => decideDriver(drawer.reqId, 'Rejected', rejectReason.trim())}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  height: '38px',
-                  padding: '0 16px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  background: 'var(--surface-card)',
-                  color: 'var(--kr-red-700)',
-                  border: '1px solid var(--kr-red-600)',
-                }}
-              >
+              <Button danger onClick={() => decideDriver(drawer.reqId, 'Rejected', rejectReason.trim())}>
                 Reject
-              </button>
-              <button
-                onClick={() => decideDriver(drawer.reqId, 'Approved')}
-                style={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  height: '38px',
-                  padding: '0 16px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '14px',
-                  fontWeight: 700,
-                  background: 'var(--color-brand)',
-                  color: '#fff',
-                }}
-              >
+              </Button>
+              <Button type="primary" onClick={() => decideDriver(drawer.reqId, 'Approved')}>
                 Approve driver
-              </button>
+              </Button>
             </>
           )}
           {drawer.isForm && (
-            <button
-              onClick={handleSaveForm}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                height: '38px',
-                padding: '0 18px',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '14px',
-                fontWeight: 700,
-                background: 'var(--color-brand)',
-                color: '#fff',
-              }}
-            >
+            <Button type="primary" onClick={handleSaveForm}>
               {saveLabelOf(form)}
-            </button>
+            </Button>
           )}
+        </Flex>
+      }
+    >
+      <ConfigProvider
+        theme={{ components: { Form: { itemMarginBottom: 0 } } }}
+        getPopupContainer={popupContainer}
+      >
+        <div ref={popupHostRef} style={{ position: 'relative' }}>
+        <Form layout="vertical" component={false}>
+          <Flex vertical gap={16}>
+            {/* EXCEPTION DETAILS */}
+            {drawer.isException && (
+              <>
+                <Flex gap={8} wrap>
+                  <Tag color={excDetail.sevColor}>{excDetail.severity}</Tag>
+                  <Tag>{excDetail.status}</Tag>
+                </Flex>
+                <Typography.Paragraph style={{ margin: 0, fontSize: 15 }}>{excDetail.detail}</Typography.Paragraph>
+                <Descriptions
+                  bordered
+                  size="small"
+                  column={1}
+                  items={excDetail.rows.map(([k, val], i) => ({ key: i, label: k, children: val }))}
+                />
+                {exc.trip && (
+                  <Button
+                    type="link"
+                    style={{ padding: 0, alignSelf: 'flex-start' }}
+                    onClick={() => {
+                      closeDrawer();
+                      navTo('trip', { selectedTrip: exc.trip });
+                    }}
+                  >
+                    Open trip {excDetail.tripNumber} →
+                  </Button>
+                )}
+                <Form.Item
+                  label="Alert supervisors"
+                  required
+                  extra={
+                    excAssignees.length === 0
+                      ? 'Each supervisor you tick gets this exception as an alert in their app.'
+                      : `${excAssignees.length} supervisor${excAssignees.length > 1 ? 's' : ''} will be alerted on submit.`
+                  }
+                >
+                  <Select
+                    {...multiSelectProps({
+                      value: excAssignees,
+                      options: supervisorOptions,
+                      placeholder: 'Choose supervisors',
+                      noun: 'supervisor',
+                      onPick: (next) => setExcAssignees(next || []),
+                    })}
+                  />
+                </Form.Item>
+                <Form.Item
+                  label={
+                    <span>
+                      Message to supervisor <Typography.Text type="secondary">· optional</Typography.Text>
+                    </span>
+                  }
+                >
+                  <Input
+                    placeholder="What should they check or do"
+                    value={excNote}
+                    onChange={(e) => setExcNote(e.target.value)}
+                  />
+                </Form.Item>
+              </>
+            )}
+
+            {/* DRIVER APPROVAL REQUEST */}
+            {drawer.isDriverReq && drvReq && (
+              <>
+                <Flex align="center" gap={10} wrap>
+                  <Tag color={DRIVER_STATUS_COLOR[drvStatus] || 'warning'}>{drvStatus}</Tag>
+                  <Typography.Text type="secondary">
+                    {isReq ? `Requested by ${drvReq.supervisorName} · ${(tms.B[drvReq.branch] || {}).name} · ${drvReq.requestedAt}` : `${(tms.B[drvReq.branch] || {}).name} · already in driver master`}
+                  </Typography.Text>
+                </Flex>
+                {drvReq.vehicle && (
+                  <Alert
+                    type="warning"
+                    title={`The supervisor has already assigned this driver to a trip being opened on ${drvReq.vehicle}. Rejecting removes the driver from that trip form.`}
+                  />
+                )}
+                <Descriptions
+                  title={<Typography.Text type="secondary" style={kickerStyle}>Driver details</Typography.Text>}
+                  bordered
+                  size="small"
+                  column={1}
+                  items={[
+                    { key: 'name', label: 'Name', children: drvReq.name },
+                    { key: 'licence', label: 'Licence number', children: drvReq.licence },
+                    { key: 'phone', label: 'Mobile', children: `+91 ${drvReq.phone}` },
+                  ]}
+                />
+
+                {isReq && (
+                  <>
+                    <Descriptions
+                      title={<Typography.Text type="secondary" style={kickerStyle}>Bank account</Typography.Text>}
+                      bordered
+                      size="small"
+                      column={1}
+                      items={[
+                        { key: 'holder', label: 'Account holder', children: drvReq.holder || drvReq.name },
+                        { key: 'account', label: 'Account number', children: mask(drvReq.account || '1234567890') },
+                        { key: 'ifsc', label: 'IFSC', children: drvReq.ifsc || 'SBIN0001234' },
+                      ]}
+                    />
+
+                    <div>
+                      <Typography.Text type="secondary" style={{ ...kickerStyle, display: 'block', marginBottom: 6 }}>
+                        Documents
+                      </Typography.Text>
+                      <Row gutter={[12, 12]}>
+                        <Col xs={24} sm={12}>
+                          {docCard(drvReq.licImg?.url, 'Licence', 'Driving Licence', 'Licence Image')}
+                        </Col>
+                        <Col xs={24} sm={12}>
+                          {docCard(drvReq.aadhaarImg?.url, 'Aadhaar', 'Aadhaar Card', 'Aadhaar Image')}
+                        </Col>
+                      </Row>
+                    </div>
+                  </>
+                )}
+
+                {isPendingDrv && (
+                  <Form.Item label="Reason if rejecting">
+                    <Input
+                      placeholder="Optional · sent to the supervisor"
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value.slice(0, 200))}
+                    />
+                  </Form.Item>
+                )}
+              </>
+            )}
+
+            {/* GENERIC RECORD / NOTICE FORM */}
+            {drawer.isForm && (
+              <>
+                {drawer.intro && <Alert type="info" title={drawer.intro} />}
+                {drawer.details && drawer.details.length > 0 && (
+                  <Descriptions
+                    bordered
+                    size="small"
+                    column={1}
+                    items={drawer.details.map(([dLabel, dValue, dTone], i) => ({
+                      key: i,
+                      label: dLabel,
+                      children: (
+                        <Typography.Text strong type={dTone === 'bad' ? 'danger' : undefined}>
+                          {dValue == null || dValue === '' ? '—' : dValue}
+                        </Typography.Text>
+                      ),
+                    }))}
+                  />
+                )}
+
+                {formError && <Alert type="error" showIcon title={formError} />}
+
+                {drawer.isNotice && (
+                  <Alert
+                    type="success"
+                    title="Supervisors see this on the Notifications page of the mobile app with your name and the time sent. Urgent notices also pop up on screen."
+                  />
+                )}
+
+                {drawer.isTripEdit && (
+                  <Alert
+                    type="warning"
+                    title="Edits to trip records are logged with your user, timestamp and the previous values. Supervisors cannot edit saved trips."
+                  />
+                )}
+
+                {drawer.fields && drawer.fields.map(([key, label, opts, hint, extra = {}], idx) => {
+                  if (extra.when && !extra.when(form)) return null;
+                  const isSection = opts === 'section';
+                  const isUpload = opts === 'upload';
+                  const isArea = opts === 'textarea';
+                  const isChecks = opts === 'checks';
+                  const isBunksInput = opts === 'bunks-input' || key === 'authorizedBunks';
+                  const isLocationsInput = opts === 'locations-input' || key === 'loadingLocations';
+                  const isCheckboxSelect = (opts === 'checkbox-select'
+                    || (key === 'clients' && extra && extra.options)
+                    || (key === 'supervisors' && extra && extra.options)) && !isBunksInput && !isLocationsInput;
+                  const isSelect = Array.isArray(opts);
+                  const raw = form[key];
+                  const file = isUpload && raw && typeof raw === 'object' ? raw : null;
+
+                  // Repeatable name lists (authorised fuel bunks / a client's loading locations):
+                  // stored as an array of trimmed, case-insensitively unique strings.
+                  if (isBunksInput || isLocationsInput) {
+                    const isLoc = !isBunksInput;
+                    const list = Array.isArray(raw)
+                      ? (isLoc ? raw.filter(Boolean) : raw)
+                      : typeof raw === 'string' && raw
+                      ? raw.split(',').map((s) => s.trim()).filter(Boolean)
+                      : [];
+                    const draft = listDrafts[key] || '';
+                    const setDraft = (text) => setListDrafts(prev => ({ ...prev, [key]: text }));
+                    const setList = (nextVal) => {
+                      setForm(prev => ({ ...prev, [key]: nextVal }));
+                      clearFieldError(key);
+                    };
+                    const addItem = () => {
+                      const trimmed = draft.trim();
+                      if (!trimmed) return;
+                      if (!list.some((l) => l.toLowerCase() === trimmed.toLowerCase())) {
+                        setList([...list, trimmed]);
+                      }
+                      setDraft('');
+                    };
+                    const placeholder = typeof hint === 'string'
+                      ? hint
+                      : isLoc
+                      ? 'Type a loading location (e.g. Sriperumbudur Cryogenic Hub)'
+                      : 'Type bunk name manually (e.g. IOC – Salem Highway Hub)';
+                    const helpText = isLoc
+                      ? (extra.hint || (
+                        <>
+                          Type a location and click <strong>+ Add</strong> (or press Enter). Each one is saved to the
+                          Loading Location Master under this client, where you can set its address, safe radius and GPS.
+                        </>
+                      ))
+                      : <>Type a bunk name above and click <strong>+ Add</strong> (or press Enter) to authorize it for this route.</>;
+                    const ItemIcon = isLoc ? MapPin : Fuel;
+                    return (
+                      <Form.Item
+                        key={idx}
+                        label={
+                          <Space size={8}>
+                            {label}
+                            {list.length > 0 && (
+                              <Tag color="success" variant="filled">
+                                {isLoc
+                                  ? `${list.length} location${list.length > 1 ? 's' : ''}`
+                                  : `${list.length} bunk${list.length > 1 ? 's' : ''} authorized`}
+                              </Tag>
+                            )}
+                          </Space>
+                        }
+                        {...itemStatus(key, helpText)}
+                      >
+                        <Flex vertical gap={8}>
+                          <Space.Compact block>
+                            <Input
+                              value={draft}
+                              placeholder={placeholder}
+                              onChange={(e) => setDraft(e.target.value)}
+                              onPressEnter={(e) => {
+                                e.preventDefault();
+                                addItem();
+                              }}
+                            />
+                            <Button type="primary" icon={<Plus size={16} />} disabled={!draft.trim()} onClick={addItem}>
+                              Add
+                            </Button>
+                          </Space.Compact>
+                          {list.length === 0 ? (
+                            <Typography.Text type="secondary" italic>
+                              {isLoc ? 'No loading location added for this client.' : 'No authorized bunks added for this route.'}
+                            </Typography.Text>
+                          ) : (
+                            <Flex wrap gap={8}>
+                              {list.map((itemName, i) => (
+                                <Tag
+                                  key={`${itemName}-${i}`}
+                                  color="success"
+                                  icon={<ItemIcon size={14} />}
+                                  closable={{ 'aria-label': `Remove ${itemName}` }}
+                                  onClose={(e) => {
+                                    e.preventDefault();
+                                    setList(list.filter((_, j) => j !== i));
+                                  }}
+                                >
+                                  {itemName}
+                                </Tag>
+                              ))}
+                            </Flex>
+                          )}
+                        </Flex>
+                      </Form.Item>
+                    );
+                  }
+
+                  if (isCheckboxSelect) {
+                    const options = (typeof extra.options === 'function' ? extra.options(form) : extra.options) || (Array.isArray(opts) ? opts : []);
+                    return (
+                      <Form.Item key={idx} label={label} {...itemStatus(key)}>
+                        <Select
+                          aria-label={label}
+                          {...multiSelectProps({
+                            value: raw,
+                            options,
+                            placeholder: hint && typeof hint === 'string' ? hint : `Select ${label.toLowerCase()}`,
+                            noun: extra.itemNoun || (key === 'supervisors' ? 'supervisor' : 'client'),
+                            onPick: (val, str) => {
+                              setForm(prev => ({
+                                ...prev,
+                                [key]: val,
+                                [`${key}Names`]: str,
+                                ...(key === 'clients' ? { clientIds: val } : {}),
+                                ...(key === 'supervisors' ? { supervisorIds: val } : {}),
+                              }));
+                              clearFieldError(key);
+                            },
+                          })}
+                        />
+                      </Form.Item>
+                    );
+                  }
+
+                  if (isSection) {
+                    return (
+                      <Divider key={idx} titlePlacement="start" style={{ margin: '4px 0 0' }}>
+                        <Typography.Text strong style={kickerStyle}>{label}</Typography.Text>
+                      </Divider>
+                    );
+                  }
+
+                  if (isSelect) {
+                    const options = typeof opts[0] === 'string' ? opts.map(o => ({ value: o, label: o })) : opts;
+                    return (
+                      <Form.Item key={idx} label={label} {...itemStatus(key, hint && typeof hint === 'string' ? hint : undefined)}>
+                        <Select
+                          aria-label={label}
+                          value={raw === '' || raw == null ? undefined : raw}
+                          onChange={(v) => {
+                            setForm({ ...form, [key]: v === undefined ? '' : v });
+                            clearFieldError(key);
+                          }}
+                          options={options}
+                          placeholder="Select"
+                        />
+                      </Form.Item>
+                    );
+                  }
+
+                  if (isChecks) {
+                    const picked = Array.isArray(raw) ? raw : [];
+                    const options = extra.options || [];
+                    return (
+                      <Form.Item key={idx} label={label} {...itemStatus(key)}>
+                        <Flex wrap gap={8} role="group" aria-label={label}>
+                          {options.map(o => (
+                            <Checkbox
+                              key={o.value}
+                              checked={picked.includes(o.value)}
+                              onChange={() => {
+                                toggleFormCheck(key, o.value);
+                                clearFieldError(key);
+                              }}
+                            >
+                              {o.label}
+                            </Checkbox>
+                          ))}
+                        </Flex>
+                      </Form.Item>
+                    );
+                  }
+
+                  if (isUpload) {
+                    return (
+                      <Form.Item key={idx} label={label} {...itemStatus(key)} extra={hint}>
+                        {!file ? (
+                          <Upload.Dragger
+                            accept="image/*"
+                            showUploadList={false}
+                            maxCount={1}
+                            beforeUpload={(picked) => {
+                              pickFormUpload(picked, key);
+                              clearFieldError(key);
+                              return false;
+                            }}
+                          >
+                            <Space>
+                              <UploadIcon size={18} />
+                              <Typography.Text strong type={fieldErrors[key] ? 'danger' : undefined}>
+                                Upload photo (JPG / PNG)
+                              </Typography.Text>
+                            </Space>
+                          </Upload.Dragger>
+                        ) : (
+                          <Alert
+                            type="success"
+                            title={`${file.name} (${file.size})`}
+                            action={
+                              <Button type="link" danger size="small" onClick={() => clearFormUpload(key)}>
+                                Remove
+                              </Button>
+                            }
+                          />
+                        )}
+                      </Form.Item>
+                    );
+                  }
+
+                  if (isArea) {
+                    return (
+                      <Form.Item key={idx} label={label} {...itemStatus(key)}>
+                        <Input.TextArea
+                          rows={4}
+                          placeholder={hint || ''}
+                          value={raw ?? ''}
+                          onChange={(e) => {
+                            setForm({ ...form, [key]: e.target.value });
+                            clearFieldError(key);
+                          }}
+                        />
+                      </Form.Item>
+                    );
+                  }
+
+                  if (extra.type === 'password') {
+                    return (
+                      <Form.Item key={idx} label={label} {...itemStatus(key, extra.hint)}>
+                        <Input.Password
+                          value={raw ?? ''}
+                          placeholder={hint || ''}
+                          autoComplete="new-password"
+                          onChange={(e) => {
+                            setForm({ ...form, [key]: e.target.value });
+                            clearFieldError(key);
+                          }}
+                        />
+                      </Form.Item>
+                    );
+                  }
+
+                  // Default input text / number (kept as the typed string, as before)
+                  const textInput = (
+                    <Input
+                      type={extra.clean === 'account' || extra.clean === 'litres' ? 'number' : 'text'}
+                      placeholder={hint || ''}
+                      value={raw ?? ''}
+                      onChange={(e) => {
+                        setForm({ ...form, [key]: e.target.value });
+                        clearFieldError(key);
+                      }}
+                    />
+                  );
+                  return (
+                    <Form.Item key={idx} label={label} {...itemStatus(key, extra.hint)}>
+                      {extra.prefix ? (
+                        <Space.Compact block>
+                          <Space.Addon>{extra.prefix}</Space.Addon>
+                          {textInput}
+                        </Space.Compact>
+                      ) : (
+                        textInput
+                      )}
+                    </Form.Item>
+                  );
+                })}
+              </>
+            )}
+          </Flex>
+        </Form>
         </div>
-      </aside>
-    </div>
+      </ConfigProvider>
+    </Modal>
   );
 };
 
 export default AdminDrawer;
-

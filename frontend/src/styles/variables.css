@@ -54,7 +54,7 @@
 
   --text-heading: var(--kr-grey-900);
   --text-body: var(--kr-grey-700);
-  --text-muted: var(--kr-grey-500);
+  --text-muted: #62645e;           /* was --kr-grey-500 (#7c7c76): too faint on white, now ~6:1 */
   --text-on-brand: var(--kr-white);
   --text-on-inverse: var(--kr-grey-50);
   --text-brand: var(--kr-green-700);

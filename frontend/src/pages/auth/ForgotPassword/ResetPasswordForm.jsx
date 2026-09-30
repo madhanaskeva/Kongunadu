@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Check, Lock, ShieldCheck } from 'lucide-react';
-import Button from '../../../components/common/Button';
-import FormInput from '../../../components/forms/FormInput';
+import { Alert, Button, Flex, Form, Input, Typography } from 'antd';
+import { ArrowLeft, Check, Lock } from 'lucide-react';
 
 /**
  * ResetPasswordForm — Step 3 of Forgot Password
@@ -18,8 +17,8 @@ export const ResetPasswordForm = ({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState('');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  // Called from antd Form onFinish (antd prevents the native submission).
+  const handleSubmit = () => {
     setLocalError('');
 
     if (!newPassword) {
@@ -51,126 +50,73 @@ export const ResetPasswordForm = ({
   const isMatch = newPassword && confirmPassword && newPassword === confirmPassword;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       <div>
-        <button
-          type="button"
+        <Button
+          color="default"
+          variant="link"
+          icon={<ArrowLeft size={16} />}
           onClick={onBack}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: 'var(--text-muted, #7c7c76)',
-            marginBottom: '12px',
-            transition: 'color var(--dur-fast, 0.15s)',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-brand, #00623f)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted, #7c7c76)')}
+          style={{ padding: 0, marginBottom: 12 }}
         >
-          <ArrowLeft size={16} />
-          <span>Back to login</span>
-        </button>
+          Back to login
+        </Button>
 
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-display)',
-            fontWeight: 800,
-            fontSize: '28px',
-            color: 'var(--kr-green-900, #003021)',
-          }}
-        >
+        <Typography.Title level={3} style={{ margin: 0 }}>
           Set new password
-        </h2>
-        <p style={{ margin: '6px 0 0', fontSize: '14px', color: 'var(--text-muted, #7c7c76)', lineHeight: 1.5 }}>
-          Your verification was successful for <strong style={{ color: 'var(--text-heading, #1c1c1a)' }}>{email}</strong>.
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ margin: '6px 0 0' }}>
+          Your verification was successful for <Typography.Text strong>{email}</Typography.Text>.
           Create a new password below.
-        </p>
+        </Typography.Paragraph>
       </div>
 
-      {displayError && (
-        <div
-          role="alert"
-          style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--kr-red-50, #fdf3f2)',
-            border: '1px solid var(--kr-red-100, #fbe0e0)',
-            borderRadius: 'var(--radius-md, 8px)',
-            color: 'var(--kr-red-800, #b31114)',
-            fontSize: '13px',
-            fontWeight: 600,
-          }}
-        >
-          {displayError}
-        </div>
-      )}
+      {displayError && <Alert type="error" showIcon title={displayError} />}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <FormInput
-          label="New Password"
-          type="password"
-          value={newPassword}
-          onChange={(e) => {
-            setNewPassword(e.target.value);
-            setLocalError('');
-          }}
-          placeholder="At least 6 characters"
-          icon={Lock}
+      <Form layout="vertical" onFinish={handleSubmit}>
+        <Form.Item label="New Password" required validateStatus={displayError ? 'error' : undefined}>
+          <Input.Password
+            value={newPassword}
+            onChange={(e) => {
+              setNewPassword(e.target.value);
+              setLocalError('');
+            }}
+            placeholder="At least 6 characters"
+            prefix={<Lock size={18} />}
+            autoFocus
+          />
+        </Form.Item>
+
+        <Form.Item
+          label="Confirm New Password"
           required
-          autoFocus
-        />
-
-        <div>
-          <FormInput
-            label="Confirm New Password"
-            type="password"
+          validateStatus={displayError ? 'error' : isMatch ? 'success' : undefined}
+          help={
+            isMatch ? (
+              <Flex align="center" gap={4}>
+                <Check size={14} />
+                <span>Passwords match</span>
+              </Flex>
+            ) : undefined
+          }
+          extra="Password must be at least 6 characters. Use letters, numbers, and symbols for better security."
+        >
+          <Input.Password
             value={confirmPassword}
             onChange={(e) => {
               setConfirmPassword(e.target.value);
               setLocalError('');
             }}
             placeholder="Re-enter your new password"
-            icon={Lock}
-            required
+            prefix={<Lock size={18} />}
           />
-          {isMatch && (
-            <div
-              style={{
-                marginTop: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '12px',
-                fontWeight: 600,
-                color: 'var(--status-success, #0b7e52)',
-              }}
-            >
-              <Check size={14} />
-              <span>Passwords match</span>
-            </div>
-          )}
-        </div>
+        </Form.Item>
 
-        <div style={{ fontSize: '12px', color: 'var(--text-muted, #7c7c76)', lineHeight: 1.5 }}>
-          Password must be at least 6 characters. Use letters, numbers, and symbols for better security.
-        </div>
-
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          fullWidth
-          loading={loading}
-          style={{ marginTop: '8px' }}
-        >
+        <Button type="primary" htmlType="submit" size="large" block loading={loading}>
           Reset Password
         </Button>
-      </form>
-    </div>
+      </Form>
+    </Flex>
   );
 };
 

@@ -1,19 +1,14 @@
 import React from 'react';
-import { Modal as AntModal } from 'antd';
+import { Modal as AntModal, Typography } from 'antd';
 
 /**
- * Modal — antd-backed drop-in replacement.
+ * Modal — antd Modal with the portal's header style.
  *
- * Props interface identical to original:
- *   isOpen, onClose, title, subtitle, children, maxWidth, footer
+ * Props (unchanged, so every caller keeps working):
+ *   isOpen, onClose, title, subtitle, children, maxWidth, footer, footerStyle, bodyStyle
  *
- * Visual output exactly matches original:
- *   - Centered overlay with blur backdrop
- *   - borderRadius: 12px (radius-lg)
- *   - shadow-xl
- *   - Header: subtitle label + h3 title + X close button
- *   - Content: 24px padding, scrollable
- *   - Footer: surface-muted bg, border-top, flex end
+ * antd draws the title, close button and footer; the only custom piece is
+ * the small uppercase `subtitle` kicker above the title.
  */
 export const Modal = ({
   isOpen,
@@ -25,138 +20,44 @@ export const Modal = ({
   footer,
   footerStyle = {},
   bodyStyle = {},
-}) => {
-  return (
-    <AntModal
-      open={isOpen}
-      onCancel={onClose}
-      width={maxWidth}
-      footer={null}
-      destroyOnClose
-      centered
-      mask={{ closable: true }}
-      styles={{
-        mask: {
-          backdropFilter: 'blur(3px)',
-          backgroundColor: 'rgba(20, 32, 43, 0.55)',
-        },
-        content: {
-          borderRadius: '12px',
-          boxShadow: 'var(--shadow-xl)',
-          padding: 0,
-          overflow: 'hidden',
-        },
-        header: {
-          display: 'none',   // we render our own header inside body
-        },
-        body: {
-          padding: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '90vh',
-        },
-      }}
-      closeIcon={null}  // we render our own close button
-    >
-      {/* Custom header — matches original exactly */}
-      <div
-        style={{
-          padding: '20px 24px',
-          borderBottom: '1px solid var(--border-default)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-        }}
-      >
-        <div>
-          {subtitle && (
-            <div
-              style={{
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-                color: 'var(--text-brand)',
-                marginBottom: '2px',
-              }}
-            >
-              {subtitle}
-            </div>
-          )}
-          <h3
-            style={{
-              margin: 0,
-              fontSize: '18px',
-              fontWeight: 800,
-              color: 'var(--text-heading)',
-            }}
-          >
-            {title}
-          </h3>
-        </div>
-        <button
-          onClick={onClose}
-          aria-label="Close modal"
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            display: 'grid',
-            placeItems: 'center',
-            width: '32px',
-            height: '32px',
-            borderRadius: 'var(--radius-md)',
-            color: 'var(--text-muted)',
-            transition: 'background var(--dur-fast), color var(--dur-fast)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--surface-muted)';
-            e.currentTarget.style.color = 'var(--text-heading)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'var(--text-muted)';
-          }}
-        >
-          {/* X icon — inline SVG so no extra import needed */}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+}) => (
+  <AntModal
+    open={isOpen}
+    onCancel={onClose}
+    width={maxWidth}
+    footer={footer || null}
+    destroyOnHidden
+    centered
+    mask={{ closable: true }}
+    className="tms-modal"
+    title={
+      <div>
+        {subtitle && <div className="tms-kicker">{subtitle}</div>}
+        <Typography.Title level={4} style={{ margin: 0 }}>{title}</Typography.Title>
       </div>
-
-      {/* Content */}
-      <div
-        style={{
-          padding: '24px',
-          overflowY: 'auto',
-          flex: 1,
-          ...bodyStyle,
-        }}
-      >
-        {children}
-      </div>
-
-      {/* Footer */}
-      {footer && (
-        <div
-          style={{
-            padding: '16px 24px',
-            backgroundColor: 'var(--surface-muted)',
-            borderTop: '1px solid var(--border-default)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: '12px',
-            ...footerStyle,
-          }}
-        >
-          {footer}
-        </div>
-      )}
-    </AntModal>
-  );
-};
+    }
+    styles={{
+      mask: { backdropFilter: 'blur(3px)', backgroundColor: 'rgba(20, 32, 43, 0.55)' },
+      // Padding lives on header/body/footer (not the container) so callers can
+      // run content edge to edge with bodyStyle={{ padding: 0 }} (fleet map).
+      container: { padding: 0, overflow: 'hidden' },
+      header: { padding: '20px 56px 16px 24px', margin: 0, borderBottom: '1px solid var(--border-default)' },
+      body: { padding: 24, maxHeight: '75vh', overflowY: 'auto', ...bodyStyle },
+      footer: {
+        margin: 0,
+        padding: '16px 24px',
+        background: 'var(--surface-muted)',
+        borderTop: '1px solid var(--border-default)',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        gap: 12,
+        ...footerStyle,
+      },
+    }}
+  >
+    {children}
+  </AntModal>
+);
 
 export default Modal;

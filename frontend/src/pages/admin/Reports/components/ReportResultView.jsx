@@ -1,14 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Button, Card, Dropdown, Flex, Input, Table, Tag, Typography } from 'antd';
 import {
   FileSpreadsheet,
   SlidersHorizontal,
   ArrowUpDown,
   Search,
-  X,
-  Calendar,
   Check,
 } from 'lucide-react';
-import { Pagination, usePagination } from '../../../../components/common/Pagination';
 import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
 import { ReportEmptyState } from './ReportEmptyState';
 import { useTMSAdmin } from '../../../../context/TMSAdminContext';
@@ -83,7 +81,17 @@ export const ReportResultView = ({
     return list;
   }, [rows, debouncedSearchQ, sortConfig]);
 
-  const pagination = usePagination(processedRows, [processedRows]);
+  // Pagination (antd Table built-in, controlled so it resets to page 1
+  // whenever the processed rows or page size change — same as usePagination)
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [processedRows, pageSize]);
+
+  // Stable row keys (row.id, falling back to the row's position)
+  const tableRows = useMemo(
+    () => processedRows.map((row, idx) => ({ row, rowKey: row.id || `__row_${idx}` })),
+    [processedRows]
+  );
 
   const activeColumns = useMemo(() => {
     return columns.filter(c => visibleColKeys.includes(c.key));
@@ -130,338 +138,191 @@ export const ReportResultView = ({
     }
   };
 
+  // Status tone -> antd Tag preset colour (green / red / saffron / grey)
   const getStatusBadgeStyle = (val) => {
     const s = String(val || '').toLowerCase();
     if (s.includes('active') || s.includes('closed') || s.includes('ok') || s.includes('running') || s.includes('present') || s.includes('approved')) {
-      return { background: 'var(--kr-green-50, #edf8f3)', color: 'var(--kr-green-800, #004a31)', border: '1px solid var(--kr-green-100, #daf1e7)' };
+      return 'success';
     }
     if (s.includes('failed') || s.includes('inactive') || s.includes('high') || s.includes('absent') || s.includes('rejected')) {
-      return { background: '#fef2f2', color: '#991b1b', border: '1px solid #fee2e2' };
+      return 'error';
     }
     if (s.includes('enroute') || s.includes('on road') || s.includes('idle') || s.includes('weak') || s.includes('medium') || s.includes('review') || s.includes('pending')) {
-      return { background: 'var(--kr-saffron-100, #fdebd3)', color: 'var(--kr-saffron-600, #d97b00)', border: '1px solid #fed7aa' };
+      return 'warning';
     }
-    return { background: 'var(--kr-grey-100, #f1f5f9)', color: 'var(--kr-grey-700, #334155)', border: '1px solid #e2e8f0' };
+    return 'default';
   };
 
-  return (
-    <div
-      style={{
-        background: '#ffffff',
-        border: '1px solid var(--border-default, #e2e8f0)',
-        borderRadius: 'var(--radius-lg, 12px)',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-        padding: '20px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-      }}
-    >
-      {/* Header & Meta */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '14px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-brand, #00623f)' }}>
-              Report View
-            </span>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)' }}>
-              · {generatedAt ? generatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
-            </span>
-          </div>
-
-          <h2 style={{ margin: '4px 0 2px', fontSize: '20px', fontWeight: 800, color: 'var(--text-heading, #1e293b)' }}>
-            {moduleMeta?.label || 'Generated'} Report
-          </h2>
-
-          <div style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)' }}>
-            Your report is based on the choices you selected (showing <strong>{processedRows.length}</strong> of <strong>{recordCount}</strong> records).
-          </div>
-        </div>
-
-        {/* Export Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={FILE_TRANSFER_ENABLED ? handleExportXlsx : undefined}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '36px',
-              padding: '0 14px',
-              borderRadius: '6px',
-              background: 'var(--color-brand, #00623f)',
-              color: '#ffffff',
-              fontSize: '13px',
-              fontWeight: 700,
-              boxShadow: '0 1px 3px rgba(0, 98, 63, 0.2)',
-            }}
-          >
-            <FileSpreadsheet size={15} />
-            Download Excel (.xlsx)
-          </button>
-        </div>
-      </div>
-
-      {/* Active Filter Chips */}
-      {activeFilterLabels.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', padding: '10px 14px', background: 'var(--surface-muted, #f8fafc)', borderRadius: '8px' }}>
-          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--kr-grey-700, #334155)' }}>
-            Selected choices:
+  const tableColumns = activeColumns.map(col => ({
+    key: col.key,
+    align: col.kind === 'num' ? 'right' : 'left',
+    title: (
+      <Flex align="center" gap={4} style={{ display: 'inline-flex' }}>
+        <span>{col.label} {col.unit ? `(${col.unit})` : ''}</span>
+        <ArrowUpDown size={12} opacity={sortConfig.key === col.key ? 1 : 0.4} />
+      </Flex>
+    ),
+    onHeaderCell: () => ({
+      onClick: () => handleSort(col.key),
+      className: 'reports-result-th',
+    }),
+    onCell: () => ({
+      className: `reports-result-cell${col.key === activeColumns[0].key ? ' reports-result-cell-first' : ''}`,
+    }),
+    render: (_, { row }) => {
+      const rawVal = row[col.key];
+      if (col.kind === 'badge') {
+        return <Tag color={getStatusBadgeStyle(rawVal)}>{rawVal || '—'}</Tag>;
+      }
+      if (col.kind === 'num') {
+        return (
+          <span>
+            {rawVal == null || rawVal === '' || rawVal === '—'
+              ? '—'
+              : typeof rawVal === 'number'
+              ? rawVal.toLocaleString('en-IN')
+              : rawVal}
           </span>
-          {activeFilterLabels.map((lbl, idx) => (
-            <span
-              key={idx}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '12px',
-                padding: '3px 10px',
-                borderRadius: '12px',
-                background: '#ffffff',
-                border: '1px solid var(--border-default, #e2e8f0)',
-                color: 'var(--kr-green-900, #003021)',
-                fontWeight: 600,
-              }}
-            >
-              {lbl}
-              {onRemoveFilterChip && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveFilterChip(idx)}
-                  style={{ all: 'unset', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                >
-                  <X size={12} style={{ color: 'var(--kr-grey-500)' }} />
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
+        );
+      }
+      return <span>{rawVal == null || rawVal === '' ? '—' : String(rawVal)}</span>;
+    },
+  }));
 
-      {/* Table Toolbar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
-        {/* Search */}
-        <div style={{ position: 'relative', width: '280px', maxWidth: '100%' }}>
-          <Search size={14} style={{ position: 'absolute', left: '10px', top: '12px', color: 'var(--kr-grey-400, #94a3b8)' }} />
-          <input
-            type="text"
+  const columnMenuItems = [
+    {
+      type: 'group',
+      key: 'customize',
+      label: 'Customize Column',
+      children: columns.map(c => ({
+        key: c.key,
+        label: (
+          <Flex justify="space-between" align="center" gap={8}>
+            <span>{c.label}</span>
+            {visibleColKeys.includes(c.key) && <Check size={14} color="var(--color-brand)" />}
+          </Flex>
+        ),
+      })),
+    },
+  ];
+
+  return (
+    <Card>
+      <Flex vertical gap={16}>
+        {/* Header & Meta */}
+        <Flex justify="space-between" align="flex-start" wrap gap={14}>
+          <div>
+            <Flex align="center" gap={8}>
+              <Typography.Text className="reports-result-kicker">Report View</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                · {generatedAt ? generatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+              </Typography.Text>
+            </Flex>
+
+            <Typography.Title level={4} style={{ margin: '4px 0 2px' }}>
+              {moduleMeta?.label || 'Generated'} Report
+            </Typography.Title>
+
+            <Typography.Text type="secondary">
+              Your report is based on the choices you selected (showing <strong>{processedRows.length}</strong> of <strong>{recordCount}</strong> records).
+            </Typography.Text>
+          </div>
+
+          {/* Export Buttons */}
+          <Flex align="center" gap={8} wrap>
+            <Button
+              type="primary"
+              icon={<FileSpreadsheet size={15} />}
+              onClick={FILE_TRANSFER_ENABLED ? handleExportXlsx : undefined}
+            >
+              Download Excel (.xlsx)
+            </Button>
+          </Flex>
+        </Flex>
+
+        {/* Active Filter Chips */}
+        {activeFilterLabels.length > 0 && (
+          <Flex align="center" gap={8} wrap className="reports-chip-bar">
+            <Typography.Text strong style={{ fontSize: 12 }}>
+              Selected choices:
+            </Typography.Text>
+            {activeFilterLabels.map((lbl, idx) => (
+              <Tag
+                key={idx}
+                closable={!!onRemoveFilterChip}
+                onClose={(e) => {
+                  e.preventDefault();
+                  onRemoveFilterChip(idx);
+                }}
+                style={{ marginInlineEnd: 0 }}
+              >
+                {lbl}
+              </Tag>
+            ))}
+          </Flex>
+        )}
+
+        {/* Table Toolbar */}
+        <Flex justify="space-between" align="center" wrap gap={10}>
+          {/* Search */}
+          <Input
+            className="tms-search"
+            prefix={<Search size={16} strokeWidth={2} />}
+            allowClear
             placeholder="Search in this report…"
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              height: '36px',
-              paddingLeft: '32px',
-              paddingRight: '12px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-strong, #cbd5e1)',
-              fontSize: '13px',
-              outline: 'none',
-            }}
+            style={{ width: 280, maxWidth: '100%' }}
           />
-        </div>
 
-        {/* Column Visibility Dropdown */}
-        <div style={{ position: 'relative' }}>
-          <button
-            type="button"
-            onClick={() => setColDropdownOpen(!colDropdownOpen)}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '36px',
-              padding: '0 12px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-strong, #cbd5e1)',
-              background: '#ffffff',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: 'var(--text-body, #334155)',
+          {/* Column Visibility Dropdown */}
+          <Dropdown
+            trigger={['click']}
+            placement="bottomRight"
+            open={colDropdownOpen}
+            onOpenChange={(nextOpen, info) => {
+              // keep the menu open while toggling columns; close on trigger / outside click
+              if (!info || info.source === 'trigger') setColDropdownOpen(nextOpen);
+            }}
+            menu={{
+              items: columnMenuItems,
+              selectable: true,
+              multiple: true,
+              selectedKeys: visibleColKeys,
+              onClick: ({ key }) => toggleColumn(key),
+              style: { maxHeight: 280, overflowY: 'auto', width: 220 },
             }}
           >
-            <SlidersHorizontal size={14} />
-            <span>Columns ({activeColumns.length}/{columns.length})</span>
-          </button>
+            <Button icon={<SlidersHorizontal size={14} />}>
+              Columns ({activeColumns.length}/{columns.length})
+            </Button>
+          </Dropdown>
+        </Flex>
 
-          {colDropdownOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                right: 0,
-                top: '42px',
-                zIndex: 40,
-                width: '220px',
-                background: '#ffffff',
-                border: '1px solid var(--border-default, #e2e8f0)',
-                borderRadius: '8px',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
-                padding: '8px',
-                maxHeight: '280px',
-                overflowY: 'auto',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '2px',
-              }}
-            >
-              <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', padding: '4px 6px', color: 'var(--text-muted)' }}>
-                Customize Column
-              </div>
-              {columns.map(c => {
-                const on = visibleColKeys.includes(c.key);
-                return (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => toggleColumn(c.key)}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '6px 8px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: on ? 'var(--text-heading)' : 'var(--text-muted)',
-                      background: on ? 'var(--surface-muted)' : 'transparent',
-                    }}
-                  >
-                    <span>{c.label}</span>
-                    {on && <Check size={14} color="var(--color-brand)" />}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Main Table */}
-      {processedRows.length === 0 ? (
-        <ReportEmptyState activeFilterLabels={activeFilterLabels} onResetFilters={onResetFilters} />
-      ) : (
-        <div
-          style={{
-            border: '1px solid var(--border-default, #e2e8f0)',
-            borderRadius: 'var(--radius-md, 8px)',
-            background: '#ffffff',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ background: 'var(--surface-muted, #f8fafc)', borderBottom: '1px solid var(--border-default, #e2e8f0)' }}>
-                  {activeColumns.map(col => (
-                    <th
-                      key={col.key}
-                      onClick={() => handleSort(col.key)}
-                      style={{
-                        padding: '10px 14px',
-                        textAlign: col.kind === 'num' ? 'right' : 'left',
-                        fontFamily: 'var(--font-display, sans-serif)',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        letterSpacing: '0.06em',
-                        textTransform: 'uppercase',
-                        color: 'var(--kr-grey-700, #475569)',
-                        whiteSpace: 'nowrap',
-                        cursor: 'pointer',
-                        userSelect: 'none',
-                      }}
-                    >
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span>{col.label} {col.unit ? `(${col.unit})` : ''}</span>
-                        <ArrowUpDown size={12} style={{ opacity: sortConfig.key === col.key ? 1 : 0.4 }} />
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {pagination.rows.map((row, rIdx) => (
-                  <tr
-                    key={row.id || rIdx}
-                    style={{
-                      borderTop: '1px solid var(--border-default, #e2e8f0)',
-                      background: rIdx % 2 === 0 ? '#ffffff' : 'var(--kr-grey-50, #fcfcfb)',
-                      transition: 'background 0.12s ease',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--kr-green-50, #edf8f3)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = rIdx % 2 === 0 ? '#ffffff' : 'var(--kr-grey-50, #fcfcfb)'; }}
-                  >
-                    {activeColumns.map(col => {
-                      const rawVal = row[col.key];
-
-                      return (
-                        <td
-                          key={col.key}
-                          style={{
-                            padding: '10px 14px',
-                            textAlign: col.kind === 'num' ? 'right' : 'left',
-                            color: 'var(--text-body, #334155)',
-                            whiteSpace: 'nowrap',
-                            maxWidth: '280px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            fontWeight: col.key === activeColumns[0].key ? 700 : 400,
-                          }}
-                        >
-                          {col.kind === 'badge' ? (
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                ...getStatusBadgeStyle(rawVal),
-                              }}
-                            >
-                              {rawVal || '—'}
-                            </span>
-                          ) : col.kind === 'num' ? (
-                            <span>
-                              {rawVal == null || rawVal === '' || rawVal === '—'
-                                ? '—'
-                                : typeof rawVal === 'number'
-                                ? rawVal.toLocaleString('en-IN')
-                                : rawVal}
-                            </span>
-                          ) : (
-                            <span>{rawVal == null || rawVal === '' ? '—' : String(rawVal)}</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination (stable outside the horizontal scrolling table) */}
-          <Pagination
-            {...pagination}
-            noun="records"
-            style={{
-              padding: '12px 16px',
-              borderTop: '1px solid var(--border-default, #e2e8f0)',
-              background: '#ffffff',
+        {/* Main Table */}
+        {processedRows.length === 0 ? (
+          <ReportEmptyState activeFilterLabels={activeFilterLabels} onResetFilters={onResetFilters} />
+        ) : (
+          <Table
+            columns={tableColumns}
+            dataSource={tableRows}
+            rowKey="rowKey"
+            size="middle"
+            bordered={false}
+            tableLayout="auto"
+            scroll={{ x: 'max-content' }}
+            pagination={{
+              current: page,
+              pageSize,
+              onChange: (p, s) => { setPage(p); setPageSize(s); },
+              showSizeChanger: true,
+              pageSizeOptions: [10, 20, 50, 100],
+              showTotal: (t, [a, b]) => `Showing ${a} to ${b} of ${t} records`,
             }}
           />
-        </div>
-      )}
-    </div>
+        )}
+      </Flex>
+    </Card>
   );
 };
 export default ReportResultView;

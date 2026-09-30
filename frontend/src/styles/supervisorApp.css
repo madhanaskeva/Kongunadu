@@ -34,3 +34,366 @@
     box-shadow: 0 0 0 1px rgba(0, 48, 33, 0.06), 0 24px 60px rgba(0, 48, 33, 0.12);
   }
 }
+
+/* Screen column inside the device frame (was an inline style on SupervisorScreens). */
+.sv-screens {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #fff;
+  color: var(--text-body);
+  font-family: var(--font-body);
+}
+
+/* Sticky app bar: safe-area aware, so it cannot be a plain antd Layout.Header. */
+.sv-appbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: #fff;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.sv-appbar-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.sv-appbar-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sv-gps-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 360px) {
+  .sv-gps-label { display: none; }
+}
+
+.sv-profile-pill.ant-btn {
+  padding: 4px 8px 4px 4px;
+  height: auto;
+  gap: 6px;
+  background: var(--color-brand-tint);
+}
+
+.sv-avatar.ant-avatar {
+  background: var(--color-brand);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.sv-profile-menu {
+  min-width: 220px;
+  background: #fff;
+  border-top: 4px solid var(--color-brand);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.sv-profile-menu-head {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.sv-profile-menu .ant-dropdown-menu {
+  box-shadow: none;
+}
+
+/* Fixed toast above the bottom safe area, phone-column width. */
+.sv-toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 448px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  z-index: 1100;
+}
+
+/* Hazard-tinted icon disc (unclosed-trip alert). */
+.sv-hazard-icon.ant-avatar {
+  background: var(--color-hazard-soft);
+  color: #7a4300;
+}
+
+.sv-alert-modal .ant-modal-container {
+  border-top: 6px solid var(--color-hazard);
+}
+
+/* Bottom-sheet dialogs (driver picker, discard): anchor antd Modal to the bottom of the phone column. */
+.sv-sheet-wrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sv-sheet-wrap .ant-modal.sv-sheet {
+  top: 0;
+  margin: 0 auto;
+  padding-bottom: 28px;
+  max-width: calc(100vw - 24px);
+}
+
+.sv-sheet .ant-modal-container {
+  border-top: 6px solid var(--color-brand);
+}
+
+.sv-drv-list {
+  max-height: min(460px, 55vh);
+  overflow-y: auto;
+  margin: 0 -24px;
+  border-top: 1px solid var(--border-default);
+}
+
+.sv-drv-row {
+  min-height: 64px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.sv-drv-row:hover,
+.sv-drv-row:focus-visible {
+  background: var(--surface-muted);
+  outline: 0;
+}
+
+.sv-drv-row.is-on {
+  background: var(--color-brand-tint);
+}
+
+/* Screen body + sticky bottom action bar shared by the detail screens. */
+.sv-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.sv-screen-body {
+  padding: 16px;
+}
+
+.sv-actionbar {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  padding: 12px 16px 40px;
+  background: #fff;
+  border-top: 1px solid var(--border-default);
+}
+
+/* Small uppercase section kicker (GPS timeline, Details, Opened · …). */
+.sv-kicker.ant-typography {
+  display: block;
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Big display-font figures in stat tiles and home tiles. */
+.sv-figure {
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: var(--text-heading);
+  line-height: 1.2;
+}
+
+/* Status tags keep the prototype's uppercase display style. */
+.sv-tag.ant-tag {
+  margin-inline-end: 0;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Card left edge carries the status colour. */
+.sv-edge-card.ant-card {
+  border-left-width: 4px;
+}
+
+/* Label/value rows: right-aligned bold value, wrapping long values. */
+.sv-kv .ant-descriptions-item-label {
+  width: 42%;
+}
+
+.sv-kv .ant-descriptions-item-content {
+  justify-content: flex-end;
+  text-align: right;
+  font-weight: 700;
+  color: var(--text-heading);
+  overflow-wrap: anywhere;
+}
+
+/* Home action tiles (antd Card): large touch targets in the brand colours. */
+.sv-home-tile.ant-card {
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-strong);
+  border-left: 6px solid var(--color-brand);
+}
+
+.sv-home-tile.ant-card .ant-card-body {
+  min-height: 104px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 22px;
+}
+
+.sv-home-tile--tint.ant-card {
+  background: var(--color-brand-tint);
+  color: var(--text-heading);
+}
+
+.sv-home-tile--tint.ant-card:hover {
+  background: var(--color-brand-soft);
+}
+
+.sv-home-tile--solid.ant-card {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: #fff;
+}
+
+.sv-home-tile--solid.ant-card:hover {
+  background: var(--color-brand-strong);
+}
+
+.sv-home-tile.ant-card:active {
+  transform: translateY(1px);
+}
+
+.sv-home-tile.ant-card:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.sv-home-tile-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  line-height: 1.15;
+}
+
+.sv-home-tile-title--sm {
+  font-size: 22px;
+}
+
+.sv-home-tile-count {
+  font-size: 34px;
+}
+
+.sv-home-tile-sub.ant-typography {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.sv-home-tile-icon.ant-avatar {
+  flex: none;
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+@media (max-width: 360px) {
+  .sv-home-tile-title { font-size: 22px; }
+  .sv-home-tile-title--sm { font-size: 19px; }
+}
+
+/* Horizontally scrolling filter chips (antd round Buttons). */
+.sv-chip-row {
+  overflow-x: auto;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+  scrollbar-width: none;
+}
+
+.sv-chip-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Trip history filters: select-like trigger buttons + absolutely placed panels (Card). */
+.sv-filter-trigger.ant-btn {
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.sv-filter-trigger.ant-btn > span:not(.ant-btn-icon) {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.sv-filter-panel.ant-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 10;
+  border-top: 4px solid var(--color-brand);
+  box-shadow: var(--shadow-lg);
+}
+
+.sv-filter-panel.ant-card .ant-divider-vertical {
+  margin: 0 2px;
+}
+
+.sv-check-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.sv-check-row.ant-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  border: 1px solid transparent;
+  transition: background 0.15s ease;
+}
+
+.sv-check-row.ant-checkbox-wrapper.is-on {
+  background: var(--color-brand-tint);
+  border-color: var(--color-brand);
+}
+
+.sv-check-row.ant-checkbox-wrapper > span:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Vehicle accordion groups (antd Collapse) with a status-coloured left edge. */
+.sv-hist-group.ant-collapse {
+  background: #fff;
+  border-left-width: 4px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.sv-hist-group.ant-collapse .ant-collapse-content-box {
+  background: var(--surface-muted);
+}

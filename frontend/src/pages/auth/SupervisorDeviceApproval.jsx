@@ -1,92 +1,93 @@
 import React from 'react';
-import { Button, Input } from '../supervisor/components/ds';
+import { Alert, Button, Card, Descriptions, Flex, Form, Input, Progress, Spin, Typography } from 'antd';
 import logoImg from '@/assets/images/logo-1600.png';
 
 export const SupervisorDeviceApproval = ({ v }) => (
   <>
-    <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "calc(40px + env(safe-area-inset-top)) 24px 40px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}><img src={logoImg} alt="" style={{ height: "44px", width: "auto" }} /></div>
-      <div style={{ marginTop: "10px", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", letterSpacing: "-0.01em", color: "var(--text-heading)" }}>
+    <Flex vertical style={{ flex: 1, padding: 'calc(40px + env(safe-area-inset-top)) 24px 40px' }}>
+      <Flex align="center" gap={12}><img src={logoImg} alt="" style={{ height: 44, width: 'auto' }} /></Flex>
+      <Typography.Title level={4} style={{ margin: '10px 0 0' }}>
         Kongunadu Road Lines
-      </div>
-      <div style={{ marginTop: "28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-        <span style={{ fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--text-brand)" }}>
+      </Typography.Title>
+      <Flex align="center" justify="space-between" gap={12} style={{ marginTop: 28 }}>
+        <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-brand)' }}>
           Step 1 of 3 · Approval
-        </span>
-        <span style={{ display: "flex", gap: "6px" }} aria-hidden="true">
-          {(v.obSteps || []).map((st, stIdx) => (
-            <React.Fragment key={stIdx}>
-              <span style={{ width: "22px", height: "4px", borderRadius: "2px", background: st.bg }} />
-            </React.Fragment>
-          ))}
-        </span>
-      </div>
-      <h2 style={{ margin: "6px 0 0", fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "30px", letterSpacing: "-0.02em", lineHeight: "1.1", color: "var(--text-heading)" }}>
+        </Typography.Text>
+        <Progress
+          aria-hidden="true"
+          steps={(v.obSteps || []).length}
+          percent={(v.obSteps || []).length ? ((v.obSteps || []).filter(st => st.bg === 'var(--color-brand)').length / (v.obSteps || []).length) * 100 : 0}
+          showInfo={false}
+          size={[22, 4]}
+          strokeColor="var(--color-brand)"
+          railColor="var(--kr-grey-200)"
+        />
+      </Flex>
+      <Typography.Title level={2} style={{ margin: '6px 0 0', lineHeight: 1.1 }}>
         Request approval
-      </h2>
-      <p style={{ margin: "8px 0 24px", fontSize: "15px", color: "var(--text-muted)" }}>Enter your name and mobile number. Head Office approves this phone, assigns your branch and shares a 4-digit OTP with you.</p>
+      </Typography.Title>
+      <Typography.Paragraph type="secondary" style={{ margin: '8px 0 24px', fontSize: 15 }}>Enter your name and mobile number. Head Office approves this phone, assigns your branch and shares a 4-digit OTP with you.</Typography.Paragraph>
       {v.obRejected ? (
         <>
-          <div role="alert" style={{ padding: "12px 14px", marginBottom: "16px", background: "var(--kr-red-50)", border: "1px solid var(--kr-red-100)", borderRadius: "var(--radius-md)", color: "var(--kr-red-800)", fontSize: "14px", fontWeight: "600" }}>
-            Head Office rejected the request for +91 {v.obPhoneText}. Check the number and request again.
-          </div>
+          <Alert type="error" style={{ marginBottom: 16 }} title={`Head Office rejected the request for +91 ${v.obPhoneText}. Check the number and request again.`} />
         </>
       ) : null}
       {v.obEditable ? (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            <Input label="Full name" placeholder="As on your ID" value={v.ob.name} onChange={v.setObName} error={v.obNameErr} autoComplete="name" />
-            <Input label="Mobile number" placeholder="98410 22314" value={v.ob.phone} onChange={v.setObPhone} prefix="+91" inputMode="numeric" error={v.obPhoneErr} />
-          </div>
+          <Form layout="vertical" requiredMark={false} component="div">
+            <Form.Item label="Full name" validateStatus={v.obNameErr ? 'error' : undefined} help={v.obNameErr || undefined}>
+              <Input size="large" placeholder="As on your ID" value={v.ob.name ?? ''} onChange={v.setObName} autoComplete="name" />
+            </Form.Item>
+            <Form.Item label="Mobile number" validateStatus={v.obPhoneErr ? 'error' : undefined} help={v.obPhoneErr || undefined} style={{ marginBottom: 0 }}>
+              <Input size="large" placeholder="98410 22314" value={v.ob.phone ?? ''} onChange={v.setObPhone} prefix="+91" inputMode="numeric" />
+            </Form.Item>
+          </Form>
         </>
       ) : null}
       {v.obWaiting ? (
         <>
-          <div style={{ border: "1px solid var(--border-default)", borderTop: "4px solid var(--color-hazard)", borderRadius: "var(--radius-lg)", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "16px" }}>
-              <span style={{ flex: "none", width: "22px", height: "22px", border: "3px solid var(--color-hazard-soft)", borderTopColor: "var(--color-hazard)", borderRadius: "50%", animation: "tmsSpin .9s linear infinite", display: "inline-block" }} />
+          <Card size="small" style={{ borderTop: '4px solid var(--color-hazard)', overflow: 'hidden' }} styles={{ body: { padding: 0 } }}>
+            <Flex align="center" gap={12} style={{ padding: 16 }}>
+              <Spin />
               <div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-heading)" }}>Waiting for Head Office approval</div>
-                <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>You move to OTP entry as soon as it is approved.</div>
+                <Typography.Text strong style={{ display: 'block', fontSize: 16 }}>Waiting for Head Office approval</Typography.Text>
+                <Typography.Text type="secondary" style={{ display: 'block', fontSize: 13 }}>You move to OTP entry as soon as it is approved.</Typography.Text>
               </div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "10px 16px", borderTop: "1px solid var(--border-default)", fontSize: "14px" }}>
-              <span style={{ color: "var(--text-muted)" }}>Name</span>
-              <span style={{ fontWeight: "700", color: "var(--text-heading)" }}>{v.ob.name}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "10px 16px", borderTop: "1px solid var(--border-default)", fontSize: "14px" }}>
-              <span style={{ color: "var(--text-muted)" }}>Mobile number</span>
-              <span style={{ fontWeight: "700", color: "var(--text-heading)" }}>+91 {v.obPhoneText}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", padding: "10px 16px", borderTop: "1px solid var(--border-default)", fontSize: "14px" }}>
-              <span style={{ color: "var(--text-muted)" }}>Requested</span>
-              <span style={{ fontWeight: "700", color: "var(--text-heading)" }}>{v.obRequestedAt}</span>
-            </div>
-          </div>
+            </Flex>
+            <Descriptions
+              bordered
+              column={1}
+              size="small"
+              items={[
+                { key: 'name', label: 'Name', children: <Typography.Text strong>{v.ob.name}</Typography.Text> },
+                { key: 'phone', label: 'Mobile number', children: <Typography.Text strong>+91 {v.obPhoneText}</Typography.Text> },
+                { key: 'at', label: 'Requested', children: <Typography.Text strong>{v.obRequestedAt}</Typography.Text> },
+              ]}
+            />
+          </Card>
         </>
       ) : null}
-      <div style={{ marginTop: "auto", paddingTop: "28px", display: "flex", flexDirection: "column", gap: "8px" }}>
+      <Flex vertical gap={8} style={{ marginTop: 'auto', paddingTop: 28 }}>
         {v.obSending ? (
           <>
-            <div style={{ height: "56px", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", background: "var(--kr-green-800)", borderRadius: "var(--radius-md)", color: "#fff", fontFamily: "var(--font-display)", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.02em" }}>
-              <span style={{ width: "18px", height: "18px", border: "3px solid rgba(255,255,255,.35)", borderTopColor: "#fff", borderRadius: "50%", animation: "tmsSpin .8s linear infinite", display: "inline-block" }} />
+            <Button type="primary" size="large" block loading style={v.bigBtn}>
               Sending request
-            </div>
+            </Button>
           </>
         ) : null}
         {v.obEditable ? (
           <>
-            <Button size="lg" fullWidth={true} onClick={v.requestApproval} style={v.bigBtn}>Request approval</Button>
+            <Button type="primary" size="large" block onClick={v.requestApproval} style={v.bigBtn}>Request approval</Button>
           </>
         ) : null}
         {v.obWaiting ? (
           <>
-            <Button variant="secondary" size="lg" fullWidth={true} onClick={v.cancelApproval}>Change mobile number</Button>
+            <Button size="large" block onClick={v.cancelApproval}>Change mobile number</Button>
           </>
         ) : null}
-        <Button variant="ghost" size="lg" fullWidth={true} onClick={v.goLogin}>Already registered? Sign in</Button>
-      </div>
-    </div>
+        <Button type="text" size="large" block onClick={v.goLogin}>Already registered? Sign in</Button>
+      </Flex>
+    </Flex>
   </>
 );
 

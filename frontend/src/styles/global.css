@@ -255,6 +255,15 @@ button {
   transform: rotate(180deg);
 }
 
+/* ---- antd Table: built-in pagination -------------------------------------- */
+/* Tables sit in cards with zero body padding, so the pager (and its
+   "10 / page" size changer) needs its own inset off the card edges. */
+.ant-table-wrapper .ant-table-pagination.ant-pagination {
+  margin: 0;
+  padding: 14px 16px;
+  row-gap: 8px;
+}
+
 /* ---- antd Select: open panel ---------------------------------------------- */
 body .ant-select-dropdown {
   padding: 6px;
@@ -421,4 +430,705 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 /* antd affix inputs: the toggle sits in the suffix slot, flush right. */
 .ant-input-affix-wrapper .ant-input-suffix .tms-pw-toggle {
   margin-inline-end: -6px;
+}
+
+/* ==========================================================================
+   Ant Design building blocks (components/common/*)
+   Only brand details antd tokens can't express live here — everything else
+   comes from the theme in app/AntdProvider.jsx.
+   ========================================================================== */
+
+/* Small uppercase label above a title (modals, drawers, cards) */
+.tms-kicker {
+  margin-bottom: 2px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-brand);
+}
+
+/* <Pagination> used under non-antd lists */
+.tms-pagination {
+  padding: 14px 20px;
+  border-top: 1px solid #e3e9e6;
+  font-size: 13px;
+}
+
+/* <RowActions> icon buttons */
+/* Row action icon buttons (lucide icons).
+   Rest: soft tinted square with the icon in the action colour.
+   Hover: the square fills solid, the icon turns white, lifts 2px with a
+   tinted shadow. Press: settles back down. Colour per action via --ra:
+   edit green (default), view teal, delete red, accent amber. */
+.tms-row-action.ant-btn {
+  --ra: #00623f;
+  --ra-tint: #e3f4ec;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--ra-tint);
+  color: var(--ra);
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tms-row-action.tms-row-action--view.ant-btn {
+  --ra: #0b7f8a;
+  --ra-tint: #e0f3f4;
+}
+.tms-row-action.ant-btn.ant-btn-dangerous {
+  --ra: #d91619;
+  --ra-tint: #fde8e8;
+}
+.tms-row-action.tms-row-action--accent.ant-btn {
+  --ra: #c26a00;
+  --ra-tint: #fff1dc;
+}
+.tms-row-action.tms-row-action--plain.ant-btn {
+  --ra: #4a4a46;
+  --ra-tint: transparent;
+}
+.tms-row-action.ant-btn svg {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.tms-row-action.ant-btn:not(:disabled):hover,
+.tms-row-action.ant-btn.ant-btn-dangerous:not(:disabled):hover {
+  background: var(--ra);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--ra) 55%, transparent);
+}
+.tms-row-action.ant-btn:not(:disabled):hover svg {
+  transform: scale(1.08);
+  animation: tms-icon-shake 0.45s ease-in-out;
+}
+
+/* Hover wiggle: a short, decaying rotate-shake, played once per hover. */
+@keyframes tms-icon-shake {
+  0%   { transform: scale(1.08) rotate(0deg); }
+  20%  { transform: scale(1.12) rotate(-14deg); }
+  40%  { transform: scale(1.12) rotate(11deg); }
+  60%  { transform: scale(1.1) rotate(-7deg); }
+  80%  { transform: scale(1.08) rotate(4deg); }
+  100% { transform: scale(1.08) rotate(0deg); }
+}
+.tms-row-action.ant-btn:not(:disabled):active {
+  transform: translateY(0) scale(0.94);
+  box-shadow: 0 2px 6px -2px color-mix(in srgb, var(--ra) 45%, transparent);
+}
+.tms-row-action.ant-btn:focus-visible {
+  outline: 2px solid var(--ra);
+  outline-offset: 2px;
+}
+.tms-row-action.ant-btn:disabled {
+  background: #f1f2ef;
+  color: #a9aaa4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tms-row-action.ant-btn,
+  .tms-row-action.ant-btn svg {
+    transition: background-color 0.18s ease, color 0.18s ease;
+  }
+  .tms-row-action.ant-btn:not(:disabled):hover,
+  .tms-row-action.ant-btn:not(:disabled):hover svg,
+  .tms-row-action.ant-btn:not(:disabled):active {
+    transform: none;
+    animation: none;
+  }
+}
+
+/* Toolbar search boxes: leading search icon, tinted rest state that turns
+   white with the brand ring on focus. */
+.tms-search.ant-input-affix-wrapper {
+  border-radius: 10px;
+  border-color: #d5dfda;
+  background: #f7faf8;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tms-search.ant-input-affix-wrapper:hover {
+  background: #ffffff;
+  border-color: var(--color-brand);
+}
+.tms-search.ant-input-affix-wrapper-focused,
+.tms-search.ant-input-affix-wrapper:focus-within {
+  background: #ffffff;
+}
+.tms-search .ant-input-prefix {
+  margin-inline-end: 8px;
+  color: var(--kr-grey-500);
+  transition: color 0.15s ease;
+}
+.tms-search.ant-input-affix-wrapper:focus-within .ant-input-prefix {
+  color: var(--color-brand);
+}
+.tms-search .ant-input {
+  background: transparent;
+  color: var(--text-heading);
+}
+
+/* Tabs sitting in a Card: the card is the frame, no second divider line */
+.ant-card .ant-tabs-top > .ant-tabs-nav::before {
+  border-bottom: none;
+}
+
+/* ==========================================================================
+   Admin polish: status tags, cards, tabs, segmented controls
+   ========================================================================== */
+
+/* Status tags: rounded pill, 1px tinted border, strong readable text.
+   success = Active / Approved / Registered   warning = Pending / On hold
+   error   = Rejected / Suspended             processing = Verified
+   default = Inactive                          (solid variants keep antd's look) */
+.ant-tag:not(.ant-tag-solid):is(.ant-tag-success, .ant-tag-warning, .ant-tag-error, .ant-tag-processing, .ant-tag-default) {
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.ant-tag.ant-tag-success:not(.ant-tag-solid) {
+  background: #dcf7e8;
+  border-color: #7fd6a8;
+  color: #047a44;
+}
+
+.ant-tag.ant-tag-warning:not(.ant-tag-solid) {
+  background: #fff3df;
+  border-color: #fbc774;
+  color: #b25a00;
+}
+
+.ant-tag.ant-tag-error:not(.ant-tag-solid) {
+  background: #fde8e8;
+  border-color: #f4a3a4;
+  color: #c01317;
+}
+
+.ant-tag.ant-tag-processing:not(.ant-tag-solid) {
+  background: #e7f0ff;
+  border-color: #a9c7fb;
+  color: #1c5fd0;
+}
+
+.ant-tag.ant-tag-default:not(.ant-tag-solid) {
+  background: #eef2f6;
+  border-color: #c5d0dc;
+  color: #44546a;
+}
+
+/* Cards in the admin shell: hairline border + soft layered shadow. */
+.tms-shell .ant-card:not(.ant-card-type-inner) {
+  border-color: #e2e8e5;
+  box-shadow:
+    0 1px 2px rgba(16, 40, 30, 0.04),
+    0 6px 20px -8px rgba(16, 40, 30, 0.1);
+}
+
+/* Tabs: bold labels, brand hover, thicker rounded ink bar. */
+.tms-shell .ant-tabs .ant-tabs-tab {
+  padding-block: 12px;
+  font-weight: 600;
+  transition: color var(--dur-fast, 0.15s);
+}
+
+.tms-shell .ant-tabs .ant-tabs-tab:hover {
+  color: var(--color-brand);
+}
+
+.tms-shell .ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  font-weight: 700;
+}
+
+.tms-shell .ant-tabs-top .ant-tabs-ink-bar {
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+}
+
+/* Segmented (range pickers, view switches): tinted track, white raised thumb. */
+.tms-shell .ant-segmented {
+  padding: 3px;
+  background: #eaf0ed;
+  border: 1px solid #dde5e1;
+  border-radius: 10px;
+}
+
+.tms-shell .ant-segmented .ant-segmented-item {
+  border-radius: 7px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.tms-shell .ant-segmented .ant-segmented-item:hover:not(.ant-segmented-item-selected) {
+  color: var(--text-heading);
+}
+
+.tms-shell .ant-segmented .ant-segmented-item-selected,
+.tms-shell .ant-segmented .ant-segmented-thumb {
+  border-radius: 7px;
+  box-shadow: 0 1px 3px rgba(16, 40, 30, 0.14), 0 0 0 1px rgba(16, 40, 30, 0.04);
+}
+
+.tms-shell .ant-segmented .ant-segmented-item-selected {
+  color: var(--color-brand);
+}
+
+/* Placeholders: readable (about 5:1 on white) instead of antd's faint 25% grey. */
+.ant-input::placeholder,
+.ant-input-number-input::placeholder,
+.ant-picker-input > input::placeholder {
+  color: #6f716b;
+  opacity: 1;
+}
+
+/* ---- Route master: authorized fuel bunks popover ------------------------- */
+.rb-popover .ant-popover-container,
+.rb-popover .ant-popover-inner {
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px -12px rgba(16, 40, 30, 0.28), 0 2px 6px rgba(16, 40, 30, 0.06);
+  overflow: hidden;
+}
+
+.rb-popover .ant-popover-title {
+  margin: 0;
+  padding: 12px 10px 12px 14px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.rb-head-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--kr-green-100);
+  color: var(--kr-green-800);
+}
+
+.rb-head-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-heading);
+}
+
+.rb-head-sub {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rb-pop {
+  width: 320px;
+  max-width: calc(100vw - 56px);
+}
+
+.rb-list {
+  max-height: 248px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.rb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 4px 4px 4px 8px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.rb-row + .rb-row {
+  margin-top: 2px;
+}
+
+.rb-row:hover {
+  background: var(--kr-green-50);
+}
+
+.rb-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--kr-green-100);
+  color: var(--kr-green-800);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rb-name.ant-typography {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+/* Actions stay visible (touch screens) but recede until the row is hovered. */
+.rb-actions {
+  flex: none;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.rb-row:hover .rb-actions,
+.rb-row:focus-within .rb-actions {
+  opacity: 1;
+}
+
+.rb-foot {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-muted);
+}
+
+.rb-empty {
+  padding: 22px 16px;
+  text-align: center;
+}
+
+.rb-empty-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--kr-green-50);
+  color: var(--kr-green-700);
+}
+
+/* ---- Table header: dark brand-green gradient ------------------------------ */
+/* Vertical gradient on each header cell, so it reads as one continuous band
+   across columns (including sorted, fixed and hovered sortable columns). */
+.ant-table-wrapper .ant-table-thead > tr > th,
+.ant-table-wrapper .ant-table-thead > tr > td,
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-sort,
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-left,
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right {
+  background: linear-gradient(180deg, #0b7e52 0%, #00623f 55%, #004a31 100%);
+  color: #ffffff;
+  font-weight: 700;
+  border-bottom: 1px solid #003021;
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-has-sorters:hover {
+  background: linear-gradient(180deg, #169a66 0%, #0b7e52 55%, #00623f 100%);
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th:not(:last-child):not(.ant-table-selection-column):not(.ant-table-row-expand-icon-cell):not([colspan])::before {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+.ant-table-wrapper .ant-table-thead .ant-table-column-sorter,
+.ant-table-wrapper .ant-table-thead .ant-table-filter-trigger {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ant-table-wrapper .ant-table-thead .ant-table-column-sorter-up.active,
+.ant-table-wrapper .ant-table-thead .ant-table-column-sorter-down.active,
+.ant-table-wrapper .ant-table-thead .ant-table-filter-trigger.active {
+  color: #ffffff;
+}
+
+.ant-table-wrapper .ant-table-thead .ant-checkbox-inner {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Header band runs flush to the card edges: no rounded table corners peeking
+   out as white wedges above the green. */
+.ant-table-wrapper .ant-table,
+.ant-table-wrapper .ant-table-container,
+.ant-table-wrapper .ant-table-content,
+.ant-table-wrapper .ant-table-body,
+.ant-table-wrapper table,
+.ant-table-wrapper .ant-table-header,
+.ant-table-wrapper .ant-table-thead > tr:first-child > *:first-child,
+.ant-table-wrapper .ant-table-thead > tr:first-child > *:last-child {
+  border-start-start-radius: 0 !important;
+  border-start-end-radius: 0 !important;
+}
+
+/* ==========================================================================
+   KPI / summary cards (.tms-kpi), shared by Dashboard, Trips, Fleet,
+   Device approvals, Distance, Analytics and Reports.
+   Set the accent per card with style={{ '--kpi': <colour> }}.
+   Rest: white card, soft accent wash in the top-right corner, a short accent
+   bar on the left edge. Hover: lifts 2px, border and shadow take the accent.
+   ========================================================================== */
+.tms-shell .ant-card.tms-kpi {
+  --kpi: var(--color-brand);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--kpi) 22%, #e2e8e5);
+  border-radius: 14px;
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--kpi) 10%, transparent) 0%, transparent 55%),
+    #ffffff;
+  box-shadow:
+    0 1px 2px rgba(16, 40, 30, 0.04),
+    0 6px 18px -10px color-mix(in srgb, var(--kpi) 45%, transparent);
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Left accent bar */
+.tms-shell .ant-card.tms-kpi::before {
+  content: '';
+  position: absolute;
+  inset-block: 16px;
+  inset-inline-start: 0;
+  width: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--kpi);
+  transition: inset-block 0.2s ease;
+}
+
+.tms-shell .ant-card.tms-kpi:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--kpi) 55%, #e2e8e5);
+  box-shadow:
+    0 2px 4px rgba(16, 40, 30, 0.05),
+    0 14px 28px -12px color-mix(in srgb, var(--kpi) 60%, transparent);
+}
+
+.tms-shell .ant-card.tms-kpi:hover::before {
+  inset-block: 10px;
+}
+
+/* Clickable KPI cards (they open or filter something) */
+.tms-shell .ant-card.tms-kpi--link {
+  cursor: pointer;
+}
+
+.tms-shell .ant-card.tms-kpi--link:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.tms-shell .ant-card.tms-kpi--link:focus-visible {
+  outline: 2px solid var(--kpi);
+  outline-offset: 2px;
+}
+
+/* Selected (the filter this card applies is on) */
+.tms-shell .ant-card.tms-kpi--on {
+  border-color: var(--kpi);
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--kpi) 16%, transparent) 0%, transparent 60%),
+    color-mix(in srgb, var(--kpi) 4%, #ffffff);
+  box-shadow:
+    0 0 0 1px var(--kpi),
+    0 12px 26px -12px color-mix(in srgb, var(--kpi) 60%, transparent);
+}
+
+.tms-shell .ant-card.tms-kpi--on::before {
+  inset-block: 0;
+  border-radius: 0;
+}
+
+.tms-kpi .ant-card-body {
+  position: relative;
+}
+
+.tms-kpi-label {
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kpi);
+}
+
+.tms-kpi .ant-statistic-title {
+  margin-bottom: 6px;
+}
+
+.tms-kpi .ant-statistic-content {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--kr-grey-900);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tms-shell .ant-card.tms-kpi,
+  .tms-shell .ant-card.tms-kpi::before {
+    transition: none;
+  }
+  .tms-shell .ant-card.tms-kpi:hover {
+    transform: none;
+  }
+}
+
+/* Row action held "on" (e.g. the fuel-bunks eye while its popover is open) */
+.tms-row-action.ant-btn.is-active {
+  background: var(--ra);
+  color: #ffffff;
+  box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--ra) 55%, transparent);
+}
+
+/* ---- Toggle filter pills (Approved / Request approval) ------------------- */
+.tms-filter-pill.ant-btn {
+  --pill: var(--color-brand);
+  border-radius: 999px;
+  border-color: var(--border-default);
+  color: var(--text-heading);
+  font-weight: 700;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.tms-filter-pill.ant-btn .ant-btn-icon {
+  color: var(--pill);
+}
+.tms-filter-pill.ant-btn[aria-pressed='false']:not(:disabled):hover {
+  background: var(--surface-muted);
+  border-color: var(--border-default);
+  color: var(--text-heading);
+}
+.tms-filter-pill.ant-btn[aria-pressed='true'],
+.tms-filter-pill.ant-btn[aria-pressed='true']:hover {
+  background: color-mix(in srgb, var(--pill) 10%, #ffffff);
+  border-color: var(--pill);
+  color: color-mix(in srgb, var(--pill) 85%, #000000);
+  box-shadow: 0 0 0 1px var(--pill);
+}
+.tms-filter-pill.ant-btn:active {
+  transform: scale(0.97);
+}
+
+/* ---- Approval queue panel (Route / Bunk master) --------------------------- */
+.tms-approvals {
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #f6d7a6;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(16, 40, 30, 0.04), 0 8px 22px -12px rgba(194, 106, 0, 0.35);
+}
+
+.tms-approvals-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #fff6e6 0%, #fffbf4 60%, #ffffff 100%);
+  border-bottom: 1px solid #f8e3c2;
+}
+
+.tms-approvals-icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f5a93a 0%, #d97b0a 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 10px -3px rgba(194, 106, 0, 0.55);
+}
+
+.tms-approvals-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-heading);
+}
+
+.tms-approvals-count {
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: #c26a00;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.tms-approvals-desc {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  color: var(--text-body);
+}
+
+.tms-approvals-list {
+  margin: 0;
+  padding: 8px;
+  list-style: none;
+}
+
+.tms-approval {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.tms-approval + .tms-approval {
+  border-top: 1px solid var(--border-default);
+}
+
+.tms-approval:hover {
+  background: #fffaf2;
+}
+
+.tms-approval-main {
+  flex: 1;
+  min-width: 240px;
+}
+
+.tms-approval-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.tms-approval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.tms-approval-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tms-approval-meta svg {
+  flex: none;
+  color: #c26a00;
+}
+
+.tms-approval-meta strong {
+  color: var(--text-heading);
 }

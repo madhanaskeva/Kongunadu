@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { Eraser, X } from 'lucide-react';
-import { Button } from '../components/ds';
+import dayjs from 'dayjs';
+import { Alert, Avatar, Badge, Button, Card, Checkbox, Collapse, DatePicker, Divider, Empty, Flex, Form, Tag, Typography } from 'antd';
+import { Calendar, ChevronDown, Clock, Eraser, X } from 'lucide-react';
+
+const { Text } = Typography;
+
+// Native <input type="date"> handed "YYYY-MM-DD" strings to the handlers; the pickers keep that contract.
+const ISO = 'YYYY-MM-DD';
+const toDay = (s) => (s ? dayjs(s, ISO) : null);
+const asDateEvent = (d) => ({ target: { value: d ? d.format(ISO) : '' } });
 
 export const TripHistory = ({ v }) => {
   const [openCards, setOpenCards] = useState({});
 
   const toggleCard = (id, e) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     setOpenCards((prev) => ({
       ...prev,
       [id]: !prev[id],
@@ -15,376 +23,240 @@ export const TripHistory = ({ v }) => {
 
   return (
     <>
-      <div style={{ flex: "1", display: "flex", flexDirection: "column", padding: "16px", gap: "12px" }}>
-        <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: "10px" }}>
-          {/* Top Row: Vehicle Number & Date Range Filter */}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
-            {/* Vehicle Number Filter Dropdown */}
-            <div style={{ flex: "1", minWidth: "0", position: "relative" }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>
-                  Vehicle number
-                </span>
-                <button
-                  type="button"
-                  onClick={v.toggleHfVehOpen}
-                  aria-label="Filter by vehicle number"
-                  aria-expanded={v.hfVehOpen}
-                  style={{
-                    width: "100%",
-                    boxSizing: "border-box",
-                    height: "48px",
-                    padding: "0 12px",
-                    fontFamily: "inherit",
-                    fontSize: "15px",
-                    fontWeight: "600",
-                    color: "var(--text-heading)",
-                    background: "#fff",
-                    border: `2px solid ${v.hfVehOpen || v.hfVehHasSelection ? "var(--color-brand)" : "var(--border-strong)"}`,
-                    borderRadius: "var(--radius-md)",
-                    outline: "0",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {v.hfVehTriggerLabel}
-                  </span>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", transform: v.hfVehOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s ease" }}>
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-              </label>
+      <Flex vertical gap={12} style={{ flex: 1, padding: 16 }}>
+        <Form layout="vertical" component={false}>
+          <Flex vertical gap={10} style={{ position: "relative" }}>
+            {/* Top Row: Vehicle Number & Date Range Filter */}
+            <Flex align="flex-end" gap={8}>
+              {/* Vehicle Number Filter Dropdown */}
+              <div style={{ flex: 1, minWidth: 0, position: "relative" }}>
+                <Form.Item label="Vehicle number" style={{ margin: 0 }}>
+                  <Button
+                    size="large"
+                    block
+                    onClick={v.toggleHfVehOpen}
+                    aria-label="Filter by vehicle number"
+                    aria-expanded={v.hfVehOpen}
+                    color={v.hfVehOpen || v.hfVehHasSelection ? "primary" : "default"}
+                    variant="outlined"
+                    icon={<ChevronDown size={18} strokeWidth={2.5} style={{ transform: v.hfVehOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />}
+                    iconPlacement="end"
+                    className="sv-filter-trigger"
+                  >
+                    <Text ellipsis>{v.hfVehTriggerLabel}</Text>
+                  </Button>
+                </Form.Item>
 
-              {v.hfVehOpen && (
-                <div
+                {v.hfVehOpen && (
+                  <Card
+                    size="small"
+                    role="dialog"
+                    aria-label="Vehicle checkbox filter"
+                    className="sv-filter-panel"
+                    title="Filter by Vehicle"
+                    extra={
+                      <Flex gap={4} align="center">
+                        <Button type="link" size="small" onClick={v.selectAllHfVehicles}>
+                          Select All
+                        </Button>
+                        <Divider orientation="vertical" />
+                        <Button type="text" size="small" onClick={v.clearHfVehicles} aria-label="Clear vehicle selection" title="Clear" icon={<Eraser size={16} strokeWidth={2} aria-hidden="true" />} />
+                        <Divider orientation="vertical" />
+                        <Button type="text" danger size="small" onClick={v.toggleHfVehOpen} aria-label="Close vehicle filter" title="Close" icon={<X size={16} strokeWidth={2.5} aria-hidden="true" />} />
+                      </Flex>
+                    }
+                  >
+                    <Flex vertical gap={4} className="sv-check-list">
+                      {(v.histVehicles || []).map((veh) => {
+                        const isChecked = (v.hfSelectedVehicles || []).includes(veh.id);
+                        return (
+                          <Checkbox
+                            key={veh.id}
+                            checked={isChecked}
+                            onChange={() => v.toggleHfVehicle(veh.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className={isChecked ? "sv-check-row is-on" : "sv-check-row"}
+                          >
+                            <Flex justify="space-between" align="center" gap={8}>
+                              <Text strong>{veh.number}</Text>
+                              <Text type="secondary" style={{ fontSize: 12 }}>
+                                {veh.count} {veh.count === 1 ? "trip" : "trips"}
+                              </Text>
+                            </Flex>
+                          </Checkbox>
+                        );
+                      })}
+                    </Flex>
+                  </Card>
+                )}
+              </div>
+
+              {/* Date Range Filter Button */}
+              <Badge dot={!!v.hfHasRange} offset={[-3, 3]}>
+                <Button
+                  size="large"
+                  onClick={v.toggleHfCal}
+                  aria-label="Filter by date range"
+                  aria-expanded={v.hfCalOpen}
+                  title="Date range"
+                  color={v.hfCalOpen || v.hfHasRange ? "primary" : "default"}
+                  variant={v.hfHasRange ? "solid" : v.hfCalOpen ? "filled" : "outlined"}
+                  icon={<Calendar size={22} strokeWidth={2.2} aria-hidden="true" />}
+                  style={{ width: 52 }}
+                />
+              </Badge>
+            </Flex>
+
+            {/* Bottom Row: Client Filter Dropdown */}
+            <div style={{ position: "relative" }}>
+              <Form.Item label="Client" style={{ margin: 0 }}>
+                <Button
+                  size="large"
+                  block
+                  onClick={v.toggleHfClientOpen}
+                  aria-label="Filter by client"
+                  aria-expanded={v.hfClientOpen}
+                  color={v.hfClientOpen || v.hfClientHasSelection ? "primary" : "default"}
+                  variant="outlined"
+                  icon={<ChevronDown size={18} strokeWidth={2.5} style={{ transform: v.hfClientOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />}
+                  iconPlacement="end"
+                  className="sv-filter-trigger"
+                >
+                  <Text ellipsis>{v.hfClientTriggerLabel}</Text>
+                </Button>
+              </Form.Item>
+
+              {v.hfClientOpen && (
+                <Card
+                  size="small"
                   role="dialog"
-                  aria-label="Vehicle checkbox filter"
-                  style={{
-                    position: "absolute",
-                    left: "0",
-                    right: "0",
-                    top: "calc(100% + 8px)",
-                    zIndex: "10",
-                    background: "#fff",
-                    border: "1px solid var(--border-default)",
-                    borderTop: "4px solid var(--color-brand)",
-                    borderRadius: "var(--radius-lg)",
-                    boxShadow: "var(--shadow-lg)",
-                    padding: "12px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "14px", color: "var(--text-heading)" }}>
-                      Filter by Vehicle
-                    </span>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                      <button
-                        type="button"
-                        onClick={v.selectAllHfVehicles}
-                        style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "700", color: "var(--color-brand)" }}
-                      >
+                  aria-label="Client checkbox filter"
+                  className="sv-filter-panel"
+                  title="Filter by Client"
+                  extra={
+                    <Flex gap={4} align="center">
+                      <Button type="link" size="small" onClick={v.selectAllHfClients}>
                         Select All
-                      </button>
-                      <span style={{ color: "var(--border-strong)" }}>|</span>
-                      <button
-                        type="button"
-                        onClick={v.clearHfVehicles}
-                        aria-label="Clear vehicle selection"
-                        title="Clear"
-                        style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--text-muted)" }}
-                        className="sv-h13"
-                      >
-                        <Eraser size={16} strokeWidth={2} aria-hidden="true" />
-                      </button>
-                      <span style={{ color: "var(--border-strong)" }}>|</span>
-                      <button
-                        type="button"
-                        onClick={v.toggleHfVehOpen}
-                        aria-label="Close vehicle filter"
-                        title="Close"
-                        style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--kr-red-600)" }}
-                        className="sv-h14"
-                      >
-                        <X size={16} strokeWidth={2.5} aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "200px", overflowY: "auto" }}>
-                    {(v.histVehicles || []).map((veh) => {
-                      const isChecked = (v.hfSelectedVehicles || []).includes(veh.id);
+                      </Button>
+                      <Divider orientation="vertical" />
+                      <Button type="text" size="small" onClick={v.clearHfClients} aria-label="Clear client selection" title="Clear" icon={<Eraser size={16} strokeWidth={2} aria-hidden="true" />} />
+                      <Divider orientation="vertical" />
+                      <Button type="text" danger size="small" onClick={v.toggleHfClientOpen} aria-label="Close client filter" title="Close" icon={<X size={16} strokeWidth={2.5} aria-hidden="true" />} />
+                    </Flex>
+                  }
+                >
+                  <Flex vertical gap={4} className="sv-check-list">
+                    {(v.histClients || []).map((cli) => {
+                      const isChecked = (v.hfSelectedClients || []).includes(cli.id);
                       return (
-                        <label
-                          key={veh.id}
+                        <Checkbox
+                          key={cli.id}
+                          checked={isChecked}
+                          onChange={() => v.toggleHfClient(cli.id)}
                           onClick={(e) => e.stopPropagation()}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "8px 10px",
-                            borderRadius: "var(--radius-md)",
-                            background: isChecked ? "var(--color-brand-tint)" : "var(--surface-muted)",
-                            border: `1px solid ${isChecked ? "var(--color-brand)" : "transparent"}`,
-                            cursor: "pointer",
-                            transition: "background 0.15s ease",
-                          }}
+                          className={isChecked ? "sv-check-row is-on" : "sv-check-row"}
                         >
-                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              onChange={() => v.toggleHfVehicle(veh.id)}
-                              style={{ width: "16px", height: "16px", accentColor: "var(--color-brand)", cursor: "pointer" }}
-                            />
-                            <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-heading)" }}>
-                              {veh.number}
-                            </span>
-                          </div>
-                          <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>
-                            {veh.count} {veh.count === 1 ? "trip" : "trips"}
-                          </span>
-                        </label>
+                          <Flex justify="space-between" align="center" gap={8}>
+                            <Text strong>{cli.name}</Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>
+                              {cli.count} {cli.count === 1 ? "trip" : "trips"}
+                            </Text>
+                          </Flex>
+                        </Checkbox>
                       );
                     })}
-                  </div>
-                </div>
+                  </Flex>
+                </Card>
               )}
             </div>
-
-            {/* Date Range Filter Button */}
-            <button onClick={v.toggleHfCal} aria-label="Filter by date range" aria-expanded={v.hfCalOpen} title="Date range" style={{ all: "unset", cursor: "pointer", position: "relative", flex: "none", boxSizing: "border-box", width: "52px", height: "48px", display: "grid", placeItems: "center", borderRadius: "var(--radius-md)", border: `2px solid ${v.hfCalBorder}`, background: v.hfCalBg, color: v.hfCalFg }} className="sv-h12">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-              {v.hfHasRange ? (
-                <>
-                  <span style={{ position: "absolute", top: "-5px", right: "-5px", width: "12px", height: "12px", borderRadius: "50%", background: "var(--kr-red-600)", border: "2px solid #fff" }} />
-                </>
-              ) : null}
-            </button>
-          </div>
-
-          {/* Bottom Row: Client Filter Dropdown */}
-          <div style={{ position: "relative" }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>
-                Client
-              </span>
-              <button
-                type="button"
-                onClick={v.toggleHfClientOpen}
-                aria-label="Filter by client"
-                aria-expanded={v.hfClientOpen}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  height: "48px",
-                  padding: "0 12px",
-                  fontFamily: "inherit",
-                  fontSize: "15px",
-                  fontWeight: "600",
-                  color: "var(--text-heading)",
-                  background: "#fff",
-                  border: `2px solid ${v.hfClientOpen || v.hfClientHasSelection ? "var(--color-brand)" : "var(--border-strong)"}`,
-                  borderRadius: "var(--radius-md)",
-                  outline: "0",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {v.hfClientTriggerLabel}
-                </span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flex: "none", transform: v.hfClientOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s ease" }}>
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-            </label>
-
-            {v.hfClientOpen && (
-              <div
-                role="dialog"
-                aria-label="Client checkbox filter"
-                style={{
-                  position: "absolute",
-                  left: "0",
-                  right: "0",
-                  top: "calc(100% + 8px)",
-                  zIndex: "10",
-                  background: "#fff",
-                  border: "1px solid var(--border-default)",
-                  borderTop: "4px solid var(--color-brand)",
-                  borderRadius: "var(--radius-lg)",
-                  boxShadow: "var(--shadow-lg)",
-                  padding: "12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "14px", color: "var(--text-heading)" }}>
-                    Filter by Client
-                  </span>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <button
-                      type="button"
-                      onClick={v.selectAllHfClients}
-                      style={{ all: "unset", cursor: "pointer", fontSize: "12px", fontWeight: "700", color: "var(--color-brand)" }}
-                    >
-                      Select All
-                    </button>
-                    <span style={{ color: "var(--border-strong)" }}>|</span>
-                    <button
-                      type="button"
-                      onClick={v.clearHfClients}
-                      aria-label="Clear client selection"
-                      title="Clear"
-                      style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--text-muted)" }}
-                      className="sv-h13"
-                    >
-                      <Eraser size={16} strokeWidth={2} aria-hidden="true" />
-                    </button>
-                    <span style={{ color: "var(--border-strong)" }}>|</span>
-                    <button
-                      type="button"
-                      onClick={v.toggleHfClientOpen}
-                      aria-label="Close client filter"
-                      title="Close"
-                      style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--kr-red-600)" }}
-                      className="sv-h14"
-                    >
-                      <X size={16} strokeWidth={2.5} aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "200px", overflowY: "auto" }}>
-                  {(v.histClients || []).map((cli) => {
-                    const isChecked = (v.hfSelectedClients || []).includes(cli.id);
-                    return (
-                      <label
-                        key={cli.id}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "8px 10px",
-                          borderRadius: "var(--radius-md)",
-                          background: isChecked ? "var(--color-brand-tint)" : "var(--surface-muted)",
-                          border: `1px solid ${isChecked ? "var(--color-brand)" : "transparent"}`,
-                          cursor: "pointer",
-                          transition: "background 0.15s ease",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => v.toggleHfClient(cli.id)}
-                            style={{ width: "16px", height: "16px", accentColor: "var(--color-brand)", cursor: "pointer" }}
-                          />
-                          <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-heading)" }}>
-                            {cli.name}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--text-muted)" }}>
-                          {cli.count} {cli.count === 1 ? "trip" : "trips"}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-          {v.hfCalOpen ? (
-            <>
-              <div role="dialog" aria-label="Closed date range" style={{ position: "absolute", left: "0", right: "0", top: "calc(100% + 8px)", zIndex: "6", background: "#fff", border: "1px solid var(--border-default)", borderTop: "4px solid var(--color-brand)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-lg)", padding: "14px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "17px", color: "var(--text-heading)" }}>Date range</span>
-                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                    <button
-                      type="button"
-                      onClick={v.toggleHfCal}
-                      aria-label="Close date range filter"
-                      title="Close"
-                      style={{ all: "unset", cursor: "pointer", width: "28px", height: "28px", display: "grid", placeItems: "center", border: "1px solid transparent", borderRadius: "var(--radius-sm)", color: "var(--kr-red-600)" }}
-                      className="sv-h14"
-                    >
-                      <X size={16} strokeWidth={2.5} aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                  {(v.hfPresets || []).map((pr, prIdx) => (
-                    <React.Fragment key={prIdx}>
-                      <button data-from={pr.from} data-to={pr.to} onClick={v.pickHfPreset} style={{ all: "unset", cursor: "pointer", padding: "6px 12px", borderRadius: "var(--radius-pill)", fontSize: "13px", fontWeight: "600", border: `1px solid ${pr.border}`, background: pr.bg, color: pr.color }}>
-                        {pr.label}
-                      </button>
-                    </React.Fragment>
-                  ))}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: "10px" }}>
-                  <label style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: "0" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>From date</span>
-                    <input type="date" value={v.hfDraft.from} onChange={v.setHfFrom} max={v.hfMaxDay} style={{ boxSizing: "border-box", width: "100%", height: "48px", padding: "0 10px", fontFamily: "inherit", fontSize: "16px", color: "var(--text-heading)", background: "#fff", border: `2px solid ${v.hfDateBorder}`, borderRadius: "var(--radius-md)", outline: "0" }} className="sv-f1" />
-                  </label>
-                  <label style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: "0" }}>
-                    <span style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-heading)" }}>To date</span>
-                    <input type="date" value={v.hfDraft.to} onChange={v.setHfTo} min={v.hfDraft.from} max={v.hfMaxDay} style={{ boxSizing: "border-box", width: "100%", height: "48px", padding: "0 10px", fontFamily: "inherit", fontSize: "16px", color: "var(--text-heading)", background: "#fff", border: `2px solid ${v.hfDateBorder}`, borderRadius: "var(--radius-md)", outline: "0" }} className="sv-f1" />
-                  </label>
-                </div>
-                {v.hfErr ? (
-                  <>
-                    <div role="alert" style={{ fontSize: "13px", fontWeight: "600", color: "var(--status-danger)" }}>{v.hfErr}</div>
-                  </>
-                ) : null}
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <div style={{ flex: "1" }}><Button size="md" fullWidth={true} onClick={v.applyHfRange}>Apply</Button></div>
-                  <div style={{ flex: "1" }}><Button variant="ghost" size="md" fullWidth={true} onClick={v.clearHfRange}>Clear dates</Button></div>
-                </div>
-              </div>
-            </>
-          ) : null}
-        </div>
+            {v.hfCalOpen ? (
+              <>
+                <Card
+                  size="small"
+                  role="dialog"
+                  aria-label="Closed date range"
+                  className="sv-filter-panel"
+                  title="Date range"
+                  extra={
+                    <Button type="text" danger size="small" onClick={v.toggleHfCal} aria-label="Close date range filter" title="Close" icon={<X size={16} strokeWidth={2.5} aria-hidden="true" />} />
+                  }
+                >
+                  <Flex vertical gap={12}>
+                    <Flex wrap gap={6}>
+                      {(v.hfPresets || []).map((pr, prIdx) => (
+                        <React.Fragment key={prIdx}>
+                          <Button data-from={pr.from} data-to={pr.to} onClick={v.pickHfPreset} shape="round" type={pr.on ? "primary" : "default"}>
+                            {pr.label}
+                          </Button>
+                        </React.Fragment>
+                      ))}
+                    </Flex>
+                    <Flex gap={10}>
+                      <Form.Item label="From date" style={{ flex: 1, minWidth: 0, margin: 0 }}>
+                        <DatePicker
+                          size="large"
+                          inputReadOnly
+                          format="DD MMM YYYY"
+                          value={toDay(v.hfDraft.from)}
+                          onChange={(d) => v.setHfFrom(asDateEvent(d))}
+                          maxDate={toDay(v.hfMaxDay) || undefined}
+                          status={v.hfErr ? "error" : undefined}
+                          style={{ width: "100%" }}
+                        />
+                      </Form.Item>
+                      <Form.Item label="To date" style={{ flex: 1, minWidth: 0, margin: 0 }}>
+                        <DatePicker
+                          size="large"
+                          inputReadOnly
+                          format="DD MMM YYYY"
+                          value={toDay(v.hfDraft.to)}
+                          onChange={(d) => v.setHfTo(asDateEvent(d))}
+                          minDate={toDay(v.hfDraft.from) || undefined}
+                          maxDate={toDay(v.hfMaxDay) || undefined}
+                          status={v.hfErr ? "error" : undefined}
+                          style={{ width: "100%" }}
+                        />
+                      </Form.Item>
+                    </Flex>
+                    {v.hfErr ? (
+                      <>
+                        <Alert type="error" showIcon title={v.hfErr} />
+                      </>
+                    ) : null}
+                    <Flex gap={8}>
+                      <Button type="primary" block onClick={v.applyHfRange}>Apply</Button>
+                      <Button type="text" block onClick={v.clearHfRange}>Clear dates</Button>
+                    </Flex>
+                  </Flex>
+                </Card>
+              </>
+            ) : null}
+          </Flex>
+        </Form>
         {v.hfHasRange ? (
           <>
-            <div style={{ display: "flex" }}>
-              <button onClick={v.clearHfRange} aria-label="Remove date range" style={{ all: "unset", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px", padding: "6px 10px 6px 12px", borderRadius: "var(--radius-pill)", background: "var(--color-brand-tint)", border: "1px solid var(--color-brand)", fontSize: "13px", fontWeight: "600", color: "var(--kr-green-900)" }}>
+            <div>
+              <Button shape="round" color="primary" variant="filled" onClick={v.clearHfRange} aria-label="Remove date range" icon={<X size={14} strokeWidth={3} aria-hidden="true" />} iconPlacement="end">
                 {v.hfRangeLabel}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
-              </button>
+              </Button>
             </div>
           </>
         ) : null}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "12px" }}>
-          <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>{v.histCountLine}</span>
+        <Flex justify="space-between" align="baseline" gap={12}>
+          <Text type="secondary">{v.histCountLine}</Text>
           {v.hfAnyFilter ? (
             <>
-              <button onClick={v.clearHfAll} style={{ all: "unset", cursor: "pointer", fontFamily: "var(--font-display)", fontSize: "12px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--text-brand)" }}>
+              <Button type="link" onClick={v.clearHfAll} style={{ paddingInline: 0, height: "auto", textTransform: "uppercase", letterSpacing: "0.08em", fontSize: 12 }}>
                 Clear filters
-              </button>
+              </Button>
             </>
           ) : null}
           {v.hfNoFilter ? (
             <>
-              <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>Newest first</span>
+              <Text type="secondary" style={{ fontSize: 13 }}>Newest first</Text>
             </>
           ) : null}
-        </div>
+        </Flex>
         {/* Group trips by Vehicle Number accordion-wise */}
         {(() => {
           const list = v.histList || [];
@@ -411,176 +283,96 @@ export const TripHistory = ({ v }) => {
               ? !!openCards[group.vehNo]
               : (v.hfSelectedVehicles && v.hfSelectedVehicles.length === 1) || Object.keys(grouped).length === 1;
             return (
-              <div
+              <Collapse
                 key={group.vehNo}
-                style={{
-                  border: "1px solid var(--border-default)",
-                  borderLeft: `4px solid ${group.edge}`,
-                  borderRadius: "var(--radius-lg)",
-                  background: "#fff",
-                  overflow: "hidden",
-                  transition: "box-shadow var(--dur-base)",
-                }}
-                className="sv-h3"
-              >
-                {/* Collapsed Vehicle Heading Header */}
-                <div
-                  onClick={(e) => toggleCard(group.vehNo, e)}
-                  style={{
-                    padding: "16px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    cursor: "pointer",
-                    userSelect: "none",
-                    background: isOpen ? "var(--surface-muted, #f8faf9)" : "#fff",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                    <span style={{ fontFamily: "var(--font-display)", fontSize: "16px", fontWeight: "800", color: "var(--text-heading)" }}>
-                      {group.vehNo}
-                    </span>
-                  </div>
+                activeKey={isOpen ? [group.vehNo] : []}
+                onChange={() => toggleCard(group.vehNo)}
+                expandIconPlacement="end"
+                className="sv-hist-group"
+                style={{ borderLeftColor: group.edge }}
+                items={[
+                  {
+                    key: group.vehNo,
+                    label: <span className="sv-figure" style={{ fontSize: 16 }}>{group.vehNo}</span>,
+                    children: (
+                      /* Expanded Section: Shows all trip cards for this vehicle as separate cards */
+                      <Flex vertical gap={10}>
+                        {group.trips.map((t, idx) => {
+                          const displayRoute = hasClientFilter
+                            ? t.routeLine
+                            : (t.routeWithoutClient || (t.routeLine ? t.routeLine.replace(/^.*? → /, '') : ''));
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <button
-                      type="button"
-                      onClick={(e) => toggleCard(group.vehNo, e)}
-                      aria-label={isOpen ? "Hide details" : "Show details"}
-                      aria-expanded={isOpen}
-                      style={{
-                        all: "unset",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "50%",
-                        background: "var(--kr-grey-100, #f1f5f9)",
-                        color: "var(--text-heading)",
-                      }}
-                    >
-                      <svg
-                        width="18"
-                        height="18"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        style={{
-                          transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                          transition: "transform 0.2s ease",
-                        }}
-                      >
-                        <path d="m6 9 6 6 6-6" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                          return (
+                            <Card
+                              key={t.id || idx}
+                              size="small"
+                              hoverable
+                              role="button"
+                              tabIndex={0}
+                              data-id={t.id}
+                              onClick={v.openHistTrip}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); v.openHistTrip(e); } }}
+                              title="Click to view trip details"
+                              className="sv-edge-card"
+                              style={{ borderLeftColor: t.edge }}
+                            >
+                              <Flex vertical gap={8}>
+                                <Flex justify="space-between" align="center" gap={8}>
+                                  <Text code strong>{t.number}</Text>
+                                  <Tag color={t.badgeColor} className="sv-tag">
+                                    {t.badge}
+                                  </Tag>
+                                </Flex>
 
-                {/* Expanded Section: Shows all trip cards for this vehicle as separate cards */}
-                {isOpen && (
-                  <div
-                    style={{
-                      borderTop: "1px solid var(--border-default)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "10px",
-                      padding: "12px",
-                      background: "var(--surface-muted, #f8faf9)",
-                    }}
-                  >
-                    {group.trips.map((t, idx) => {
-                      const displayRoute = hasClientFilter
-                        ? t.routeLine
-                        : (t.routeWithoutClient || (t.routeLine ? t.routeLine.replace(/^.*? → /, '') : ''));
+                                <Text strong>{t.crewLine}</Text>
+                                <Text type="secondary" style={{ fontSize: 13 }}>
+                                  {displayRoute}
+                                </Text>
 
-                      return (
-                        <div
-                          key={t.id || idx}
-                          data-id={t.id}
-                          onClick={v.openHistTrip}
-                          title="Click to view trip details"
-                          style={{
-                            padding: "14px",
-                            borderRadius: "var(--radius-md)",
-                            border: "1px solid var(--border-default)",
-                            borderLeft: `4px solid ${t.edge}`,
-                            background: "#fff",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "8px",
-                            cursor: "pointer",
-                            transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#fff";
-                            e.currentTarget.style.boxShadow = "var(--shadow-md, 0 4px 6px -1px rgba(0,0,0,0.1))";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "#fff";
-                            e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.04)";
-                          }}
-                        >
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: "700", color: "var(--text-heading)" }}>
-                              {t.number}
-                            </span>
-                            <span style={{ fontFamily: "var(--font-display)", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", padding: "2px 8px", borderRadius: "var(--radius-sm)", background: t.badgeBg, color: t.badgeFg }}>
-                              {t.badge}
-                            </span>
-                          </div>
+                                <Flex justify="space-between" gap={12} style={{ paddingTop: 8, borderTop: "1px dashed var(--border-default)" }}>
+                                  <Text type="secondary" style={{ fontSize: 12 }}>Closed {t.closedAt}</Text>
+                                  <Text strong style={{ fontSize: 12 }}>{t.distance}</Text>
+                                </Flex>
 
-                          <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-heading)" }}>
-                            {t.crewLine}
-                          </div>
-                          <div style={{ fontSize: "13px", color: "var(--text-muted)" }}>
-                            {displayRoute}
-                          </div>
-
-                          <div style={{ marginTop: "4px", paddingTop: "8px", borderTop: "1px dashed var(--border-default)", display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "12px", color: "var(--text-muted)" }}>
-                            <span>Closed {t.closedAt}</span>
-                            <span style={{ fontWeight: "700", color: "var(--text-heading)" }}>{t.distance}</span>
-                          </div>
-
-                          {t.flagged && (
-                            <div style={{ marginTop: "4px", fontSize: "12px", fontWeight: "600", color: "var(--st-flagged-fg)" }}>
-                              {t.flagLine}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                                {t.flagged && (
+                                  <Text strong style={{ fontSize: 12, color: "var(--st-flagged-fg)" }}>
+                                    {t.flagLine}
+                                  </Text>
+                                )}
+                              </Flex>
+                            </Card>
+                          );
+                        })}
+                      </Flex>
+                    ),
+                  },
+                ]}
+              />
             );
           });
         })()}
         {v.histEmpty ? (
           <>
-            <div style={{ padding: "48px 20px", textAlign: "center" }}>
-              <div style={{ width: "56px", height: "56px", margin: "0 auto 16px", borderRadius: "50%", background: "var(--surface-muted)", display: "grid", placeItems: "center" }}>
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 7v5l3 2" />
-                  <circle cx="12" cy="12" r="9" />
-                </svg>
-              </div>
-              <div style={{ fontFamily: "var(--font-display)", fontWeight: "800", fontSize: "20px", color: "var(--text-heading)" }}>{v.histEmptyTitle}</div>
-              <p style={{ margin: "8px 0 16px", fontSize: "14px", color: "var(--text-muted)" }}>{v.histEmptyText}</p>
+            <Empty
+              style={{ padding: "32px 20px" }}
+              image={<Avatar size={56} style={{ background: "var(--surface-muted)", color: "var(--text-muted)" }} icon={<Clock size={26} strokeWidth={2.25} />} />}
+              styles={{ image: { height: 56 } }}
+              description={
+                <>
+                  <Text strong style={{ display: "block", fontSize: 20 }}>{v.histEmptyTitle}</Text>
+                  <Text type="secondary">{v.histEmptyText}</Text>
+                </>
+              }
+            >
               {v.hfAnyFilter ? (
                 <>
-                  <Button variant="secondary" onClick={v.clearHfAll}>Clear filters</Button>
+                  <Button color="primary" variant="outlined" onClick={v.clearHfAll}>Clear filters</Button>
                 </>
               ) : null}
-            </div>
+            </Empty>
           </>
         ) : null}
-      </div>
+      </Flex>
     </>
   );
 };

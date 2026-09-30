@@ -1,35 +1,8 @@
-/* Attendance filter dropdowns.
-   A native <select> popup is drawn by the operating system, so its list cannot be
-   styled — that is why these are antd Selects. The open panel and rows follow the
-   shared dropdown spec (AntdProvider Select tokens + .ant-select-dropdown rules in
-   global.css); this file only sizes the closed field for the 40px filter bar.
-   antd v6 draws the bordered box on .ant-select itself and derives its padding
-   from --ant-select-height. */
+/* Attendance page.
+   The filter bar uses plain antd Select / DatePicker, sized by the global theme
+   (AntdProvider). The vehicle list height is capped with the Select `listHeight`
+   prop; this only stops its scroll from chaining to the page. */
 
-.att-filter-select.ant-select {
-  --ant-select-height: 40px;
-  box-sizing: border-box;
-  align-items: center;
-  padding-block: 0;
-  font-size: 13px;
-}
-
-.att-filter-select .ant-select-content {
-  align-items: center;
-  line-height: 20px;
-}
-
-.att-filter-select .ant-select-placeholder {
-  color: var(--text-muted);
-}
-
-.att-filter-select .ant-select-suffix {
-  align-self: center;
-  display: inline-flex;
-}
-
-/* The vehicle list can run long, so it scrolls rather than filling the screen */
 .att-filter-popup .rc-virtual-list-holder {
-  max-height: 264px !important;
   overscroll-behavior: contain;
 }

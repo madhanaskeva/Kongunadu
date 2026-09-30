@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import Modal from './Modal';
-import Button from './Button';
-import { FormInput, FormSelect, FormTextarea } from '../forms';
+import { Alert, Button, Form, Input, Modal, Select, Typography } from 'antd';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { useAuth } from '../../hooks/useAuth';
 
 /**
- * SendNoticeModal — Exact popup modal from Image 2 for sending notices to branch supervisors.
+ * SendNoticeModal — antd Modal for sending notices to branch supervisors.
  *
  * Props:
  *   isOpen: boolean
@@ -117,113 +115,88 @@ export const SendNoticeModal = ({ isOpen, onClose }) => {
 
   return (
     <Modal
-      isOpen={isOpen}
-      onClose={handleCancel}
-      subtitle="NOTIFY SUPERVISORS"
-      title="Send notice"
-      maxWidth="560px"
-      footerStyle={{
-        backgroundColor: '#ffffff',
-        borderTop: '1px solid #e5e7eb',
-        padding: '16px 24px',
-      }}
+      open={!!isOpen}
+      onCancel={handleCancel}
+      width={560}
+      centered
+      destroyOnHidden
+      title={
+        <div>
+          <Typography.Text
+            type="secondary"
+            style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+          >
+            NOTIFY SUPERVISORS
+          </Typography.Text>
+          <div>Send notice</div>
+        </div>
+      }
       footer={
         <>
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            style={{
-              borderColor: 'transparent',
-              color: '#111827',
-              fontWeight: 600,
-              padding: '0 18px',
-            }}
-          >
+          <Button type="text" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            style={{
-              backgroundColor: 'var(--kr-green-800, #00462a)',
-              borderColor: 'var(--kr-green-800, #00462a)',
-              color: '#ffffff',
-              fontWeight: 700,
-              padding: '0 22px',
-              borderRadius: '8px',
-            }}
-          >
+          <Button type="primary" onClick={handleSubmit}>
             Send notice
           </Button>
         </>
       }
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* Info Banner matching Image 2 */}
-        <div
-          style={{
-            backgroundColor: '#ebf7f2',
-            border: '1px solid #c6ebd6',
-            borderRadius: '10px',
-            padding: '14px 16px',
-            fontSize: '13.5px',
-            color: '#164e3d',
-            lineHeight: '1.45',
-            fontFamily: 'var(--font-body)',
-          }}
-        >
-          Supervisors see this on the Notifications page of the mobile app with your name and the time sent. Urgent
-          notices also pop up on screen.
-        </div>
+      <Form layout="vertical" onFinish={() => handleSubmit()} requiredMark={false}>
+        <Alert
+          type="success"
+          style={{ marginBottom: 16 }}
+          title="Supervisors see this on the Notifications page of the mobile app with your name and the time sent. Urgent notices also pop up on screen."
+        />
 
         {/* Send to dropdown */}
-        <FormSelect
-          label="Send to"
-          name="sendTo"
-          value={sendTo}
-          onChange={(e) => setSendTo(e.target.value)}
-          options={branchOptions}
-        />
+        <Form.Item label="Send to">
+          <Select aria-label="Send to" value={sendTo} onChange={setSendTo} options={branchOptions} />
+        </Form.Item>
 
         {/* Priority dropdown */}
-        <FormSelect
-          label="Priority"
-          name="priority"
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          options={priorityOptions}
-        />
+        <Form.Item label="Priority">
+          <Select aria-label="Priority" value={priority} onChange={setPriority} options={priorityOptions} />
+        </Form.Item>
 
         {/* Subject input */}
-        <FormInput
+        <Form.Item
           label="Subject"
-          name="subject"
-          value={subject}
-          onChange={(e) => {
-            setSubject(e.target.value);
-            if (errors.subject) setErrors((prev) => ({ ...prev, subject: null }));
-          }}
-          placeholder="e.g. Photograph every diesel slip"
-          error={errors.subject}
-        />
+          validateStatus={errors.subject ? 'error' : undefined}
+          help={errors.subject || undefined}
+        >
+          <Input
+            name="subject"
+            value={subject}
+            onChange={(e) => {
+              setSubject(e.target.value);
+              if (errors.subject) setErrors((prev) => ({ ...prev, subject: null }));
+            }}
+            placeholder="e.g. Photograph every diesel slip"
+          />
+        </Form.Item>
 
         {/* Message textarea */}
-        <FormTextarea
+        <Form.Item
           label="Message"
-          name="message"
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            if (errors.message) setErrors((prev) => ({ ...prev, message: null }));
-          }}
-          placeholder="What should supervisors know or do?"
-          rows={4}
-          error={errors.message}
-        />
-      </form>
+          style={{ marginBottom: 0 }}
+          validateStatus={errors.message ? 'error' : undefined}
+          help={errors.message || undefined}
+        >
+          <Input.TextArea
+            name="message"
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              if (errors.message) setErrors((prev) => ({ ...prev, message: null }));
+            }}
+            placeholder="What should supervisors know or do?"
+            rows={4}
+          />
+        </Form.Item>
+      </Form>
     </Modal>
   );
 };
 
 export default SendNoticeModal;
-

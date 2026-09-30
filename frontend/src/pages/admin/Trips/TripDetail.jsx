@@ -1,92 +1,56 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { CircleCheck, Fuel, Lock, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Fuel, Lock, ShieldCheck, TriangleAlert, Eye } from 'lucide-react';
+import {
+  Alert, Badge, Button, Card, Col, Descriptions, Empty, Flex, Progress, Row, Space, Table, Tag, Timeline, Tooltip, Typography,
+} from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
-import { Pagination, usePagination } from '../../../components/common/Pagination';
-import { RowActions } from '../../../components/common/RowActions';
 import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import {
   VERIFY_STATUS, VERIFY_LEVEL_1, VERIFY_LEVEL_2,
   runChecks, verifyState,
   routeDieselLimit, overLimitLitres, overLimitValue, routesOfTrip,
 } from '../../../utils/tripVerification';
-import '../../../styles/TripDetail.css';
+import '../../../styles/tripDetail.css';
 
-const sectionTitle = {
-  margin: 0,
-  fontFamily: 'var(--font-display)',
-  fontWeight: 800,
-  fontSize: '15px',
-  letterSpacing: '0.02em',
-  textTransform: 'uppercase',
-  color: 'var(--text-heading)',
-};
-
-const cardStyle = {
-  background: '#fff',
-  border: '1px solid var(--border-default)',
-  borderRadius: 'var(--radius-lg)',
-};
-
-const thStyle = (align) => ({
-  padding: '10px 16px',
-  fontFamily: 'var(--font-display)',
-  fontSize: '11px',
-  fontWeight: 700,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: 'var(--kr-grey-700)',
-  whiteSpace: 'nowrap',
-  textAlign: align || 'left',
-});
-
-const actionBtn = {
-  all: 'unset',
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '7px',
-  height: '36px',
-  boxSizing: 'border-box',
-  padding: '0 16px',
-  borderRadius: 'var(--radius-md)',
-  fontSize: '13.5px',
-  fontWeight: 700,
-};
-const btnPrimary = { ...actionBtn, background: 'var(--kr-green-700)', color: '#fff' };
-const btnOutline = { ...actionBtn, border: '1px solid var(--border-strong)', color: 'var(--text-heading)' };
-const btnDanger = { ...actionBtn, border: '1px solid var(--kr-red-600)', color: 'var(--kr-red-700)' };
-
-// Badge colour and the line explaining what is expected next, per workflow state.
+// Tag colour, left-edge colour and the line explaining what is expected next, per workflow state.
 const VERIFY_VIEW = {
   [VERIFY_STATUS.NOT_READY]: {
-    bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)', edge: 'var(--kr-grey-300)',
+    tag: 'default', edge: 'var(--kr-grey-300)',
     hint: 'Expenses are filed when the supervisor closes the trip.',
   },
   [VERIFY_STATUS.PENDING]: {
-    bg: 'var(--color-hazard-soft)', fg: '#7A4300', edge: 'var(--kr-saffron-500)',
+    tag: 'warning', edge: 'var(--kr-saffron-500)',
     hint: 'Waiting on Level 1 · Verification Team.',
     hintOver: 'Diesel is above the authorized limit — Level 1 cannot sign this off.',
   },
   [VERIFY_STATUS.ESCALATED]: {
-    bg: 'var(--kr-red-100)', fg: 'var(--kr-red-800)', edge: 'var(--kr-red-600)',
+    tag: 'error', edge: 'var(--kr-red-600)',
     hint: 'Level 1 could not approve this. Waiting on a Level 2 decision.',
   },
   [VERIFY_STATUS.APPROVED]: {
-    bg: 'var(--kr-green-100)', fg: 'var(--kr-green-800)', edge: 'var(--color-brand)',
+    tag: 'success', edge: 'var(--color-brand)',
     hint: 'Approved and locked.',
   },
   [VERIFY_STATUS.DEDUCTED]: {
-    bg: 'var(--kr-red-100)', fg: 'var(--kr-red-800)', edge: 'var(--kr-red-600)',
+    tag: 'error', edge: 'var(--kr-red-600)',
     hint: 'Deduction raised and sent to payroll.',
   },
 };
 
-const SEV_COLORS = {
-  High: ['var(--kr-red-100)', 'var(--kr-red-800)'],
-  Medium: ['var(--color-hazard-soft)', '#7A4300'],
-  Low: ['var(--kr-grey-100)', 'var(--kr-grey-700)'],
+// Exception severity → Tag preset.
+const SEV_TAG = {
+  High: 'error',
+  Medium: 'warning',
+  Low: 'default',
+};
+
+// Trip-record pill tone → Tag preset.
+const TONE_TAG = {
+  bad: 'error',
+  good: 'success',
+  neutral: 'default',
 };
 
 export const TripDetail = () => {
@@ -115,12 +79,11 @@ export const TripDetail = () => {
   const { can } = useModuleAccess();
 
   const tms = T();
-  const gpsPg = usePagination(tms.gpsLog || []);
   const currentTripId = id || selectedTrip || 'T07';
   // A trip opened by URL must exist (deleted trips stay gone); otherwise fall back to the first trip.
   const rawTrip = (tms.trips || []).find(t => t.id === currentTripId) || (id ? null : (tms.trips || [])[0]);
 
-  if (!rawTrip) return <div style={{ padding: '24px' }}>Trip not found</div>;
+  if (!rawTrip) return <Empty description="Trip not found" />;
 
   const v = tms.V[rawTrip.vehicle];
   const d = tms.D[rawTrip.driver];
@@ -221,10 +184,6 @@ export const TripDetail = () => {
   const statusRank = { Open: 0, 'Under review': 1, Resolved: 2 };
   const tripExceptions = allExceptions
     .filter(x => x.trip === rawTrip.id)
-    .map(x => {
-      const [sevBg, sevFg] = SEV_COLORS[x.severity] || SEV_COLORS.Low;
-      return { ...x, sevBg, sevFg };
-    })
     .sort((a, b) => (statusRank[a.status] ?? 3) - (statusRank[b.status] ?? 3));
   const openExcCount = tripExceptions.filter(x => x.status !== 'Resolved').length;
 
@@ -624,49 +583,24 @@ export const TripDetail = () => {
   ];
 
   // One stat line: label left, value right, with the limit dot when it applies.
-  const statRow = ([label, val, tone, fallback], i, arr) => (
-    <div
-      key={i}
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: '12px',
-        padding: '9px 0',
-        borderBottom: i === arr.length - 1 ? 'none' : '1px solid var(--border-default)',
-        fontSize: '13.5px',
-      }}
-    >
-      <span style={{ color: 'var(--kr-grey-700)' }}>{label}</span>
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          fontWeight: 700,
-          whiteSpace: 'nowrap',
-          color: tone === 'bad' ? 'var(--kr-red-700)'
-            : tone === 'good' ? 'var(--kr-green-800)'
-            : val == null ? 'var(--kr-grey-500)' : 'var(--text-heading)',
-        }}
+  const statRow = ([label, val, tone, fallback], i) => (
+    <Flex key={i} justify="space-between" gap={12} className="td-stat-row">
+      <Typography.Text>{label}</Typography.Text>
+      <Typography.Text
+        strong
+        className={`td-stat-value${tone === 'bad' ? ' td-stat-value--bad' : tone === 'good' ? ' td-stat-value--good' : val == null ? ' td-stat-value--empty' : ''}`}
       >
         {/* Red over the authorized limit, green inside it */}
         {val != null && (tone === 'bad' || tone === 'good') && (
-          <span
+          <Badge
+            status={tone === 'bad' ? 'error' : 'success'}
             aria-label={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
             title={tone === 'bad' ? 'Over the authorized limit' : 'Within the authorized limit'}
-            style={{
-              flex: 'none',
-              width: '9px',
-              height: '9px',
-              borderRadius: '50%',
-              background: tone === 'bad' ? 'var(--kr-red-600)' : 'var(--kr-green-600)',
-              boxShadow: `0 0 0 3px ${tone === 'bad' ? 'rgba(217,22,25,0.18)' : 'rgba(0,98,63,0.16)'}`,
-            }}
           />
         )}
         {val == null ? (fallback || (isClosed ? '—' : 'Pending')) : val}
-      </span>
-    </div>
+      </Typography.Text>
+    </Flex>
   );
 
   // Trip record, grouped the way the trip is lived: who it is for, what ran it,
@@ -779,614 +713,443 @@ export const TripDetail = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const exceptionColumns = [
+    { title: 'Severity', dataIndex: 'severity', key: 'severity', render: sev => <Tag color={SEV_TAG[sev] || SEV_TAG.Low} className="td-caps-tag">{sev}</Tag> },
+    { title: 'Type', dataIndex: 'type', key: 'type', onCell: () => ({ style: { whiteSpace: 'nowrap' } }), render: v => <Typography.Text strong>{v}</Typography.Text> },
+    { title: 'Detail', dataIndex: 'detail', key: 'detail', onCell: () => ({ style: { minWidth: 260, maxWidth: 400 } }) },
+    { title: 'Raised', dataIndex: 'raised', key: 'raised', onCell: () => ({ style: { whiteSpace: 'nowrap' } }), render: v => <Typography.Text type="secondary">{v}</Typography.Text> },
+    { title: 'Assignee', dataIndex: 'assignee', key: 'assignee', onCell: () => ({ style: { whiteSpace: 'nowrap' } }) },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      render: (_, x) => (
+        <Tooltip title={`View and resolve ${x.type}`}>
+          <Button type="text" size="small" className="tms-row-action tms-row-action--view" icon={<Eye size={16} strokeWidth={2} />} aria-label={`View and resolve ${x.type}`} onClick={() => openException(x)} />
+        </Tooltip>
+      ),
+    },
+  ];
+
+  const gpsColumns = [
+    { title: 'Time', dataIndex: 't', key: 't', render: v => <Typography.Text type="secondary" className="td-mono">{v}</Typography.Text> },
+    { title: 'Event', dataIndex: 'ev', key: 'ev', render: v => <Typography.Text className="td-heading-text">{v}</Typography.Text> },
+    { title: 'KM', dataIndex: 'km', key: 'km', align: 'right' },
+    { title: 'Speed', dataIndex: 'speed', key: 'speed', align: 'right', onCell: () => ({ style: { whiteSpace: 'nowrap' } }), render: v => <Typography.Text type="secondary">{v} km/h</Typography.Text> },
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <Flex vertical gap={24}>
       {/* Top action row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+      <Flex justify="space-between" align="flex-start" gap={16} wrap>
         <div>
-          <button
-            onClick={() => navTo('trips')}
-            style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)' }}
-          >
+          <Button type="link" size="small" className="td-back" onClick={() => navTo('trips')}>
             ← All trips
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', flexWrap: 'wrap' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', fontWeight: 700, color: 'var(--text-heading)' }}>
-              {rawTrip.number}
-            </span>
-            <span
-              style={{
-                display: 'inline-flex',
-                fontFamily: 'var(--font-display)',
-                fontSize: '11px',
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                padding: '3px 8px',
-                borderRadius: 'var(--radius-sm)',
-                background: badgeBg,
-                color: badgeFg,
-              }}
-            >
+          </Button>
+          <Flex align="center" gap={12} wrap className="td-title-row">
+            <Typography.Text className="td-trip-number">{rawTrip.number}</Typography.Text>
+            {/* Trip states carry their own palette (var(--st-*)), which no preset colour matches. */}
+            <Tag variant="filled" className="td-caps-tag" style={{ background: badgeBg, color: badgeFg }}>
               {badge}
-            </span>
-            <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
+            </Tag>
+            <Typography.Text type="secondary">
               {rawTrip.type} · {(b || {}).name} · opened by {(s || {}).name}
-            </span>
-          </div>
+            </Typography.Text>
+          </Flex>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <Space size={8} wrap>
           {vState.locked && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--kr-grey-700)' }}>
-              <Lock size={14} /> Locked after approval
-            </span>
+            <Typography.Text strong>
+              <Space size={6}><Lock size={14} /> Locked after approval</Space>
+            </Typography.Text>
           )}
           {can('trips', 'edit') && !vState.locked && (
-            <button
-              onClick={editTrip}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                height: '32px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-strong)',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--color-brand)',
-              }}
-            >
+            <Button size="small" color="primary" variant="outlined" onClick={editTrip}>
               Edit record
-            </button>
+            </Button>
           )}
           {can('trips', 'delete') && !vState.locked && (
-            <button
-              onClick={askDeleteTrip}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                height: '32px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-md)',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--kr-red-700)',
-              }}
-            >
+            <Button size="small" type="text" danger onClick={askDeleteTrip}>
               Delete
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+        </Space>
+      </Flex>
 
       {/* Attention banner: variance over threshold and / or open exceptions */}
       {(flagged || openExcCount > 0) && (
-        <div
-          role="alert"
-          style={{
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'center',
-            padding: '12px 16px',
-            background: 'var(--color-hazard-soft)',
-            borderRadius: 'var(--radius-md)',
-            color: '#7A4300',
-            fontSize: '14px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <TriangleAlert size={18} style={{ flex: 'none' }} />
-          <strong style={{ fontFamily: 'var(--font-display)', fontSize: '12px', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Needs attention
-          </strong>
-          <span>
-            {[
-              flagged ? `Distance variance ${pct.toFixed(1)}% exceeds the ${thr}% threshold` : null,
-              openExcCount ? `${openExcCount} open exception${openExcCount > 1 ? 's' : ''} on this trip` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
-          <button
-            onClick={scrollToExceptions}
-            style={{ all: 'unset', cursor: 'pointer', marginLeft: 'auto', fontWeight: 700, color: '#7A4300', whiteSpace: 'nowrap' }}
-          >
-            Review below ↓
-          </button>
-        </div>
+        <Alert
+          type="warning"
+          showIcon
+          icon={<TriangleAlert size={18} />}
+          className="td-attention"
+          title={
+            <Space size={12} wrap>
+              <Typography.Text strong className="td-caps">Needs attention</Typography.Text>
+              <span>
+                {[
+                  flagged ? `Distance variance ${pct.toFixed(1)}% exceeds the ${thr}% threshold` : null,
+                  openExcCount ? `${openExcCount} open exception${openExcCount > 1 ? 's' : ''} on this trip` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+            </Space>
+          }
+          action={
+            <Button type="link" size="small" className="td-attention-link" onClick={scrollToExceptions}>
+              Review below ↓
+            </Button>
+          }
+        />
       )}
 
       {/* Distance variation beside the status lifecycle */}
-      <div className="td-summary-grid">
-        <section style={{ ...cardStyle, borderLeft: `4px solid ${distEdge}`, padding: '18px' }}>
-          <div style={{ marginBottom: '14px' }}>
-            <h2 style={sectionTitle}>Distance variation</h2>
-          </div>
-
-          {/* Three sources on one muted panel, as on the Distance Variation alerts */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-            {distBars.map(([label, role, km, color, dl], i) => (
-              <div key={i} className="td-dist-row" title={role}>
-                <span style={{ fontSize: '13px', color: 'var(--kr-grey-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {label}
-                </span>
-                <span style={{ height: '10px', background: '#fff', borderRadius: '2px', overflow: 'hidden' }}>
-                  <span
-                    style={{
-                      display: 'block',
-                      height: '100%',
-                      width: km == null ? '0%' : Math.round((km / maxKm) * 100) + '%',
-                      background: color,
-                      transition: 'width var(--dur-base)',
-                    }}
-                  />
-                </span>
-                <span style={{ textAlign: 'right', minWidth: 0, whiteSpace: 'nowrap' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                    {km == null ? '—' : fmtKm(km)}
-                  </span>
-                  {dl != null && (
-                    <span style={{ marginLeft: '6px', fontSize: '12px', fontWeight: 600, color: Math.abs(dl) > thr ? 'var(--kr-red-700)' : 'var(--kr-grey-700)' }}>
-                      {dl > 0 ? '+' : ''}{dl.toFixed(1)}%
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Verdict: the headline number and what set it */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '12px',
-              flexWrap: 'wrap',
-              marginTop: '12px',
-              paddingTop: '12px',
-              borderTop: '1px solid var(--border-default)',
-            }}
+      <Row gutter={[24, 16]}>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Distance variation"
+            className="td-card td-card--edge"
+            style={{ '--td-edge': distEdge, height: '100%' }}
           >
-            {!hasBaseline ? (
-              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-heading)' }}>
-                No fixed route on this movement
-              </span>
-            ) : (
-              <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 800,
-                    fontSize: '22px',
-                    lineHeight: 1,
-                    color: flagged ? 'var(--kr-red-700)' : isClosed ? 'var(--kr-green-800)' : 'var(--kr-grey-700)',
-                  }}
-                >
-                  {pct.toFixed(1)}%
-                </span>
-                <span style={{ fontSize: '13px', color: 'var(--kr-grey-700)' }}>
-                  {srcDiff == null
-                    ? 'no reading yet'
-                    : `${srcName} ${srcDiff > 0 ? '+' : ''}${srcDiff} km vs fixed${isClosed ? '' : ' so far'}`}
-                </span>
-              </span>
-            )}
-            <button
-              onClick={() => navTo('settings')}
-              style={{ all: 'unset', cursor: 'pointer', fontSize: '12px', fontWeight: 700, color: 'var(--text-brand)', whiteSpace: 'nowrap' }}
-            >
-              Threshold {thr}% · Settings →
-            </button>
-          </div>
-
-          <p style={{ margin: '10px 0 0', fontSize: '13px', color: 'var(--kr-grey-700)', lineHeight: 1.5 }}>
-            {distNote} {distFallback}
-          </p>
-        </section>
-
-        <section style={{ ...cardStyle, padding: '18px' }}>
-          <h2 style={{ ...sectionTitle, marginBottom: '14px' }}>Status lifecycle</h2>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {lifecycle.map(([label, meta, done], i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '16px 1fr', gap: '12px', minHeight: '52px' }}>
-                <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      background: done ? 'var(--color-brand)' : '#fff',
-                      border: `2px solid ${done ? 'var(--color-brand)' : 'var(--border-strong)'}`,
-                      boxSizing: 'border-box',
-                      marginTop: '4px',
-                      flex: 'none',
-                    }}
+            {/* Three sources on one muted panel, as on the Distance Variation alerts */}
+            <Flex vertical gap={8} className="td-muted-panel">
+              {distBars.map(([label, role, km, color, dl], i) => (
+                <div key={i} className="td-dist-row" title={role}>
+                  <Typography.Text ellipsis className="td-small">{label}</Typography.Text>
+                  <Progress
+                    percent={km == null ? 0 : Math.round((km / maxKm) * 100)}
+                    showInfo={false}
+                    strokeColor={color}
+                    railColor="#fff"
+                    strokeLinecap="square"
+                    size={{ height: 10 }}
                   />
-                  {i < lifecycle.length - 1 && <span style={{ flex: 1, width: '2px', background: 'var(--border-default)' }} />}
-                </span>
-                <span style={{ paddingBottom: '14px' }}>
-                  <span style={{ display: 'block', fontWeight: 700, fontSize: '14px', color: done ? 'var(--text-heading)' : 'var(--text-muted)' }}>
-                    {label}
+                  <span className="td-dist-value">
+                    <Typography.Text strong className="td-small">
+                      {km == null ? '—' : fmtKm(km)}
+                    </Typography.Text>
+                    {dl != null && (
+                      <Typography.Text type={Math.abs(dl) > thr ? 'danger' : undefined} className="td-dist-delta">
+                        {dl > 0 ? '+' : ''}{dl.toFixed(1)}%
+                      </Typography.Text>
+                    )}
                   </span>
-                  <span style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)' }}>{meta}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
+                </div>
+              ))}
+            </Flex>
+
+            {/* Verdict: the headline number and what set it */}
+            <Flex justify="space-between" align="center" gap={12} wrap className="td-verdict">
+              {!hasBaseline ? (
+                <Typography.Text strong className="td-heading-text">
+                  No fixed route on this movement
+                </Typography.Text>
+              ) : (
+                <Flex align="baseline" gap={8} wrap>
+                  <span className={`td-verdict-pct${flagged ? ' td-verdict-pct--bad' : isClosed ? ' td-verdict-pct--good' : ''}`}>
+                    {pct.toFixed(1)}%
+                  </span>
+                  <Typography.Text className="td-small">
+                    {srcDiff == null
+                      ? 'no reading yet'
+                      : `${srcName} ${srcDiff > 0 ? '+' : ''}${srcDiff} km vs fixed${isClosed ? '' : ' so far'}`}
+                  </Typography.Text>
+                </Flex>
+              )}
+              <Button type="link" size="small" className="td-link-sm" onClick={() => navTo('settings')}>
+                Threshold {thr}% · Settings →
+              </Button>
+            </Flex>
+
+            <Typography.Paragraph className="td-note">
+              {distNote} {distFallback}
+            </Typography.Paragraph>
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card title="Status lifecycle" className="td-card" style={{ height: '100%' }}>
+            <Timeline
+              className="td-lifecycle"
+              items={lifecycle.map(([label, meta, done]) => ({
+                color: done ? 'var(--color-brand)' : 'gray',
+                content: (
+                  <Flex vertical>
+                    <Typography.Text strong type={done ? undefined : 'secondary'} className={done ? 'td-heading-text' : undefined}>
+                      {label}
+                    </Typography.Text>
+                    <Typography.Text type="secondary" className="td-small">{meta}</Typography.Text>
+                  </Flex>
+                ),
+              }))}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Exceptions raised on this trip */}
       {can('exceptions', 'view') && (
-        <section id="trip-exceptions" style={{ ...cardStyle, overflow: 'hidden', scrollMarginTop: '16px' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
-            <h2 style={sectionTitle}>
+        <Card
+          id="trip-exceptions"
+          className="td-card td-scroll-target"
+          styles={{ body: { padding: 0 } }}
+          title={
+            <Space size={8} wrap>
               Exceptions
               {tripExceptions.length > 0 && (
-                <span style={{ marginLeft: '8px', fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'none', letterSpacing: 0 }}>
+                <Typography.Text type="secondary" className="td-head-count">
                   {openExcCount} open of {tripExceptions.length}
-                </span>
+                </Typography.Text>
               )}
-            </h2>
-          </div>
-
+            </Space>
+          }
+        >
           {tripExceptions.length === 0 ? (
-            <div style={{ padding: '36px 24px', textAlign: 'center' }}>
-              <CircleCheck size={26} style={{ color: 'var(--color-brand)' }} />
-              <div style={{ marginTop: '8px', fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)' }}>
-                No exceptions on this trip
-              </div>
-              <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-                Nothing has been flagged against {rawTrip.number}.
-              </p>
-            </div>
+            <Empty
+              className="td-empty"
+              image={<CircleCheck size={26} color="var(--color-brand)" />}
+              description={
+                <Flex vertical gap={4} align="center">
+                  <Typography.Text strong className="td-empty-title">No exceptions on this trip</Typography.Text>
+                  <Typography.Text type="secondary">Nothing has been flagged against {rawTrip.number}.</Typography.Text>
+                </Flex>
+              }
+            />
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '780px' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                    <th style={thStyle()}>Severity</th>
-                    <th style={thStyle()}>Type</th>
-                    <th style={thStyle()}>Detail</th>
-                    <th style={thStyle()}>Raised</th>
-                    <th style={thStyle()}>Assignee</th>
-                    <th style={thStyle('center')}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tripExceptions.map(x => (
-                    <tr
-                      key={x.id}
-                      style={{ borderTop: '1px solid var(--border-default)' }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-muted)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <td style={{ padding: '12px 16px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            fontFamily: 'var(--font-display)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '0.1em',
-                            textTransform: 'uppercase',
-                            padding: '3px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            background: x.sevBg,
-                            color: x.sevFg,
-                          }}
-                        >
-                          {x.severity}
-                        </span>
-                      </td>
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                        {x.type}
-                      </td>
-                      <td style={{ padding: '12px 16px', minWidth: '260px', maxWidth: '400px', color: 'var(--text-body)' }}>
-                        {x.detail}
-                      </td>
-                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{x.raised}</td>
-                      <td style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>{x.assignee}</td>
-                      <td style={{ padding: '8px 16px', textAlign: 'center' }}>
-                        <RowActions
-                          onView={() => openException(x)}
-                          viewLabel={`View and resolve ${x.type}`}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table
+              columns={exceptionColumns}
+              dataSource={tripExceptions}
+              rowKey="id"
+              tableLayout="auto"
+              scroll={{ x: 780 }}
+              pagination={false}
+            />
           )}
-
-        </section>
+        </Card>
       )}
 
       {/* Full-width trip record: grouped panels, 3 across on desktop, 2 on tablet, 1 on mobile */}
-      <section style={{ ...cardStyle, overflow: 'hidden' }}>
-        <h2 style={{ ...sectionTitle, padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
-          Trip record
-        </h2>
+      <Card title="Trip record" className="td-card" styles={{ body: { padding: 0 } }}>
         <div className="td-rec-groups">
           {recordGroups.map(group => (
             <div key={group.title} className="td-rec-group">
-              <h3 className="td-verify-head">{group.title}</h3>
-              <dl className="td-rec-fields">
-                {group.rows.map(([k, val, tone, wide]) => (
-                  <div key={k} className={wide ? 'td-rec-field td-rec-field--wide' : 'td-rec-field'}>
-                    <dt className="td-rec-label">{k}</dt>
-                    <dd className="td-rec-value">
-                      {tone ? (
-                        <span className={`td-rec-pill td-rec-pill--${tone}`}>{val || '—'}</span>
-                      ) : (
-                        val || '—'
-                      )}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              <Descriptions
+                title={<span className="td-verify-head">{group.title}</span>}
+                layout="vertical"
+                colon={false}
+                size="small"
+                column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+                className="td-rec-fields"
+                items={group.rows.map(([k, val, tone, wide]) => ({
+                  key: k,
+                  label: k,
+                  span: wide ? 'filled' : 1,
+                  children: tone ? (
+                    <Tag color={TONE_TAG[tone]} className="td-rec-pill">{val || '—'}</Tag>
+                  ) : (
+                    val || '—'
+                  ),
+                }))}
+              />
             </div>
           ))}
         </div>
-      </section>
+      </Card>
 
       {/* Trip expense & verification — the approval layer before Head Office processes the trip */}
-      <section style={{ ...cardStyle, borderLeft: `4px solid ${vv.edge}`, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '14px 18px', borderBottom: '1px solid var(--border-default)' }}>
-          <h2 style={sectionTitle}>Trip expense &amp; verification</h2>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontFamily: 'var(--font-display)',
-              fontSize: '11px',
-              fontWeight: 700,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              padding: '4px 9px',
-              borderRadius: 'var(--radius-sm)',
-              background: vv.bg,
-              color: vv.fg,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {vState.locked && <Lock size={12} />}
+      <Card
+        title="Trip expense & verification"
+        className="td-card td-card--edge"
+        style={{ '--td-edge': vv.edge }}
+        styles={{ body: { padding: 0 } }}
+        extra={
+          <Tag color={vv.tag} icon={vState.locked ? <Lock size={12} /> : null} className="td-caps-tag">
             {vState.status}
-          </span>
-        </div>
-
+          </Tag>
+        }
+      >
         <div className="td-verify-grid">
           {/* Left — the diesel decision: the limit, what was booked, the verdict */}
-          <div style={{ padding: '16px 18px' }}>
+          <div className="td-verify-pane">
             <h3 className="td-verify-head">Diesel</h3>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <Flex vertical>
               {dieselRows.map(statRow)}
-            </div>
+            </Flex>
 
-            <div style={{ marginTop: '14px' }}>
+            <Flex vertical gap={10} className="td-verify-after">
               {!isClosed ? (
-                <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--kr-grey-700)', lineHeight: 1.55 }}>
+                <Typography.Paragraph className="td-note td-note--flush">
                   The diesel check runs once the supervisor closes the trip and files the diesel entry.
-                </p>
+                </Typography.Paragraph>
               ) : dieselLimit == null ? (
-                <p style={{ margin: 0, fontSize: '13.5px', color: 'var(--kr-grey-700)', lineHeight: 1.55 }}>
+                <Typography.Paragraph className="td-note td-note--flush">
                   No authorized diesel limit is set on this trip&rsquo;s route. Set one in the Route Master to check it.
-                </p>
+                </Typography.Paragraph>
               ) : (
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '12px',
-                    alignItems: 'flex-start',
-                    padding: '14px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    background: overLimit > 0 ? 'var(--kr-red-100)' : 'var(--kr-green-100)',
-                    color: overLimit > 0 ? 'var(--kr-red-800)' : 'var(--kr-green-800)',
-                  }}
-                >
-                  <Fuel size={20} style={{ flex: 'none', marginTop: '2px' }} />
-                  <span style={{ minWidth: 0 }}>
-                    <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '19px', fontWeight: 800, lineHeight: 1.2 }}>
+                <Alert
+                  type={overLimit > 0 ? 'error' : 'success'}
+                  showIcon
+                  icon={<Fuel size={20} />}
+                  className="td-verdict-alert"
+                  title={
+                    <span className="td-verdict-alert-title">
                       {overLimit > 0
                         ? `${overLimit.toLocaleString('en-IN')} L over the limit`
                         : 'Within the authorized limit'}
                     </span>
-                    <span style={{ display: 'block', marginTop: '4px', fontSize: '13px', lineHeight: 1.5 }}>
+                  }
+                  description={
+                    <>
                       {dieselLitres.toLocaleString('en-IN')} L booked against an authorized{' '}
                       {dieselLimit.toLocaleString('en-IN')} L
                       {overLimit > 0 && overValue != null ? ` — ${fmtMoney(overValue)} at ₹${dieselRate.toFixed(2)}/L` : ''}.
-                    </span>
-                  </span>
-                </div>
+                    </>
+                  }
+                />
               )}
 
               {/* Driver's explanation banner moved below diesel over limit message */}
               {isClosed && verifyRecord?.reason && (
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '12px',
-                    alignItems: 'flex-start',
-                    marginTop: '10px',
-                    padding: '14px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-hazard-soft)',
-                    color: '#7A4300',
-                  }}
-                >
-                  <TriangleAlert size={20} style={{ flex: 'none', marginTop: '2px' }} />
-                  <span style={{ minWidth: 0 }}>
-                    <span style={{ display: 'block', fontFamily: 'var(--font-display)', fontSize: '16px', fontWeight: 800, lineHeight: 1.2 }}>
-                      Driver&rsquo;s explanation
-                    </span>
-                    <span style={{ display: 'block', marginTop: '4px', fontSize: '13px', lineHeight: 1.5 }}>
+                <Alert
+                  type="warning"
+                  showIcon
+                  icon={<TriangleAlert size={20} />}
+                  className="td-verdict-alert"
+                  title={<span className="td-verdict-alert-title td-verdict-alert-title--sm">Driver&rsquo;s explanation</span>}
+                  description={
+                    <>
                       {verifyRecord.reason}
-                    </span>
-                    {verifyRecord.escalatedBy && (
-                      <span style={{ display: 'block', marginTop: '6px', fontSize: '12px', opacity: 0.85 }}>
-                        Escalated by {verifyRecord.escalatedBy} · {verifyRecord.escalatedAt}
-                      </span>
-                    )}
-                  </span>
-                </div>
+                      {verifyRecord.escalatedBy && (
+                        <span className="td-escalated">
+                          Escalated by {verifyRecord.escalatedBy} · {verifyRecord.escalatedAt}
+                        </span>
+                      )}
+                    </>
+                  }
+                />
               )}
-            </div>
+            </Flex>
           </div>
 
           {/* Right — what the trip cost, as the supervisor filed it box by box */}
-          <div style={{ padding: '16px 18px' }}>
+          <div className="td-verify-pane">
             <h3 className="td-verify-head">Expenses filed at close</h3>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <Flex vertical>
               {expenseRows.map(statRow)}
-            </div>
+            </Flex>
 
             {/* The itemised extras behind the "Other expenses" total */}
             {otherExpenses.length > 0 && (
-              <div style={{ marginTop: '12px', padding: '10px 12px', background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: '11.5px', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--kr-grey-700)', marginBottom: '6px' }}>
+              <div className="td-muted-panel td-other-exp">
+                <Typography.Text strong className="td-caps td-other-exp-head">
                   Other expenses, itemised
-                </div>
+                </Typography.Text>
                 {otherExpenses.map((x, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                      padding: '5px 0',
-                      fontSize: '13px',
-                      borderTop: i === 0 ? 'none' : '1px solid var(--border-default)',
-                    }}
-                  >
-                    <span style={{ color: 'var(--kr-grey-700)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {x.name || 'Unnamed'}
-                    </span>
-                    <span style={{ fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--text-heading)' }}>
-                      {fmtMoney(Number(x.amount) || 0)}
-                    </span>
-                  </div>
+                  <Flex key={i} justify="space-between" gap={12} className="td-other-exp-row">
+                    <Typography.Text ellipsis>{x.name || 'Unnamed'}</Typography.Text>
+                    <Typography.Text strong className="td-nowrap">{fmtMoney(Number(x.amount) || 0)}</Typography.Text>
+                  </Flex>
                 ))}
               </div>
             )}
 
             {/* Total expense — diesel plus every box above, as the close form added it up */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-                marginTop: '12px',
-                padding: '12px 14px',
-                background: 'var(--color-brand-tint)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--kr-green-900)' }}>
-                Total expense
-              </span>
-              <strong style={{ fontFamily: 'var(--font-display)', fontSize: '20px', color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
+            <Flex justify="space-between" align="center" gap={12} className="td-total">
+              <span className="td-total-label">Total expense</span>
+              <strong className="td-total-value">
                 {isClosed ? fmtMoney(filedTotal > 0 ? filedTotal : statedTotal || 0) : 'Pending'}
               </strong>
-            </div>
+            </Flex>
 
             {/* Older trips were closed before the itemised boxes existed, so the
                 figure the supervisor typed can differ from what the boxes add to. */}
             {totalMismatch && (
-              <p style={{ margin: '8px 0 0', fontSize: '12.5px', lineHeight: 1.5, color: '#7A4300' }}>
+              <Typography.Paragraph className="td-mismatch">
                 The supervisor filed {fmtMoney(statedTotal)} as the total, but the itemised boxes add up to {fmtMoney(filedTotal)}.
-              </p>
+              </Typography.Paragraph>
             )}
           </div>
         </div>
 
         {/* Workflow trail + the actions available at this level */}
         {isClosed && (
-          <div style={{ borderTop: '1px solid var(--border-default)', padding: '14px 18px', background: 'var(--surface-muted)' }}>
+          <div className="td-verify-foot">
             {verifyRecord?.deduction && (
-              <div style={{ marginBottom: '12px', padding: '10px 12px', background: 'var(--kr-red-100)', borderRadius: 'var(--radius-md)', fontSize: '13.5px', color: 'var(--kr-red-800)', lineHeight: 1.55 }}>
-                <strong>{fmtMoney(verifyRecord.deduction.amount)} to recover from {(d || {}).name || 'the driver'}.</strong>{' '}
-                {verifyRecord.deduction.note}
-                <span style={{ display: 'block', fontSize: '12.5px', marginTop: '2px' }}>
-                  Raised by {verifyRecord.decidedBy} · {verifyRecord.decidedAt} · sent to payroll
-                </span>
-              </div>
+              <Alert
+                type="error"
+                className="td-deduction"
+                title={
+                  <>
+                    <strong>{fmtMoney(verifyRecord.deduction.amount)} to recover from {(d || {}).name || 'the driver'}.</strong>{' '}
+                    {verifyRecord.deduction.note}
+                  </>
+                }
+                description={`Raised by ${verifyRecord.decidedBy} · ${verifyRecord.decidedAt} · sent to payroll`}
+              />
             )}
 
             {vState.locked ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13.5px', color: 'var(--kr-grey-700)' }}>
-                <Lock size={15} style={{ flex: 'none' }} />
-                <span>
+              <Flex align="center" gap={8}>
+                <Lock size={15} className="td-flex-none" />
+                <Typography.Text>
                   {verifyRecord?.approvedAt
                     ? `Approved by ${verifyRecord.approvedBy} on ${verifyRecord.approvedAt}. `
                     : ''}
                   This record is locked — it can no longer be edited or deleted.
-                </span>
-              </div>
+                </Typography.Text>
+              </Flex>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <Flex align="center" gap={10} wrap>
                 {vState.canApproveL1 && canVerify && (
-                  <button onClick={approveL1} style={btnPrimary}>
-                    <ShieldCheck size={15} /> Approve &amp; lock
-                  </button>
+                  <Button type="primary" icon={<ShieldCheck size={15} />} onClick={approveL1}>
+                    Approve &amp; lock
+                  </Button>
                 )}
                 {vState.canEscalate && canVerify && (
-                  <button onClick={escalate} style={btnOutline}>
+                  <Button onClick={escalate}>
                     Escalate to {VERIFY_LEVEL_2}
-                  </button>
+                  </Button>
                 )}
                 {vState.canDecideL2 && canDecideEscalation && (
                   <>
-                    <button onClick={acceptExplanation} style={btnPrimary}>
-                      <ShieldCheck size={15} /> Accept &amp; approve
-                    </button>
-                    <button onClick={rejectExplanation} style={btnDanger}>
+                    <Button type="primary" icon={<ShieldCheck size={15} />} onClick={acceptExplanation}>
+                      Accept &amp; approve
+                    </Button>
+                    <Button danger onClick={rejectExplanation}>
                       Reject &middot; deduct from salary
-                    </button>
+                    </Button>
                   </>
                 )}
-                <span style={{ fontSize: '12.5px', color: vState.overLimit ? 'var(--kr-red-700)' : 'var(--kr-grey-700)' }}>
+                <Typography.Text type={vState.overLimit ? 'danger' : undefined} className="td-hint">
                   {(vState.overLimit && vv.hintOver) || vv.hint}
-                </span>
-              </div>
+                </Typography.Text>
+              </Flex>
             )}
           </div>
         )}
-      </section>
+      </Card>
 
-      <section style={{ ...cardStyle, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', gap: '8px', flexWrap: 'wrap' }}>
-          <h2 style={sectionTitle}>GPS log</h2>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Stored separately for route replay</span>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-            <thead>
-              <tr style={{ background: 'var(--surface-muted)', textAlign: 'left' }}>
-                <th style={thStyle()}>Time</th>
-                <th style={thStyle()}>Event</th>
-                <th style={thStyle('right')}>KM</th>
-                <th style={thStyle('right')}>Speed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gpsPg.rows.map((g, i) => (
-                <tr key={i} style={{ borderTop: '1px solid var(--border-default)' }}>
-                  <td style={{ padding: '10px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{g.t}</td>
-                  <td style={{ padding: '10px 16px', color: 'var(--text-heading)' }}>{g.ev}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right' }}>{g.km}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'right', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{g.speed} km/h</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {gpsLogs.length > 0 && <Pagination {...gpsPg} noun="GPS events" />}
-      </section>
-    </div>
+      <Card
+        title="GPS log"
+        className="td-card"
+        styles={{ body: { padding: 0 } }}
+        extra={<Typography.Text type="secondary" className="td-small">Stored separately for route replay</Typography.Text>}
+      >
+        <Table
+          columns={gpsColumns}
+          dataSource={gpsLogs.map((g, i) => ({ ...g, _key: i }))}
+          rowKey="_key"
+          tableLayout="auto"
+          scroll={{ x: 480 }}
+          pagination={gpsLogs.length > 0 ? {
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} GPS events`,
+          } : false}
+        />
+      </Card>
+    </Flex>
   );
 };
 

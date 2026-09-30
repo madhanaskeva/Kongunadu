@@ -1,6 +1,6 @@
 import React from 'react';
 import { ExternalLink, MapPin, Navigation } from 'lucide-react';
-import Modal from '../../../components/common/Modal';
+import { Alert, Badge, Button, Card, Col, Flex, Modal, Progress, Row, Statistic, Timeline, Typography } from 'antd';
 
 // With VITE_GOOGLE_MAPS_API_KEY set the Maps Embed API is used; without it, the keyless embed
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -60,10 +60,16 @@ const timeline = (v, trip, tms) => {
 };
 
 const Stat = ({ label, value }) => (
-  <div style={{ background: 'var(--surface-muted)', borderRadius: 'var(--radius-md)', padding: '10px 12px' }}>
-    <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>{label}</div>
-    <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '16px', color: 'var(--text-heading)', marginTop: '2px' }}>{value}</div>
-  </div>
+  <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }} styles={{ body: { padding: '10px 12px' } }}>
+    <Statistic groupSeparator=""
+      title={label}
+      value={value}
+      styles={{
+        title: { fontSize: 11, fontWeight: 600, marginBottom: 2 },
+        content: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-heading)' },
+      }}
+    />
+  </Card>
 );
 
 export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) => {
@@ -80,38 +86,41 @@ export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) 
 
   return (
     <Modal
-      isOpen
-      onClose={onClose}
-      subtitle="GPS tracking"
-      title={`${v.number} · ${trip ? trip.number : v.status}`}
-      maxWidth="1080px"
-      bodyStyle={{ padding: 0 }}
-      footerStyle={{ flexWrap: 'wrap' }}
+      open
+      onCancel={onClose}
+      width={1080}
+      centered
+      destroyOnHidden
+      mask={{ closable: true }}
+      className="tms-modal"
+      title={
+        <div>
+          <div className="tms-kicker">GPS tracking</div>
+          <Typography.Title level={4} style={{ margin: 0 }}>{`${v.number} · ${trip ? trip.number : v.status}`}</Typography.Title>
+        </div>
+      }
+      styles={{
+        mask: { backdropFilter: 'blur(3px)', backgroundColor: 'rgba(20, 32, 43, 0.55)' },
+        // Padding lives on header/body/footer (not the container) so the map runs edge to edge.
+        container: { padding: 0, overflow: 'hidden' },
+        header: { padding: '20px 56px 16px 24px', margin: 0, borderBottom: '1px solid var(--border-default)' },
+        body: { padding: 0, maxHeight: '75vh', overflowY: 'auto' },
+        footer: { margin: 0, padding: '16px 24px', background: 'var(--surface-muted)', borderTop: '1px solid var(--border-default)' },
+      }}
       footer={
-        <>
-          <a
-            href={openUrl(target)}
-            target="_blank"
-            rel="noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', marginRight: 'auto', whiteSpace: 'nowrap' }}
-          >
-            <ExternalLink size={14} /> Open in Google Maps
-          </a>
+        <Flex justify="space-between" align="center" gap={12} wrap>
+          <Button type="link" href={openUrl(target)} target="_blank" rel="noreferrer" icon={<ExternalLink size={14} />} style={{ paddingInline: 0 }}>
+            Open in Google Maps
+          </Button>
           {trip && (
-            <button
-              type="button"
-              onClick={() => onOpenTrip(trip.id)}
-              style={{
-                all: 'unset', cursor: 'pointer', padding: '0 16px', height: '36px', display: 'inline-flex', alignItems: 'center',
-                borderRadius: 'var(--radius-md)', background: 'var(--color-brand)', color: '#fff', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap',
-              }}
-            >
+            <Button type="primary" onClick={() => onOpenTrip(trip.id)}>
               View trip details
-            </button>
+            </Button>
           )}
-        </>
+        </Flex>
       }
     >
+      {/* Map-specific stacking on phones: map on top, trip panel below. */}
       <style>{`
         @media (max-width: 600px) {
           .tms-track { min-height: 0 !important; }
@@ -119,7 +128,7 @@ export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) 
           .tms-track-panel { border-left: 0 !important; border-top: 1px solid var(--border-default); padding: 16px !important; }
         }
       `}</style>
-      <div className="tms-track" style={{ display: 'flex', flexWrap: 'wrap', minHeight: '480px' }}>
+      <Flex wrap className="tms-track" style={{ minHeight: 480 }}>
         {/* Map */}
         <div className="tms-track-map" style={{ flex: '1 1 560px', minHeight: '420px', position: 'relative', background: 'var(--surface-muted)' }}>
           <iframe
@@ -133,89 +142,94 @@ export const FleetTrackModal = ({ vehicle: v, trip, tms, onClose, onOpenTrip }) 
         </div>
 
         {/* Trip panel */}
-        <div className="tms-track-panel" style={{ flex: '1 1 300px', maxWidth: '100%', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', borderLeft: '1px solid var(--border-default)', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: v.gpsColor }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: v.gpsColor }} />
-              GPS {v.gps} · {v.lastSeen}
-            </div>
-            <div style={{ fontSize: '14px', color: 'var(--text-heading)', display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-              <Navigation size={15} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--text-brand)' }} />
-              {trip ? `${(tms.L[trip.loading] || {}).name || '—'} → ${trip.unloading}` : v.route}
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+        <Flex
+          vertical
+          gap={16}
+          className="tms-track-panel"
+          style={{ flex: '1 1 300px', maxWidth: '100%', padding: 20, borderLeft: '1px solid var(--border-default)', boxSizing: 'border-box' }}
+        >
+          <Flex vertical gap={6}>
+            <Badge
+              color={v.gpsColor}
+              text={
+                <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: v.gpsColor }}>
+                  GPS {v.gps} · {v.lastSeen}
+                </Typography.Text>
+              }
+            />
+            <Flex gap={6} align="flex-start">
+              <Navigation size={15} style={{ marginTop: 3, flexShrink: 0, color: 'var(--text-brand)' }} />
+              <Typography.Text style={{ color: 'var(--text-heading)' }}>
+                {trip ? `${(tms.L[trip.loading] || {}).name || '—'} → ${trip.unloading}` : v.route}
+              </Typography.Text>
+            </Flex>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
               {v.type} · {v.branchName} · {v.driverName}
-            </div>
-          </div>
+            </Typography.Text>
+          </Flex>
 
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Map shows the start and end points of the route. The truck's live position will be added when the GPS feed is connected.
-          </div>
+          </Typography.Text>
 
-          {gpsNote && (
-            <div style={{ fontSize: '13px', padding: '8px 10px', background: 'var(--color-hazard-soft)', borderRadius: 'var(--radius-md)', color: '#7A4300' }}>
-              {gpsNote}
-            </div>
-          )}
+          {gpsNote && <Alert type="warning" title={gpsNote} />}
 
           {trip ? (
             <>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <Stat label="GPS distance" value={trip.gpsKm != null ? `${trip.gpsKm} km` : '—'} />
-                <Stat label="Fixed route" value={trip.fixedKm ? `${trip.fixedKm} km` : '—'} />
-                <Stat label="Open for" value={`${trip.hoursOpen} h`} />
-                <Stat label="Trip type" value={trip.type} />
-              </div>
+              <Row gutter={[8, 8]}>
+                <Col span={12}><Stat label="GPS distance" value={trip.gpsKm != null ? `${trip.gpsKm} km` : '—'} /></Col>
+                <Col span={12}><Stat label="Fixed route" value={trip.fixedKm ? `${trip.fixedKm} km` : '—'} /></Col>
+                <Col span={12}><Stat label="Open for" value={`${trip.hoursOpen} h`} /></Col>
+                <Col span={12}><Stat label="Trip type" value={trip.type} /></Col>
+              </Row>
               {pct != null && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-                    <span>Route covered</span>
-                    <strong style={{ color: 'var(--text-heading)' }}>{pct}%</strong>
-                  </div>
-                  <div style={{ height: '8px', borderRadius: '4px', background: 'var(--kr-grey-100)', overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: 'var(--color-brand)' }} />
-                  </div>
+                  <Flex justify="space-between">
+                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>Route covered</Typography.Text>
+                    <Typography.Text strong style={{ fontSize: 12 }}>{pct}%</Typography.Text>
+                  </Flex>
+                  <Progress percent={pct} showInfo={false} strokeColor="var(--color-brand)" railColor="var(--kr-grey-100)" />
                 </div>
               )}
             </>
           ) : (
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No open trip on this vehicle. The map shows its last known location.</div>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              No open trip on this vehicle. The map shows its last known location.
+            </Typography.Text>
           )}
 
           {trip && trip.diversion && (
-            <div style={{ fontSize: '13px', padding: '8px 10px', background: 'var(--kr-red-50)', border: '1px solid var(--kr-red-100)', borderRadius: 'var(--radius-md)', color: 'var(--kr-red-800)' }}>
-              Route diversion · {trip.diversion.offKm} km off {trip.diversion.expected} at {trip.diversion.at} ({trip.diversion.state})
-            </div>
+            <Alert
+              type="error"
+              title={`Route diversion · ${trip.diversion.offKm} km off ${trip.diversion.expected} at ${trip.diversion.at} (${trip.diversion.state})`}
+            />
           )}
 
           <div>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '8px' }}>GPS timeline</div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {events.map((e, i) => {
+            <Typography.Text type="secondary" strong style={{ display: 'block', fontSize: 12, marginBottom: 12 }}>
+              GPS timeline
+            </Typography.Text>
+            <Timeline
+              items={events.map((e, i) => {
                 const last = i === events.length - 1;
-                return (
-                  <div key={i} style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      {last ? (
-                        <MapPin size={14} style={{ color: 'var(--color-brand)', flexShrink: 0 }} />
-                      ) : (
-                        <span style={{ width: '8px', height: '8px', margin: '3px', borderRadius: '50%', background: 'var(--kr-grey-300)', flexShrink: 0 }} />
-                      )}
-                      {!last && <span style={{ flex: 1, width: '2px', background: 'var(--border-default)' }} />}
-                    </div>
-                    <div style={{ paddingBottom: last ? 0 : '12px', fontSize: '13px' }}>
-                      <div style={{ color: 'var(--text-heading)' }}>{e.ev}</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                return {
+                  key: i,
+                  color: last ? 'green' : 'gray',
+                  icon: last ? <MapPin size={14} style={{ color: 'var(--color-brand)' }} /> : undefined,
+                  content: (
+                    <>
+                      <Typography.Text style={{ display: 'block', fontSize: 13, color: 'var(--text-heading)' }}>{e.ev}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                         {e.t}{e.km != null ? ` · ${e.km} km` : ''}{e.speed ? ` · ${e.speed} km/h` : ''}
-                      </div>
-                    </div>
-                  </div>
-                );
+                      </Typography.Text>
+                    </>
+                  ),
+                };
               })}
-            </div>
+            />
           </div>
-        </div>
-      </div>
+        </Flex>
+      </Flex>
     </Modal>
   );
 };

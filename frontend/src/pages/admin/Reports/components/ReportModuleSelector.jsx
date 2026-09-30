@@ -1,4 +1,5 @@
 import React from 'react';
+import { Avatar, Card, Col, Flex, Row, Tag, Typography } from 'antd';
 import { REPORT_MODULES } from '../reportEngine';
 import {
   Users,
@@ -36,169 +37,113 @@ const MODULE_ICONS = {
   mileage: Gauge,
 };
 
+const BRAND = 'var(--color-brand, #00623f)';
+
 export const ReportModuleSelector = ({ activeModuleId, onSelectModule }) => {
   const activeModules = REPORT_MODULES.filter(m => m.available);
   const unavailableModules = REPORT_MODULES.filter(m => !m.available);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    <Flex vertical style={{ height: '100%', minHeight: 0 }}>
       {/* Column 1 Header */}
-      <div className="reports-col-header">
+      <Flex className="reports-col-header" justify="space-between" align="flex-start" wrap gap={8}>
         <div>
-          <span className="reports-col-kicker">Step 1 · Choose Report</span>
-          <h3 className="reports-col-title">
-            <Layers size={18} color="var(--color-brand, #00623f)" />
-            What would you like to see?
-          </h3>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
+          <Typography.Text className="reports-col-kicker">Step 1 · Choose Report</Typography.Text>
+          <Typography.Title level={5} className="reports-col-title">
+            <Flex align="center" gap={8}>
+              <Layers size={18} color={BRAND} />
+              What would you like to see?
+            </Flex>
+          </Typography.Title>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Choose the type of information you want to see.
-          </div>
+          </Typography.Text>
         </div>
-        <span
-          style={{
-            fontSize: '11px',
-            fontWeight: 700,
-            background: 'var(--kr-green-50, #edf8f3)',
-            color: 'var(--kr-green-800, #004a31)',
-            padding: '3px 8px',
-            borderRadius: '4px',
-            border: '1px solid var(--kr-green-100, #daf1e7)',
-          }}
-        >
-          {activeModules.length} Reports
-        </span>
-      </div>
+        <Tag color="success">{activeModules.length} Reports</Tag>
+      </Flex>
 
       {/* Scrollable Column Body */}
       <div className="reports-col-scrollable">
-        <div className="reports-module-grid">
+        <Row gutter={[10, 10]}>
           {activeModules.map(m => {
             const Icon = MODULE_ICONS[m.id] || Navigation;
             const isSelected = activeModuleId === m.id;
 
             return (
-              <button
-                key={m.id}
-                type="button"
-                className={`reports-module-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => onSelectModule(m.id)}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '6px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: isSelected ? 'var(--color-brand, #00623f)' : 'var(--kr-grey-100, #f1f5f9)',
-                      color: isSelected ? '#ffffff' : 'var(--kr-grey-700, #475569)',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    <Icon size={15} />
-                  </div>
-                  <span
-                    style={{
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                      padding: '2px 5px',
-                      borderRadius: '3px',
-                      background: isSelected ? 'var(--color-brand, #00623f)' : 'var(--kr-grey-100, #f1f5f9)',
-                      color: isSelected ? '#ffffff' : 'var(--text-muted, #64748b)',
-                    }}
-                  >
-                    {m.category}
-                  </span>
-                </div>
+              <Col key={m.id} xs={12} sm={8} lg={12} xl={8}>
+                <Card
+                  hoverable
+                  size="small"
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isSelected}
+                  className={`reports-module-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => onSelectModule(m.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectModule(m.id); }
+                  }}
+                  styles={{ body: { padding: '12px 10px' } }}
+                >
+                  <Flex vertical gap={6}>
+                    <Flex justify="space-between" align="center">
+                      <Avatar
+                        shape="square"
+                        size={28}
+                        icon={<Icon size={15} />}
+                        style={{
+                          background: isSelected ? BRAND : 'var(--kr-grey-100, #f1f5f9)',
+                          color: isSelected ? '#ffffff' : 'var(--kr-grey-700, #475569)',
+                        }}
+                      />
+                      <Tag
+                        bordered={false}
+                        color={isSelected ? '#00623f' : undefined}
+                        style={{ marginInlineEnd: 0, fontSize: 9, fontWeight: 700, textTransform: 'uppercase' }}
+                      >
+                        {m.category}
+                      </Tag>
+                    </Flex>
 
-                <div>
-                  <div
-                    style={{
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color: isSelected ? 'var(--color-brand, #00623f)' : 'var(--text-heading, #1e293b)',
-                    }}
-                  >
-                    {m.label}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '11px',
-                      color: 'var(--text-muted, #64748b)',
-                      marginTop: '2px',
-                      lineHeight: '1.25',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {m.description}
-                  </div>
-                </div>
-              </button>
+                    <div>
+                      <Typography.Text strong style={{ fontSize: 13, color: isSelected ? BRAND : undefined }}>
+                        {m.label}
+                      </Typography.Text>
+                      <Typography.Paragraph
+                        type="secondary"
+                        ellipsis={{ rows: 2 }}
+                        style={{ fontSize: 11, lineHeight: 1.25, margin: '2px 0 0' }}
+                      >
+                        {m.description}
+                      </Typography.Paragraph>
+                    </div>
+                  </Flex>
+                </Card>
+              </Col>
             );
           })}
-        </div>
+        </Row>
 
         {/* Unavailable Modules Banner at bottom of scrollable area */}
-        {/* <div
-          style={{
-            marginTop: '6px',
-            padding: '10px 12px',
-            background: 'var(--kr-grey-50, #f8fafc)',
-            border: '1px dashed var(--kr-grey-300, #cbd5e1)',
-            borderRadius: 'var(--radius-md, 8px)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: 'var(--kr-grey-700, #475569)',
-            }}
-          >
-            <Lock size={12} style={{ color: 'var(--kr-grey-500)' }} />
-            <span>Modules without live project data:</span>
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {unavailableModules.map(um => (
-              <span
-                key={um.id}
-                title={um.unavailableReason}
-                style={{
-                  fontSize: '10px',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  background: '#ffffff',
-                  border: '1px solid var(--border-default, #e2e8f0)',
-                  color: 'var(--kr-grey-500, #94a3b8)',
-                  cursor: 'not-allowed',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span style={{ textDecoration: 'line-through' }}>{um.label}</span>
-                <span style={{ fontSize: '8px', background: '#fee2e2', color: '#991b1b', padding: '1px 3px', borderRadius: '2px' }}>
-                  No Data
-                </span>
-              </span>
-            ))}
-          </div>
-        </div> */}
+        {/* <Alert
+          type="info"
+          showIcon
+          icon={<Lock size={12} />}
+          title="Modules without live project data:"
+          description={
+            <Flex wrap gap={6}>
+              {unavailableModules.map(um => (
+                <Tooltip key={um.id} title={um.unavailableReason}>
+                  <Tag>
+                    <Typography.Text delete type="secondary">{um.label}</Typography.Text>{' '}
+                    <Tag color="error" variant="filled">No Data</Tag>
+                  </Tag>
+                </Tooltip>
+              ))}
+            </Flex>
+          }
+        /> */}
       </div>
-    </div>
+    </Flex>
   );
 };
 

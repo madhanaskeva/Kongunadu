@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Card, Col, Flex, Row } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
@@ -167,32 +168,36 @@ export const Reports = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+    <Flex vertical gap={22}>
       {/* Step 1 & Step 2: Two-Column Responsive Grid Layout */}
-      <div className="reports-two-col-grid">
+      <Row gutter={[20, 16]} align="stretch">
         {/* Column 1: Step 1 - Module Selector (Scrollable) */}
-        <div className="reports-grid-col">
-          <ReportModuleSelector
-            activeModuleId={activeModuleId}
-            onSelectModule={handleSelectModule}
-          />
-        </div>
+        <Col xs={24} lg={11}>
+          <Card className="reports-grid-col">
+            <ReportModuleSelector
+              activeModuleId={activeModuleId}
+              onSelectModule={handleSelectModule}
+            />
+          </Card>
+        </Col>
 
         {/* Column 2: Step 2 - Dynamic Filter Engine (Scrollable) */}
-        <div className="reports-grid-col">
-          <ReportFilterBuilder
-            moduleId={activeModuleId}
-            filters={filters}
-            tms={tms}
-            loading={loading}
-            onAddFilter={handleAddFilter}
-            onUpdateFilter={handleUpdateFilter}
-            onRemoveFilter={handleRemoveFilter}
-            onResetFilters={handleResetFilters}
-            onGenerateReport={handleGenerateReport}
-          />
-        </div>
-      </div>
+        <Col xs={24} lg={13}>
+          <Card className="reports-grid-col">
+            <ReportFilterBuilder
+              moduleId={activeModuleId}
+              filters={filters}
+              tms={tms}
+              loading={loading}
+              onAddFilter={handleAddFilter}
+              onUpdateFilter={handleUpdateFilter}
+              onRemoveFilter={handleRemoveFilter}
+              onResetFilters={handleResetFilters}
+              onGenerateReport={handleGenerateReport}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Step 3: Generated Report Results View */}
       {reportResult && (
@@ -206,113 +211,56 @@ export const Reports = () => {
       )}
 
       {/* Ready-Made Standard Reports Drawer (Bottom) */}
-      {/* <section
-        style={{
-          background: '#ffffff',
-          border: '1px solid var(--border-default, #e2e8f0)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setTemplatesOpen(!templatesOpen)}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: '12px',
-            width: '100%',
-            boxSizing: 'border-box',
-            padding: '16px 20px',
-            background: templatesOpen ? 'var(--surface-muted, #f8fafc)' : '#ffffff',
-            transition: 'background 0.15s ease',
-          }}
-        >
+      {/* <Card
+        title={
           <div>
-            <div style={{ fontFamily: 'var(--font-display, sans-serif)', fontWeight: 800, fontSize: '15px', color: 'var(--text-heading, #1e293b)' }}>
+            <Typography.Title level={5} style={{ margin: 0 }}>
               Ready-Made Standard Reports ({readyReports.length})
-            </div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
+            </Typography.Title>
+            <Typography.Text type="secondary">
               Download standard preconfigured reports with one click.
-            </div>
+            </Typography.Text>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--color-brand, #00623f)' }}>
-            <span>{templatesOpen ? 'Hide Standard Reports' : 'Show Standard Reports'}</span>
-            {templatesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </div>
-        </button>
-
-        {templatesOpen && (
-          <div
-            style={{
-              padding: '20px',
-              borderTop: '1px solid var(--border-default, #e2e8f0)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '14px',
-            }}
+        }
+        extra={
+          <Button
+            type="link"
+            onClick={() => setTemplatesOpen(!templatesOpen)}
+            icon={templatesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            iconPlacement="end"
           >
+            {templatesOpen ? 'Hide Standard Reports' : 'Show Standard Reports'}
+          </Button>
+        }
+        styles={{ body: templatesOpen ? undefined : { display: 'none' } }}
+      >
+        {templatesOpen && (
+          <Row gutter={[14, 14]}>
             {readyReports.map((item, idx) => (
-              <div
-                key={idx}
-                style={{
-                  background: '#ffffff',
-                  border: '1px solid var(--border-default, #e2e8f0)',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-heading, #1e293b)' }}>
-                    {item.name}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', marginTop: '4px', lineHeight: 1.4 }}>
+              <Col key={idx} xs={24} sm={12} xl={8}>
+                <Card size="small" style={{ height: '100%' }}>
+                  <Typography.Text strong>{item.name}</Typography.Text>
+                  <Typography.Paragraph type="secondary" style={{ fontSize: 12, margin: '4px 0 0' }}>
                     {item.desc}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-brand, #00623f)' }}>
-                    {item.type}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => FILE_TRANSFER_ENABLED && handleExportLegacyTemplate(item)}
-                    style={{
-                      all: 'unset',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      height: '30px',
-                      padding: '0 12px',
-                      borderRadius: '5px',
-                      background: 'var(--color-brand, #00623f)',
-                      color: '#ffffff',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    <Download size={13} />
-                    Download Report
-                  </button>
-                </div>
-              </div>
+                  </Typography.Paragraph>
+                  <Flex justify="space-between" align="center" style={{ marginTop: 10 }}>
+                    <Tag color="success" variant="filled">{item.type.toUpperCase()}</Tag>
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<Download size={13} />}
+                      onClick={() => FILE_TRANSFER_ENABLED && handleExportLegacyTemplate(item)}
+                    >
+                      Download Report
+                    </Button>
+                  </Flex>
+                </Card>
+              </Col>
             ))}
-          </div>
+          </Row>
         )}
-      </section> */}
-    </div>
+      </Card> */}
+    </Flex>
   );
 };
 

@@ -1,8 +1,8 @@
-// import React from 'react';
+// import React, { useEffect, useState } from 'react';
+// import { Eye } from 'lucide-react';
+// import { Button, Card, Col, Empty, Flex, Row, Statistic, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
 // import { useTMSAdmin } from '../../../context/TMSAdminContext';
-// import { Pagination, usePagination } from '../../../components/common/Pagination';
-// import { RowActions } from '../../../components/common/RowActions';
-
+//
 // export const Exceptions = () => {
 //   const {
 //     T,
@@ -15,226 +15,180 @@
 //     setExcNote,
 //     setDrawer,
 //     excOverrides,
-//     width,
 //   } = useTMSAdmin();
-
+//
 //   const tms = T();
-//   const narrow = width < 900;
-//   const excTileCols = `repeat(${narrow ? 2 : 5}, minmax(0, 1fr))`;
-
+//
 //   const exceptions = (tms.exceptions || []).map(x => {
 //     const o = excOverrides[x.id] || {};
 //     const xx = { ...x, ...o };
 //     const v = tms.V[xx.vehicle];
 //     const tr = tms.T[xx.trip];
-//     const sevColors = {
-//       High: ['var(--kr-red-100)', 'var(--kr-red-800)'],
-//       Medium: ['var(--color-hazard-soft)', '#7A4300'],
-//       Low: ['var(--kr-grey-100)', 'var(--kr-grey-700)']
-//     };
-//     const [sevBg, sevFg] = sevColors[xx.severity] || ['var(--kr-grey-100)', 'var(--kr-grey-700)'];
 //     return {
 //       ...xx,
 //       vehicleNumber: v ? v.number : '—',
 //       tripNumber: tr ? tr.number : '—',
 //       branchName: (tms.B[xx.branch] || {}).name || '—',
-//       sevBg,
-//       sevFg,
 //     };
 //   });
-
+//
+//   // Severity → antd Tag preset (red / amber / grey as before).
+//   const sevTag = { High: 'error', Medium: 'warning', Low: 'default' };
+//
 //   const openExc = exceptions.filter(x => x.status !== 'Resolved');
 //   const types = ['Hidden kilometres', 'Distance variance', 'Route diversion', 'GPS failure', 'Both sources failed', 'Long open trip', 'Radius breach', 'Missing attendance', 'Idle vehicles'];
-
+//
 //   const excTiles = [
 //     { type: '', label: 'All open', count: openExc.length },
 //     ...types.map(t => ({ type: t, label: t, count: openExc.filter(x => x.type === t).length }))
-//   ].map(k => {
-//     const a = excType === k.type;
-//     return {
-//       ...k,
-//       bg: a ? 'var(--color-brand)' : '#fff',
-//       border: a ? 'var(--color-brand)' : 'var(--border-default)',
-//       labelColor: a ? 'rgba(255,255,255,.85)' : 'var(--text-muted)',
-//       valueColor: a ? '#fff' : 'var(--text-heading)',
-//     };
-//   });
-
+//   ];
+//
 //   const statusMap = { open: 'Open', review: 'Under review', resolved: 'Resolved' };
 //   const excRows = exceptions.filter(x =>
 //     (!excType || x.type === excType) &&
 //     (excStatus === 'all' || x.status === statusMap[excStatus])
 //   );
-//   const excPg = usePagination(excRows, [excType, excStatus]);
-
+//
+//   // Back to page 1 whenever the type or status filter changes.
+//   const [excPage, setExcPage] = useState(1);
+//   const [excPageSize, setExcPageSize] = useState(10);
+//   useEffect(() => { setExcPage(1); }, [excType, excStatus, excPageSize]);
+//
 //   const excTabs = [
 //     { value: 'open', label: 'Open', count: exceptions.filter(x => x.status === 'Open').length },
 //     { value: 'review', label: 'Under review', count: exceptions.filter(x => x.status === 'Under review').length },
 //     { value: 'resolved', label: 'Resolved', count: exceptions.filter(x => x.status === 'Resolved').length },
 //     { value: 'all', label: 'All' },
 //   ];
-
-//   const excCols = ['Severity', 'Type', 'Vehicle / trip', 'Detail', 'Branch', 'Raised', 'Assignee', 'Actions'];
-
+//
 //   const openException = (x) => {
 //     setExcSel(x.id);
 //     setExcAssignees(x.assigneeIds || []);
 //     setExcNote('');
 //     setDrawer({ isException: true, kicker: 'Exception ' + x.id, title: x.type });
 //   };
-
+//
+//   const nowrap = { whiteSpace: 'nowrap' };
+//   const excColumns = [
+//     {
+//       title: 'Severity',
+//       dataIndex: 'severity',
+//       key: 'severity',
+//       render: v => <Tag color={sevTag[v] || 'default'} style={{ textTransform: 'uppercase', fontWeight: 700 }}>{v}</Tag>,
+//     },
+//     { title: 'Type', dataIndex: 'type', key: 'type', onCell: () => ({ style: nowrap }), render: v => <Typography.Text strong>{v}</Typography.Text> },
+//     {
+//       title: 'Vehicle / trip',
+//       key: 'vehicle',
+//       onCell: () => ({ style: nowrap }),
+//       render: (_, x) => (
+//         <>
+//           <Typography.Text strong style={{ display: 'block' }}>{x.vehicleNumber}</Typography.Text>
+//           <Typography.Text type="secondary" style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{x.tripNumber}</Typography.Text>
+//         </>
+//       ),
+//     },
+//     { title: 'Detail', dataIndex: 'detail', key: 'detail', onCell: () => ({ style: { minWidth: 240, maxWidth: 340 } }) },
+//     { title: 'Branch', dataIndex: 'branchName', key: 'branch', onCell: () => ({ style: nowrap }) },
+//     { title: 'Raised', dataIndex: 'raised', key: 'raised', onCell: () => ({ style: nowrap }), render: v => <Typography.Text type="secondary">{v}</Typography.Text> },
+//     { title: 'Assignee', dataIndex: 'assignee', key: 'assignee', onCell: () => ({ style: nowrap }) },
+//     {
+//       title: 'Actions',
+//       key: 'actions',
+//       align: 'center',
+//       render: (_, x) => (
+//         <Tooltip title={`View details for ${x.type}`}>
+//           <Button type="text" size="small" aria-label={`View details for ${x.type}`} icon={<Eye size={16} />} onClick={() => openException(x)} />
+//         </Tooltip>
+//       ),
+//     },
+//   ];
+//
 //   return (
-//     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+//     <Flex vertical gap={20}>
 //       {/* 10 Exception Category Tiles Grid */}
-//       <div style={{ display: 'grid', gridTemplateColumns: excTileCols, gap: '12px' }}>
-//         {excTiles.map((k, i) => (
-//           <button
-//             key={i}
-//             onClick={() => setExcType(k.type)}
-//             style={{
-//               all: 'unset',
-//               boxSizing: 'border-box',
-//               minWidth: 0,
-//               cursor: 'pointer',
-//               display: 'block',
-//               background: k.bg,
-//               border: `1px solid ${k.border}`,
-//               borderRadius: 'var(--radius-lg)',
-//               padding: '12px 14px',
-//               textAlign: 'left',
-//               transition: 'box-shadow var(--dur-fast)',
-//             }}
-//             onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
-//             onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-//           >
-//             <div style={{ fontSize: '12px', fontWeight: 600, color: k.labelColor }}>{k.label}</div>
-//             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '24px', color: k.valueColor, lineHeight: 1.1 }}>
-//               {k.count}
-//             </div>
-//           </button>
-//         ))}
-//       </div>
-
-//       {/* Exceptions Table Card */}
-//       <div style={{ background: '#fff', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
-//         {/* Status Tabs */}
-//         <div className="tms-tabrow" style={{ padding: '0 18px', borderBottom: '1px solid var(--border-default)', display: 'flex', gap: '8px', overflowX: 'auto' }}>
-//           {excTabs.map((t) => {
-//             const on = excStatus === t.value;
-//             return (
-//               <button
-//                 key={t.value}
-//                 onClick={() => setExcStatus(t.value)}
-//                 style={{
-//                   all: 'unset',
-//                   cursor: 'pointer',
-//                   padding: '12px 16px',
-//                   fontSize: '14px',
-//                   fontWeight: 700,
-//                   borderBottom: `3px solid ${on ? 'var(--color-brand)' : 'transparent'}`,
-//                   color: on ? 'var(--color-brand)' : 'var(--text-muted)',
-//                   display: 'inline-flex',
-//                   alignItems: 'center',
-//                   gap: '6px',
-//                   whiteSpace: 'nowrap',
-//                 }}
+//       <Row gutter={[12, 12]}>
+//         {excTiles.map((k, i) => {
+//           const a = excType === k.type;
+//           return (
+//             <Col key={i} xs={12} md={8} lg={{ flex: '20%' }}>
+//               <Card
+//                 hoverable
+//                 size="small"
+//                 role="button"
+//                 tabIndex={0}
+//                 onClick={() => setExcType(k.type)}
+//                 onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExcType(k.type); } }}
+//                 style={{ height: '100%', ...(a ? { background: 'var(--color-brand)', borderColor: 'var(--color-brand)' } : {}) }}
 //               >
+//                 <Statistic
+//                   title={k.label}
+//                   value={k.count}
+//                   groupSeparator=""
+//                   styles={{
+//                     title: { fontSize: 12, fontWeight: 600, color: a ? 'rgba(255,255,255,.85)' : undefined },
+//                     content: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 24, lineHeight: 1.1, color: a ? '#fff' : 'var(--text-heading)' },
+//                   }}
+//                 />
+//               </Card>
+//             </Col>
+//           );
+//         })}
+//       </Row>
+//
+//       {/* Exceptions Table Card */}
+//       <Card styles={{ body: { padding: 0 } }}>
+//         {/* Status Tabs */}
+//         <Tabs
+//           activeKey={excStatus}
+//           onChange={setExcStatus}
+//           tabBarStyle={{ padding: '0 18px', margin: 0 }}
+//           items={excTabs.map(t => ({
+//             key: t.value,
+//             label: (
+//               <>
 //                 {t.label}
-//                 {t.count !== undefined && <span style={{ fontSize: '12px', opacity: 0.8 }}>({t.count})</span>}
-//               </button>
-//             );
-//           })}
-//         </div>
-
-//         <div style={{ overflowX: 'auto' }}>
-//           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', minWidth: '820px' }}>
-//             <thead>
-//               <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-//                 {excCols.map((c, i) => (
-//                   <th
-//                     key={i}
-//                     style={{
-//                       padding: '10px 14px',
-//                       fontFamily: 'var(--font-display)',
-//                       fontSize: '11px',
-//                       fontWeight: 700,
-//                       letterSpacing: '0.1em',
-//                       textTransform: 'uppercase',
-//                       color: 'var(--text-muted)',
-//                       textAlign: c === 'Actions' ? 'center' : 'left',
-//                     }}
-//                   >
-//                     {c}
-//                   </th>
-//                 ))}
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {excPg.rows.map((x) => (
-//                 <tr
-//                   key={x.id}
-//                   style={{ borderTop: '1px solid var(--border-default)' }}
-//                   onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
-//                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-//                 >
-//                   <td style={{ padding: '12px 14px' }}>
-//                     <span
-//                       style={{
-//                         display: 'inline-flex',
-//                         fontFamily: 'var(--font-display)',
-//                         fontSize: '11px',
-//                         fontWeight: 700,
-//                         letterSpacing: '0.1em',
-//                         textTransform: 'uppercase',
-//                         padding: '3px 8px',
-//                         borderRadius: 'var(--radius-sm)',
-//                         background: x.sevBg,
-//                         color: x.sevFg,
-//                       }}
-//                     >
-//                       {x.severity}
-//                     </span>
-//                   </td>
-//                   <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-//                     {x.type}
-//                   </td>
-//                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>
-//                     <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-heading)' }}>{x.vehicleNumber}</span>
-//                     <span style={{ display: 'block', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text-muted)' }}>{x.tripNumber}</span>
-//                   </td>
-//                   <td style={{ padding: '12px 14px', minWidth: '240px', maxWidth: '340px', color: 'var(--text-body)' }}>
-//                     {x.detail}
-//                   </td>
-//                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{x.branchName}</td>
-//                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{x.raised}</td>
-//                   <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{x.assignee}</td>
-//                   <td style={{ padding: '12px 14px', textAlign: 'center' }}>
-//                     <RowActions
-//                       onView={() => openException(x)}
-//                       viewLabel={`View details for ${x.type}`}
-//                       buttonAriaLabel={`Actions for exception ${x.id}`}
-//                     />
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </div>
-
-//         {excRows.length > 0 && <Pagination {...excPg} noun="exceptions" />}
-//         {excRows.length === 0 && (
-//           <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-//             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '18px', color: 'var(--text-heading)' }}>
-//               No {excStatus === 'all' ? '' : statusMap[excStatus]?.toLowerCase()} exceptions
-//             </div>
-//             <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '14px' }}>
-//               Nothing of this type needs attention.
-//             </p>
-//           </div>
-//         )}
-//       </div>
-//     </div>
+//                 {t.count !== undefined && <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 6 }}>({t.count})</Typography.Text>}
+//               </>
+//             ),
+//           }))}
+//         />
+//
+//         <Table
+//           columns={excColumns}
+//           dataSource={excRows}
+//           rowKey="id"
+//           tableLayout="auto"
+//           scroll={{ x: 820 }}
+//           locale={{
+//             emptyText: (
+//               <Empty
+//                 image={Empty.PRESENTED_IMAGE_SIMPLE}
+//                 description={
+//                   <>
+//                     <Typography.Title level={4} style={{ margin: 0 }}>
+//                       No {excStatus === 'all' ? '' : statusMap[excStatus]?.toLowerCase()} exceptions
+//                     </Typography.Title>
+//                     <Typography.Text type="secondary">Nothing of this type needs attention.</Typography.Text>
+//                   </>
+//                 }
+//               />
+//             ),
+//           }}
+//           pagination={
+//             excRows.length > 0 && {
+//               current: excPage,
+//               pageSize: excPageSize,
+//               onChange: (p, size) => { setExcPage(p); setExcPageSize(size); },
+//               showSizeChanger: true,
+//               pageSizeOptions: [10, 20, 50, 100],
+//               showTotal: (t, [a, b]) => `Showing ${a} to ${b} of ${t} exceptions`,
+//             }
+//           }
+//         />
+//       </Card>
+//     </Flex>
 //   );
 // };
-
+//
 // export default Exceptions;

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, CheckCircle2, KeyRound, RotateCcw } from 'lucide-react';
-import Button from '../../../components/common/Button';
-import FormInput from '../../../components/forms/FormInput';
+import { Alert, Button, Flex, Form, Input, Typography } from 'antd';
+import { ArrowLeft, CheckCircle2, RotateCcw } from 'lucide-react';
 
 /**
  * VerifyOtpForm — Step 2 of Forgot Password
@@ -40,8 +39,8 @@ export const VerifyOtpForm = ({
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  // Called from antd Form onFinish (antd prevents the native submission).
+  const handleSubmit = () => {
     setLocalError('');
 
     const clean = otp.trim();
@@ -70,183 +69,94 @@ export const VerifyOtpForm = ({
   const displayError = error || localError;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <Flex vertical gap={20}>
       <div>
-        <button
-          type="button"
+        <Button
+          color="default"
+          variant="link"
+          icon={<ArrowLeft size={16} />}
           onClick={onBack}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
-            fontWeight: 700,
-            color: 'var(--text-muted, #7c7c76)',
-            marginBottom: '12px',
-            transition: 'color var(--dur-fast, 0.15s)',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-brand, #00623f)')}
-          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted, #7c7c76)')}
+          style={{ padding: 0, marginBottom: 12 }}
         >
-          <ArrowLeft size={16} />
-          <span>Back to login</span>
-        </button>
+          Back to login
+        </Button>
 
-        <h2
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-display)',
-            fontWeight: 800,
-            fontSize: '28px',
-            color: 'var(--kr-green-900, #003021)',
-          }}
-        >
+        <Typography.Title level={3} style={{ margin: 0 }}>
           Enter verification code
-        </h2>
-        <div style={{ marginTop: '6px', fontSize: '14px', color: 'var(--text-muted, #7c7c76)', lineHeight: 1.5 }}>
+        </Typography.Title>
+        <Typography.Paragraph type="secondary" style={{ margin: '6px 0 0' }}>
           We sent a 6-digit verification OTP to{' '}
-          <strong style={{ color: 'var(--text-heading, #1c1c1a)' }}>{email}</strong>
+          <Typography.Text strong>{email}</Typography.Text>
           {onChangeEmail && (
-            <button
-              type="button"
-              onClick={onChangeEmail}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                marginLeft: '8px',
-                fontSize: '13px',
-                fontWeight: 700,
-                color: 'var(--text-brand, #00623f)',
-                textDecoration: 'underline',
-              }}
-            >
+            <Button type="link" size="small" onClick={onChangeEmail}>
               Change
-            </button>
+            </Button>
           )}
-        </div>
+        </Typography.Paragraph>
       </div>
 
       {/* Demo helper pill */}
       {demoOtp && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '10px',
-            padding: '10px 14px',
-            backgroundColor: 'var(--color-brand-tint, #edf8f3)',
-            border: '1px solid var(--kr-green-200, #bfe4d3)',
-            borderRadius: 'var(--radius-md, 8px)',
-            fontSize: '13px',
-            color: 'var(--kr-green-900, #003021)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle2 size={16} color="var(--color-brand, #00623f)" />
+        <Alert
+          type="success"
+          showIcon
+          icon={<CheckCircle2 size={16} />}
+          title={
             <span>
-              Demo OTP code:{' '}
-              <strong style={{ fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.1em', fontSize: '15px' }}>
-                {demoOtp}
-              </strong>
+              Demo OTP code: <Typography.Text strong code>{demoOtp}</Typography.Text>
             </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleFillDemo}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              backgroundColor: 'var(--color-brand, #00623f)',
-              color: '#ffffff',
-              fontSize: '12px',
-              fontWeight: 700,
-            }}
-          >
-            Auto-fill
-          </button>
-        </div>
-      )}
-
-      {displayError && (
-        <div
-          role="alert"
-          style={{
-            padding: '12px 14px',
-            backgroundColor: 'var(--kr-red-50, #fdf3f2)',
-            border: '1px solid var(--kr-red-100, #fbe0e0)',
-            borderRadius: 'var(--radius-md, 8px)',
-            color: 'var(--kr-red-800, #b31114)',
-            fontSize: '13px',
-            fontWeight: 600,
-          }}
-        >
-          {displayError}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <FormInput
-          label="6-Digit Verification Code"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={6}
-          value={otp}
-          onChange={(e) => {
-            const val = e.target.value.replace(/\D/g, '').slice(0, 6);
-            setOtp(val);
-            setLocalError('');
-          }}
-          placeholder="e.g. 482910"
-          icon={KeyRound}
-          required
-          autoFocus
-          style={{ letterSpacing: '0.15em', fontFamily: 'var(--font-mono, monospace)' }}
+          }
+          action={
+            <Button type="primary" size="small" onClick={handleFillDemo}>
+              Auto-fill
+            </Button>
+          }
         />
+      )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
-          <span style={{ color: 'var(--text-muted, #7c7c76)' }}>Didn't receive the code?</span>
-          {countdown > 0 ? (
-            <span style={{ color: 'var(--text-muted, #7c7c76)', fontWeight: 600 }}>
-              Resend in {countdown}s
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={handleResend}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontWeight: 700,
-                color: 'var(--text-brand, #00623f)',
-              }}
-            >
-              <RotateCcw size={14} />
-              <span>Resend OTP</span>
-            </button>
-          )}
-        </div>
+      {displayError && <Alert type="error" showIcon title={displayError} />}
 
-        <Button
-          type="submit"
-          variant="primary"
-          size="lg"
-          fullWidth
-          loading={loading}
-          style={{ marginTop: '8px' }}
+      <Form layout="vertical" onFinish={handleSubmit}>
+        <Form.Item
+          label="6-Digit Verification Code"
+          required
+          validateStatus={displayError ? 'error' : undefined}
         >
+          {/* Input.OTP: one box per digit; the cells are joined back into the same
+              6-digit string in `otp`. Non-digits are dropped by the formatter
+              (spaces are antd's empty-cell placeholders, so they are kept). */}
+          <Input.OTP
+            length={6}
+            value={otp}
+            inputMode="numeric"
+            formatter={(val) => val.replace(/[^\d ]/g, '')}
+            onInput={(cells) => {
+              const val = cells.join('').replace(/\D/g, '').slice(0, 6);
+              setOtp(val);
+              setLocalError('');
+            }}
+            autoFocus
+          />
+        </Form.Item>
+
+        <Flex justify="space-between" align="center" wrap gap={8} style={{ marginBottom: 24 }}>
+          <Typography.Text type="secondary">Didn't receive the code?</Typography.Text>
+          {countdown > 0 ? (
+            <Typography.Text type="secondary" strong>
+              Resend in {countdown}s
+            </Typography.Text>
+          ) : (
+            <Button type="link" size="small" icon={<RotateCcw size={14} />} onClick={handleResend}>
+              Resend OTP
+            </Button>
+          )}
+        </Flex>
+
+        <Button type="primary" htmlType="submit" size="large" block loading={loading}>
           Verify & Continue
         </Button>
-      </form>
-    </div>
+      </Form>
+    </Flex>
   );
 };
 

@@ -1,12 +1,12 @@
 import React from 'react';
+import { Avatar, Badge, Button, Card, Col, Divider, Empty, Flex, Row, Space, Statistic, Table, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { ENROUTE_LABEL } from '../../../utils/tripStatus';
 import { getDashModules, buildCustomWidget, DEFAULT_PALETTE } from '../../../utils/dashboard-custom';
-import { RowActions } from '../../../components/common/RowActions';
-import { DynamicChart, CHART_TYPES, CHART_LABELS } from '../../../components/charts';
+import { DynamicChart } from '../../../components/charts';
 import {
   Truck, Navigation, TriangleAlert, EyeOff, Tag, UserCheck, Clock,
-  SatelliteDish, Ruler, Route, Radar, Smartphone, Gauge,
+  SatelliteDish, Ruler, Route, Radar, Smartphone, Gauge, Eye,
 } from 'lucide-react';
 
 // One icon per KPI, so a card is recognisable before you read its label.
@@ -43,10 +43,8 @@ export const Dashboard = () => {
   const {
     T,
     dashCfg,
-    saveDash,
     dashDefault,
     navTo,
-    showToast,
     setSelectedTrip,
     setExcSel,
     setExcAssignees,
@@ -103,7 +101,7 @@ export const Dashboard = () => {
   const excByType = types.map(t => [t, openExc.filter(x => x.type === t).length]).filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
   const worstDist = [...distAll].sort((a, b) => b.pct - a.pct).slice(0, 5);
   const trend = [284, 301, 322, 298, 310, 336, 341, 289, 305, 318, 327, 344, 312, 312];
-  const vehStatusBars = [['Running · trip assigned', 281, 'var(--color-brand)'], ['Idle · no business', 296, 'var(--kr-green-100)'], ['Idle · no driver', 88, 'var(--kr-saffron-500)'], ['Maintenance · service', 57, 'var(--kr-grey-300)']].map(([label, count, color]) => ({ label, count, color, pct: Math.round(count / 296 * 100) + '%' }));
+  const vehStatusBars = [['Running · trip assigned', 281, 'var(--color-brand)'], ['Idle · no business', 296, 'var(--st-enroute-edge)'], ['Idle · no driver', 88, 'var(--kr-saffron-500)'], ['Maintenance · service', 57, 'var(--kr-grey-500)']].map(([label, count, color]) => ({ label, count, color, pct: Math.round(count / 296 * 100) + '%' }));
 
   const dashCatalog = {
     cards: [
@@ -291,14 +289,6 @@ export const Dashboard = () => {
     };
   }).filter(Boolean);
 
-  const handleUpdateChartType = (uid, chartType) => {
-    const nextCharts = (currentCfg.charts || []).map(c =>
-      c.uid === uid ? { ...c, chartType } : c
-    );
-    saveDash({ ...currentCfg, charts: nextCharts });
-    showToast('info', 'Chart view updated', `Changed to ${CHART_LABELS[chartType] || chartType}.`);
-  };
-
   const dashCharts = (currentCfg.charts || []).map(it => {
     const selectedType = it.chartType || it.style || 'bar';
     if (it.module) {
@@ -379,341 +369,179 @@ export const Dashboard = () => {
 
   const activeBranchesCount = (tms.branches || []).filter(b => b.status === 'Active').length;
 
+  // Custom-list table columns: one per header in l.cols, plus the view action.
+  const listColumns = (l) => [
+    ...(l.cols || []).map((h, hi) => ({
+      title: h,
+      key: 'c' + hi,
+      onCell: () => ({ style: { whiteSpace: 'nowrap', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' } }),
+      onHeaderCell: () => ({ style: { whiteSpace: 'nowrap' } }),
+      render: (_, r) => {
+        const c = (r.cells || [])[hi];
+        if (!c) return null;
+        return <span style={{ fontWeight: c.weight, color: c.color }}>{c.v}</span>;
+      },
+    })),
+    ...(!l.noActions ? [{
+      title: 'Actions',
+      key: 'actions',
+      align: 'center',
+      render: (_, r) => (
+        <Space size={4} onClick={e => e.stopPropagation()}>
+          <Tooltip title="View details">
+            <Button type="text" size="small" aria-label="Actions" icon={<Eye size={16} strokeWidth={2.2} />} onClick={() => openDashItem(r)} />
+          </Tooltip>
+        </Space>
+      ),
+    }] : []),
+  ];
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <Flex vertical gap={24}>
 
       {/* DASHBOARD CARDS */}
       {dashCards.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '16px', alignItems: 'stretch' }}>
+        <Row gutter={[16, 16]}>
           {dashCards.map((k, i) => {
             const edge = k.edge || 'var(--color-brand)';
             const tint = EDGE_TINTS[edge] || 'var(--kr-grey-100)';
             const Icon = CARD_ICONS[k.src] || CARD_ICONS[k.id];
             return (
-            <button
-              key={k.uid || i}
-              onClick={() => navTo(k.route || 'dashboard')}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                boxSizing: 'border-box',
-                background: '#fff',
-                // The whole card carries its accent, not just the top bar.
-                border: `1px solid ${edge}`,
-                borderTop: `4px solid ${edge}`,
-                borderRadius: 'var(--radius-lg)',
-                padding: '14px 16px',
-                boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
-                transition: 'box-shadow var(--dur-base), transform var(--dur-base)',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 60, 40, 0.12)';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 48, 33, 0.05)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '11px', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: edge, lineHeight: 1.35 }}>
-                  {k.label}
-                </div>
-                {Icon && (
-                  <span style={{ flex: 'none', width: '30px', height: '30px', borderRadius: '50%', display: 'grid', placeItems: 'center', background: tint, color: edge }}>
-                    <Icon size={16} strokeWidth={2.2} />
-                  </span>
-                )}
-              </div>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '32px', letterSpacing: '-0.02em', color: 'var(--text-heading)', marginTop: '8px', lineHeight: 1 }}>
-                {k.value}
-              </div>
-              <div style={{ fontSize: '12.5px', lineHeight: 1.4, color: k.subColor || 'var(--text-muted)', marginTop: 'auto', paddingTop: '8px' }}>
-                {k.sub}
-              </div>
-              {k.hasStats && k.stats && (
-                <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
-                  {k.stats.map((x, xi) => (
-                    <div
-                      key={xi}
-                      style={{
-                        paddingTop: '6px',
-                        borderTop: '1px solid var(--border-default)',
-                        fontSize: '12px',
-                        lineHeight: 1.4,
-                        color: 'var(--text-body)',
-                        textAlign: 'left',
-                        wordBreak: 'break-word',
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: 'block',
-                          fontFamily: 'var(--font-display)',
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          letterSpacing: '0.1em',
-                          textTransform: 'uppercase',
-                          color: 'var(--text-muted)',
-                        }}
-                      >
-                        {x.h}
-                      </span>
-                      {x.text}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </button>
+              <Col key={k.uid || i} xs={24} sm={12} lg={8} xl={6} xxl={4}>
+                <Card
+                  hoverable
+                  onClick={() => navTo(k.route || 'dashboard')}
+                  className="tms-kpi tms-kpi--link"
+                  style={{ height: '100%', '--kpi': edge }}
+                  styles={{ body: { padding: '14px 16px', height: '100%', display: 'flex', flexDirection: 'column' } }}
+                >
+                  <Statistic
+                    title={
+                      <Flex justify="space-between" align="flex-start" gap={8}>
+                        <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: edge, lineHeight: 1.35 }}>
+                          {k.label}
+                        </Typography.Text>
+                        {Icon && <Avatar size={30} style={{ flex: 'none', background: tint, color: edge }} icon={<Icon size={16} strokeWidth={2.2} />} />}
+                      </Flex>
+                    }
+                    value={k.value}
+                    formatter={v => v}
+                  />
+                  <Typography.Text style={{ fontSize: 12.5, color: k.subColor || undefined, marginTop: 'auto', paddingTop: 8 }} type={k.subColor ? undefined : 'secondary'}>
+                    {k.sub}
+                  </Typography.Text>
+                  {k.hasStats && k.stats && (
+                    <Flex vertical gap={6} style={{ marginTop: 10 }}>
+                      {k.stats.map((x, xi) => (
+                        <div key={xi}>
+                          <Divider style={{ margin: '0 0 6px' }} />
+                          <Typography.Text type="secondary" strong style={{ display: 'block', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                            {x.h}
+                          </Typography.Text>
+                          <Typography.Text style={{ fontSize: 12, wordBreak: 'break-word' }}>{x.text}</Typography.Text>
+                        </div>
+                      ))}
+                    </Flex>
+                  )}
+                </Card>
+              </Col>
             );
           })}
-        </div>
+        </Row>
       )}
 
       {/* DASHBOARD CHARTS */}
       {dashCharts.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(320px, calc((100% - 48px) / 3)), 1fr))', gap: '24px', alignItems: 'stretch' }}>
+        <Row gutter={[24, 24]}>
           {dashCharts.map((c, i) => (
-            <section
-              key={c.uid || i}
-              style={{
-                background: '#fff',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-lg)',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', background: 'var(--surface-muted, #f7faf9)', gap: '8px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {c.title}
-                  </h2>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {/* Chart view type switcher */}
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      background: 'var(--surface-muted, #f6f6f4)',
-                      borderRadius: 'var(--radius-md, 6px)',
-                      padding: '2px',
-                      border: '1px solid var(--border-default, #ecece8)',
-                    }}
-                  >
-                    {CHART_TYPES.map((ct) => {
-                      const Icon = ct.icon;
-                      const isActive = (c.chartType || 'bar') === ct.value;
-                      return (
-                        <button
-                          key={ct.value}
-                          type="button"
-                          onClick={() => handleUpdateChartType(c.uid, ct.value)}
-                          title={`${ct.label}: ${ct.description}`}
-                          style={{
-                            all: 'unset',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '26px',
-                            height: '26px',
-                            borderRadius: '4px',
-                            background: isActive ? '#fff' : 'transparent',
-                            color: isActive ? 'var(--color-brand)' : 'var(--text-muted)',
-                            boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          <Icon size={14} strokeWidth={isActive ? 2.5 : 2} />
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={() => navTo(c.route || 'dashboard')}
-                    style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}
-                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-brand)'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                  >
-                    {c.meta}
-                  </button>
-                </div>
-              </div>
-              <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+            <Col key={c.uid || i} xs={24} lg={12} xl={8}>
+              <Card
+                title={c.title}
+                extra={
+                  <Flex align="center" gap={10}>
+                    <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navTo(c.route || 'dashboard')}>
+                      {c.meta}
+                    </Button>
+                  </Flex>
+                }
+                style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                styles={{ header: { flexWrap: 'wrap', gap: 8 }, body: { flex: 1, display: 'flex', flexDirection: 'column', gap: 12 } }}
+              >
                 <DynamicChart chart={c} />
-              </div>
-            </section>
+              </Card>
+            </Col>
           ))}
-        </div>
+        </Row>
       )}
 
       {/* DASHBOARD LISTS */}
       {dashLists.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(max(320px, calc((100% - 24px) / 2)), 1fr))', gap: '24px' }}>
+        <Row gutter={[24, 24]}>
           {dashLists.map((l, i) => (
-            <section
-              key={l.uid || i}
-              style={{
-                background: '#fff',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-lg)',
-                overflow: 'hidden',
-                boxShadow: '0 1px 3px rgba(0, 48, 33, 0.05)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-default)', background: 'var(--surface-muted, #f7faf9)', gap: '8px' }}>
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '15px', letterSpacing: '0.02em', textTransform: 'uppercase', color: 'var(--text-heading)' }}>
-                  {l.title}
-                </h2>
-                {l.linkLabel && (
-                  <button
-                    onClick={() => navTo(l.route || 'dashboard')}
-                    style={{ all: 'unset', cursor: 'pointer', fontSize: '13px', fontWeight: 700, color: 'var(--text-brand)', whiteSpace: 'nowrap' }}
-                  >
+            <Col key={l.uid || i} xs={24} xl={12}>
+              <Card
+                title={l.title}
+                extra={l.linkLabel && (
+                  <Button type="link" size="small" style={{ padding: 0 }} onClick={() => navTo(l.route || 'dashboard')}>
                     {l.linkLabel}
-                  </button>
+                  </Button>
                 )}
-              </div>
+                style={{ height: '100%' }}
+                styles={{ body: { padding: 0 } }}
+              >
+                {/* Custom Table View for Custom Lists */}
+                {l.isTable && l.tRows && l.tRows.length > 0 && (
+                  <Table
+                    columns={listColumns(l)}
+                    dataSource={l.tRows}
+                    rowKey={(r) => l.tRows.indexOf(r)}
+                    tableLayout="auto"
+                    scroll={{ x: 'max-content' }}
+                    pagination={false}
+                    size="small"
+                  />
+                )}
 
-              {/* Custom Table View for Custom Lists */}
-              {l.isTable && (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                    <thead>
-                      <tr style={{ textAlign: 'left', background: 'var(--surface-muted)' }}>
-                        {l.cols && l.cols.map((h, hi) => (
-                          <th
-                            key={hi}
-                            style={{
-                              padding: '10px 14px',
-                              fontFamily: 'var(--font-display)',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              letterSpacing: '0.1em',
-                              textTransform: 'uppercase',
-                              color: 'var(--text-muted)',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {h}
-                          </th>
-                        ))}
-                        {!l.noActions && (
-                          <th
-                            style={{
-                              padding: '10px 14px',
-                              fontFamily: 'var(--font-display)',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              letterSpacing: '0.1em',
-                              textTransform: 'uppercase',
-                              color: 'var(--text-muted)',
-                              whiteSpace: 'nowrap',
-                              textAlign: 'center',
-                            }}
-                          >
-                            Actions
-                          </th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {l.tRows && l.tRows.map((r, ri) => (
-                        <tr
-                          key={ri}
-                          style={{ borderTop: '1px solid var(--border-default)' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--surface-muted)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          {r.cells && r.cells.map((c, ci) => (
-                            <td
-                              key={ci}
-                              style={{
-                                padding: '10px 14px',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '260px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                fontWeight: c.weight,
-                                color: c.color,
-                              }}
-                            >
-                              {c.v}
-                            </td>
-                          ))}
-                          {!l.noActions && (
-                            <td style={{ padding: '8px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              <RowActions
-                                onView={() => openDashItem(r)}
-                                viewLabel="View details"
-                                buttonAriaLabel="Actions"
-                              />
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                {/* Standard List Items */}
+                {!l.isTable && l.items && l.items.map((x, xi) => {
+                  const isNoClick = l.noLink || l.id === 'openExceptions' || l.module === 'exceptions';
+                  return (
+                    <Flex
+                      key={xi}
+                      align="center"
+                      gap={12}
+                      role={isNoClick ? undefined : 'button'}
+                      tabIndex={isNoClick ? undefined : 0}
+                      onClick={isNoClick ? undefined : () => openDashItem(x)}
+                      onKeyDown={isNoClick ? undefined : e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDashItem(x); } }}
+                      style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-default)', cursor: isNoClick ? 'default' : 'pointer' }}
+                    >
+                      <Badge color={x.dot || 'var(--color-brand)'} />
+                      <Flex vertical flex={1} style={{ minWidth: 0 }}>
+                        <Typography.Text strong style={{ color: 'var(--text-heading)', fontFamily: x.mono ? 'var(--font-mono)' : undefined }}>
+                          {x.title}
+                        </Typography.Text>
+                        <Typography.Text type="secondary" ellipsis style={{ fontSize: 13 }}>
+                          {x.detail}
+                        </Typography.Text>
+                      </Flex>
+                      <Typography.Text strong type={x.metaColor ? undefined : 'secondary'} style={{ whiteSpace: 'nowrap', fontSize: x.metaColor ? 14 : 12, color: x.metaColor || undefined }}>
+                        {x.meta}
+                      </Typography.Text>
+                    </Flex>
+                  );
+                })}
 
-              {/* Standard List Items */}
-              {!l.isTable && l.items && l.items.map((x, xi) => {
-                const isNoClick = l.noLink || l.id === 'openExceptions' || l.module === 'exceptions';
-                const Tag = isNoClick ? 'div' : 'button';
-                return (
-                  <Tag
-                    key={xi}
-                    onClick={isNoClick ? undefined : () => openDashItem(x)}
-                    style={{
-                      all: 'unset',
-                      cursor: isNoClick ? 'default' : 'pointer',
-                      display: 'grid',
-                      gridTemplateColumns: '8px 1fr auto',
-                      gap: '12px',
-                      alignItems: 'center',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      padding: '12px 18px',
-                      borderBottom: '1px solid var(--border-default)',
-                      textAlign: 'left',
-                    }}
-                    onMouseEnter={e => { if (!isNoClick) e.currentTarget.style.background = 'var(--surface-muted)'; }}
-                    onMouseLeave={e => { if (!isNoClick) e.currentTarget.style.background = 'transparent'; }}
-                  >
-                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: x.dot || 'var(--color-brand)' }} />
-                    <span style={{ minWidth: 0 }}>
-                      <span style={{ display: 'block', fontWeight: 700, fontSize: '14px', color: 'var(--text-heading)', fontFamily: x.mono ? 'var(--font-mono)' : 'inherit' }}>
-                        {x.title}
-                      </span>
-                      <span style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {x.detail}
-                      </span>
-                    </span>
-                    <span style={{ whiteSpace: 'nowrap', fontSize: x.metaColor ? '14px' : '12px', fontWeight: 700, color: x.metaColor || 'var(--text-muted)' }}>
-                      {x.meta}
-                    </span>
-                  </Tag>
-                );
-              })}
-
-              {((!l.isTable && (!l.items || l.items.length === 0)) || (l.isTable && (!l.tRows || l.tRows.length === 0))) && (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
-                  {l.empty || 'No records.'}
-                </div>
-              )}
-            </section>
+                {((!l.isTable && (!l.items || l.items.length === 0)) || (l.isTable && (!l.tRows || l.tRows.length === 0))) && (
+                  <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={l.empty || 'No records.'} style={{ padding: '24px 0' }} />
+                )}
+              </Card>
+            </Col>
           ))}
-        </div>
+        </Row>
       )}
 
-    </div>
+    </Flex>
   );
 };
 
