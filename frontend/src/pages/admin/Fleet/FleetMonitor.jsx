@@ -233,6 +233,9 @@ export const FleetMonitor = () => {
       const d = tms.D[t.driver] || {};
       const b = tms.B[t.branch] || {};
       const c = tms.C[t.client] || {};
+      const drvName = Array.isArray(t.drivers) && t.drivers.length > 0
+        ? t.drivers.map(id => tms.D[id]?.name || id).join(', ')
+        : (t.driverNames || d.name || t.driver || '—');
       return {
         id: t.id,
         number: t.number,
@@ -241,7 +244,7 @@ export const FleetMonitor = () => {
         stateFg: st[1],
         edge: st[2],
         pulse: st[3],
-        crewLine: `${v.number || t.vehicle} · ${d.name || t.driver} · ${b.name || t.branch}`,
+        crewLine: `${v.number || t.vehicle} · ${drvName} · ${b.name || t.branch}`,
         routeLine: `${c.name || t.client} → ${t.unloading}`,
         expected: dv.expected,
         actual: dv.actual,
@@ -283,6 +286,9 @@ export const FleetMonitor = () => {
     const v = tms.V[t.vehicle] || {};
     const d = tms.D[t.driver] || {};
     const b = tms.B[t.branch] || {};
+    const drvName = Array.isArray(t.drivers) && t.drivers.length > 0
+      ? t.drivers.map(id => tms.D[id]?.name || id).join(', ')
+      : (t.driverNames || d.name || t.driver || '—');
     const closed = t.status === 'Closed';
     const pts = (tr.points || []).map(([time, ev, km], i) => ({
       t: time,
@@ -298,7 +304,7 @@ export const FleetMonitor = () => {
       status: t.status,
       badgeBg: closed ? 'var(--kr-grey-100)' : 'var(--color-brand-soft)',
       badgeFg: closed ? 'var(--kr-grey-700)' : 'var(--kr-green-800)',
-      crewLine: `${v.number || t.vehicle} · ${d.name || t.driver} · ${b.name || t.branch}`,
+      crewLine: `${v.number || t.vehicle} · ${drvName} · ${b.name || t.branch}`,
       fromTo: `${(tms.L[t.loading] || {}).name || '—'} → ${t.unloading || '—'}`,
       gpsKm: t.gpsKm != null ? String(t.gpsKm) : '—',
       gpsUnit: t.gpsKm != null ? 'km' : '',

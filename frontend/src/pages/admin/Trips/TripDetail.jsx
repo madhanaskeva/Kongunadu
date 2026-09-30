@@ -87,6 +87,13 @@ export const TripDetail = () => {
 
   const v = tms.V[rawTrip.vehicle];
   const d = tms.D[rawTrip.driver];
+  const tripDriverIds = Array.isArray(rawTrip.drivers) && rawTrip.drivers.length > 0
+    ? rawTrip.drivers
+    : (rawTrip.driver ? [rawTrip.driver] : []);
+  const tripDrivers = tripDriverIds.map(dId => tms.D[dId]).filter(Boolean);
+  const tripDriverNames = tripDrivers.length > 0
+    ? tripDrivers.map(dr => dr.name).join(', ')
+    : (rawTrip.driverNames || (d || {}).name || rawTrip.driverName || '—');
   const c = tms.C[rawTrip.client];
   const b = tms.B[rawTrip.branch];
   const s = tms.S[rawTrip.supervisor];
@@ -283,7 +290,7 @@ export const TripDetail = () => {
       kicker: `Escalate ${rawTrip.number}`,
       title: 'Diesel above authorized limit',
       details: [
-        ['Driver', (d || {}).name || rawTrip.driverName || '—'],
+        ['Driver', tripDriverNames || (d || {}).name || rawTrip.driverName || '—'],
         ['Vehicle', (v || {}).number || rawTrip.vehicleNumber || '—'],
         ['Route', routeLine || '—'],
         ['Authorized limit', dieselLimit != null ? `${dieselLimit.toLocaleString('en-IN')} L` : '—'],
@@ -430,7 +437,7 @@ export const TripDetail = () => {
             trip: rawTrip.id,
             tripNumber: rawTrip.number,
             driver: rawTrip.driver,
-            driverName: (d || {}).name || '—',
+            driverName: tripDriverNames || (d || {}).name || '—',
             branch: rawTrip.branch,
             litres: overLimit || 0,
             amount,
@@ -446,11 +453,11 @@ export const TripDetail = () => {
           kind: 'action',
           priority: 'Urgent',
           branch: rawTrip.branch,
-          title: `Salary deduction · ${(d || {}).name || 'Driver'}`,
+          title: `Salary deduction · ${tripDriverNames || (d || {}).name || 'Driver'}`,
           body: `The explanation for excess diesel on ${rawTrip.number} was not accepted. ₹${amount.toLocaleString('en-IN')} will be recovered through payroll.`,
           rows: [
             ['Trip', rawTrip.number],
-            ['Driver', (d || {}).name || '—'],
+            ['Driver', tripDriverNames || (d || {}).name || '—'],
             ['Excess diesel', `${overLimit || 0} L`],
             ['Deduction', `₹${amount.toLocaleString('en-IN')}`],
             ['Reason', note],
@@ -509,7 +516,7 @@ export const TripDetail = () => {
             trip: rawTrip.id,
             tripNumber: rawTrip.number,
             driver: rawTrip.driver,
-            driverName: (d || {}).name || '—',
+            driverName: tripDriverNames || (d || {}).name || '—',
             branch: rawTrip.branch,
             litres: 0,
             amount,
@@ -525,11 +532,11 @@ export const TripDetail = () => {
           kind: 'action',
           priority: 'Urgent',
           branch: rawTrip.branch,
-          title: `Salary deduction · ${(d || {}).name || 'Driver'}`,
+          title: `Salary deduction · ${tripDriverNames || (d || {}).name || 'Driver'}`,
           body: `Expenses on ${rawTrip.number} were approved with ₹${amount.toLocaleString('en-IN')} to be recovered through payroll.`,
           rows: [
             ['Trip', rawTrip.number],
-            ['Driver', (d || {}).name || '—'],
+            ['Driver', tripDriverNames || (d || {}).name || '—'],
             ['Deduction', `₹${amount.toLocaleString('en-IN')}`],
             ['Reason', note],
           ],
@@ -609,10 +616,36 @@ export const TripDetail = () => {
   const otherExpenses = (rawTrip.otherExpenses || []).filter(x => x && (x.name || x.amount));
   const otherTotal = otherExpenses.reduce((a, x) => a + (Number(x.amount) || 0), 0);
 
-  // The six named boxes on the supervisor's close form, in the order he fills them.
-  const breakdownRows = [
-    ['Diesel cash', 'dieselCash'],
-    ['Driver bata', 'driverBata'],
+  // The named expense boxes on the supervisor's close form: FASTag, Driver bata, Cleaner bata, RTO, Toll, Weighment.
+  const hasMultipleDrivers = (Array.isArray(rawTrip.drivers) && rawTrip.drivers.length > 1) ||
+    (expBreakdown.driverBatas && Object.keys(expBreakdown.driverBatas).length > 1);
+
+  const driverBataRows = hasMultipleDrivers
+    ? ((Array.isArray(rawTrip.drivers) && rawTrip.drivers.length > 0)
+        ? rawTrip.drivers
+        : Object.keys(expBreakdown.driverBatas || {})
+      ).map((dId, idx) => {
+        const dObj = tms.D[dId];
+        const dName = dObj ? dObj.name : dId;
+        const raw = expBreakdown.driverBatas?.[dId] ?? (idx === 0 ? expBreakdown.driverBata : null);
+        const val = raw == null || raw === '' ? null : Number(raw);
+        return [`Driver bata ${idx + 1} (${dName})`, val != null ? fmtMoney(val) : null, null, isClosed ? '₹0' : 'Pending'];
+      })
+    : [
+        ['Driver bata', (() => {
+          const raw = expBreakdown.driverBata;
+          const val = raw == null || raw === '' ? null : Number(raw);
+          return val != null ? fmtMoney(val) : null;
+        })(), null, isClosed ? '₹0' : 'Pending']
+      ];
+
+  const fastagVal = expBreakdown.fastag != null && expBreakdown.fastag !== ''
+    ? Number(expBreakdown.fastag)
+    : expBreakdown.dieselCash != null && expBreakdown.dieselCash !== ''
+    ? Number(expBreakdown.dieselCash)
+    : null;
+
+  const otherBoxRows = [
     ['Cleaner bata', 'cleanerBata'],
     ['R.T.O. & P.C. expense', 'rto'],
     ['Toll cash expense', 'toll'],
@@ -623,11 +656,26 @@ export const TripDetail = () => {
     return [label, val != null ? fmtMoney(val) : null, null, isClosed ? '₹0' : 'Pending'];
   });
 
+  const breakdownRows = [
+    ['FASTag', fastagVal != null ? fmtMoney(fastagVal) : null, null, isClosed ? '₹0' : 'Pending'],
+    ...driverBataRows,
+    ...otherBoxRows,
+  ];
+
   // What the boxes and the other-expense rows add up to, which is what the
   // supervisor's "Total expense" is built from on the close form.
-  const breakdownTotal = [
-    'dieselCash', 'driverBata', 'cleanerBata', 'rto', 'toll', 'weighment',
-  ].reduce((a, k) => a + (Number(expBreakdown[k]) || 0), 0);
+  let drvBataSum = 0;
+  if (expBreakdown.driverBatas && Object.keys(expBreakdown.driverBatas).length > 0) {
+    drvBataSum = Object.values(expBreakdown.driverBatas).reduce((a, x) => a + (Number(x) || 0), 0);
+  } else {
+    drvBataSum = Number(expBreakdown.driverBata) || 0;
+  }
+  const fastagSum = Number(expBreakdown.fastag ?? expBreakdown.dieselCash) || 0;
+  const otherBoxesSum = ['cleanerBata', 'rto', 'toll', 'weighment'].reduce(
+    (a, k) => a + (Number(expBreakdown[k]) || 0),
+    0
+  );
+  const breakdownTotal = fastagSum + drvBataSum + otherBoxesSum;
   // Diesel drawn at the bunks is part of what was spent, so it is part of the total.
   const filedTotal = (dieselAmount || 0) + breakdownTotal + otherTotal;
   // Trips closed on the current form cannot disagree — the total IS this sum.
@@ -720,7 +768,7 @@ export const TripDetail = () => {
       rows: [
         ['Vehicle', (v || {}).number || rawTrip.vehicleNumber || rawTrip.vehicle || '—'],
         ['Vehicle type', (v || {}).type || rawTrip.vehicleType || '—'],
-        ['Driver', (d || {}).name || rawTrip.driverName || '—', null, true],
+        [tripDrivers.length > 1 ? 'Drivers' : 'Driver', tripDriverNames, null, true],
       ],
     },
     {
@@ -1182,7 +1230,7 @@ export const TripDetail = () => {
                 className="td-deduction"
                 title={
                   <>
-                    <strong>{fmtMoney(verifyRecord.deduction.amount)} to recover from {(d || {}).name || 'the driver'}.</strong>{' '}
+                    <strong>{fmtMoney(verifyRecord.deduction.amount)} to recover from {tripDriverNames || (d || {}).name || 'the driver'}.</strong>{' '}
                     {verifyRecord.deduction.note}
                   </>
                 }

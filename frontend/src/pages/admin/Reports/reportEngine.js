@@ -1057,6 +1057,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'driver', label: 'Driver Name', kind: 'text' },
         { key: 'branch', label: 'Branch', kind: 'text' },
         { key: 'advance', label: 'Advance Given', kind: 'num', unit: '₹' },
+        { key: 'fastag', label: 'FASTag', kind: 'num', unit: '₹' },
         { key: 'driverBata', label: 'Driver Bata', kind: 'num', unit: '₹' },
         { key: 'cleanerBata', label: 'Cleaner Bata', kind: 'num', unit: '₹' },
         { key: 'toll', label: 'Toll & Weighment', kind: 'num', unit: '₹' },
@@ -1071,11 +1072,18 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       rows = advanceTrips.map(t => {
         const advVal = parseMoney(t.advance);
         const exp = t.expBreakdown || {};
-        const driverBata = exp.driverBata || 0;
-        const cleanerBata = exp.cleanerBata || 0;
-        const toll = (exp.toll || 0) + (exp.weighment || 0);
+        const fastag = exp.fastag != null && exp.fastag !== '' ? Number(exp.fastag) : (exp.dieselCash != null && exp.dieselCash !== '' ? Number(exp.dieselCash) : 0);
+        const driverBata = exp.driverBatas && Object.keys(exp.driverBatas).length > 0
+          ? Object.values(exp.driverBatas).reduce((a, b) => a + (Number(b) || 0), 0)
+          : (Number(exp.driverBata) || 0);
+        const cleanerBata = Number(exp.cleanerBata) || 0;
+        const toll = (Number(exp.toll) || 0) + (Number(exp.weighment) || 0);
         const otherList = (t.otherExpenses || []).map(o => `${o.name}: ₹${o.amount}`).join('; ');
-        const totalExp = parseMoney(t.totalExpense) || (driverBata + cleanerBata + toll + (exp.rto || 0));
+        const totalExp = parseMoney(t.totalExpense) || (fastag + driverBata + cleanerBata + toll + (Number(exp.rto) || 0));
+
+        const driverName = Array.isArray(t.drivers) && t.drivers.length > 0
+          ? t.drivers.map(id => D[id]?.name || id).join(', ')
+          : (t.driverNames || D[t.driver]?.name || t.driver || '—');
 
         return {
           id: t.id,
@@ -1084,11 +1092,12 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           timestamp: parseTimestamp(t.opened),
           vehicle: V[t.vehicle]?.number || t.vehicle,
           vehicleId: t.vehicle,
-          driver: D[t.driver]?.name || t.driver,
+          driver: driverName,
           driverId: t.driver,
           branch: B[t.branch]?.name || t.branch,
           branchId: t.branch,
           advance: advVal,
+          fastag,
           driverBata,
           cleanerBata,
           toll,

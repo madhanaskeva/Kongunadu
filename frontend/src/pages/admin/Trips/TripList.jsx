@@ -50,6 +50,13 @@ export const TripList = () => {
   const tms = T();
   const trips = (tms.trips || []).filter(t => !deleted.includes(t.id)).map(t => {
     const v = tms.V[t.vehicle], d = tms.D[t.driver], c = tms.C[t.client], b = tms.B[t.branch], s = tms.S[t.supervisor];
+    const tripDriverIds = Array.isArray(t.drivers) && t.drivers.length > 0
+      ? t.drivers
+      : (t.driver ? [t.driver] : []);
+    const tripDrivers = tripDriverIds.map(id => tms.D[id]).filter(Boolean);
+    const driverName = tripDrivers.length > 0
+      ? tripDrivers.map(dr => dr.name).join(', ')
+      : (t.driverNames || (d ? d.name : '—'));
     const long = t.status === 'Enroute' && t.hoursOpen > 24;
     const gpsBad = (t.flags || []).some(f => /GPS/.test(f));
     // A trip that has arrived but was never closed is the most actionable state,
@@ -74,7 +81,7 @@ export const TripList = () => {
     return {
       ...t,
       vehicleNumber: v ? v.number : '—',
-      driverName: d ? d.name : '—',
+      driverName,
       clientName: c ? c.name : '—',
       branchName: b ? b.name : '—',
       supervisorName: s ? s.name : '—',
