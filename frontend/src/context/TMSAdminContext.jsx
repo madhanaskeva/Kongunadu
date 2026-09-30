@@ -73,7 +73,7 @@ export const TMSAdminProvider = ({ children }) => {
   const [globalQ, setGlobalQ] = useState('');
   const [selectedTrip, setSelectedTrip] = useState('T07');
   // `vehicles` holds the ids ticked in the Trips vehicle filter — empty means every vehicle.
-  const [tf, setTf] = useState({ branch: '', status: '', type: '', flag: '', q: '', vehicles: [] });
+  const [tf, setTf] = useState({ branch: '', client: '', status: '', type: '', flag: '', q: '', vehicles: [] });
   const [excType, setExcType] = useState('');
   const [excStatus, setExcStatus] = useState('open');
   const [excSel, setExcSel] = useState('X02');
@@ -1039,7 +1039,7 @@ export const TMSAdminProvider = ({ children }) => {
       trip: `/admin/trips/${extra.selectedTrip || selectedTrip}`,
       exceptions: '/admin/exceptions',
       fleet: '/admin/fleet',
-      distance: '/admin/distance',
+      distance: '/admin/trips', // Distance variation lives in each trip's detail now
       attendance: '/admin/attendance',
       branches: '/admin/masters/branches',
       supervisors: '/admin/masters/supervisors',

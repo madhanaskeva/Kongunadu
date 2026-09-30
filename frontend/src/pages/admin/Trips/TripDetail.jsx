@@ -116,7 +116,7 @@ export const TripDetail = () => {
       : null;
 
   /* --------------------------------------------------------------------- */
-  /* Distance variation — the same maths the fleet-wide Distance page uses, */
+  /* Distance variation (fixed route vs GPS vs odometer km) for this trip, */
   /* so the percentage shown here and there can never disagree.             */
   /* --------------------------------------------------------------------- */
   const thr = Number(st.variance) || 5;

@@ -11,6 +11,7 @@ import {
   Tag as TagIcon,
   TriangleAlert,
   Truck,
+  Users,
   X,
   Eye,
 } from 'lucide-react';
@@ -93,6 +94,7 @@ export const TripList = () => {
 
   const tripMatch = (t, ignoreStatus) =>
     (!tf.branch || t.branch === tf.branch) &&
+    (!tf.client || t.client === tf.client) &&
     (ignoreStatus || statusMatch(t)) &&
     (!tf.type || t.type === tf.type) &&
     (!pickedVehicles.length || pickedVehicles.includes(t.vehicle)) &&
@@ -103,6 +105,12 @@ export const TripList = () => {
   const statusPool = trips.filter(t => tripMatch(t, true));
 
   const branchOptions = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+
+  // Clients narrow to the chosen branch: its own clients plus any client that
+  // already has a trip run out of that branch, so no reachable trip is hidden.
+  const clientsOfBranch = (branch) => (tms.clients || []).filter(c =>
+    !branch || c.branch === branch || trips.some(t => t.branch === branch && t.client === c.id));
+  const clientOptions = clientsOfBranch(tf.branch).map(c => ({ value: c.id, label: c.name }));
   const typeOptions = [{ value: 'Business', label: 'Business' }, { value: 'Non-Business', label: 'Non-Business' }];
   const flagOptions = [{ value: 'flagged', label: 'Flagged' }, { value: 'clean', label: 'No flagged' }];
 
@@ -140,7 +148,7 @@ export const TripList = () => {
   const [tripPage, setTripPage] = useState(1);
   const [tripPageSize, setTripPageSize] = useState(10);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setTripPage(1); }, [tf.branch, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
+  useEffect(() => { setTripPage(1); }, [tf.branch, tf.client, tf.status, tf.type, tf.flag, tf.q, pickedVehicles.join(',')]);
 
   // Search text inside the vehicle dropdown (drives its "Select these n" action).
   const [vehQ, setVehQ] = useState('');
@@ -160,7 +168,7 @@ export const TripList = () => {
 
   const clearTf = () => {
     setDraftQ('');
-    setTf({ branch: '', status: '', type: '', flag: '', q: '', vehicles: [] });
+    setTf({ branch: '', client: '', status: '', type: '', flag: '', q: '', vehicles: [] });
   };
   const runSearch = () => setTf({ ...tf, q: draftQ.trim() });
 
@@ -323,13 +331,24 @@ export const TripList = () => {
                 value={tf.branch || ''}
                 options={[{ value: '', label: 'All branches' }, ...branchOptions]}
                 popupMatchSelectWidth={false}
-                // Switching branch drops any ticked vehicle that branch does not own,
-                // otherwise the table would silently come back empty.
+                // Switching branch drops any ticked vehicle or client that branch does not
+                // own, otherwise the table would silently come back empty.
                 onChange={(v) => setTf({
                   ...tf,
                   branch: v,
+                  client: tf.client && clientsOfBranch(v).some(c => c.id === tf.client) ? tf.client : '',
                   vehicles: pickedVehicles.filter(id => !v || (tms.V[id] || {}).branch === v),
                 })}
+              />
+            </Form.Item>
+            <Form.Item label="Client" className="tl-filter" style={{ width: 200 }}>
+              <Select
+                prefix={<Users size={17} />}
+                value={tf.client || ''}
+                options={[{ value: '', label: 'All clients' }, ...clientOptions]}
+                popupMatchSelectWidth={false}
+                showSearch={{ filterOption: (input, o) => matchesSearch(input, o.label) }}
+                onChange={(v) => setTf({ ...tf, client: v })}
               />
             </Form.Item>
             <Form.Item label="Vehicle" className="tl-filter" style={{ width: 210 }}>

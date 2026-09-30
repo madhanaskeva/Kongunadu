@@ -33,7 +33,6 @@ export const Settings = () => {
     { id: 'trips', label: 'Trips', cols: ['Trip number', 'Branch', 'Vehicle', 'Driver', 'Client · unloading', 'Type', 'Opened', 'Status', 'Flags'] },
     { id: 'exceptions', label: 'Exceptions', cols: ['Severity', 'Type', 'Vehicle / trip', 'Detail', 'Branch', 'Raised', 'Assignee', 'Status'] },
     { id: 'fleet', label: 'Fleet & GPS', cols: ['Vehicle', 'Type', 'Branch', 'Driver', 'Status', 'GPS', 'Odometer', 'Last seen', 'Route'] },
-    { id: 'distance', label: 'Distance variation', cols: ['Trip', 'Vehicle', 'Route', 'Branch', 'Fixed KM', 'GPS KM', 'Odometer KM', 'Variance', 'Review'] },
     { id: 'attendance', label: 'Attendance', cols: ['Driver', 'Branch', 'Type', 'Present', 'Absent', 'Utilisation', 'Status'] },
     { id: 'branches', label: 'Branches', cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisor', 'Status'] },
     { id: 'supervisors', label: 'Supervisors', cols: ['Name', 'Phone', 'Branch', 'Clients handled', 'Last login', 'Status'] },

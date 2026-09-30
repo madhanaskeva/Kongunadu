@@ -3,7 +3,6 @@ const PAGE_META = [
   ['/admin/trips', 'Operations', 'Trips', 'Monitor and manage all transport trips across branches'],
   ['/admin/exceptions', 'Operations', 'Exceptions & irregularities', 'Review and resolve flagged trip movements'],
   ['/admin/fleet', 'Operations', 'Fleet & GPS monitor', 'Live vehicle positions and GPS health'],
-  ['/admin/distance', 'Operations', 'Distance variation', 'Fixed route vs GPS vs odometer distance checks'],
   ['/admin/attendance', 'Operations', 'Attendance', 'Supervisor and driver attendance by branch'],
   ['/admin/masters/branches', 'Masters', 'Branch Master'],
   ['/admin/masters/supervisors', 'Masters', 'Supervisor Master'],

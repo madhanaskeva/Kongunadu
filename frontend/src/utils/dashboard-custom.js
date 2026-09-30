@@ -147,30 +147,6 @@ export const getDashModules = (tms = {}, ctx = {}) => {
     };
   });
 
-  // 4. Distance variation
-  const distThr = Number(st.variance) || 5;
-  const distanceRows = (tms.distanceChecks || []).map(d => {
-    const delta = km => km == null ? null : Math.round((km - d.fixedKm) / d.fixedKm * 1000) / 10;
-    const g = delta(d.gpsKm), o = delta(d.odoKm);
-    const pct = Math.max(Math.abs(g || 0), Math.abs(o || 0));
-    const flagged = pct > distThr;
-    const review = flagged ? (distReview[d.id] || d.review || 'Open') : 'Within ' + distThr + '%';
-    const v = (tms.V && tms.V[d.vehicle]) || {};
-    const tr = d.trip && tms.T && tms.T[d.trip] ? tms.T[d.trip].number : d.number || '—';
-    return {
-      _id: d.id,
-      'Trip': tr,
-      'Vehicle': v.number || d.number || '—',
-      'Route': d.route || '—',
-      'Branch': (tms.B && tms.B[d.branch] ? tms.B[d.branch].name : d.branch) || '—',
-      'Fixed KM': d.fixedKm != null ? d.fixedKm.toLocaleString('en-IN') + ' km' : '—',
-      'GPS KM': d.gpsKm != null ? d.gpsKm.toLocaleString('en-IN') + ' km' : '—',
-      'Odometer KM': d.odoKm != null ? d.odoKm.toLocaleString('en-IN') + ' km' : '—',
-      'Variance': pct.toFixed(1) + '%',
-      'Review': review,
-    };
-  });
-
   // 5. Attendance
   const attendanceRows = (tms.drivers || [])
     .filter(d => (d.approval === 'Approved' || d.approval == null))
@@ -358,7 +334,6 @@ export const getDashModules = (tms = {}, ctx = {}) => {
     { id: 'trips', label: 'Trips', route: 'trips', kind: 'trip', cols: ['Trip number', 'Branch', 'Vehicle', 'Driver', 'Client · unloading', 'Type', 'Opened', 'Status', 'Flags'], rows: tripsRows },
     { id: 'exceptions', label: 'Exceptions', route: null, kind: 'exc', cols: ['Severity', 'Type', 'Vehicle / trip', 'Detail', 'Branch', 'Raised', 'Assignee', 'Status'], rows: exceptionsRows },
     { id: 'fleet', label: 'Fleet & GPS', route: 'fleet', kind: 'route', cols: ['Vehicle', 'Type', 'Branch', 'Driver', 'Status', 'GPS', 'Odometer', 'Last seen', 'Route'], rows: fleetRows },
-    { id: 'distance', label: 'Distance variation', route: 'distance', kind: 'route', cols: ['Trip', 'Vehicle', 'Route', 'Branch', 'Fixed KM', 'GPS KM', 'Odometer KM', 'Variance', 'Review'], rows: distanceRows },
     { id: 'attendance', label: 'Attendance', route: 'attendance', kind: 'drv', cols: ['Driver', 'Branch', 'Type', 'Present', 'Absent', 'Utilisation', 'Status'], rows: attendanceRows },
     { id: 'branches', label: 'Branches', route: 'branches', kind: 'route', cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisor', 'Status'], rows: branchesRows },
     { id: 'supervisors', label: 'Supervisors', route: 'supervisors', kind: 'route', cols: ['Name', 'Phone', 'Branch', 'Clients handled', 'Last login', 'Status'], rows: supervisorsRows },

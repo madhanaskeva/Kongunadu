@@ -7,7 +7,6 @@ import TripList from '../pages/admin/Trips/TripList';
 import TripDetail from '../pages/admin/Trips/TripDetail';
 // import Exceptions from '../pages/admin/Exceptions/Exceptions';
 import FleetMonitor from '../pages/admin/Fleet/FleetMonitor';
-import DistanceVariation from '../pages/admin/Distance/DistanceVariation';
 import {
   BranchMaster,
   SupervisorMaster,
@@ -42,7 +41,6 @@ export const AppRouter = () => {
             <Route path="trips/:id" element={<TripDetail />} />
             {/* <Route path="exceptions" element={<Exceptions />} /> */}
             <Route path="fleet" element={<FleetMonitor />} />
-            <Route path="distance" element={<DistanceVariation />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="masters/branches" element={<BranchMaster />} />
             <Route path="masters/supervisors" element={<SupervisorMaster />} />
