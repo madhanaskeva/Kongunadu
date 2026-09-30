@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Button, Collapse, Empty, Flex, Form, Select, Table, Tabs, Tag, Typography } from 'antd';
+import { Alert, Button, Checkbox, Collapse, Empty, Flex, Form, Select, Table, Tabs, Tag, Typography } from 'antd';
 import { Minus } from 'lucide-react';
 
 // The screen handlers read e.target.value (a string, as the old select gave);
@@ -37,12 +37,23 @@ export const MarkAttendance = ({ v }) => (
               </Form.Item>
               <Form.Item label="Driver name" extra={v.amDriverHint}>
                 <Select
+                  mode="multiple"
                   size="large"
                   placeholder={(v.amDriverOptions || []).length ? 'Select driver' : 'None available'}
                   disabled={!(v.amDriverOptions || []).length}
                   options={v.amDriverOptions}
-                  value={pick(v.amDriverOptions, v.am.driver)}
-                  onChange={val => v.setAmDriver(asEvent(val))}
+                  value={v.amSelectedDrivers || []}
+                  onChange={v.setAmDrivers}
+                  maxTagCount="responsive"
+                  optionRender={option => {
+                    const isSelected = (v.amSelectedDrivers || []).includes(option.value);
+                    return (
+                      <Flex align="center" gap={10} style={{ width: '100%', padding: '2px 0' }}>
+                        <Checkbox checked={isSelected} style={{ pointerEvents: 'none' }} />
+                        <span>{option.label}</span>
+                      </Flex>
+                    );
+                  }}
                 />
               </Form.Item>
               <Form.Item label="Vehicle status" extra={v.amStatusHint} style={{ marginBottom: 0 }}>
@@ -55,6 +66,13 @@ export const MarkAttendance = ({ v }) => (
                   onChange={val => v.setAmStatus(asEvent(val))}
                 />
               </Form.Item>
+              {v.canAssignAm ? (
+                <div style={{ marginTop: 12 }}>
+                  <Button type="primary" ghost block onClick={v.assignAmDrivers}>
+                    {v.assignAmLabel}
+                  </Button>
+                </div>
+              ) : null}
             </Form>
             <div>
               <Flex justify="space-between" align="baseline" style={{ marginBottom: 8 }}>

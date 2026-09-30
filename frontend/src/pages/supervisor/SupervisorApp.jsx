@@ -12,6 +12,16 @@ import '../../styles/supervisorStates.css';
 // through localStorage on the same origin, polled once a second.
 // Used only when Head Office has not saved its own list of purposes yet.
 const DEFAULT_PURPOSES = ['Maintenance', 'Internal Movement', 'Empty Return', 'Driver Testing'];
+const OTHER_EXPENSE_OPTIONS = [
+  { value: 'Puncture', label: '1. Puncture' },
+  { value: 'Maintenance', label: '2. Maintenance' },
+  { value: 'DEF Oil', label: '3. DEF Oil' },
+  { value: 'Wheel Alignment', label: '4. Wheel Alignment' },
+  { value: 'Wheel Greasing', label: '5. Wheel Greasing' },
+  { value: 'Air Grease', label: '6. Air Grease' },
+  { value: 'Water wash', label: '7. Water wash' },
+  { value: 'Food expense', label: '8. Food expense' },
+];
 
 export class SupervisorApp extends React.Component {
   state = {
@@ -32,7 +42,7 @@ export class SupervisorApp extends React.Component {
     localTrips: [], closedIds: [],
     // Nobody starts the day pre-marked: the supervisor marks every driver himself.
     att: {}, attVeh: {}, attVehStatus: {}, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
-    am: { vehicle: '', driver: '', status: '' },
+    am: { vehicle: '', driver: '', drivers: [], status: '' },
     idle: this.seedIdle(), idleFilter: 'all', showIdleErrors: false,
     profileMenuOpen: false
   };
@@ -314,20 +324,25 @@ export class SupervisorApp extends React.Component {
     const routeKm = pickedCust.reduce((a, u) => a + ((T.R[u.route] || {}).km || 0), 0);
     const routeHours = pickedCust.reduce((a, u) => a + ((T.R[u.route] || {}).hours || 0), 0);
     const routeSummary = pickedCust.length === 1 ? `${(T.R[pickedCust[0].route] || {}).name || pickedCust[0].city} · ${routeKm.toLocaleString('en-IN')} km fixed · about ${routeHours} h.` : `${pickedCust.map(u => u.city).join(' → ')} · ${routeKm.toLocaleString('en-IN')} km fixed across ${pickedCust.length} drops · about ${routeHours} h.`;
-    // Driver — the vehicle's mapped driver is suggested for a tick/cross confirm; the picker lists only drivers free today
-    // (active, approved, not on an open trip, not marked absent), plus anyone requested here for approval.
-    const freeDrv = branchDrv.filter(d => d.status === 'Active' && d.approval === 'Approved' && !activeDrv.has(d.id) && s.att[d.id] !== 'A');
+    const freeDrv = branchDrv.filter(d => (d.status === 'Active' || s.att[d.id] === 'P') && d.approval === 'Approved' && !activeDrv.has(d.id) && s.att[d.id] !== 'A');
     const drvList = [...freeDrv, ...allBranchDrv.filter(d => d.requested && d.approval === 'Pending approval' && !activeDrv.has(d.id))];
     const mappedDrv = veh ? this.mappedDriver(veh) : null;
-    // The driver marked present on this vehicle in today's attendance is suggested first; the vehicle's mapped driver
-    // is the fallback when nobody was marked on it.
-    const attDrv = veh ? drvList.find(d => s.att[d.id] === 'P' && s.attVeh[d.id] === veh.id) || null : null;
-    const suggestDrv = attDrv || (mappedDrv && drvList.some(d => d.id === mappedDrv.id) ? mappedDrv : null);
-    const driverVal = !veh ? '' : f.driver || (suggestDrv ? suggestDrv.id : '');
-    const drvSel = drvList.find(d => d.id === driverVal);
-    const drvOk = !!drvSel && !!f.driverOk, drvPending = !!drvSel && drvSel.approval !== 'Approved';
+    // Drivers marked present on this vehicle in today's attendance (live session or saved attendance)
+    const liveAttDrvIds = veh ? Object.keys(s.attVeh).filter(dId => s.attVeh[dId] === veh.id && s.att[dId] === 'P') : [];
+    const savedTodayEntriesForOpen = (s.attSaved.find(r => r.day === todayIso) || {}).entries || (s.attSaved[0] || {}).entries || {};
+    const savedAttDrvIds = veh ? Object.keys(savedTodayEntriesForOpen).filter(dId => {
+      const [st, vId] = savedTodayEntriesForOpen[dId] || [];
+      return st === 'P' && vId === veh.id;
+    }) : [];
+    const combinedAttDrvIds = [...new Set([...liveAttDrvIds, ...savedAttDrvIds])].filter(dId => !activeDrv.has(dId));
+    const defaultDriverIds = combinedAttDrvIds.length > 0 ? combinedAttDrvIds : (mappedDrv && drvList.some(d => d.id === mappedDrv.id) ? [mappedDrv.id] : []);
+    const activeDriverIds = !veh ? [] : (Array.isArray(f.drivers) && f.drivers.length > 0 ? f.drivers : (f.driver ? [f.driver] : defaultDriverIds));
+    const driverVal = activeDriverIds[0] || '';
+    const drvOk = activeDriverIds.length > 0 && (
+      !!f.driverOk || (Array.isArray(f.confirmedDrivers) && activeDriverIds.every(id => f.confirmedDrivers.includes(id)))
+    );
     const initials = n => String(n || '').replace(/[^A-Za-z ]/g, ' ').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-    const drvSub = d => `${d.type} · +91 ${d.phone}`;
+    const drvSub = d => `${d.type || 'Regular'} · +91 ${d.phone || ''}`;
     const mappedWhy = d => activeDrv.has(d.id) ? 'on another trip' : s.att[d.id] === 'A' ? 'marked absent today' : d.status === 'Inactive' ? 'inactive' : 'not approved yet';
     const startKmLocked = !!veh && !firstTrip;
     const startKmHint = !veh ? 'Select a vehicle first.' : firstTrip ? 'First recorded trip for this vehicle. Enter the reading manually.' : `Carried from previous closing KM (${lastKm(veh).toLocaleString('en-IN')}).`;
@@ -336,25 +351,60 @@ export class SupervisorApp extends React.Component {
     const openBad = needsLoad ? { client: !f.client, vehicle: !f.vehicle, loading: !f.loading, unloading: !picked.length, startKm: firstTrip && !f.startKm, driver: !drvOk }
       : { from: !(f.from || '').trim(), to: !(f.to || '').trim(), km: !(Number(f.km) > 0), reason: !f.reason, vehicle: !f.vehicle, driver: !drvOk };
     const err = s.showErrors ? openBad : {};
-    const dcState = !veh ? 'none' : !drvSel ? 'empty' : drvOk ? 'ok' : 'ask';
+    const dcState = !veh ? 'none' : activeDriverIds.length === 0 ? 'empty' : drvOk ? 'ok' : 'ask';
+
+    const driverCards = activeDriverIds.map(dId => {
+      const d = this.drv(dId) || (T.D && T.D[dId]) || { id: dId, name: dId, type: 'Regular', phone: '', approval: 'Approved' };
+      const isConfirmed = drvOk || (Array.isArray(f.confirmedDrivers) && f.confirmedDrivers.includes(dId));
+      const isPending = d.approval !== 'Approved';
+      const isAtt = combinedAttDrvIds.includes(dId);
+      const isMapped = mappedDrv && mappedDrv.id === dId;
+      const status = !isConfirmed
+        ? (isAtt ? `Present on ${veh.number} today` : isMapped ? `Mapped to ${veh.number}` : `Selected for ${veh.number}`)
+        : (isPending ? 'Confirmed · pending approval' : 'Confirmed');
+      const statusFg = !isConfirmed ? 'var(--text-muted)' : isPending ? '#7A4300' : 'var(--kr-green-800)';
+      const border = err.driver ? 'var(--status-danger)' : isConfirmed ? 'var(--color-brand)' : 'var(--border-strong)';
+      const bg = isConfirmed ? 'var(--color-brand-tint)' : '#fff';
+      const avatarBg = isConfirmed ? 'var(--color-brand)' : 'var(--surface-muted)';
+      const avatarFg = isConfirmed ? '#fff' : 'var(--text-heading)';
+
+      return {
+        id: dId,
+        name: d.name,
+        initials: initials(d.name),
+        sub: drvSub(d),
+        ask: !isConfirmed,
+        ok: isConfirmed,
+        status,
+        statusFg,
+        border,
+        bg,
+        avatarBg,
+        avatarFg,
+        isPending
+      };
+    });
+    const firstCard = driverCards[0] || null;
+    const anyPending = driverCards.some(c => c.isPending);
     const dc = {
       none: dcState === 'none', ask: dcState === 'ask', ok: dcState === 'ok', empty: dcState === 'empty', has: dcState === 'ask' || dcState === 'ok',
-      tag: { none: 'Mapped per vehicle', ask: 'Confirm driver', ok: drvPending ? 'Pending approval' : 'Confirmed', empty: 'Not set' }[dcState],
-      name: drvSel ? drvSel.name : '', initials: drvSel ? initials(drvSel.name) : '', sub: drvSel ? drvSub(drvSel) : '',
-      status: dcState === 'ask' ? (attDrv && drvSel.id === attDrv.id ? `Present on ${veh.number} today` : `Mapped to ${veh.number}`) : drvPending ? 'Confirmed · pending approval' : 'Confirmed',
-      statusFg: dcState === 'ask' ? 'var(--text-muted)' : drvPending ? '#7A4300' : 'var(--kr-green-800)',
+      tag: { none: 'Mapped per vehicle', ask: 'Confirm driver', ok: anyPending ? 'Pending approval' : 'Confirmed', empty: 'Not set' }[dcState],
+      name: firstCard ? firstCard.name : '', initials: firstCard ? firstCard.initials : '', sub: firstCard ? firstCard.sub : '',
+      status: firstCard ? firstCard.status : '',
+      statusFg: firstCard ? firstCard.statusFg : 'var(--text-muted)',
       border: err.driver ? 'var(--status-danger)' : dcState === 'ok' ? 'var(--color-brand)' : 'var(--border-strong)',
       bg: dcState === 'ok' ? 'var(--color-brand-tint)' : '#fff',
       avatarBg: dcState === 'ok' ? 'var(--color-brand)' : 'var(--surface-muted)', avatarFg: dcState === 'ok' ? '#fff' : 'var(--text-heading)',
       emptyText: !veh ? '' : mappedDrv ? `${mappedDrv.name} is mapped to ${veh.number} but is ${mappedWhy(mappedDrv)}. Choose a free driver for this trip.` : `${veh.number} has no driver mapped. Choose a free driver for this trip.`,
       hint: dcState === 'none' ? 'From the branch driver master. A new driver needs Head Office approval.'
-        : dcState === 'ask' ? 'Tap ✓ if this driver is taking the trip, or ✕ to choose another.'
+        : dcState === 'ask' ? (activeDriverIds.length > 1 ? 'Tap ✓ to confirm driver(s) taking the trip, or ✕ to remove.' : 'Tap ✓ if this driver is taking the trip, or ✕ to choose another.')
         : dcState === 'empty' ? `${drvList.length} ${drvList.length === 1 ? 'driver is' : 'drivers are'} free today.`
-        : drvPending ? `${drvSel.name} is pending Head Office approval. The trip still opens.`
-        : attDrv && drvSel.id === attDrv.id ? `Marked present on ${veh.number} in today's attendance.` : mappedDrv && drvSel.id === mappedDrv.id ? `Mapped driver for ${veh.number}.` : `Assigned for this trip only. ${veh.number} stays mapped to ${mappedDrv ? mappedDrv.name : 'no driver'}.`
+        : anyPending ? `${firstCard?.name} is pending Head Office approval. The trip still opens.`
+        : activeDriverIds.length > 1 ? `${activeDriverIds.length} drivers confirmed for this trip.`
+        : combinedAttDrvIds.includes(firstCard?.id) ? `Marked present on ${veh.number} in today's attendance.` : mappedDrv && firstCard?.id === mappedDrv.id ? `Mapped driver for ${veh.number}.` : `Assigned for this trip only.`
     };
-    const driverErrText = !veh ? 'Select a vehicle, then confirm its driver.' : dcState === 'ask' ? 'Confirm the driver with ✓, or tap ✕ to choose another.' : 'Choose the driver taking this trip.';
-    const pickList = drvList.map(d => { const on = drvOk && d.id === driverVal, present = !!attDrv && d.id === attDrv.id, mapped = !!mappedDrv && d.id === mappedDrv.id, pending = d.approval !== 'Approved';
+    const driverErrText = !veh ? 'Select a vehicle, then confirm its driver.' : dcState === 'ask' ? (activeDriverIds.length > 1 ? 'Confirm each driver with ✓, or tap ✕ to remove.' : 'Confirm the driver with ✓, or tap ✕ to choose another.') : 'Choose the driver taking this trip.';
+    const pickList = drvList.map(d => { const on = drvOk && activeDriverIds.includes(d.id), present = combinedAttDrvIds.includes(d.id), mapped = !!mappedDrv && d.id === mappedDrv.id, pending = d.approval !== 'Approved';
       return { id: d.id, name: d.name, initials: initials(d.name), sub: drvSub(d), on: on ? 'true' : 'false', hasTag: present || mapped || pending, tag: pending ? 'Pending approval' : present ? 'Present today' : 'Mapped',
         tagBg: pending ? 'var(--color-hazard-soft)' : 'var(--color-brand-tint)', tagFg: pending ? '#7A4300' : 'var(--kr-green-800)', tagColor: pending ? 'warning' : 'success',
         bg: on ? 'var(--color-brand-tint)' : '#fff', ring: on ? 'var(--color-brand)' : 'var(--border-strong)', dot: on ? 'var(--color-brand)' : 'transparent',
@@ -386,9 +436,13 @@ export class SupervisorApp extends React.Component {
     const sampleVeh = availVeh[0] || branchVeh[0];
     const tripNumberPreview = veh ? tripNum(veh) : sampleVeh ? tripNum(sampleVeh) : `TN28BC1180/${pd(TD.getMonth() + 1)}/009`;
     const tripNumberNote = veh ? `${veh.number} · ${MONTH_FULL[TD.getMonth()]} · serial ${nextSerial(veh)}` : 'Example · VEH NO / MM / SNO, branch wise';
+    const activeDrivers = activeDriverIds.map(dId => this.drv(dId)).filter(Boolean);
+    const drvReviewText = activeDrivers.length > 0
+      ? activeDrivers.map(d => d.name + (d.approval === 'Approved' ? '' : ' · pending approval')).join(', ')
+      : '—';
     const reviewRows = !veh ? [] : (needsLoad
-      ? [['Trip number', tripNumberPreview], ['Trip type', 'Business'], ['Client', (T.C[f.client] || {}).name], ['Vehicle number', veh.number], ['Vehicle type', veh.type], ['Loading location', (this.loc(f.loading) || {}).name], ['Unloading', pickedCust.map(u => u.name).join(', ')], ['Start KM', startKmVal ? Number(startKmVal).toLocaleString('en-IN') + ' km' : ''], ['Driver', drvSel ? drvSel.name + (drvSel.approval === 'Approved' ? '' : ' · pending approval') : ''], ['Remarks', f.remarks]]
-      : [['Trip number', tripNumberPreview], ['Trip type', 'Non-Business'], ['From', f.from], ['To', f.to], ['KM', f.km ? Number(f.km).toLocaleString('en-IN') + ' km' : ''], ['Purpose', f.reason], ['Vehicle number', veh.number], ['Driver', drvSel ? drvSel.name : '']]
+      ? [['Trip number', tripNumberPreview], ['Trip type', 'Business'], ['Client', (T.C[f.client] || {}).name], ['Vehicle number', veh.number], ['Vehicle type', veh.type], ['Loading location', (this.loc(f.loading) || {}).name], ['Unloading', pickedCust.map(u => u.name).join(', ')], ['Start KM', startKmVal ? Number(startKmVal).toLocaleString('en-IN') + ' km' : ''], ['Driver', drvReviewText], ['Remarks', f.remarks]]
+      : [['Trip number', tripNumberPreview], ['Trip type', 'Non-Business'], ['From', f.from], ['To', f.to], ['KM', f.km ? Number(f.km).toLocaleString('en-IN') + ' km' : ''], ['Purpose', f.reason], ['Vehicle number', veh.number], ['Driver', drvReviewText]]
     ).map(([k, v]) => ({ k, v: v || '—' }));
     // Trip history — every closed trip for this branch, with the closing details kept
     const money = n => '₹' + Number(n || 0).toLocaleString('en-IN');
@@ -507,7 +561,31 @@ export class SupervisorApp extends React.Component {
     // Selected trip
     const selTrip = this.allTrips().find(t => t.id === s.selected) || this.allTrips()[0];
     const selD = this.decorate(selTrip);
-    const selRows = [...(selTrip.client ? [['Client', selD.clientName], ['Customer', selTrip.unloading]] : []), ['Vehicle', selD.vehicleNumber], ...(selTrip.driver ? [['Driver', selD.driverName]] : []),['Loading location', (this.loc(selTrip.loading) || {}).name], ['Trip type', selTrip.type + (selTrip.reason ? ' · ' + selTrip.reason : '')], ['Opened', selTrip.opened], ['Supervisor', (T.S[selTrip.supervisor] || {}).name], ...(selTrip.remarks ? [['Remarks', selTrip.remarks]] : [])].map(([k, v]) => ({ k, v: v || '—' }));
+    // Drivers assigned to this trip's vehicle in attendance (live attVeh or today's saved attendance)
+    const tripVeh = selTrip.vehicle;
+    const attDriversForVeh = Object.keys(s.attVeh).filter(dId => s.attVeh[dId] === tripVeh && s.att[dId] === 'P');
+    const savedTodayEntries = (s.attSaved.find(r => r.day === todayIso) || {}).entries || (s.attSaved[0] || {}).entries || {};
+    const savedDriversForVeh = Object.keys(savedTodayEntries).filter(dId => {
+      const [st, vId] = savedTodayEntries[dId] || [];
+      return st === 'P' && vId === tripVeh;
+    });
+    const combinedDriverIds = [...new Set([...attDriversForVeh, ...savedDriversForVeh])];
+    let closeDriverIds = [];
+    if (Array.isArray(selTrip.drivers) && selTrip.drivers.length > 0) {
+      closeDriverIds = selTrip.drivers;
+    } else if (combinedDriverIds.length > 0) {
+      closeDriverIds = combinedDriverIds;
+    } else if (selTrip.driver) {
+      closeDriverIds = [selTrip.driver];
+    } else {
+      closeDriverIds = ['D01'];
+    }
+    const closeDrivers = closeDriverIds.map(dId => {
+      const d = this.drv(dId) || (T.D && T.D[dId]) || {};
+      return { id: dId, name: d.name || dId };
+    });
+    const tripDriverNames = closeDrivers.map(d => d.name).join(', ') || selD.driverName;
+    const selRows = [...(selTrip.client ? [['Client', selD.clientName], ['Customer', selTrip.unloading]] : []), ['Vehicle', selD.vehicleNumber], ...(tripDriverNames ? [['Driver', tripDriverNames]] : []),['Loading location', (this.loc(selTrip.loading) || {}).name], ['Trip type', selTrip.type + (selTrip.reason ? ' · ' + selTrip.reason : '')], ['Opened', selTrip.opened], ['Supervisor', (T.S[selTrip.supervisor] || {}).name], ...(selTrip.remarks ? [['Remarks', selTrip.remarks]] : [])].map(([k, v]) => ({ k, v: v || '—' }));
     // Close form
     const cf = s.cf, startNum = selTrip.startKm, km = n => Number(n || 0).toLocaleString('en-IN');
     const legs = cf.legs || [], fills = cf.fills || [];
@@ -561,7 +639,7 @@ export class SupervisorApp extends React.Component {
     // Trip closed page — everything captured, laid out like the Open Trip review
         const sumSec = (title, rows) => ({ title, rows: rows.map(([k, v, hi]) => ({ k, v: v || '—', bg: hi ? 'var(--color-hazard-soft)' : 'transparent' })) });
     const closeSummary = [
-      sumSec('Trip', [['Trip number', selD.number], ['Vehicle', selD.vehicleNumber], ['Driver', selD.driverName], ['Client', selD.clientName], ['Unloading', selTrip.unloading], ['Trip type', selTrip.type + (selTrip.reason ? ' · ' + selTrip.reason : '')]]),
+      sumSec('Trip', [['Trip number', selD.number], ['Vehicle', selD.vehicleNumber], ['Driver', tripDriverNames || selD.driverName], ['Client', selD.clientName], ['Unloading', selTrip.unloading], ['Trip type', selTrip.type + (selTrip.reason ? ' · ' + selTrip.reason : '')]]),
       sumSec('Odometer', [['Start KM', km(startNum) + ' km'], ...legs.map((l, i) => [`${i + 1}. ${l.from} → ${l.to}`, `${km(l.reading)} km · +${km(l.reading - legPrev(i))} km`]), ['Closing odometer', closeNum ? km(closeNum) + ' km' : ''], ['Trip distance', odo ? km(odo) + ' km' : ''], ['Variance vs fixed', fixed ? pct + '%' : 'Not applicable', flagged]]),
       sumSec('Billing', [['Loading invoice', cf.invoice], ['LR number', cf.lr], ['Loading qty', cf.qtyLoad], ['Unloading qty', cf.qtyUnload]]),
       sumSec('Diesel', [...fills.map(x => [x.bunk, `${km(x.litres)} L × ₹${Number(x.rate).toFixed(2)} = ${money0(x.litres * x.rate)}`]), ['Total diesel', dieselLitres ? `${km(dieselLitres)} L · ${money0(dieselTotal)}` : '']]),
@@ -575,23 +653,26 @@ export class SupervisorApp extends React.Component {
     const attDrivers = branchDrv.filter(d => d.approval === 'Approved').map(d => { const v = s.att[d.id] || ''; const onTrip = activeDrv.has(d.id); return { id: d.id, name: d.name, sub: onTrip ? 'On trip · marked present automatically' : d.type + (d.status === 'Inactive' ? ' · inactive' : ''), pBorder: v === 'P' ? 'var(--color-brand)' : 'var(--border-strong)', pBg: v === 'P' ? 'var(--color-brand)' : '#fff', pFg: v === 'P' ? '#fff' : 'var(--text-heading)', aBorder: v === 'A' ? 'var(--kr-red-600)' : 'var(--border-strong)', aBg: v === 'A' ? 'var(--kr-red-600)' : '#fff', aFg: v === 'A' ? '#fff' : 'var(--text-heading)' }; });
     const attendanceMarked = attDrivers.filter(d => s.att[d.id]).length, attendanceTotal = attDrivers.length;
     // Attendance · mark by vehicle — vehicle and driver lists come from the admin masters
-    const am = s.am, amVeh = T.V[am.vehicle], amDrv = this.drv(am.driver);
+    const am = s.am, amVeh = T.V[am.vehicle];
+    const amSelectedDrivers = Array.isArray(am.drivers) ? am.drivers : (am.driver ? [am.driver] : []);
+    const amSelectedSet = new Set(amSelectedDrivers);
+    const amDrv = this.drv(am.driver || amSelectedDrivers[0]);
     const amDriverList = branchDrv.filter(d => d.approval === 'Approved');
     const amUsedVeh = new Set(amDriverList.filter(d => s.att[d.id] === 'P' && s.attVeh[d.id]).map(d => s.attVeh[d.id]));
     const amFreeVeh = branchVeh.filter(v => !amUsedVeh.has(v.id) || v.id === am.vehicle);
     const amVehicleOptions = amFreeVeh.map(v => ({ value: v.id, label: `${v.number} · ${v.type}` }));
-    const amDriverOptions = amDriverList.filter(d => !s.att[d.id] || d.id === am.driver).map(d => ({ value: d.id, label: `${d.name} · ${d.type}${d.status === 'Inactive' ? ' · inactive' : ''}` }));
+    const amDriverOptions = amDriverList.filter(d => !s.att[d.id] || amSelectedSet.has(d.id)).map(d => ({ value: d.id, label: `${d.name} · ${d.type}${d.status === 'Inactive' ? ' · inactive' : ''}` }));
     const amMappedDrv = amVeh ? this.mappedDriver(amVeh) : null;
     const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : amUsedVeh.size ? `${amFreeVeh.length} of ${branchVeh.length} ${me.branch} vehicles free. ${amUsedVeh.size} already marked today are hidden.` : `${branchVeh.length} ${me.branch} vehicles from the admin vehicle master.`;
     // Vehicle status: Idle or Maintenance; a vehicle that is on a trip can also be recorded as On trip
     // Same vehicle statuses as the Admin Portal Vehicle Master.
     const amStatusOptions = ['Idle', 'Running', 'Maintenance', 'Inactive'].map(x => ({ value: x, label: x }));
-    const amStatusHint = amVeh && amDrv ? `Choose the status of ${amVeh.number} to add ${amDrv.name} to today’s attendance.` : 'Idle, running, under maintenance or inactive. The driver is added once vehicle, driver and status are chosen.';
+    const amStatusHint = amVeh && amSelectedDrivers.length ? `Choose the status of ${amVeh.number} to add ${amSelectedDrivers.length === 1 ? (amDrv ? amDrv.name : 'the driver') : `${amSelectedDrivers.length} drivers`} to today’s attendance.` : 'Idle, running, under maintenance or inactive. The driver(s) are added once vehicle, driver(s) and status are chosen.';
     const vehStatusOf = id => s.attVehStatus[id] || ((T.V[s.attVeh[id]] || {}).status === 'Running' ? 'On trip' : 'Not set');
-    const amDriverHint = amVeh && !amDrv ? `Pick the driver for ${amVeh.number}${amMappedDrv ? ` (mapped: ${amMappedDrv.name})` : ''}, then the vehicle status.`
-      : amVeh && amDrv ? `${amDrv.name} will be marked present on ${amVeh.number} once you choose the vehicle status.`
-      : amDrv && !amVeh ? `Pick the vehicle for ${amDrv.name} to mark them present.`
-      : `${amDriverOptions.length} of ${amDriverList.length} approved ${me.branch} drivers not marked yet. Pick a vehicle, driver and vehicle status to mark the driver present.`;
+    const amDriverHint = amVeh && !amSelectedDrivers.length ? `Pick the driver(s) for ${amVeh.number}${amMappedDrv ? ` (mapped: ${amMappedDrv.name})` : ''}, then the vehicle status.`
+      : amVeh && amSelectedDrivers.length ? `${amSelectedDrivers.length} driver(s) selected for ${amVeh.number}. Choose vehicle status to assign.`
+      : amSelectedDrivers.length && !amVeh ? `Pick the vehicle for the selected driver(s) to mark them present.`
+      : `${amDriverOptions.length} of ${amDriverList.length} approved ${me.branch} drivers not marked yet. Pick a vehicle, driver(s) and vehicle status to mark the driver(s) present.`;
     // Marked attendance tab · saved days, newest first
     const now = new Date(), p2 = n => String(n).padStart(2, '0');
     const TODAY_DAY = `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
@@ -637,11 +718,12 @@ export class SupervisorApp extends React.Component {
     for (let i = 0; i < 1; i++) monthCells.push({ day: 0, label: '', bg: 'transparent', fg: 'transparent', border: 'transparent', cursor: 'default' });
     for (let d = 1; d <= 30; d++) { const past = d < 14, today = d === 14, miss = missing.includes(d); monthCells.push({ day: d, label: String(d), cursor: d <= 14 ? 'pointer' : 'default', bg: today ? '#fff' : miss ? 'var(--color-hazard)' : past ? 'var(--color-brand)' : 'var(--kr-grey-100)', fg: today ? 'var(--color-brand)' : past ? '#fff' : 'var(--text-muted)', border: today ? 'var(--color-brand)' : 'transparent' }); }
     const gpsState = s.gpsGranted ? (selTrip.flags || []).includes('GPS failed') && s.screen === 'trip' ? ['GPS failed', 'var(--kr-red-600)'] : ['GPS on', 'var(--kr-green-600)'] : ['GPS off', 'var(--kr-red-600)'];
-    // Notifications page · Head Office messages and actions, system alerts, and your own activity
+    // Notifications page · Head Office messages and actions, system alerts, and petrol idle alerts
     const NK = {
       message: { label: 'Head Office message', icon: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', bg: 'var(--color-brand-tint)', fg: 'var(--kr-green-800)', edge: 'var(--color-brand)' },
       action: { label: 'Head Office action', icon: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)', edge: 'var(--kr-grey-500)' },
       alert: { label: 'Alert', icon: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01', bg: 'var(--color-hazard-soft)', fg: '#7A4300', edge: 'var(--color-hazard)' },
+      petrolIdle: { label: 'Petrol idle alert', icon: 'M3 22h12M4 9h10M14 22V4a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v18M14 13h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2a2 2 0 0 0 2-2V9.83a2 2 0 0 0-.59-1.42L18 5', bg: 'var(--color-hazard-soft)', fg: '#7A4300', edge: 'var(--color-hazard)' },
       activity: { label: 'Your activity', icon: 'M22 12h-4l-3 9L9 3l-3 9H2', bg: 'var(--surface-muted)', fg: 'var(--text-muted)', edge: 'var(--border-default)' }
     };
     const noticeAt = sort => { const [d, hm = ''] = String(sort || '').split(' '); const [y, m, dd] = d.split('-'); return m ? `${Number(dd)} ${MON[Number(m) - 1]} ${hm.slice(0, 5)}` : ''; };
@@ -652,13 +734,78 @@ export class SupervisorApp extends React.Component {
       ...(attendanceMarked < attendanceTotal ? [{ id: 'al-att-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 09:00', title: 'Attendance pending for today', body: `${attendanceTotal - attendanceMarked} of ${attendanceTotal} drivers are not marked for ${todayDM}. Missing attendance is reported to Head Office after 48 hours.`, rows: [['Marked', attDrivers.filter(d => s.att[d.id]).map(d => d.name).join(', ') || 'None yet'], ['Not marked', attDrivers.filter(d => !s.att[d.id]).map(d => d.name).join(', ')], ['Date', prettyDay(todayIso)]], link: { screen: 'attMark' }, linkLabel: 'Mark attendance' }] : []),
       ...(idleMissing ? [{ id: 'al-idle-' + todayIso, kind: 'alert', from: 'TMS alerts', sort: todayIso + ' 08:30', title: 'Idle reason missing', body: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle has' : 'vehicles have'} no reason recorded. Head Office uses the reason to plan loads and maintenance.`, rows: idleRows.filter(v => v.missingReason).map(v => [v.number, v.sinceText]), link: { screen: 'idle' }, linkLabel: 'Record idle reasons' }] : [])
     ];
-    const notifAll = [...(T.supervisorNotices || []).filter(n => n.branch === this.BR || n.branch === 'all'), ...s.adminNotices, ...alertItems, ...s.activity]
-      .map(n => { const k = NK[n.kind] || NK.message, unread = n.kind !== 'activity' && !s.notifRead.includes(n.id);
+    const petrolIdleAlerts = [
+      {
+        id: `al-petrol-V01-${todayIso}`,
+        kind: 'petrolIdle',
+        from: 'TMS fuel alerts',
+        sort: todayIso + ' 11:20',
+        priority: 'Urgent',
+        title: 'Idle at petrol bunk · TN 28 AQ 4521',
+        body: 'TN 28 AQ 4521 has been stationary at IOC – Sriperumbudur Highway for 1 h 25 min (exceeds allowable 20 min fuel halt limit). Driver Murugan S. reported diesel dispenser queue.',
+        rows: [
+          ['Vehicle', 'TN 28 AQ 4521'],
+          ['Driver', 'Murugan S. · 90031 22110'],
+          ['Petrol bunk', 'IOC – Sriperumbudur Highway'],
+          ['Bunk idle time', '1 h 25 min (since 09:55)'],
+          ['Allowed limit', '20 min max fuel halt'],
+          ['Route', 'Sriperumbudur → Hyderabad'],
+          ['Trip', 'TN28AQ4521/09/014'],
+          ['Status', 'Stationary inside bunk geofence']
+        ],
+        note: 'Contact driver Murugan S. (90031 22110) or bunk operator to verify fueling progress and clear vehicle from the bunk.',
+        link: { trip: 'T01' },
+        linkLabel: 'View trip detail'
+      },
+      {
+        id: `al-petrol-V13-${todayIso}`,
+        kind: 'petrolIdle',
+        from: 'GPS fuel geofence',
+        sort: todayIso + ' 10:45',
+        title: 'Idle at petrol bunk · TN 28 BZ 1902',
+        body: 'TN 28 BZ 1902 has halted at HP – Ambattur Industrial Estate for 55 min without movement. Fuel dispensing completed 35 min ago.',
+        rows: [
+          ['Vehicle', 'TN 28 BZ 1902'],
+          ['Driver', 'Mani K. · 90031 70455'],
+          ['Petrol bunk', 'HP – Ambattur Industrial Estate'],
+          ['Bunk idle time', '55 min (since 09:50)'],
+          ['Allowed limit', '20 min max fuel halt'],
+          ['Route', 'Ambattur → Vijayawada'],
+          ['Status', 'Stationary after fueling']
+        ],
+        note: 'Check with driver Mani K. for departure delay reasons.',
+        link: { trip: 'T02' },
+        linkLabel: 'View trip detail'
+      },
+      {
+        id: `al-petrol-V02-${todayIso}`,
+        kind: 'petrolIdle',
+        from: 'TMS fuel alerts',
+        sort: todayIso + ' 09:15',
+        priority: 'Urgent',
+        title: 'Idle at petrol bunk · TN 28 BC 1180',
+        body: 'TN 28 BC 1180 has been halted at BPCL – Poonamallee Bypass for 1 h 40 min. Prolonged idle detected inside fuel station boundaries.',
+        rows: [
+          ['Vehicle', 'TN 28 BC 1180'],
+          ['Driver', 'Karthik R. · 90031 88221'],
+          ['Petrol bunk', 'BPCL – Poonamallee Bypass'],
+          ['Bunk idle time', '1 h 40 min (since 07:35)'],
+          ['Allowed limit', '20 min max fuel halt'],
+          ['Alert level', 'Critical bunk overstay (> 1 hr)'],
+          ['Status', 'Parked at fuel bunk exit']
+        ],
+        note: 'Driver has exceeded fuel halt threshold. Instruct driver Karthik R. to proceed on route.',
+        link: { screen: 'idle' },
+        linkLabel: 'View vehicle idle status'
+      }
+    ];
+    const notifAll = [...(T.supervisorNotices || []).filter(n => n.branch === this.BR || n.branch === 'all'), ...s.adminNotices, ...alertItems, ...petrolIdleAlerts]
+      .map(n => { const k = NK[n.kind] || NK.message, unread = !s.notifRead.includes(n.id);
         return { ...n, kindLabel: k.label, icon: k.icon, iconBg: k.bg, iconFg: k.fg, unread, edge: unread ? k.edge : 'var(--border-default)', bg: '#fff', weight: unread ? 800 : 600,
           from: n.from || 'Head Office Admin', at: noticeAt(n.sort), atLong: noticeAtLong(n.sort), urgent: n.priority === 'Urgent',
-          rowList: (n.rows || []).map(([k2, v]) => ({ k: k2, v: v || '—' })), hasRows: !!(n.rows && n.rows.length), hasNote: !!n.note, hasLink: !!n.link, canUnread: n.kind !== 'activity' }; })
+          rowList: (n.rows || []).map(([k2, v]) => ({ k: k2, v: v || '—' })), hasRows: !!(n.rows && n.rows.length), hasNote: !!n.note, hasLink: !!n.link, canUnread: true }; })
       .sort((a, b) => String(b.sort).localeCompare(String(a.sort)));
-    const notifGroups = { all: () => true, office: n => n.kind === 'message' || n.kind === 'action', alert: n => n.kind === 'alert', activity: n => n.kind === 'activity' };
+    const notifGroups = { all: () => true, office: n => n.kind === 'message' || n.kind === 'action', alert: n => n.kind === 'alert', petrolIdle: n => n.kind === 'petrolIdle' };
     const notifShown = notifAll.filter(notifGroups[s.notifFilter] || notifGroups.all);
     const notifUnread = notifAll.filter(n => n.unread).length;
     const nd = notifAll.find(n => n.id === s.notifSel) || notifAll[0] || { rowList: [], title: '', body: '', icon: '' };
@@ -759,16 +906,17 @@ export class SupervisorApp extends React.Component {
       bigBtn: { height: 56, fontSize: 17 }, selNarrow: { width: 170 }, toastStyle: { width: '100%' },
       activeCount: activeD.length, tripWord: activeD.length === 1 ? 'trip' : 'trips', unclosedHint: activeD.some(t => t.hoursOpen > 24) ? 'One trip has been open more than 24 h.' : 'Trips waiting to be closed.', unclosedCountColor: activeD.some(t => t.hoursOpen > 24) ? 'var(--kr-saffron-600)' : 'var(--color-brand)',
       attendanceTotal, attendanceMarked, attendancePct: Math.round(attendanceMarked / Math.max(1, attendanceTotal) * 100) + '%',
-      goHome: () => this.setState({ screen: 'home', history: [], notifOpen: false, railVariant: '' }), goOpen, goCloseList: () => this.go('closeList', { railVariant: '' }), goUnclosed: () => this.go('unclosed', { forceEmpty: false, railVariant: '' }), goAttendance: () => this.go('attendance', { railVariant: '' }), goAttMonth: () => this.go('attMonth', { railVariant: '' }), goAttMark: () => this.go('attMark', { railVariant: '', am: { vehicle: '', driver: '', status: '' }, attTab: 'mark', attOpenDay: '' }),
+      goHome: () => this.setState({ screen: 'home', history: [], notifOpen: false, railVariant: '' }), goOpen, goCloseList: () => this.go('closeList', { railVariant: '' }), goUnclosed: () => this.go('unclosed', { forceEmpty: false, railVariant: '' }), goAttendance: () => this.go('attendance', { railVariant: '' }), goAttMonth: () => this.go('attMonth', { railVariant: '' }), goAttMark: () => this.go('attMark', { railVariant: '', am: { vehicle: '', driver: '', drivers: [], status: '' }, attTab: 'mark', attOpenDay: '' }),
       back: () => this.setState(st => { const h = [...st.history]; const prev = h.pop() || 'home'; return { screen: prev, history: h, railVariant: '' }; }),
       stop: e => e.stopPropagation(),
       notifShown, notifTotal: notifAll.length, notifUnread, notifHasUnread: notifUnread > 0, nd,
       bellLabel: notifUnread ? `Notifications, ${notifUnread} unread` : 'Notifications', bellBg: ['notifications', 'notifDetail'].includes(s.screen) ? 'var(--surface-muted)' : 'transparent',
       notifShownEmpty: !notifShown.length,
-      notifEmptyTitle: s.notifFilter === 'activity' ? 'No activity yet' : s.notifFilter === 'alert' ? 'No alerts' : 'Nothing here yet',
-      notifEmptyText: s.notifFilter === 'activity' ? 'Trips you open or close, attendance and idle status you save appear here.' : s.notifFilter === 'alert' ? 'Long open trips, pending attendance and missing idle reasons show up here.' : 'Messages and updates from Head Office appear here.',
-      notifFilters: [['all', 'All', notifAll.length], ['office', 'Head Office', notifAll.filter(notifGroups.office).length], ['alert', 'Alerts', notifAll.filter(notifGroups.alert).length], ['activity', 'My activity', notifAll.filter(notifGroups.activity).length]].map(([id, label, n]) => { const on = s.notifFilter === id; return { id, label: `${label} (${n})`, on: on ? 'true' : 'false', border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; }),
+      notifEmptyTitle: s.notifFilter === 'petrolIdle' ? 'No petrol idle alerts' : s.notifFilter === 'alert' ? 'No alerts' : 'Nothing here yet',
+      notifEmptyText: s.notifFilter === 'petrolIdle' ? 'Vehicles idling at petrol bunks beyond allowable time will show up here.' : s.notifFilter === 'alert' ? 'Long open trips, pending attendance and missing idle reasons show up here.' : 'Messages and updates from Head Office appear here.',
+      notifFilters: [['all', 'All', notifAll.length], ['office', 'Head Office', notifAll.filter(notifGroups.office).length], ['alert', 'Alerts', notifAll.filter(notifGroups.alert).length], ['petrolIdle', 'Petrol idle alert', notifAll.filter(notifGroups.petrolIdle).length]].map(([id, label, n]) => { const on = s.notifFilter === id; return { id, label: `${label} (${n})`, on: on ? 'true' : 'false', border: on ? 'var(--color-brand)' : 'var(--border-strong)', bg: on ? 'var(--color-brand)' : '#fff', color: on ? '#fff' : 'var(--text-heading)' }; }),
       goNotifications: () => (s.screen === 'notifications' ? null : this.go('notifications', { railVariant: '' })),
+      notifHomeHint: notifUnread > 0 ? `${notifUnread} unread · ${notifAll.length} total. Check alerts and office updates.` : `${notifAll.length} updates and alerts.`,
       setNotifFilter: e => this.setState({ notifFilter: e.currentTarget.dataset.f, railVariant: '' }),
       openNotif: e => { const id = e.currentTarget.dataset.id; this.setState(st => ({ notifRead: st.notifRead.includes(id) ? st.notifRead : [...st.notifRead, id] })); this.go('notifDetail', { notifSel: id, railVariant: '' }); },
       markAllRead: () => this.setState(st => ({ notifRead: [...new Set([...st.notifRead, ...notifAll.map(n => n.id)])] })),
@@ -776,7 +924,7 @@ export class SupervisorApp extends React.Component {
       openNotifLink: () => {
         const l = nd.link || {};
         if (l.trip) { const tr = this.allTrips().find(x => x.id === l.trip); const closed = tr && (tr.status === 'Closed' || s.closedIds.includes(tr.id)); return closed ? this.go('histTrip', { histSel: l.trip, railVariant: '' }) : this.go('trip', { selected: l.trip, railVariant: '' }); }
-        if (l.screen === 'attMark') return this.go('attMark', { railVariant: '', am: { vehicle: '', driver: '', status: '' }, attTab: 'mark' });
+        if (l.screen === 'attMark') return this.go('attMark', { railVariant: '', am: { vehicle: '', driver: '', drivers: [], status: '' }, attTab: 'mark' });
         if (l.screen === 'idle') return this.go('idle', { railVariant: '', showIdleErrors: false });
         if (l.screen) this.go(l.screen, { railVariant: '' });
       },
@@ -811,7 +959,7 @@ export class SupervisorApp extends React.Component {
         : !clientLocs.length
         ? `No loading location is set for ${(T.C[f.client] || {}).name || 'this client'} yet. Add a point from where you are standing, or ask Head Office to add one in the Client Master.`
         : `${clientLocs.length} ${clientLocs.length === 1 ? 'location' : 'locations'} set for ${(T.C[f.client] || {}).name}. Predefined points are geofenced to 100 m; add a new point from where you are standing if it is missing.`,
-      dc, driverErrText, pickList, pickSub, pickEmpty: !pickList.length, drvPickOpen: s.drvPickOpen, customerOptions, hasCustomers: customerOptions.length > 0, noCustomers: !customerOptions.length,
+      dc, driverCards, driverErrText, pickList, pickSub, pickEmpty: !pickList.length, drvPickOpen: s.drvPickOpen, customerOptions, hasCustomers: customerOptions.length > 0, noCustomers: !customerOptions.length,
       unloadCountLabel: !needsLoad ? 'Not needed' : !f.client ? 'Predefined per client' : unloadMode === 'single' ? `${clientCust.length} available` : picked.length ? `${picked.length} of ${clientCust.length} selected` : `Tick one or more · ${clientCust.length} available`,
       routeKnown: picked.length > 0, routeSummary, fullRow: { width: '100%' },
       // Unloading — Single: one customer from a dropdown. Multiple: tick several drops.
@@ -822,12 +970,104 @@ export class SupervisorApp extends React.Component {
       setSingleCust: e => this.set(['form', 'unloading'], e.target.value ? [e.target.value] : []),
       singleCustInfo: unloadMode === 'single' && picked[0] ? (customerOptions.find(c => c.id === picked[0]) || {}).sub : '',
       unloadErrText: unloadMode === 'single' ? 'Select the unloading customer.' : 'Tick at least one unloading customer.',
-      setClient: e => { const client = e.target.value; this.setState(st => { const vv = T.V[st.form.vehicle] || {}, drop = client && st.form.vehicle && (vv.clients || []).length > 0 && !vv.clients.includes(client); const lc = this.loc(st.form.loading), keepLoc = !!lc && (lc.clientId || lc.client) === client; return { form: { ...st.form, client, unloading: [], ...(keepLoc ? {} : { loading: '' }), ...(drop ? { vehicle: '', driver: '', driverOk: false } : {}) } }; }); },
-      setVehicle: e => { const vid = e.target.value, open = this.active().find(t => t.vehicle === vid); if (open) { this.setState({ unclosedAlert: { vehicle: vid, trip: open.id } }); return; } this.setState(st => ({ form: { ...st.form, vehicle: vid, driver: '', driverOk: false } })); }, setRemarks: e => this.set(['form', 'remarks'], e.target.value.slice(0, 250)), setStartKm: e => this.set(['form', 'startKm'], e.target.value), setReason: e => this.set(['form', 'reason'], e.target.value),
+      setClient: e => { const client = e.target.value; this.setState(st => { const vv = T.V[st.form.vehicle] || {}, drop = client && st.form.vehicle && (vv.clients || []).length > 0 && !vv.clients.includes(client); const lc = this.loc(st.form.loading), keepLoc = !!lc && (lc.clientId || lc.client) === client; return { form: { ...st.form, client, unloading: [], ...(keepLoc ? {} : { loading: '' }), ...(drop ? { vehicle: '', driver: '', drivers: [], confirmedDrivers: [], driverOk: false } : {}) } }; }); },
+      setVehicle: e => { const vid = e.target.value, open = this.active().find(t => t.vehicle === vid); if (open) { this.setState({ unclosedAlert: { vehicle: vid, trip: open.id } }); return; } this.setState(st => ({ form: { ...st.form, vehicle: vid, driver: '', drivers: [], confirmedDrivers: [], driverOk: false } })); }, setRemarks: e => this.set(['form', 'remarks'], e.target.value.slice(0, 250)), setStartKm: e => this.set(['form', 'startKm'], e.target.value), setReason: e => this.set(['form', 'reason'], e.target.value),
       setLoading: e => { if (e.target.value === '__add') { this.setState({ newLoc: { open: true, name: '' }, showNewLocErr: false }); return; } this.set(['form', 'loading'], e.target.value); },
-      acceptDriver: () => this.setState(st => ({ form: { ...st.form, driver: driverVal, driverOk: true } })),
-      rejectDriver: () => this.setState({ drvPickOpen: true }), openDrvPick: () => this.setState({ drvPickOpen: true }), closeDrvPick: () => this.setState({ drvPickOpen: false }),
-      pickDriver: e => { const id = e.currentTarget.dataset.id; this.setState(st => ({ drvPickOpen: false, form: { ...st.form, driver: id, driverOk: true } })); },
+      acceptDriver: (dId) => {
+        this.setState(st => {
+          const curActive = (Array.isArray(st.form.drivers) && st.form.drivers.length > 0)
+            ? st.form.drivers
+            : (st.form.driver ? [st.form.driver] : activeDriverIds);
+          let nextConfirmed;
+          if (dId && typeof dId === 'string' && dId !== '__all') {
+            const prev = Array.isArray(st.form.confirmedDrivers) ? st.form.confirmedDrivers : [];
+            nextConfirmed = [...new Set([...prev, dId])];
+          } else {
+            nextConfirmed = curActive;
+          }
+          const allDone = curActive.length > 0 && curActive.every(id => nextConfirmed.includes(id));
+          return {
+            form: {
+              ...st.form,
+              driver: curActive[0] || '',
+              drivers: curActive,
+              confirmedDrivers: nextConfirmed,
+              driverOk: allDone
+            }
+          };
+        });
+      },
+      rejectDriver: (dId) => {
+        const curActive = (Array.isArray(this.state.form.drivers) && this.state.form.drivers.length > 0)
+          ? this.state.form.drivers
+          : (this.state.form.driver ? [this.state.form.driver] : activeDriverIds);
+        if (dId && typeof dId === 'string' && curActive.length > 1) {
+          const nextDrivers = curActive.filter(id => id !== dId);
+          const nextConfirmed = (this.state.form.confirmedDrivers || []).filter(id => id !== dId);
+          const allDone = nextDrivers.length > 0 && nextDrivers.every(id => nextConfirmed.includes(id));
+          this.setState(st => ({
+            form: {
+              ...st.form,
+              driver: nextDrivers[0] || '',
+              drivers: nextDrivers,
+              confirmedDrivers: nextConfirmed,
+              driverOk: allDone
+            }
+          }));
+        } else {
+          this.setState({ drvPickOpen: true, pickingForDriverId: dId || null });
+        }
+      },
+      removeDriver: (dId) => {
+        const curActive = (Array.isArray(this.state.form.drivers) && this.state.form.drivers.length > 0)
+          ? this.state.form.drivers
+          : (this.state.form.driver ? [this.state.form.driver] : activeDriverIds);
+        if (curActive.length > 1) {
+          const nextDrivers = curActive.filter(id => id !== dId);
+          const nextConfirmed = (this.state.form.confirmedDrivers || []).filter(id => id !== dId);
+          const allDone = nextDrivers.length > 0 && nextDrivers.every(id => nextConfirmed.includes(id));
+          this.setState(st => ({
+            form: {
+              ...st.form,
+              driver: nextDrivers[0] || '',
+              drivers: nextDrivers,
+              confirmedDrivers: nextConfirmed,
+              driverOk: allDone
+            }
+          }));
+        } else {
+          this.setState({ drvPickOpen: true, pickingForDriverId: dId || null });
+        }
+      },
+      openDrvPick: (targetId) => this.setState({ drvPickOpen: true, pickingForDriverId: (typeof targetId === 'string' ? targetId : null) }),
+      closeDrvPick: () => this.setState({ drvPickOpen: false, pickingForDriverId: null }),
+      pickDriver: e => {
+        const id = e.currentTarget.dataset.id;
+        this.setState(st => {
+          const curActive = (Array.isArray(st.form.drivers) && st.form.drivers.length > 0)
+            ? st.form.drivers
+            : (st.form.driver ? [st.form.driver] : activeDriverIds);
+          let nextDrivers;
+          if (st.pickingForDriverId === '__add') {
+            nextDrivers = [...new Set([...curActive, id])];
+          } else if (st.pickingForDriverId && curActive.length > 1) {
+            nextDrivers = curActive.map(d => d === st.pickingForDriverId ? id : d);
+          } else {
+            nextDrivers = [id];
+          }
+          return {
+            drvPickOpen: false,
+            pickingForDriverId: null,
+            form: {
+              ...st.form,
+              driver: nextDrivers[0] || id,
+              drivers: nextDrivers,
+              confirmedDrivers: nextDrivers,
+              driverOk: true
+            }
+          };
+        });
+      },
       goReqDriverFromOpen: () => this.go('reqDriver', { drvPickOpen: false, reqFromOpen: true, rf: this.blankRf(), showReqErrors: false, railVariant: '' }),
       addLocOpen: s.newLoc.open, newLoc: s.newLoc, newLocErr: s.showNewLocErr && !s.newLoc.name.trim() ? 'Name the point so it can be reused.' : undefined,
       setNewLocName: e => this.set(['newLoc', 'name'], e.target.value),
@@ -852,7 +1092,9 @@ export class SupervisorApp extends React.Component {
         this.setState({ saving: true });
         setTimeout(() => {
           const num = tripNumberPreview.replace(/\s/g, '');
-          const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: driverVal, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: this.stampText(), supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [] };
+          const tripDrivers = (Array.isArray(f.drivers) && f.drivers.length > 0) ? f.drivers : (f.driver ? [f.driver] : activeDriverIds);
+          const tripDriverNamesStr = tripDrivers.map(dId => (this.drv(dId) || {}).name || dId).join(', ');
+          const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: tripDrivers[0] || driverVal, drivers: tripDrivers, driverNames: tripDriverNamesStr, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: this.stampText(), supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [] };
           try {
             const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
             const cur = m.trips || { added: [], edited: {} };
@@ -863,7 +1105,7 @@ export class SupervisorApp extends React.Component {
           } catch (e) {}
           this.setState(st => ({ saving: false, screen: 'openDone', localTrips: [...st.localTrips, t], newTrip: t, form: this.blankForm(), showErrors: false, idle: { ...st.idle, [f.vehicle]: { on: false, reason: '', note: '' } } }));
           this.toast('success', 'Trip saved', num + ` is ${ENROUTE_LABEL_LOWER}. GPS monitoring started.`);
-          this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', (this.drv(driverVal) || {}).name], ['Status', ENROUTE_LABEL]], link: { trip: t.id }, linkLabel: 'View trip' });
+          this.logActivity({ title: `Trip opened · ${num}`, body: f.type === 'Non-Business' ? `${f.from} → ${f.to} · ${f.km} km · ${f.reason}. GPS monitoring started.` : `${(T.C[f.client] || {}).name} → ${pickedCust.map(u => u.name).join(', ')}. GPS monitoring started.`, rows: [['Trip', num], ['Trip type', f.type], ['Vehicle', (T.V[f.vehicle] || {}).number], ['Driver', tripDriverNamesStr || (this.drv(driverVal) || {}).name], ['Status', ENROUTE_LABEL]], link: { trip: t.id }, linkLabel: 'View trip' });
           this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${num} has been opened by ${me.name} (${me.branch}).`, time: 'Just now' });
         }, 1200);
       },
@@ -942,14 +1184,17 @@ export class SupervisorApp extends React.Component {
       removeFill: e => { const i = Number(e.currentTarget.dataset.i); this.patchCf({ fills: fills.filter((_, j) => j !== i), fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }); },
       dieselAmount: dieselTotal ? money0(dieselTotal) : '—', dieselTotalLabel: fills.length > 1 ? `Diesel total · ${fills.length} bunks · ${km(dieselLitres)} L` : 'Diesel amount',
       // expense and remarks
-      expBreakdown: cf.expBreakdown || { dieselCash: '', driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
+      expBreakdown: cf.expBreakdown || { fastag: '', driverBatas: {}, driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
       otherExpenses: cf.otherExpenses || [{ name: '', amount: '' }],
+      closeDrivers,
+      setDriverBata: (driverId, val) => this.setDriverBata(driverId, val),
+      otherExpenseOptions: OTHER_EXPENSE_OPTIONS,
       setExpBreakdown: (field, val) => this.setExpBreakdown(field, val),
       setOtherExpense: (idx, field, val) => this.setOtherExpense(idx, field, val),
       addOtherExpense: () => this.addOtherExpense(),
       removeOtherExpense: (idx) => this.removeOtherExpense(idx),
       totalExpenseDisplay: Number(cf.totalExpense) > 0 ? money0(Number(cf.totalExpense)) : '₹0',
-      totalExpenseHint: 'Added up automatically: bunk diesel plus the seven boxes above.',
+      totalExpenseHint: 'Added up automatically: bunk diesel, FASTag, driver bata, cleaner bata, RTO, toll, weighment and other expenses.',
       setCloseRemarks: e => this.patchCf({ remarks: e.target.value.slice(0, 250) }), closeRemarksCount: (cf.remarks || '').length,
       closeSummary, closePhotos, hasClosePhotos: closePhotos.length > 0,
       closeReviewHead: flagged ? `Variance ${pct}% will be flagged.` : 'Validation passed.',
@@ -1082,6 +1327,37 @@ export class SupervisorApp extends React.Component {
       idleHasErrors: s.showIdleErrors && idleMissing > 0, idleErrorText: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle needs' : 'vehicles need'} a reason before saving.`,
       saveIdle: () => { if (idleMissing) { this.setState({ showIdleErrors: true, railVariant: 'errors' }); return; } this.setState(st => ({ showIdleErrors: false, idle: Object.fromEntries(Object.entries(st.idle).map(([id, r]) => [id, r.on && !r.since ? { ...r, since: this.nowText(), hours: 0 } : r])) })); this.toast('success', 'Idle status saved', `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`); this.logActivity({ title: 'Vehicle idle status saved', body: `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`, rows: idleRows.filter(v => v.on).map(v => [v.number, v.reason + (v.note ? ' · ' + v.note : '')]), link: { screen: 'idle' }, linkLabel: 'Open idle status' }); this.pushAdminNotif({ title: 'Maintenance Alert', body: `Vehicle idle status updated: ${idleStats.idle} vehicles marked idle.`, time: 'Just now' }); this.go('home'); },
       am, amVehicleOptions, amDriverOptions, amVehicleHint, amDriverHint, amRows, amRowCount: amRows.length, amRowsEmpty: !amRows.length,
+      amSelectedDrivers,
+      amVehNumber: amVeh ? amVeh.number : '',
+      canAssignAm: !!(am.vehicle && amSelectedDrivers.length && am.status),
+      assignAmLabel: `Assign ${amSelectedDrivers.length} driver${amSelectedDrivers.length === 1 ? '' : 's'} to ${amVeh ? amVeh.number : 'vehicle'}`,
+      assignAmDrivers: () => {
+        const drivers = amSelectedDrivers.filter(Boolean);
+        if (!am.vehicle || !drivers.length || !am.status) return;
+        const v = amVeh;
+        this.setState(st => {
+          const att = { ...st.att };
+          const attVeh = { ...st.attVeh };
+          const attVehStatus = { ...st.attVehStatus };
+          drivers.forEach(dId => {
+            att[dId] = 'P';
+            attVeh[dId] = am.vehicle;
+            attVehStatus[dId] = am.status;
+          });
+          return {
+            att, attVeh, attVehStatus,
+            am: { vehicle: '', driver: '', drivers: [], status: '' }
+          };
+        });
+        const names = drivers.map(dId => (this.drv(dId) || {}).name || dId).join(', ');
+        this.toast('success', 'Marked present', `${names} · ${v ? v.number : 'Vehicle'} · ${am.status} · ${todayShort}.`);
+      },
+      setAmDrivers: vals => {
+        const ids = Array.isArray(vals) ? vals : [];
+        this.setState(st => ({
+          am: { ...st.am, drivers: ids, driver: ids[0] || '' }
+        }));
+      },
       showAttMonth: SHOW_ATT_MONTH,
       attTabs: [['mark', 'Mark new attendance'], ['marked', 'Marked attendance']].filter(([id]) => !HIDDEN_ATT_TABS.includes(id)).map(([id, label]) => { const on = s.attTab === id; return { id, label, selected: on ? 'true' : 'false', color: on ? 'var(--text-brand)' : 'var(--text-muted)', bar: on ? 'var(--color-brand)' : 'transparent' }; }),
       attTabMark: s.attTab !== 'marked' || HIDDEN_ATT_TABS.includes('marked'), attTabMarked: s.attTab === 'marked' && !HIDDEN_ATT_TABS.includes('marked'),
@@ -1090,7 +1366,7 @@ export class SupervisorApp extends React.Component {
       attUnsavedText: savedToday ? "Today's attendance has changed since you saved it." : `Today's attendance is not saved yet · ${Object.keys(todayEntries).length} marked.`,
       toggleAttDay: e => { const day = e.currentTarget.dataset.day; this.setState({ attOpenDay: openDay === day ? 'none' : day }); },
       setAmVehicle: e => this.pickAm({ vehicle: e.target.value }),
-      setAmDriver: e => this.pickAm({ driver: e.target.value }),
+      setAmDriver: e => this.pickAm({ driver: e.target.value, drivers: e.target.value ? [e.target.value] : [] }),
       amStatusOptions, amStatusHint, setAmStatus: e => this.pickAm({ status: e.target.value }),
       removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; delete attVeh[id]; delete attVehStatus[id]; return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
       saveAmEntry: () => { if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance saved for ${attendanceMarked} drivers by ${me.name} (${me.branch}).`, time: 'Just now' }); },
@@ -1156,15 +1432,31 @@ export class SupervisorApp extends React.Component {
   pickAm(patch) {
     const am = { ...this.state.am, ...patch };
     if (patch.vehicle !== undefined && patch.vehicle !== this.state.am.vehicle) am.status = '';
-    if (!am.vehicle || !am.driver || !am.status) { this.setState({ am }); return; }
-    const T = this.T(), d = this.drv(am.driver), v = T.V[am.vehicle];
-    const taken = Object.keys(this.state.attVeh).find(id => id !== am.driver && this.state.att[id] === 'P' && this.state.attVeh[id] === am.vehicle);
-    if (taken) { this.setState({ am: { ...am, vehicle: '', status: '' } }); this.toast('warning', 'Vehicle already marked', `${v.number} is already on today’s list with ${(this.drv(taken) || {}).name || 'another driver'}. Pick another vehicle.`); return; }
-    this.setState(st => ({ att: { ...st.att, [am.driver]: 'P' }, attVeh: { ...st.attVeh, [am.driver]: am.vehicle }, attVehStatus: { ...st.attVehStatus, [am.driver]: am.status }, am: { vehicle: '', driver: '', status: '' } }));
-    this.toast('success', 'Marked present', `${d.name} · ${v.number} · ${am.status} · 14 September.`);
+    const drivers = Array.isArray(am.drivers) && am.drivers.length ? am.drivers : (am.driver ? [am.driver] : []);
+    if (!am.vehicle || !drivers.length || !am.status) {
+      this.setState({ am: { ...am, drivers, driver: drivers[0] || '' } });
+      return;
+    }
+    const T = this.T(), v = T.V[am.vehicle];
+    this.setState(st => {
+      const att = { ...st.att };
+      const attVeh = { ...st.attVeh };
+      const attVehStatus = { ...st.attVehStatus };
+      drivers.forEach(dId => {
+        att[dId] = 'P';
+        attVeh[dId] = am.vehicle;
+        attVehStatus[dId] = am.status;
+      });
+      return {
+        att, attVeh, attVehStatus,
+        am: { vehicle: '', driver: '', drivers: [], status: '' }
+      };
+    });
+    const names = drivers.map(dId => (this.drv(dId) || {}).name || dId).join(', ');
+    this.toast('success', 'Marked present', `${names} · ${v ? v.number : 'Vehicle'} · ${am.status} · 14 September.`);
   }
   bind(key, fields) { const o = {}; fields.forEach(k => o[k] = e => this.set([key, k], e.target.value)); return o; }
-  blankForm() { return { client: '', vehicle: '', loading: '', unloading: [], unloadMode: 'single', startKm: '', driver: '', driverOk: false, type: 'Business', reason: '', remarks: '', from: '', to: '', km: '' }; }
+  blankForm() { return { client: '', vehicle: '', loading: '', unloading: [], unloadMode: 'single', startKm: '', driver: '', drivers: [], confirmedDrivers: [], driverOk: false, type: 'Business', reason: '', remarks: '', from: '', to: '', km: '' }; }
   // Longest side 1000 px, JPEG ~0.7: a readable document photo at roughly 100 KB, small enough for localStorage.
   shrinkImage(file) {
     return new Promise(done => {
@@ -1185,25 +1477,45 @@ export class SupervisorApp extends React.Component {
     ];
   }
   blankClose() { return { invoice: '', lr: '', qtyLoad: '', qtyUnload: '', totalExpense: '', remarks: '',
-    expBreakdown: { dieselCash: '', driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
+    expBreakdown: { fastag: '', driverBatas: {}, driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
     otherExpenses: [{ name: '', amount: '' }],
     legs: [], legDraft: this.blankLeg(), legEdit: -1, legOpen: false, legTried: false,
     fills: [], fillDraft: this.blankFill(), fillEdit: -1, fillOpen: false, fillTried: false }; }
-  // Total expense = diesel drawn at the bunks + the six boxes + every other-expense row.
-  // Diesel is part of it because the bunk fill is money spent on this trip, the same
-  // way the seed trips were totalled before the boxes existed.
+  // Total expense = diesel drawn at the bunks + FASTag + driver batas + cleaner bata + RTO + toll + weighment + other expenses.
   recalcTotalExpense(cf) {
     const eb = cf.expBreakdown || {};
-    const dCash = Number(eb.dieselCash) || 0;
-    const drvB = Number(eb.driverBata) || 0;
+    const fastag = Number(eb.fastag) || 0;
+    let drvB = 0;
+    if (eb.driverBatas && Object.keys(eb.driverBatas).length > 0) {
+      drvB = Object.values(eb.driverBatas).reduce((a, x) => a + (Number(x) || 0), 0);
+    } else {
+      drvB = Number(eb.driverBata) || 0;
+    }
     const clnB = Number(eb.cleanerBata) || 0;
     const rto = Number(eb.rto) || 0;
     const toll = Number(eb.toll) || 0;
     const weigh = Number(eb.weighment) || 0;
     const oth = (cf.otherExpenses || []).reduce((a, x) => a + (Number(x.amount) || 0), 0);
     const bunkDiesel = (cf.fills || []).reduce((a, x) => a + (Number(x.litres) || 0) * (Number(x.rate) || 0), 0);
-    const sum = Math.round(bunkDiesel) + dCash + drvB + clnB + rto + toll + weigh + oth;
+    const sum = Math.round(bunkDiesel) + fastag + drvB + clnB + rto + toll + weigh + oth;
     return sum > 0 ? String(sum) : '';
+  }
+  setDriverBata(driverId, value) {
+    const cleanVal = value.replace(/\D/g, '');
+    this.setState(st => {
+      const prevBatas = st.cf.expBreakdown?.driverBatas || {};
+      const driverBatas = { ...prevBatas, [driverId]: cleanVal };
+      const allValues = Object.values(driverBatas).map(x => Number(x) || 0);
+      const totalDriverBata = allValues.reduce((a, b) => a + b, 0);
+      const expBreakdown = {
+        ...(st.cf.expBreakdown || {}),
+        driverBatas,
+        driverBata: totalDriverBata > 0 ? String(totalDriverBata) : ''
+      };
+      const cf = { ...st.cf, expBreakdown };
+      const totalExpense = this.recalcTotalExpense(cf);
+      return { cf: { ...cf, totalExpense } };
+    });
   }
   setExpBreakdown(field, value) {
     this.setState(st => {
