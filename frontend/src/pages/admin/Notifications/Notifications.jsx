@@ -5,7 +5,7 @@ import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import {
-  MANUAL_CHANGED_EVENT, createNotification, getAutomaticAlerts, getNotifications, getSupervisors, resendNotification, setAlertStatus, shareAlert,
+  MANUAL_CHANGED_EVENT, createNotification, getAutomaticAlerts, getNotifications, getSupervisors, resendNotifications, setAlertStatus, shareAlerts, shareInboxItems,
 } from '../../../utils/notificationUtils';
 import { AutomaticAlerts } from './AutomaticAlerts';
 import { ManualNotifications } from './ManualNotifications';
@@ -61,20 +61,33 @@ export const Notifications = () => {
     }
   };
 
-  const handleShareAlert = (alert, recipients) => {
+  // One alert from its row, or several ticked alerts at once.
+  const handleShareAlert = (list, recipients) => {
+    const picked = [].concat(list);
     try {
-      shareAlert(alert, { recipients, sentBy: adminName });
+      shareAlerts(picked, { recipients, sentBy: adminName });
       setStatusRev(r => r + 1);
-      showToast('success', 'Alert shared', `${alert.id} sent to ${recipients.map(r => r.name).join(', ')}.`);
+      showToast('success', picked.length === 1 ? 'Alert shared' : `${picked.length} alerts shared`,
+        `${picked.length === 1 ? picked[0].id : picked.map(a => a.id).join(', ')} sent to ${recipients.map(r => r.name).join(', ')}.`);
     } catch (e) {
       showToast('danger', 'Could not share', 'The alert could not be shared. Please try again.');
     }
   };
 
-  const handleResend = (id, recipients) => {
+  const handleShareInbox = (items, recipients) => {
     try {
-      setNotifications(resendNotification(id, { recipients, sentBy: adminName }));
-      showToast('success', 'Reminder resent', `Sent again to ${recipients.map(r => r.name).join(', ')}.`);
+      shareInboxItems(items, { recipients, sentBy: adminName });
+      showToast('success', items.length === 1 ? 'Message shared' : `${items.length} messages shared`, `Forwarded to ${recipients.map(r => r.name).join(', ')}.`);
+    } catch (e) {
+      showToast('danger', 'Could not share', 'The messages could not be shared. Please try again.');
+    }
+  };
+
+  // One notification (from its details) or several ticked ones.
+  const handleResend = (ids, recipients) => {
+    try {
+      setNotifications(resendNotifications(ids, { recipients, sentBy: adminName }));
+      showToast('success', ids.length === 1 ? 'Reminder resent' : `${ids.length} reminders resent`, `Sent to ${recipients.map(r => r.name).join(', ')}.`);
     } catch (e) {
       showToast('danger', 'Could not resend', 'The reminder could not be saved. Please try again.');
     }
@@ -109,7 +122,7 @@ export const Notifications = () => {
     {
       key: 'inbox',
       label: label('Head Office Inbox', unreadInbox),
-      children: <HeadOfficeInbox />,
+      children: <HeadOfficeInbox supervisors={supervisors} canSend={canSend} onShare={handleShareInbox} />,
     },
   ];
 

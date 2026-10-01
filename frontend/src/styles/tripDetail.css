@@ -8,9 +8,9 @@
 /* KPI cards: each card carries its own colour on every edge, heavier on top. */
 .tl-kpi-label.ant-typography {
   font-family: var(--font-display);
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tl-kpi-fg);
 }
@@ -23,7 +23,7 @@
   color: var(--kr-grey-900);
 }
 
-/* Filter bar: fields sit on one wrapping row, labels bold. */
+/* Filter bar: fields sit in the shared .tms-filter-grid columns, labels bold. */
 .tl-filters .ant-form-item {
   margin-bottom: 0;
 }
@@ -33,9 +33,8 @@
   color: var(--text-heading);
 }
 
-.tl-search {
-  flex: 1;
-  min-width: 260px;
+.tl-search .ant-btn {
+  flex: none;
 }
 
 .tl-search .ant-input-affix-wrapper {
@@ -155,14 +154,8 @@
 }
 
 @media (max-width: 600px) {
-  .tl-filters .tl-filter {
-    width: 100% !important;
-  }
-
   .tl-search {
     flex-wrap: wrap;
-    min-width: 0;
-    flex-basis: 100%;
   }
 
   .tl-search .ant-input-affix-wrapper {

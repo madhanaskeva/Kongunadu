@@ -18,3 +18,154 @@
   }
 }
 
+
+/* ---------- Filter bars --------------------------------------------------
+   Fields sit in equal columns that reflow with the content width, so every
+   row lines up instead of wrapping into ragged fixed-width pieces.
+   --filter-min sets the narrowest a column may get before it reflows. */
+.tms-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--filter-min, 170px)), 1fr));
+  gap: 14px 16px;
+  align-items: end;
+}
+
+.tms-filter-grid > * {
+  min-width: 0;
+}
+
+.tms-filter-grid > .ant-form-item {
+  margin-bottom: 0;
+}
+
+/* A row of its own (e.g. the search box with its buttons) */
+.tms-filter-grid > .tms-filter-span {
+  grid-column: 1 / -1;
+}
+
+/* Action pinned to the last column, on the row after the last field */
+.tms-filter-grid > .tms-filter-end {
+  grid-column: -2 / -1;
+}
+
+.tms-filter-grid > .tms-filter-end.ant-btn {
+  justify-self: end;
+}
+
+@media (max-width: 600px) {
+  .tms-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .tms-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- KPI rows -----------------------------------------------------
+   antd Row/Col kept (the card colours key off .ant-col order), laid out as a
+   grid so a short last row keeps the column widths of the rows above it. */
+.tms-kpi-grid.ant-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--kpi-min, 200px)), 1fr));
+  gap: var(--kpi-gap, 16px);
+  margin: 0 !important;
+}
+
+.tms-kpi-grid.ant-row > .ant-col {
+  max-width: none;
+  min-width: 0;
+  padding: 0 !important;
+}
+
+/* KPI tiles: the number sits on the same line across a row, however many
+   lines the label above it takes. */
+.tms-shell .ant-card.tms-kpi {
+  display: flex;
+  flex-direction: column;
+}
+
+.tms-kpi .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.tms-kpi .ant-card-body > .ant-statistic {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* ---------- Card headers -------------------------------------------------
+   Title and the actions beside it share the row while they fit; on narrow
+   screens the actions drop below instead of squeezing the title. */
+.tms-shell .ant-card-head-wrapper {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.tms-shell .ant-card-head-title {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.tms-shell .ant-card-head .ant-card-extra {
+  max-width: 100%;
+}
+
+@media (max-width: 600px) {
+  .tms-shell .ant-card-head .ant-card-extra {
+    margin-inline-start: 0;
+    padding-bottom: 10px;
+  }
+}
+
+/* ---------- Table pager --------------------------------------------------
+   Phones: the "Showing x to y" line gets its own row and the pages centre
+   under it, instead of breaking mid-way across two lines. */
+@media (max-width: 600px) {
+  .ant-table-wrapper .ant-table-pagination.ant-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .ant-table-wrapper .ant-pagination .ant-pagination-total-text {
+    flex-basis: 100%;
+    margin-inline-end: 0;
+    text-align: center;
+  }
+}
+
+/* ---------- Toolbars above tables ----------------------------------------
+   The action buttons stay on the right edge, also when they wrap. */
+.tms-toolbar-actions {
+  margin-inline-start: auto;
+}
+
+/* ---------- Alerts with an action button ---------------------------------
+   The button drops below the message when there is no room beside it. */
+.tms-alert-wrap.ant-alert {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+
+.tms-alert-wrap .ant-alert-section {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .tms-alert-wrap .ant-alert-actions {
+    margin-inline-start: 34px;
+  }
+}
+
+.tms-filter-grid .ant-select,
+.tms-filter-grid .ant-picker {
+  width: 100%;
+}

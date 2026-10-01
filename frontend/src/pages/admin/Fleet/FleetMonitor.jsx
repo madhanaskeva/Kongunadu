@@ -442,7 +442,7 @@ export const FleetMonitor = () => {
   return (
     <Flex vertical gap={20}>
       {/* 5 KPI Tiles */}
-      <Row gutter={[12, 12]}>
+      <Row gutter={[12, 12]} className="tms-kpi-grid" style={{ '--kpi-min': '150px', '--kpi-gap': '12px' }}>
         {fleetTiles.map((k, idx) => (
           <Col key={idx} flex="1 1 150px">
             <Card size="small" className="tms-kpi" style={{ height: '100%', '--kpi': k.edge }}>
@@ -458,8 +458,8 @@ export const FleetMonitor = () => {
       {/* Filters Bar — same filters as the Trips page */}
       <Card className="tl-filters" styles={{ body: { padding: '18px 20px' } }}>
         <Form layout="vertical">
-          <Flex gap={14} wrap align="flex-end">
-            <Form.Item label="Branch" className="tl-filter" style={{ width: 190 }}>
+          <div className="tms-filter-grid">
+            <Form.Item label="Branch" className="tl-filter">
               <Select
                 prefix={<Building2 size={17} />}
                 value={flt.branch}
@@ -473,7 +473,7 @@ export const FleetMonitor = () => {
                 })}
               />
             </Form.Item>
-            <Form.Item label="Client" className="tl-filter" style={{ width: 200 }}>
+            <Form.Item label="Client" className="tl-filter">
               <Select
                 prefix={<Users size={17} />}
                 value={flt.client}
@@ -486,7 +486,7 @@ export const FleetMonitor = () => {
                 })}
               />
             </Form.Item>
-            <Form.Item label="Vehicle" className="tl-filter" style={{ width: 210 }}>
+            <Form.Item label="Vehicle" className="tl-filter">
               <Select
                 mode="multiple"
                 prefix={<Truck size={17} />}
@@ -502,7 +502,7 @@ export const FleetMonitor = () => {
                 showSearch={{ filterOption: (input, o) => textMatches(input, o.label) }}
               />
             </Form.Item>
-            <Form.Item label="Type" className="tl-filter" style={{ width: 200 }}>
+            <Form.Item label="Type" className="tl-filter">
               <Select
                 prefix={<TagIcon size={17} />}
                 value={flt.type}
@@ -511,7 +511,7 @@ export const FleetMonitor = () => {
                 onChange={(v) => patchFlt({ type: v })}
               />
             </Form.Item>
-            <Form.Item label="Flags" className="tl-filter" style={{ width: 160 }}>
+            <Form.Item label="Flags" className="tl-filter">
               <Select
                 prefix={<Flag size={17} />}
                 value={flt.flag}
@@ -521,7 +521,7 @@ export const FleetMonitor = () => {
               />
             </Form.Item>
             {/* Vehicles match on trips opened in the range; trip cards on their own opened date. */}
-            <Form.Item label="From date" className="tl-filter" style={{ width: 170 }}>
+            <Form.Item label="From date" className="tl-filter">
               <DatePicker
                 value={flt.from ? dayjs(flt.from) : null}
                 format="DD MMM YYYY"
@@ -531,7 +531,7 @@ export const FleetMonitor = () => {
                 style={{ width: '100%' }}
               />
             </Form.Item>
-            <Form.Item label="To date" className="tl-filter" style={{ width: 170 }}>
+            <Form.Item label="To date" className="tl-filter">
               <DatePicker
                 value={flt.to ? dayjs(flt.to) : null}
                 format="DD MMM YYYY"
@@ -541,10 +541,10 @@ export const FleetMonitor = () => {
                 style={{ width: '100%' }}
               />
             </Form.Item>
-            <Button onClick={() => { setFlt(EMPTY_FILTERS); setFleetQ(''); setTlDate(''); }} disabled={!hasFilters && !fleetQ && !tlDate}>
+            <Button className="tms-filter-end" onClick={() => { setFlt(EMPTY_FILTERS); setFleetQ(''); setTlDate(''); }} disabled={!hasFilters && !fleetQ && !tlDate}>
               Clear
             </Button>
-          </Flex>
+          </div>
         </Form>
       </Card>
 

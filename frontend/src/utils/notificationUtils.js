@@ -147,22 +147,43 @@ export const createNotification = ({ title, message, priority, recipients, creat
 
 // Resend an existing notification to a new set of supervisors. The original
 // notification (and its recipients) stays as it was; only a history entry is added.
-export const resendNotification = (id, { recipients, sentBy }) => {
+export const resendNotification = (id, opts) => resendNotifications([id], opts);
+
+// Resend several notifications to the same supervisors: one resend-history entry and
+// one Supervisor App notice per notification. Returns the updated list.
+export const resendNotifications = (ids, { recipients, sentBy }) => {
   const list = getNotifications();
   const allResendIds = list.flatMap(n => (n.resendHistory || []).map(r => r.id));
-  const next = list.map(n => (n.id !== id ? n : {
-    ...n,
-    resendHistory: [
-      ...(n.resendHistory || []),
-      { id: nextId('RES', allResendIds), recipients, sentBy, sentAt: nowIso() },
-    ],
-  }));
+  const sentAt = nowIso();
+  const next = list.map(n => {
+    if (!ids.includes(n.id)) return n;
+    const id = nextId('RES', allResendIds);
+    allResendIds.push(id);
+    return { ...n, resendHistory: [...(n.resendHistory || []), { id, recipients, sentBy, sentAt }] };
+  });
   saveNotifications(next);
-  const original = next.find(n => n.id === id);
-  if (original) {
+  next.filter(n => ids.includes(n.id)).forEach(original => {
     deliverToSupervisors({ title: original.title, message: original.message, priority: original.priority, sentBy, recipients, resend: true });
-  }
+  });
   return next;
+};
+
+// ---------------------------------------------------------------------------
+// Head Office inbox: forward messages that reached Head Office to supervisors
+// ---------------------------------------------------------------------------
+
+const INBOX_SHARE_KEY = 'kr-tms-inbox-shares';
+export const getInboxShares = () => readJson(INBOX_SHARE_KEY, {});
+
+export const shareInboxItems = (items, { recipients, sentBy }) => {
+  const map = getInboxShares();
+  const sentAt = nowIso();
+  items.forEach(item => {
+    map[item.id] = [...(map[item.id] || []), { recipients, sentBy, sentAt }];
+    deliverToSupervisors({ title: `Fwd: ${item.title}`, message: item.body || '', priority: 'normal', sentBy, recipients });
+  });
+  writeJson(INBOX_SHARE_KEY, map);
+  return map;
 };
 
 // ---------------------------------------------------------------------------
@@ -212,13 +233,24 @@ export const alertTitle = a => `${ALERT_TYPES[a.alertType]} · ${a.vehicleNo}`;
 
 // Share an automatic alert with supervisors. The alert itself is unchanged;
 // each share is kept in its share history (keyed by the alert's stable key).
-export const shareAlert = (alert, { recipients, sentBy }) => {
+export const shareAlert = (alert, opts) => shareAlerts([alert], opts);
+
+// Share several alerts with the same supervisors in one go. Each alert gets its own
+// share-history entry and reaches the supervisor app as its own notice (with its own priority).
+export const shareAlerts = (list, { recipients, sentBy }) => {
   const map = readAlertShares();
   const allIds = Object.values(map).flat().map(h => h.id);
-  map[alert.key] = [...(map[alert.key] || []), { id: nextId('SHR', allIds), recipients, sentBy, sentAt: nowIso() }];
+  const sentAt = nowIso();
+  list.forEach(alert => {
+    const id = nextId('SHR', allIds);
+    allIds.push(id);
+    map[alert.key] = [...(map[alert.key] || []), { id, recipients, sentBy, sentAt }];
+  });
   writeJson(ALERT_SHARE_KEY, map);
-  const msg = alert.tripId ? `${alert.message} (Trip ${alert.tripId})` : alert.message;
-  deliverToSupervisors({ title: `Alert: ${alertTitle(alert)}`, message: msg, priority: severityPriority(alert.severity), sentBy, recipients });
+  list.forEach(alert => {
+    const msg = alert.tripId ? `${alert.message} (Trip ${alert.tripId})` : alert.message;
+    deliverToSupervisors({ title: `Alert: ${alertTitle(alert)}`, message: msg, priority: severityPriority(alert.severity), sentBy, recipients });
+  });
 };
 
 export const setAlertStatus = (ids, status) => {

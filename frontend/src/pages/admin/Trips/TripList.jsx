@@ -306,7 +306,7 @@ export const TripList = () => {
   return (
     <Flex vertical gap={20}>
       {/* KPI Cards */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="tms-kpi-grid">
         {kpis.map(k => {
           const Icon = k.icon;
           const apply = () => setTf({ ...tf, ...k.apply });
@@ -340,8 +340,8 @@ export const TripList = () => {
       {/* Filters Bar */}
       <Card className="tl-filters" styles={{ body: { padding: '18px 20px' } }}>
         <Form layout="vertical" onFinish={runSearch}>
-          <Flex gap={14} wrap align="flex-end">
-            <Form.Item label="Branch" className="tl-filter" style={{ width: 190 }}>
+          <div className="tms-filter-grid">
+            <Form.Item label="Branch" className="tl-filter">
               <Select
                 prefix={<Building2 size={17} />}
                 value={tf.branch || ''}
@@ -357,7 +357,7 @@ export const TripList = () => {
                 })}
               />
             </Form.Item>
-            <Form.Item label="Client" className="tl-filter" style={{ width: 200 }}>
+            <Form.Item label="Client" className="tl-filter">
               <Select
                 prefix={<Users size={17} />}
                 value={tf.client || ''}
@@ -367,7 +367,7 @@ export const TripList = () => {
                 onChange={(v) => setTf({ ...tf, client: v })}
               />
             </Form.Item>
-            <Form.Item label="Vehicle" className="tl-filter" style={{ width: 210 }}>
+            <Form.Item label="Vehicle" className="tl-filter">
               <Select
                 mode="multiple"
                 prefix={<Truck size={17} />}
@@ -408,7 +408,7 @@ export const TripList = () => {
                 )}
               />
             </Form.Item>
-            <Form.Item label="Type" className="tl-filter" style={{ width: 160 }}>
+            <Form.Item label="Type" className="tl-filter">
               <Select
                 prefix={<TagIcon size={17} />}
                 value={tf.type || ''}
@@ -417,7 +417,7 @@ export const TripList = () => {
                 onChange={(v) => setTf({ ...tf, type: v })}
               />
             </Form.Item>
-            <Form.Item label="Flags" className="tl-filter" style={{ width: 160 }}>
+            <Form.Item label="Flags" className="tl-filter">
               <Select
                 prefix={<Flag size={17} />}
                 value={tf.flag || ''}
@@ -428,7 +428,7 @@ export const TripList = () => {
             </Form.Item>
             {/* Matches on the trip's opened date; either end may be left open.
                 Each end has its own calendar, and can't be set past the other end. */}
-            <Form.Item label="From date" className="tl-filter" style={{ width: 170 }}>
+            <Form.Item label="From date" className="tl-filter">
               <DatePicker
                 value={fromDay}
                 format="DD MMM YYYY"
@@ -439,7 +439,7 @@ export const TripList = () => {
                 style={{ width: '100%' }}
               />
             </Form.Item>
-            <Form.Item label="To date" className="tl-filter" style={{ width: 170 }}>
+            <Form.Item label="To date" className="tl-filter">
               <DatePicker
                 value={toDay}
                 format="DD MMM YYYY"
@@ -451,7 +451,7 @@ export const TripList = () => {
               />
             </Form.Item>
 
-            <Flex gap={10} align="center" className="tl-search">
+            <Flex gap={10} align="center" className="tl-search tms-filter-span">
               <Input
                 prefix={<Search size={17} />}
                 placeholder="Trip no., vehicle, driver, client..."
@@ -461,7 +461,7 @@ export const TripList = () => {
               <Button type="primary" htmlType="submit">Search</Button>
               <Button onClick={clearTf}>Clear</Button>
             </Flex>
-          </Flex>
+          </div>
         </Form>
 
         {/* Ticked vehicles stay visible, so a narrow result is never a mystery.

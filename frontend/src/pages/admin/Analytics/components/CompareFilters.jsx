@@ -1,6 +1,6 @@
 import React from 'react';
 import dayjs from 'dayjs';
-import { Button, Card, Col, DatePicker, Divider, Flex, Row, Segmented, Select, Typography } from 'antd';
+import { Button, Card, DatePicker, Divider, Flex, Segmented, Select, Typography } from 'antd';
 import { BarChart3, Building2, ListChecks, Users } from 'lucide-react';
 import { matchesSearch } from '../../../../utils/search';
 
@@ -63,9 +63,9 @@ export const CompareFilters = ({
 
   return (
     <Card styles={{ body: { padding: '18px 20px' } }}>
-      <Row gutter={[16, 12]} align="bottom">
+      <div className="tms-filter-grid" style={{ '--filter-min': '160px' }}>
         {branchOptions && (
-          <Col xs={24} sm={12} lg={4}>
+          <div>
             <Label>Branch</Label>
             <Select
               prefix={<Building2 size={16} />}
@@ -75,9 +75,9 @@ export const CompareFilters = ({
               onChange={v => onChange({ branch: v })}
               style={{ width: '100%' }}
             />
-          </Col>
+          </div>
         )}
-        <Col xs={24} sm={branchOptions ? 12 : 24} lg={metricOptions ? 6 : 10}>
+        <div>
           <Label>{entityLabel}</Label>
           <PickMany
             value={draft.entities}
@@ -87,9 +87,9 @@ export const CompareFilters = ({
             prefix={entityIcon || <Users size={16} />}
             noun={entityNoun}
           />
-        </Col>
+        </div>
         {metricOptions && (
-          <Col xs={24} sm={12} lg={branchOptions ? 5 : 7}>
+          <div>
             <Label>Metrics</Label>
             <PickMany
               value={draft.metrics}
@@ -99,9 +99,9 @@ export const CompareFilters = ({
               prefix={<ListChecks size={16} />}
               noun="metrics"
             />
-          </Col>
+          </div>
         )}
-        <Col xs={12} sm={6} lg={metricOptions ? 3 : 4}>
+        <div>
           <Label>From Date</Label>
           <DatePicker
             value={draft.from}
@@ -111,8 +111,8 @@ export const CompareFilters = ({
             onChange={d => d && onChange({ from: d })}
             style={{ width: '100%' }}
           />
-        </Col>
-        <Col xs={12} sm={6} lg={metricOptions ? 3 : 4}>
+        </div>
+        <div>
           <Label>To Date</Label>
           <DatePicker
             value={draft.to}
@@ -122,13 +122,13 @@ export const CompareFilters = ({
             onChange={d => d && onChange({ to: d })}
             style={{ width: '100%' }}
           />
-        </Col>
-        <Col xs={24} lg={metricOptions ? (branchOptions ? 3 : 5) : 6}>
+        </div>
+        <div className="tms-filter-end">
           <Button type="primary" block icon={<BarChart3 size={16} />} disabled={!!missing} onClick={onApply}>
             {applyLabel}
           </Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       {(grainOptions || missing || dirty) && (
         <Flex justify="space-between" align="center" gap={12} wrap style={{ marginTop: 12 }}>

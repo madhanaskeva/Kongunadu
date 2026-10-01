@@ -1363,7 +1363,7 @@ export const MasterManager = ({ type }) => {
             )}
           </Flex>
 
-          <Space wrap style={showRequests ? { display: 'none' } : undefined}>
+          <Space wrap className="tms-toolbar-actions" style={showRequests ? { display: 'none' } : undefined}>
             {/* Hidden native file picker, opened by the Import button (keeps handleImportFile's change-event contract). */}
             {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
             {canAdd && (

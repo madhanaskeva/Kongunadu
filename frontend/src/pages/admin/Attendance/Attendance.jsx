@@ -454,7 +454,7 @@ export const Attendance = () => {
               Notify Supervisors
             </Button>
           }
-          style={{ flexWrap: 'wrap', rowGap: 12 }}
+          className="tms-alert-wrap"
         />
       )}
 

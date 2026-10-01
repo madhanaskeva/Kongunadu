@@ -8,7 +8,9 @@
 .ntf-search { width: 280px; }
 
 /* Unread alerts stand out with a brand edge and slightly tinted row. */
-.ntf-page .ntf-row-unread > td { background: color-mix(in srgb, var(--color-brand) 4%, transparent); }
+/* Mixed with white, not transparent: the pinned Actions cell must stay opaque
+   so the columns scrolling under it do not show through. */
+.ntf-page .ntf-row-unread > td { background: color-mix(in srgb, var(--color-brand) 4%, #ffffff); }
 .ntf-page .ntf-row-unread > td:first-child { box-shadow: inset 3px 0 0 var(--color-brand); }
 
 /* Supervisor picker (Send + Share / Resend modals) */
@@ -42,4 +44,36 @@
 @media (max-width: 640px) {
   .ntf-search { width: 100%; }
   .ntf-filters .ant-select { flex: 1 1 140px; }
+}
+
+/* Bar shown while alerts are ticked: count + bulk actions. */
+.ntf-selbar {
+  padding: 10px 18px;
+  background: var(--color-brand-tint);
+  border-bottom: 1px solid var(--kr-green-100);
+  box-shadow: inset 3px 0 0 var(--color-brand);
+}
+/* Ticked alerts listed in the bulk share modal. */
+.ntf-bulk-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 168px;
+  overflow-y: auto;
+}
+.ntf-bulk-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--kr-grey-100);
+}
+.ntf-bulk-list li:last-child { border-bottom: 0; }
+.ntf-bulk-list .ant-tag { margin: 0; }
+.ntf-bulk-text { flex: 1; min-width: 0; }
+
+/* Inbox card while ticked for sharing. */
+.ntf-inbox-card.is-selected {
+  border-color: var(--color-brand);
+  background: var(--color-brand-tint);
 }

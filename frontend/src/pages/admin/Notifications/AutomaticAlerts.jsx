@@ -1,13 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Button, Card, Empty, Flex, Input, Select, Space, Table, Tooltip, Typography } from 'antd';
-import { CheckCheck, Eye, Search, Send } from 'lucide-react';
+import { CheckCheck, Eye, Search } from 'lucide-react';
 import { matchesSearch } from '../../../utils/search';
 import { ALERT_SOURCES, ALERT_TYPES, SEVERITIES, alertTitle, formatDateTime, recipientNames, severityPriority } from '../../../utils/notificationUtils';
 import { SeverityTag, StatusBadge } from './NotificationTags';
 import { AlertDetailsModal } from './NotificationDetailsModal';
 import { ResendNotificationModal } from './ResendNotificationModal';
+import { SelectionTitle, ShareButton } from './SelectionControls';
 
-// Alerts raised by GPS, backend logic and operational rules. They can be viewed, and shared / resent to supervisors.
+// Alerts raised by GPS, backend logic and operational rules. Tick alerts, then share them with one Share button.
 export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onShare }) => {
   const [q, setQ] = useState('');
   const [source, setSource] = useState('');
@@ -16,6 +17,9 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
   const [status, setStatus] = useState('');
   const [viewKey, setViewKey] = useState(null);
   const [shareKey, setShareKey] = useState(null);
+  // Ticked alerts (kept across pages and filters) and whether the bulk share modal is open.
+  const [selectedKeys, setSelectedKeys] = useState([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const rows = useMemo(() => alerts.filter(a =>
     (!source || a.source === source) &&
@@ -30,6 +34,9 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
   const sharing = alerts.find(a => a.key === shareKey) || null;
   const openShare = a => { setViewKey(null); setShareKey(a.key); };
   const filtered = q || source || type || severity || status;
+  const selected = alerts.filter(a => selectedKeys.includes(a.key));
+  const sevRank = { high: 0, medium: 1, low: 2 };
+  const topSeverity = selected.reduce((best, a) => (sevRank[a.severity] < sevRank[best] ? a.severity : best), 'low');
 
   const open = a => {
     setViewKey(a.key);
@@ -37,13 +44,12 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
   };
 
   const columns = [
-    { title: 'Alert ID', dataIndex: 'id', render: v => <Typography.Text type="secondary" style={{ whiteSpace: 'nowrap' }}>{v}</Typography.Text> },
     {
-      title: 'Alert type / Source', dataIndex: 'alertType',
+      title: 'Alert', dataIndex: 'alertType',
       render: (v, a) => (
         <Flex vertical>
           <Typography.Text strong style={{ whiteSpace: 'nowrap' }}>{ALERT_TYPES[v]}</Typography.Text>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{a.source}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{a.id} · {a.source}</Typography.Text>
         </Flex>
       ),
     },
@@ -57,18 +63,11 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
       }, sorter: (a, b) => a.createdAt.localeCompare(b.createdAt), defaultSortOrder: 'descend' },
     { title: 'Status', dataIndex: 'status', render: v => <span style={{ whiteSpace: 'nowrap' }}><StatusBadge value={v} /></span> },
     {
-      title: 'Actions', key: 'act', fixed: 'right', width: 110, align: 'center',
+      title: 'View', key: 'act', fixed: 'right', width: 76, align: 'center',
       render: (_, a) => (
-        <Space size={2}>
-          <Tooltip title="View alert">
-            <Button className="tms-row-action" type="text" icon={<Eye size={17} />} onClick={() => open(a)} aria-label={`View ${a.id}`} />
-          </Tooltip>
-          {canSend && (
-            <Tooltip title={a.shareHistory.length ? `Share / Resend (shared ${a.shareHistory.length}×)` : 'Share / Resend'}>
-              <Button className="tms-row-action" type="text" icon={<Send size={16} />} onClick={() => openShare(a)} aria-label={`Share ${a.id}`} />
-            </Tooltip>
-          )}
-        </Space>
+        <Tooltip title={a.shareHistory.length ? `View alert · shared ${a.shareHistory.length}×` : 'View alert'}>
+          <Button className="tms-row-action" type="text" icon={<Eye size={17} />} onClick={() => open(a)} aria-label={`View ${a.id}`} />
+        </Tooltip>
       ),
     },
   ];
@@ -79,15 +78,27 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
     <Card
       styles={{ body: { padding: 0 } }}
       title={
-        <Typography.Text type="secondary" style={{ fontWeight: 400 }}>
-          <Typography.Text strong>{rows.length}</Typography.Text> {rows.length === 1 ? 'alert' : 'alerts'}
-          {unreadShown.length ? ` · ${unreadShown.length} unread` : ''}
-        </Typography.Text>
+        <SelectionTitle
+          count={rows.length}
+          noun="alert"
+          extra={unreadShown.length ? `${unreadShown.length} unread` : ''}
+          selected={selected.length}
+          onClear={() => setSelectedKeys([])}
+        />
       }
       extra={
-        <Button icon={<CheckCheck size={16} />} disabled={!unreadShown.length} onClick={() => onSetStatus(unreadShown.map(a => a.key), 'read')}>
-          Mark all as read
-        </Button>
+        <Space size={8} wrap>
+          {selected.length > 0 ? (
+            <Button icon={<CheckCheck size={16} />} onClick={() => onSetStatus(selected.map(a => a.key), 'read')}>
+              Mark as read
+            </Button>
+          ) : (
+            <Button icon={<CheckCheck size={16} />} disabled={!unreadShown.length} onClick={() => onSetStatus(unreadShown.map(a => a.key), 'read')}>
+              Mark all as read
+            </Button>
+          )}
+          {canSend && <ShareButton count={selected.length} onClick={() => setBulkOpen(true)} />}
+        </Space>
       }
     >
       <Flex gap={10} wrap className="ntf-filters">
@@ -103,10 +114,17 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
 
       <Table
         rowKey="key"
+        rowSelection={{
+          selectedRowKeys: selectedKeys,
+          onChange: keys => setSelectedKeys(keys),
+          preserveSelectedRowKeys: true,
+          fixed: true,
+          columnWidth: 48,
+        }}
         columns={columns}
         dataSource={rows}
         tableLayout="auto"
-        scroll={{ x: 1110 }}
+        scroll={{ x: 1080 }}
         rowClassName={a => (a.status === 'unread' ? 'ntf-row-unread' : '')}
         onRow={a => ({ onDoubleClick: () => open(a) })}
         locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={filtered ? 'No alerts match these filters' : 'No system alerts right now'} /> }}
@@ -133,6 +151,32 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
         markLabel="Already shared"
         onClose={() => setShareKey(null)}
         onResend={(key, recipients) => onShare(alerts.find(a => a.key === key), recipients)}
+        supervisors={supervisors}
+      />
+      {/* Bulk share: every ticked alert goes to the same supervisors. */}
+      <ResendNotificationModal
+        notification={bulkOpen && selected.length ? {
+          id: '__bulk',
+          title: `${selected.length} ${selected.length === 1 ? 'alert' : 'alerts'} selected`,
+          message: 'Each alert reaches the supervisors as its own notice, with its own priority.',
+          priority: severityPriority(topSeverity),
+        } : null}
+        heading="Share selected alerts"
+        submitLabel={`Share ${selected.length} ${selected.length === 1 ? 'Alert' : 'Alerts'}`}
+        summary={(
+          <ul className="ntf-bulk-list">
+            {selected.map(a => (
+              <li key={a.key}>
+                <SeverityTag value={a.severity} />
+                <span className="ntf-bulk-text"><strong>{ALERT_TYPES[a.alertType]}</strong> · {a.vehicleNo}</span>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{a.id}</Typography.Text>
+              </li>
+            ))}
+          </ul>
+        )}
+        markIds={[]}
+        onClose={() => setBulkOpen(false)}
+        onResend={(_, recipients) => { onShare(selected, recipients); setSelectedKeys([]); }}
         supervisors={supervisors}
       />
     </Card>

@@ -247,7 +247,7 @@
 .sv-home-tile.ant-card {
   border-radius: var(--radius-lg);
   border: 2px solid var(--border-strong);
-  border-left: 6px solid var(--color-brand);
+  border-left: 6px solid var(--sidebar-bg);   /* dark navy accent */
 }
 
 .sv-home-tile.ant-card .ant-card-body {
@@ -268,13 +268,14 @@
 }
 
 .sv-home-tile--solid.ant-card {
-  background: var(--color-brand);
-  border-color: var(--color-brand);
+  background: var(--sidebar-bg);           /* dark navy #03448B */
+  border-color: var(--sidebar-bg);
   color: #fff;
 }
 
 .sv-home-tile--solid.ant-card:hover {
-  background: var(--color-brand-strong);
+  background: #0a4fb8;
+  border-color: #0a4fb8;
 }
 
 .sv-home-tile.ant-card:active {

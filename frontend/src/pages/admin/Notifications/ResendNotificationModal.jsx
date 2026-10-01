@@ -10,7 +10,7 @@ import { PriorityTag } from './NotificationTags';
 // `details` overrides the summary rows; `markIds` labels supervisors who already received it.
 export const ResendNotificationModal = ({
   notification, onClose, onResend, supervisors,
-  heading = 'Share notification', submitLabel = 'Resend Reminder', details, markIds, markLabel = 'Original recipient',
+  heading = 'Share notification', submitLabel = 'Resend Reminder', details, summary, markIds, markLabel = 'Original recipient',
 }) => {
   const [ids, setIds] = useState([]);
   const [error, setError] = useState(null);
@@ -62,10 +62,10 @@ export const ResendNotificationModal = ({
               <PriorityTag value={n.priority} />
             </Flex>
             <Typography.Paragraph style={{ margin: '6px 0 10px', whiteSpace: 'pre-wrap' }}>{n.message}</Typography.Paragraph>
-            <Descriptions size="small" column={1} items={details || [
+            {summary || <Descriptions size="small" column={1} items={details || [
               { key: 'd', label: 'Original sent date', children: formatDateTime(n.createdAt) },
               { key: 'r', label: 'Original recipients', children: recipientNames(n.recipients) },
-            ]} />
+            ]} />}
           </div>
 
           <div>

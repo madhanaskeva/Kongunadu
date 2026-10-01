@@ -193,6 +193,7 @@ export const DeviceApprovals = () => {
     {
       title: 'Device',
       key: 'device',
+      onCell: () => ({ style: nowrap }),
       render: (_, r) => (
         <Flex vertical>
           <Typography.Text>{r.device || 'Android phone'}</Typography.Text>
@@ -202,7 +203,7 @@ export const DeviceApprovals = () => {
         </Flex>
       ),
     },
-    { title: 'Requested', dataIndex: 'requestedAt', key: 'requestedAt', render: v => <Typography.Text type="secondary">{v}</Typography.Text> },
+    { title: 'Requested', dataIndex: 'requestedAt', key: 'requestedAt', onCell: () => ({ style: nowrap }), render: v => <Typography.Text type="secondary">{v}</Typography.Text> },
     {
       title: 'Status',
       dataIndex: 'status',
@@ -269,7 +270,7 @@ export const DeviceApprovals = () => {
   return (
     <Flex vertical gap={20}>
       {/* 4 Summary Tiles */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="tms-kpi-grid" style={{ '--kpi-min': '160px' }}>
         {devTiles.map((k, idx) => (
           <Col key={idx} xs={24} sm={12} lg={6}>
             {/* Accent colour marks each tile's status (see .tms-kpi). */}
@@ -303,7 +304,7 @@ export const DeviceApprovals = () => {
           dataSource={devShown}
           rowKey="id"
           tableLayout="auto"
-          scroll={{ x: 760 }}
+          scroll={{ x: 'max-content' }}
           // Pending requests keep their hazard-tinted row.
           onRow={r => (r.status === 'Pending' ? { style: { background: 'var(--color-hazard-soft)' } } : {})}
           locale={{
