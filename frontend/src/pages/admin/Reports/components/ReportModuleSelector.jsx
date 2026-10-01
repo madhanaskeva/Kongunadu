@@ -18,10 +18,12 @@ import {
   Gauge,
   Lock,
   Layers,
+  Award,
 } from 'lucide-react';
 
 const MODULE_ICONS = {
   driver: Users,
+  driverPerformance: Award,
   vehicle: Truck,
   trip: Navigation,
   branch: Building2,

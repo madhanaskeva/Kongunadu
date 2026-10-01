@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Button, Card, Dropdown, Flex, Input, Table, Tag, Typography } from 'antd';
+import { Button, Card, Dropdown, Flex, Input, Segmented, Table, Tag, Typography } from 'antd';
 import {
   FileSpreadsheet,
   SlidersHorizontal,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
 import { ReportEmptyState } from './ReportEmptyState';
+import { ReportSummaryCards } from './ReportSummaryCards';
 import { useTMSAdmin } from '../../../../context/TMSAdminContext';
 import { useDebounce } from '../../../../utils/debounce';
 import { FILE_TRANSFER_ENABLED } from '../../../../utils/featureFlags';
@@ -32,13 +33,26 @@ export const ReportResultView = ({
     generatedAt,
   } = result;
 
+  // Driver performance sub-level view toggle ('trips' | 'vehicles')
+  const [perfViewMode, setPerfViewMode] = useState('trips');
+
+  const isDriverPerf = moduleId === 'driverPerformance' && Array.isArray(result.vehicleRows);
+  const isVehView = isDriverPerf && perfViewMode === 'vehicles';
+
+  const baseColumns = isVehView ? (result.vehicleColumns || columns) : columns;
+  const baseRows = isVehView ? (result.vehicleRows || rows) : rows;
+
   // Local search filter within result set
   const [searchQ, setSearchQ] = useState('');
   const debouncedSearchQ = useDebounce(searchQ, 300);
 
   // Column visibility
-  const [visibleColKeys, setVisibleColKeys] = useState(() => columns.map(c => c.key));
+  const [visibleColKeys, setVisibleColKeys] = useState(() => baseColumns.map(c => c.key));
   const [colDropdownOpen, setColDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    setVisibleColKeys(baseColumns.map(c => c.key));
+  }, [baseColumns]);
 
   // Sorting
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -54,7 +68,7 @@ export const ReportResultView = ({
 
   // Filtered & Sorted Rows
   const processedRows = useMemo(() => {
-    let list = [...rows];
+    let list = [...baseRows];
 
     if (debouncedSearchQ.trim()) {
       const q = debouncedSearchQ.trim().toLowerCase();
@@ -79,7 +93,7 @@ export const ReportResultView = ({
     }
 
     return list;
-  }, [rows, debouncedSearchQ, sortConfig]);
+  }, [baseRows, debouncedSearchQ, sortConfig]);
 
   // Pagination (antd Table built-in, controlled so it resets to page 1
   // whenever the processed rows or page size change — same as usePagination)
@@ -94,8 +108,8 @@ export const ReportResultView = ({
   );
 
   const activeColumns = useMemo(() => {
-    return columns.filter(c => visibleColKeys.includes(c.key));
-  }, [columns, visibleColKeys]);
+    return baseColumns.filter(c => visibleColKeys.includes(c.key));
+  }, [baseColumns, visibleColKeys]);
 
   const toggleColumn = (key) => {
     setVisibleColKeys(prev =>
@@ -105,31 +119,80 @@ export const ReportResultView = ({
 
   // Export to Excel (.xlsx)
   const handleExportXlsx = () => {
-    if (!processedRows.length) {
+    if (!processedRows.length && !rows.length) {
       showToast('warning', 'Nothing to export', 'No rows match the current choices and search.');
       return;
     }
     const name = `${(moduleMeta?.label || 'Report').replace(/[^a-zA-Z0-9]/g, '_')}_${fileDate()}.xlsx`;
-    const colHeaders = activeColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
-    const dataRows = processedRows.map(r => activeColumns.map(c => (r[c.key] == null ? '' : r[c.key])));
 
-    const sheets = [
-      {
-        name: moduleMeta?.label || 'Report',
-        columns: colHeaders,
-        rows: dataRows,
-      },
-      {
+    let sheets = [];
+
+    if (moduleId === 'driverPerformance') {
+      // 1. Trip Performance Sheet
+      const tripColHeaders = columns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
+      const tripDataRows = rows.map(r => columns.map(c => (r[c.key] == null ? '' : r[c.key])));
+      sheets.push({
+        name: 'Trip Performance',
+        columns: tripColHeaders,
+        rows: tripDataRows,
+      });
+
+      // 2. Vehicle Performance Sheet
+      if (result.vehicleColumns && result.vehicleRows) {
+        const vehColHeaders = result.vehicleColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
+        const vehDataRows = result.vehicleRows.map(r => result.vehicleColumns.map(c => (r[c.key] == null ? '' : r[c.key])));
+        sheets.push({
+          name: 'Vehicle Performance',
+          columns: vehColHeaders,
+          rows: vehDataRows,
+        });
+      }
+
+      // 3. Driver Summary & Compliance Sheet
+      if (summaries && summaries.length > 0) {
+        sheets.push({
+          name: 'Driver Summary & Compliance',
+          columns: ['Metric', 'Value', 'Unit'],
+          rows: summaries.map(s => [s.label, String(s.value ?? ''), s.unit || '']),
+        });
+      }
+
+      // 4. Report Metadata Sheet
+      sheets.push({
         name: 'Report Metadata',
         columns: ['Property', 'Value'],
         rows: [
           ['Module', moduleMeta?.label || moduleId],
           ['Generated At', generatedAt ? generatedAt.toLocaleString('en-IN') : new Date().toLocaleString('en-IN')],
           ['Active Filters', activeFilterLabels.join('; ') || 'None (All Records)'],
-          ['Total Rows', String(processedRows.length)],
+          ['Total Trips', String(rows.length)],
+          ['Vehicles Handled', String(result.vehicleRows?.length || 0)],
         ],
-      },
-    ];
+      });
+    } else {
+      // Existing export behavior for standard modules
+      const colHeaders = activeColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
+      const dataRows = processedRows.map(r => activeColumns.map(c => (r[c.key] == null ? '' : r[c.key])));
+
+      sheets = [
+        {
+          name: moduleMeta?.label || 'Report',
+          columns: colHeaders,
+          rows: dataRows,
+        },
+        {
+          name: 'Report Metadata',
+          columns: ['Property', 'Value'],
+          rows: [
+            ['Module', moduleMeta?.label || moduleId],
+            ['Generated At', generatedAt ? generatedAt.toLocaleString('en-IN') : new Date().toLocaleString('en-IN')],
+            ['Active Filters', activeFilterLabels.join('; ') || 'None (All Records)'],
+            ['Total Rows', String(processedRows.length)],
+          ],
+        },
+      ];
+    }
+
     try {
       downloadXlsx(name, sheets);
       showToast('success', 'Report Downloaded', `${name} (${processedRows.length} rows)`);
@@ -141,13 +204,13 @@ export const ReportResultView = ({
   // Status tone -> antd Tag preset colour (green / red / saffron / grey)
   const getStatusBadgeStyle = (val) => {
     const s = String(val || '').toLowerCase();
-    if (s.includes('active') || s.includes('closed') || s.includes('ok') || s.includes('running') || s.includes('present') || s.includes('approved')) {
+    if (s.includes('active') || s.includes('closed') || s.includes('ok') || s.includes('running') || s.includes('present') || s.includes('approved') || s.includes('compliant') || s.includes('above')) {
       return 'success';
     }
-    if (s.includes('failed') || s.includes('inactive') || s.includes('high') || s.includes('absent') || s.includes('rejected')) {
+    if (s.includes('failed') || s.includes('inactive') || s.includes('high') || s.includes('absent') || s.includes('rejected') || s.includes('exceeded') || s.includes('below')) {
       return 'error';
     }
-    if (s.includes('enroute') || s.includes('on road') || s.includes('idle') || s.includes('weak') || s.includes('medium') || s.includes('review') || s.includes('pending')) {
+    if (s.includes('enroute') || s.includes('on road') || s.includes('idle') || s.includes('weak') || s.includes('medium') || s.includes('review') || s.includes('pending') || s.includes('near')) {
       return 'warning';
     }
     return 'default';
@@ -194,7 +257,7 @@ export const ReportResultView = ({
       type: 'group',
       key: 'customize',
       label: 'Customize Column',
-      children: columns.map(c => ({
+      children: baseColumns.map(c => ({
         key: c.key,
         label: (
           <Flex justify="space-between" align="center" gap={8}>
@@ -262,6 +325,31 @@ export const ReportResultView = ({
           </Flex>
         )}
 
+        {/* KPI Summary Cards (for Driver Performance) */}
+        {moduleId === 'driverPerformance' && summaries && summaries.length > 0 && (
+          <ReportSummaryCards summaries={summaries} />
+        )}
+
+        {/* Driver Performance Sub-view Selector */}
+        {isDriverPerf && (
+          <Flex align="center" gap={10} style={{ margin: '2px 0 0' }}>
+            <Typography.Text strong style={{ fontSize: 13 }}>
+              Performance Level:
+            </Typography.Text>
+            <Segmented
+              value={perfViewMode}
+              onChange={(val) => {
+                setPerfViewMode(val);
+                setPage(1);
+              }}
+              options={[
+                { label: `Trip-Level Performance (${rows.length})`, value: 'trips' },
+                { label: `Vehicle-Level Performance (${result.vehicleRows?.length || 0})`, value: 'vehicles' },
+              ]}
+            />
+          </Flex>
+        )}
+
         {/* Table Toolbar */}
         <Flex justify="space-between" align="center" wrap gap={10}>
           {/* Search */}
@@ -294,7 +382,7 @@ export const ReportResultView = ({
             }}
           >
             <Button icon={<SlidersHorizontal size={14} />}>
-              Columns ({activeColumns.length}/{columns.length})
+              Columns ({activeColumns.length}/{baseColumns.length})
             </Button>
           </Dropdown>
         </Flex>

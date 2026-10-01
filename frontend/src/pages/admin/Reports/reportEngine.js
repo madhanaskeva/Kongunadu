@@ -13,6 +13,12 @@
  */
 
 import { ENROUTE_LABEL } from '../../../utils/tripStatus.js';
+import {
+  routesOfTrip,
+  routeDieselLimit,
+  overLimitLitres,
+  dieselLitresOf,
+} from '../../../utils/tripVerification.js';
 
 // Helper: parse date strings like "14 Sep 2026 05:40", "2026-09-14", "14 Sep 2026"
 const MONTH_NAMES = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
@@ -80,6 +86,13 @@ export const REPORT_MODULES = [
     label: 'Driver',
     description: 'Driver trips, attendance, vehicles and related details',
     category: 'Personnel',
+    available: true,
+  },
+  {
+    id: 'driverPerformance',
+    label: 'Driver Performance',
+    description: 'Consolidated driver performance across vehicles, trips, diesel and mileage compliance',
+    category: 'Performance',
     available: true,
   },
   {
@@ -263,6 +276,10 @@ export const MODULE_FIELDS = {
     { key: 'client', label: 'Client', type: 'select', entity: 'clients' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
+  ],
+  driverPerformance: [
+    { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
+    { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
 };
 
@@ -537,6 +554,8 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
   let rows = [];
   let columns = [];
   let summaries = [];
+  let vehicleColumns = null;
+  let vehicleRows = null;
 
   switch (moduleId) {
     // ------------------------------------------------------------------------
@@ -1525,6 +1544,292 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       break;
     }
 
+    // ------------------------------------------------------------------------
+    // MODULE: DRIVER PERFORMANCE (Consolidated Driver -> Vehicle -> Trip -> Performance)
+    // ------------------------------------------------------------------------
+    case 'driverPerformance': {
+      const driverFilter = getFilter('driver');
+      const dateFilter = getFilter('date');
+
+      let filteredDrivers = drivers;
+      if (driverFilter && !isFilterEmpty(driverFilter.value)) {
+        filteredDrivers = drivers.filter(d =>
+          matchesEntityOrText(d.id, d.name, driverFilter.op || 'equals', driverFilter.value)
+        );
+      }
+      const matchedDriverIds = new Set(filteredDrivers.map(d => d.id));
+      const matchedDriverNames = new Set(filteredDrivers.map(d => d.name));
+
+      let perfTrips = trips.filter(t => {
+        if (!driverFilter || isFilterEmpty(driverFilter.value)) {
+          return Boolean(t.driver || (Array.isArray(t.drivers) && t.drivers.length > 0));
+        }
+        return (
+          matchedDriverIds.has(t.driver) ||
+          matchedDriverNames.has(t.driver) ||
+          (Array.isArray(t.drivers) && t.drivers.some(did => matchedDriverIds.has(did) || matchedDriverNames.has(did)))
+        );
+      });
+
+      if (dateFilter && dateFilter.value) {
+        perfTrips = perfTrips.filter(t => evaluateDateRange(t.opened || t.closed, dateFilter.value));
+      }
+
+      columns = [
+        { key: 'number', label: 'Trip Number', kind: 'text' },
+        { key: 'date', label: 'Trip Date', kind: 'date' },
+        { key: 'driver', label: 'Driver', kind: 'text' },
+        { key: 'vehicle', label: 'Vehicle', kind: 'text' },
+        { key: 'route', label: 'Route / Corridor', kind: 'text' },
+        { key: 'distance', label: 'Actual KM', kind: 'num', unit: 'km' },
+        { key: 'fixedKm', label: 'Fixed KM', kind: 'num', unit: 'km' },
+        { key: 'distanceVariance', label: 'Distance Variance', kind: 'text' },
+        { key: 'actualDiesel', label: 'Actual Diesel', kind: 'num', unit: 'L' },
+        { key: 'dieselLimit', label: 'Authorized Diesel Limit', kind: 'num', unit: 'L' },
+        { key: 'overLimitLitres', label: 'Over Limit', kind: 'num', unit: 'L' },
+        { key: 'actualMileage', label: 'Actual Mileage', kind: 'num', unit: 'km/L' },
+        { key: 'expectedMileage', label: 'Expected Mileage', kind: 'num', unit: 'km/L' },
+        { key: 'dieselCompliance', label: 'Diesel Compliance', kind: 'badge' },
+        { key: 'mileageCompliance', label: 'Mileage Compliance', kind: 'badge' },
+        { key: 'driverBata', label: 'Driver Bata', kind: 'num', unit: '₹' },
+        { key: 'advance', label: 'Advance', kind: 'num', unit: '₹' },
+        { key: 'tolls', label: 'Tolls & FASTag', kind: 'num', unit: '₹' },
+        { key: 'deviations', label: 'Route Deviation', kind: 'text' },
+        { key: 'status', label: 'Trip Status', kind: 'badge' },
+      ];
+
+      rows = perfTrips.map(t => {
+        const actualDist = getTripDistance(t);
+        const tripRoutes = routesOfTrip(t, tms);
+        const primaryRoute = tripRoutes[0] || null;
+        const fixedKm = Number(t.fixedKm) || (primaryRoute?.fixedKm ? Number(primaryRoute.fixedKm) : 0);
+
+        let distanceVariance = '—';
+        let diffKm = 0;
+        if (fixedKm > 0 && actualDist > 0) {
+          diffKm = actualDist - fixedKm;
+          const varPct = Math.round((Math.abs(diffKm) / fixedKm) * 1000) / 10;
+          distanceVariance = `${diffKm > 0 ? '+' : ''}${Math.round(diffKm)} km (${varPct}%)`;
+        }
+
+        const actualDiesel = dieselLitresOf(t) || 0;
+        const authDiesel = routeDieselLimit(t, tms);
+        const overLimit = overLimitLitres(t, authDiesel);
+
+        const actualMileage = actualDist > 0 && actualDiesel > 0
+          ? Math.round((actualDist / actualDiesel) * 100) / 100
+          : null;
+
+        const expectedMileage = fixedKm > 0 && authDiesel != null && authDiesel > 0
+          ? Math.round((fixedKm / authDiesel) * 100) / 100
+          : null;
+
+        let dieselCompliance = 'Not set';
+        if (authDiesel != null && authDiesel > 0) {
+          dieselCompliance = (overLimit != null && overLimit > 0) ? 'Exceeded' : 'Compliant';
+        }
+
+        let mileageCompliance = '—';
+        if (actualMileage != null && expectedMileage != null) {
+          if (actualMileage >= expectedMileage) mileageCompliance = 'Compliant';
+          else if (actualMileage >= expectedMileage * 0.9) mileageCompliance = 'Near Target';
+          else mileageCompliance = 'Below Target';
+        }
+
+        const exp = t.expBreakdown || {};
+        const driverBata = exp.driverBatas && Object.keys(exp.driverBatas).length > 0
+          ? Object.values(exp.driverBatas).reduce((a, b) => a + (Number(b) || 0), 0)
+          : (Number(exp.driverBata) || 0);
+        const advance = parseMoney(t.advance);
+        const fastag = exp.fastag != null && exp.fastag !== '' ? Number(exp.fastag) : (exp.dieselCash != null && exp.dieselCash !== '' ? Number(exp.dieselCash) : 0);
+        const toll = (Number(exp.toll) || 0) + (Number(exp.weighment) || 0);
+        const totalTolls = fastag + toll;
+
+        const div = t.diversion;
+        let deviationText = 'None';
+        if (div) {
+          deviationText = div.offKm ? `${div.offKm} km off-route` : 'Route diverted';
+        } else if ((t.flags || []).some(f => /diversion|variance/i.test(f))) {
+          deviationText = (t.flags || []).find(f => /diversion|variance/i.test(f));
+        }
+
+        const routeDisplay = primaryRoute?.name ||
+          (t.loading && t.unloading ? `${L[t.loading]?.name || t.loading} → ${t.unloading}` : '—');
+
+        const driverNames = Array.isArray(t.drivers) && t.drivers.length > 0
+          ? t.drivers.map(id => D[id]?.name || id).join(', ')
+          : (D[t.driver]?.name || t.driver || '—');
+
+        const isLongOpen = t.status !== 'Closed' && (t.hoursOpen > 24);
+        const statusLabel = isLongOpen ? 'Long open' : t.status === 'Enroute' ? ENROUTE_LABEL : t.status;
+
+        return {
+          id: t.id,
+          number: t.number,
+          date: t.opened,
+          timestamp: parseTimestamp(t.opened),
+          driver: driverNames,
+          driverId: t.driver,
+          vehicle: V[t.vehicle]?.number || t.vehicle,
+          vehicleId: t.vehicle,
+          route: routeDisplay,
+          distance: actualDist,
+          fixedKm: fixedKm > 0 ? fixedKm : '—',
+          distanceVariance,
+          diffKm,
+          actualDiesel: actualDiesel > 0 ? actualDiesel : '—',
+          actualDieselNum: actualDiesel,
+          dieselLimit: authDiesel != null && authDiesel > 0 ? authDiesel : '—',
+          dieselLimitNum: authDiesel,
+          overLimitLitres: overLimit != null && overLimit > 0 ? overLimit : 0,
+          actualMileage: actualMileage != null ? actualMileage : '—',
+          actualMileageNum: actualMileage,
+          expectedMileage: expectedMileage != null ? expectedMileage : '—',
+          expectedMileageNum: expectedMileage,
+          dieselCompliance,
+          mileageCompliance,
+          driverBata,
+          advance,
+          tolls: totalTolls,
+          deviations: deviationText,
+          status: statusLabel,
+        };
+      });
+
+      vehicleColumns = [
+        { key: 'vehicle', label: 'Vehicle Number', kind: 'text' },
+        { key: 'vehicleType', label: 'Vehicle Type', kind: 'text' },
+        { key: 'tripsHandled', label: 'Trips Handled', kind: 'num' },
+        { key: 'completedTrips', label: 'Completed Trips', kind: 'num' },
+        { key: 'totalDistance', label: 'Total Distance', kind: 'num', unit: 'km' },
+        { key: 'dieselConsumed', label: 'Diesel Consumed', kind: 'num', unit: 'L' },
+        { key: 'actualMileage', label: 'Actual Mileage', kind: 'num', unit: 'km/L' },
+        { key: 'expectedMileage', label: 'Expected Mileage', kind: 'num', unit: 'km/L' },
+        { key: 'mileageStatus', label: 'Mileage Status', kind: 'badge' },
+        { key: 'dieselCompliancePct', label: 'Diesel Compliance', kind: 'badge' },
+        { key: 'vehicleStatus', label: 'Vehicle Status', kind: 'badge' },
+      ];
+
+      const vehMap = new Map();
+      rows.forEach(r => {
+        const vId = r.vehicleId || r.vehicle;
+        if (!vehMap.has(vId)) {
+          vehMap.set(vId, []);
+        }
+        vehMap.get(vId).push(r);
+      });
+
+      vehicleRows = Array.from(vehMap.entries()).map(([vId, vTrips]) => {
+        const vehObj = V[vId] || vehicles.find(v => v.number === vId) || {};
+        const vNum = vehObj.number || vId;
+        const vType = vehObj.type || '—';
+        const tripsHandled = vTrips.length;
+        const completedTrips = vTrips.filter(t => t.status === 'Closed').length;
+        const totalDistance = vTrips.reduce((acc, t) => acc + (typeof t.distance === 'number' ? t.distance : 0), 0);
+        const dieselConsumed = vTrips.reduce((acc, t) => acc + (t.actualDieselNum || 0), 0);
+        const actualMileage = totalDistance > 0 && dieselConsumed > 0
+          ? Math.round((totalDistance / dieselConsumed) * 100) / 100
+          : null;
+
+        const tripsWithLimit = vTrips.filter(t => t.dieselLimitNum != null && t.dieselLimitNum > 0);
+        const tripsWithinLimit = tripsWithLimit.filter(t => t.dieselCompliance === 'Compliant');
+        const dieselCompliancePct = tripsWithLimit.length > 0
+          ? Math.round((tripsWithinLimit.length / tripsWithLimit.length) * 100) + '%'
+          : 'Not set';
+
+        const totalFixedKm = vTrips.reduce((acc, t) => acc + (typeof t.fixedKm === 'number' ? t.fixedKm : 0), 0);
+        const totalAuthDiesel = tripsWithLimit.reduce((acc, t) => acc + (t.dieselLimitNum || 0), 0);
+        const expectedMileage = totalFixedKm > 0 && totalAuthDiesel > 0
+          ? Math.round((totalFixedKm / totalAuthDiesel) * 100) / 100
+          : null;
+
+        let mileageStatus = '—';
+        if (actualMileage != null && expectedMileage != null) {
+          if (actualMileage >= expectedMileage) mileageStatus = 'Compliant';
+          else if (actualMileage >= expectedMileage * 0.9) mileageStatus = 'Near Target';
+          else mileageStatus = 'Below Target';
+        }
+
+        return {
+          id: vId,
+          vehicle: vNum,
+          vehicleType: vType,
+          tripsHandled,
+          completedTrips,
+          totalDistance,
+          dieselConsumed: Math.round(dieselConsumed * 10) / 10,
+          actualMileage: actualMileage != null ? actualMileage : '—',
+          expectedMileage: expectedMileage != null ? expectedMileage : '—',
+          mileageStatus,
+          dieselCompliancePct,
+          vehicleStatus: vehObj.status || 'Active',
+        };
+      });
+
+      const totalTrips = rows.length;
+      const completedTripsCount = rows.filter(r => r.status === 'Closed').length;
+      const totalDist = rows.reduce((acc, r) => acc + (typeof r.distance === 'number' ? r.distance : 0), 0);
+      const totalDiesel = rows.reduce((acc, r) => acc + (r.actualDieselNum || 0), 0);
+      const totalOverLitres = rows.reduce((acc, r) => acc + (r.overLimitLitres || 0), 0);
+      const tripsWithAuth = rows.filter(r => r.dieselLimitNum != null && r.dieselLimitNum > 0);
+      const compliantDieselTrips = tripsWithAuth.filter(r => r.dieselCompliance === 'Compliant').length;
+      const exceededDieselTrips = tripsWithAuth.filter(r => r.dieselCompliance === 'Exceeded').length;
+      const dieselCompPct = tripsWithAuth.length > 0 ? Math.round((compliantDieselTrips / tripsWithAuth.length) * 100) : null;
+
+      const overallActualMileage = totalDist > 0 && totalDiesel > 0 ? Math.round((totalDist / totalDiesel) * 100) / 100 : null;
+      const totalFixedDistance = rows.reduce((acc, r) => acc + (typeof r.fixedKm === 'number' ? r.fixedKm : 0), 0);
+      const totalAuthDieselVal = tripsWithAuth.reduce((acc, r) => acc + (r.dieselLimitNum || 0), 0);
+      const overallExpectedMileage = totalFixedDistance > 0 && totalAuthDieselVal > 0 ? Math.round((totalFixedDistance / totalAuthDieselVal) * 100) / 100 : null;
+
+      let overallMileageStatus = '—';
+      if (overallActualMileage != null && overallExpectedMileage != null) {
+        if (overallActualMileage >= overallExpectedMileage) overallMileageStatus = 'Compliant';
+        else if (overallActualMileage >= overallExpectedMileage * 0.9) overallMileageStatus = 'Near Target';
+        else overallMileageStatus = 'Below Target';
+      }
+
+      const totalDriverBata = rows.reduce((acc, r) => acc + (r.driverBata || 0), 0);
+      const totalAdvances = rows.reduce((acc, r) => acc + (r.advance || 0), 0);
+      const totalTolls = rows.reduce((acc, r) => acc + (r.tolls || 0), 0);
+      const totalDeviations = rows.filter(r => r.deviations !== 'None').length;
+
+      const driverLabel = filteredDrivers.length === 1
+        ? filteredDrivers[0].name
+        : filteredDrivers.length > 1 && filteredDrivers.length < drivers.length
+        ? `${filteredDrivers.length} Selected Drivers`
+        : 'All Active Drivers';
+
+      const periodLabel = dateFilter?.value?.from && dateFilter?.value?.to
+        ? `${dateFilter.value.from} to ${dateFilter.value.to}`
+        : dateFilter?.value?.from
+        ? `From ${dateFilter.value.from}`
+        : dateFilter?.value?.to
+        ? `To ${dateFilter.value.to}`
+        : 'All Logged Trips';
+
+      summaries = [
+        { label: 'Selected Driver', value: driverLabel, unit: '' },
+        { label: 'Selected Period', value: periodLabel, unit: '' },
+        { label: 'Vehicles Handled', value: vehicleRows.length, unit: 'vehicles' },
+        { label: 'Trips Completed', value: `${completedTripsCount} / ${totalTrips}`, unit: 'trips' },
+        { label: 'Total Distance', value: totalDist.toLocaleString('en-IN'), unit: 'km' },
+        { label: 'Diesel Consumed', value: Math.round(totalDiesel).toLocaleString('en-IN'), unit: 'L' },
+        { label: 'Within Diesel Limit', value: `${compliantDieselTrips} / ${tripsWithAuth.length}`, unit: 'trips' },
+        { label: 'Exceeding Diesel Limit', value: exceededDieselTrips, unit: 'trips' },
+        { label: 'Diesel Compliance', value: dieselCompPct != null ? `${dieselCompPct}%` : '—', unit: '' },
+        { label: 'Over-Limit Fuel', value: totalOverLitres > 0 ? totalOverLitres.toFixed(1) : '0', unit: 'L' },
+        { label: 'Actual Mileage', value: overallActualMileage != null ? overallActualMileage.toFixed(2) : '—', unit: 'km/L' },
+        { label: 'Expected Mileage', value: overallExpectedMileage != null ? overallExpectedMileage.toFixed(2) : '—', unit: 'km/L' },
+        { label: 'Mileage Compliance', value: overallMileageStatus, unit: '' },
+        { label: 'Total Driver Bata', value: '₹' + totalDriverBata.toLocaleString('en-IN'), unit: '' },
+        { label: 'Total Advances', value: '₹' + totalAdvances.toLocaleString('en-IN'), unit: '' },
+        { label: 'Tolls & FASTag', value: '₹' + totalTolls.toLocaleString('en-IN'), unit: '' },
+        { label: 'Route Deviations', value: totalDeviations, unit: 'trips' },
+      ];
+
+      break;
+    }
+
     default:
       rows = [];
       columns = [];
@@ -1570,6 +1875,8 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
     moduleMeta: REPORT_MODULES.find(m => m.id === moduleId),
     columns,
     rows,
+    vehicleColumns,
+    vehicleRows,
     summaries,
     activeFilterLabels,
     recordCount: rows.length,
