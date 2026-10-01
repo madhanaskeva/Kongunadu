@@ -1589,8 +1589,6 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'overLimitLitres', label: 'Over Limit', kind: 'num', unit: 'L' },
         { key: 'actualMileage', label: 'Actual Mileage', kind: 'num', unit: 'km/L' },
         { key: 'expectedMileage', label: 'Expected Mileage', kind: 'num', unit: 'km/L' },
-        { key: 'dieselCompliance', label: 'Diesel Compliance', kind: 'badge' },
-        { key: 'mileageCompliance', label: 'Mileage Compliance', kind: 'badge' },
         { key: 'driverBata', label: 'Driver Bata', kind: 'num', unit: '₹' },
         { key: 'advance', label: 'Advance', kind: 'num', unit: '₹' },
         { key: 'tolls', label: 'Tolls & FASTag', kind: 'num', unit: '₹' },
@@ -1705,8 +1703,6 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
         { key: 'dieselConsumed', label: 'Diesel Consumed', kind: 'num', unit: 'L' },
         { key: 'actualMileage', label: 'Actual Mileage', kind: 'num', unit: 'km/L' },
         { key: 'expectedMileage', label: 'Expected Mileage', kind: 'num', unit: 'km/L' },
-        { key: 'mileageStatus', label: 'Mileage Status', kind: 'badge' },
-        { key: 'dieselCompliancePct', label: 'Diesel Compliance', kind: 'badge' },
         { key: 'vehicleStatus', label: 'Vehicle Status', kind: 'badge' },
       ];
 

@@ -7,8 +7,13 @@ import { isPendingClose } from './tripStatus';
 const MANUAL_KEY = 'kr-tms-manual-notifications';
 const ALERT_STATUS_KEY = 'kr-tms-auto-alert-status';
 const ALERT_SHARE_KEY = 'kr-tms-auto-alert-shares';
+// Alert keys already sent to supervisors automatically, so each goes out once.
+const ALERT_DELIVERED_KEY = 'kr-tms-auto-alert-delivered';
 // The Supervisor App reads this feed and shows notices addressed to its supervisor id.
 const NOTICE_KEY = 'kr-tms-supervisor-notices';
+// How many notices the Supervisor App feed keeps. Large enough that nothing Head
+// Office sends (messages, actions, every automatic alert) is pushed out unread.
+export const NOTICE_LIMIT = 500;
 
 export const DISPLAY_FMT = 'DD MMM YYYY, hh:mm A';
 export const formatDateTime = iso => (iso ? dayjs(iso).format(DISPLAY_FMT) : '—');
@@ -111,7 +116,7 @@ const deliverToSupervisors = ({ title, message, priority, sentBy, recipients, re
     sort: d.format('YYYY-MM-DD HH:mm:ss'),
     rows: [['Priority', label], ['Sent to', recipientNames(recipients)]],
   };
-  writeJson(NOTICE_KEY, [notice, ...list].slice(0, 50));
+  writeJson(NOTICE_KEY, [notice, ...list].slice(0, NOTICE_LIMIT));
   try { window.dispatchEvent(new Event('kr-tms-supervisor-notices-changed')); } catch (e) {}
 };
 
@@ -222,19 +227,20 @@ export const setAlertStatus = (ids, status) => {
 export const getAutomaticAlerts = tms => {
   const out = [];
   const vehNo = id => (tms.V[id] || {}).number || '—';
+  const vehBranch = id => (tms.V[id] || {}).branch || null;
   const tripNo = id => (tms.T[id] || {}).number || null;
   const locName = id => (tms.L[id] || {}).name || id;
 
   (tms.vehicles || []).forEach(v => {
     if (v.gps === 'Failed') {
-      out.push({ key: `gps-${v.id}`, source: 'GPS', alertType: 'GPS_DISCONNECTED', vehicleNo: v.number, message: `GPS signal lost. Last position received ${v.lastSeen}.`, severity: 'high', createdAt: agoToIso(v.lastSeen) });
+      out.push({ key: `gps-${v.id}`, branch: v.branch, source: 'GPS', alertType: 'GPS_DISCONNECTED', vehicleNo: v.number, message: `GPS signal lost. Last position received ${v.lastSeen}.`, severity: 'high', createdAt: agoToIso(v.lastSeen) });
     } else if (v.gps === 'Weak') {
-      out.push({ key: `gps-${v.id}`, source: 'GPS', alertType: 'GPS_ISSUE', vehicleNo: v.number, message: `Weak GPS signal. Position updates are delayed (last seen ${v.lastSeen}).`, severity: 'medium', createdAt: agoToIso(v.lastSeen) });
+      out.push({ key: `gps-${v.id}`, branch: v.branch, source: 'GPS', alertType: 'GPS_ISSUE', vehicleNo: v.number, message: `Weak GPS signal. Position updates are delayed (last seen ${v.lastSeen}).`, severity: 'medium', createdAt: agoToIso(v.lastSeen) });
     }
   });
 
   (tms.trips || []).forEach(t => {
-    const base = { vehicleNo: vehNo(t.vehicle), tripId: t.number };
+    const base = { vehicleNo: vehNo(t.vehicle), tripId: t.number, branch: t.branch };
     if (t.diversion) {
       out.push({ ...base, key: `div-${t.id}`, source: 'GPS', alertType: 'ROUTE_DIVERSION', message: `Diverted ${t.diversion.offKm} km off the expected route (${t.diversion.expected}) at ${t.diversion.at}.`, severity: 'high', createdAt: parseDataDate(t.diversion.detected) });
     }
@@ -247,11 +253,11 @@ export const getAutomaticAlerts = tms => {
 
   (tms.exceptions || []).forEach(x => {
     const type = /diversion/i.test(x.type) ? 'ROUTE_DIVERSION' : /idle|stop/i.test(x.type) ? 'VEHICLE_STOPPED' : 'TRIP_VALIDATION';
-    out.push({ key: `exc-${x.id}`, source: type === 'TRIP_VALIDATION' ? 'System' : 'GPS', alertType: type, vehicleNo: vehNo(x.vehicle), tripId: tripNo(x.trip), message: `${x.type}: ${x.detail}`, severity: String(x.severity || 'low').toLowerCase(), createdAt: parseDataDate(x.raised) });
+    out.push({ key: `exc-${x.id}`, branch: x.branch || vehBranch(x.vehicle), source: type === 'TRIP_VALIDATION' ? 'System' : 'GPS', alertType: type, vehicleNo: vehNo(x.vehicle), tripId: tripNo(x.trip), message: `${x.type}: ${x.detail}`, severity: String(x.severity || 'low').toLowerCase(), createdAt: parseDataDate(x.raised) });
   });
 
   (tms.radiusAlerts || []).filter(r => r.kind === 'vehicle').forEach(r => {
-    out.push({ key: `rad-${r.id}`, source: 'GPS', alertType: 'RADIUS_VIOLATION', vehicleNo: vehNo(r.ref), message: `Left the safe radius of ${locName(r.location)} — ${r.awayM >= 1000 ? (r.awayM / 1000).toFixed(1) + ' km' : r.awayM + ' m'} away.`, severity: r.awayM >= 1000 ? 'high' : 'low', createdAt: todayAt(r.left) });
+    out.push({ key: `rad-${r.id}`, branch: vehBranch(r.ref), source: 'GPS', alertType: 'RADIUS_VIOLATION', vehicleNo: vehNo(r.ref), message: `Left the safe radius of ${locName(r.location)} — ${r.awayM >= 1000 ? (r.awayM / 1000).toFixed(1) + ' km' : r.awayM + ' m'} away.`, severity: r.awayM >= 1000 ? 'high' : 'low', createdAt: todayAt(r.left) });
   });
 
   const status = readAlertStatus();
@@ -266,4 +272,53 @@ export const getAutomaticAlerts = tms => {
       status: status[a.key] || 'unread',
       shareHistory: shares[a.key] || [],
     }));
+};
+
+// Send every automatic alert to the supervisors of its branch, once. New alerts
+// go out the next time this runs; alerts already sent (automatically or with the
+// Share button) are not sent again by it. Each delivery is recorded in the alert's
+// share history, so the admin can see it went out. Returns how many were sent.
+export const deliverAutomaticAlerts = (tms, sentBy = 'Automatic') => {
+  const alerts = getAutomaticAlerts(tms);
+  const delivered = new Set(readJson(ALERT_DELIVERED_KEY, []));
+  const fresh = alerts.filter(a => !delivered.has(a.key) && a.branch);
+  if (!fresh.length) return 0;
+
+  const shares = readAlertShares();
+  const allIds = Object.values(shares).flat().map(h => h.id);
+  const feed = readJson(NOTICE_KEY, []);
+  const stamp = nowIso();
+  const notices = fresh.map((a, i) => {
+    const branchName = (tms.B[a.branch] || {}).name || a.branch;
+    const recipients = [{ id: `branch:${a.branch}`, name: `${branchName} supervisors` }];
+    const shareId = nextId('SHR', allIds);
+    allIds.push(shareId);
+    shares[a.key] = [...(shares[a.key] || []), { id: shareId, recipients, sentBy, sentAt: stamp, auto: true }];
+    delivered.add(a.key);
+    const label = priorityLabel(severityPriority(a.severity));
+    return {
+      id: `HA-${a.key}-${dayjs().valueOf()}-${i}`,
+      kind: 'alert',
+      // Branch-wide: every supervisor of the vehicle's branch receives it.
+      branch: a.branch,
+      priority: label,
+      title: alertTitle(a),
+      body: a.message,
+      from: 'Head Office · automatic alert',
+      // Placed in the feed at the time the alert was raised.
+      sort: a.createdAt.replace('T', ' '),
+      rows: [
+        ['Vehicle', a.vehicleNo],
+        ...(a.tripId ? [['Trip', a.tripId]] : []),
+        ['Severity', (SEVERITIES.find(x => x.value === a.severity) || {}).label || a.severity],
+        ['Source', a.source],
+      ],
+    };
+  });
+
+  writeJson(ALERT_SHARE_KEY, shares);
+  writeJson(ALERT_DELIVERED_KEY, [...delivered]);
+  writeJson(NOTICE_KEY, [...notices, ...feed].slice(0, NOTICE_LIMIT));
+  try { window.dispatchEvent(new Event('kr-tms-supervisor-notices-changed')); } catch (e) {}
+  return notices.length;
 };

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { TMS, formatPhone, formatImei } from '../utils';
 import { isPendingClose, pendingCloseDetail } from '../utils/tripStatus';
 import { MOCK_ADMIN_NOTIFICATIONS } from '../utils/mockSeed';
+import { NOTICE_LIMIT, deliverAutomaticAlerts } from '../utils/notificationUtils';
 
 const TMSAdminContext = createContext(null);
 
@@ -390,6 +391,12 @@ export const TMSAdminProvider = ({ children }) => {
   }, [editsObj, deleted, drvReqs]);
   const T = () => tmsView;
 
+  // Automatic alerts reach supervisors on their own: whenever the portal data
+  // changes, any alert not yet sent goes to its branch's supervisors (once each).
+  useEffect(() => {
+    try { deliverAutomaticAlerts(tmsView); } catch (e) { /* storage blocked: nothing to send */ }
+  }, [tmsView]);
+
   // Trips that reached the customer but were never closed. Head Office is told once
   // per trip; the supervisor app raises the matching alert on its own side.
   useEffect(() => {
@@ -441,7 +448,7 @@ export const TMSAdminProvider = ({ children }) => {
     try { list = JSON.parse(localStorage.getItem(NOTICE_KEY) || '[]') || []; } catch (e) { list = []; }
     const d = new Date(), p = x => String(x).padStart(2, '0');
     const sort = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-    list = [{ id: 'HN' + d.getTime(), from: 'Head Office Admin', sort, ...n }, ...list].slice(0, 50);
+    list = [{ id: 'HN' + d.getTime(), from: 'Head Office Admin', sort, ...n }, ...list].slice(0, NOTICE_LIMIT);
     try { localStorage.setItem(NOTICE_KEY, JSON.stringify(list)); } catch (e) {}
   };
 

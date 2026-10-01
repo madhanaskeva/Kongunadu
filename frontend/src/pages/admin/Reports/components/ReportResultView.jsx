@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
 import { ReportEmptyState } from './ReportEmptyState';
-import { ReportSummaryCards } from './ReportSummaryCards';
 import { useTMSAdmin } from '../../../../context/TMSAdminContext';
 import { useDebounce } from '../../../../utils/debounce';
 import { FILE_TRANSFER_ENABLED } from '../../../../utils/featureFlags';
@@ -323,11 +322,6 @@ export const ReportResultView = ({
               </Tag>
             ))}
           </Flex>
-        )}
-
-        {/* KPI Summary Cards (for Driver Performance) */}
-        {moduleId === 'driverPerformance' && summaries && summaries.length > 0 && (
-          <ReportSummaryCards summaries={summaries} />
         )}
 
         {/* Driver Performance Sub-view Selector */}

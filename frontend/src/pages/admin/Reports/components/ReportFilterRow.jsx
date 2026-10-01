@@ -7,6 +7,7 @@ import { ReportCustomSelect } from './ReportCustomSelect';
 import { ReportMultiSelect } from './ReportMultiSelect';
 
 const DATE_FMT = 'YYYY-MM-DD';
+const DISPLAY_FMT = 'DD MMM YYYY';
 
 export const ReportFilterRow = ({
   filter,
@@ -79,15 +80,30 @@ export const ReportFilterRow = ({
         {/* 2. Direct Value / Multi-Select Selector (without intermediate operator) */}
         <Col flex="auto" style={{ minWidth: 0 }}>
           {isDateRange ? (
-            <DatePicker.RangePicker
-              value={[toDay(val?.from), toDay(val?.to)]}
-              allowEmpty={[true, true]}
-              format={DATE_FMT}
-              onChange={(dates) =>
-                handleValueChange({ ...(val || {}), from: toStr(dates?.[0]), to: toStr(dates?.[1]) })
-              }
-              style={{ width: '100%' }}
-            />
+            /* Separate From / To pickers: one calendar each, either end optional,
+               and neither can be set past the other. Value shape is unchanged. */
+            <Row gutter={8}>
+              <Col span={12}>
+                <DatePicker
+                  value={toDay(val?.from)}
+                  format={DISPLAY_FMT}
+                  placeholder="From date"
+                  disabledDate={d => !!val?.to && d.isAfter(dayjs(val.to), 'day')}
+                  onChange={d => handleValueChange({ ...(val || {}), from: toStr(d) })}
+                  style={{ width: '100%' }}
+                />
+              </Col>
+              <Col span={12}>
+                <DatePicker
+                  value={toDay(val?.to)}
+                  format={DISPLAY_FMT}
+                  placeholder="To date"
+                  disabledDate={d => !!val?.from && d.isBefore(dayjs(val.from), 'day')}
+                  onChange={d => handleValueChange({ ...(val || {}), to: toStr(d) })}
+                  style={{ width: '100%' }}
+                />
+              </Col>
+            </Row>
           ) : availableOptions.length > 0 ? (
             /* Multi-Select with Live Search & Select All */
             <ReportMultiSelect

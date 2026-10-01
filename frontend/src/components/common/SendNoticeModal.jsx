@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Button, Form, Input, Modal, Select, Typography } from 'antd';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { useAuth } from '../../hooks/useAuth';
+import { NOTICE_LIMIT } from '../../utils/notificationUtils';
 
 /**
  * SendNoticeModal — antd Modal for sending notices to branch supervisors.
@@ -94,7 +95,7 @@ export const SendNoticeModal = ({ isOpen, onClose }) => {
         const list = JSON.parse(localStorage.getItem(key) || '[]') || [];
         const d = new Date(), p = (x) => String(x).padStart(2, '0');
         const sort = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-        const updated = [{ id: 'HN' + Date.now(), sort, ...noticeData }, ...list].slice(0, 50);
+        const updated = [{ id: 'HN' + Date.now(), sort, ...noticeData }, ...list].slice(0, NOTICE_LIMIT);
         localStorage.setItem(key, JSON.stringify(updated));
         window.dispatchEvent(new Event('storage'));
       } catch (err) {}
