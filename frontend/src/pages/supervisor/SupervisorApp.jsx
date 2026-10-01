@@ -49,7 +49,12 @@ export class SupervisorApp extends React.Component {
   // The signed-in supervisor and their branch, set at login from the Supervisor Master.
   get SUP() { return (this.state && this.state.supId) || 'S01'; }
   get BR() { return (this.state && this.state.branchId) || 'B01'; }
-  me() { const T = this.T(), sup = T.S[this.SUP] || {}; return { name: sup.name || 'Supervisor', branch: (T.B[this.BR] || {}).name || 'Branch' }; }
+  me() {
+    const T = this.T(), sup = T.S[this.SUP] || {};
+    // The branch set on the supervisor in the Admin Portal: an id, or its name.
+    const b = T.B[this.BR] || (T.branches || []).find(x => String(x.name || '').toLowerCase() === String(this.BR).toLowerCase());
+    return { name: sup.name || 'Supervisor', branch: (b && b.name) || (this.BR && !/^B\d+$/.test(this.BR) ? this.BR : 'Branch') };
+  }
   // Seeded supervisors have no password of their own yet; they use the demo password until they register.
   DEMO_PASSWORD = 'password';
   findSupervisorByPhone(digits) { return (this.T().supervisors || []).find(r => String(r.phone || '').replace(/\D/g, '') === digits); }
@@ -232,8 +237,8 @@ export class SupervisorApp extends React.Component {
     let gone; try { gone = new Set(JSON.parse(delJson)); } catch (err) { gone = new Set(); }
     const merge = (route, seed) => { const x = e[route] || {}, ed = x.edited || {}; return [...seed.map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r), ...(x.added || [])].filter(r => !gone.has(r.id)); };
     const by = a => Object.fromEntries(a.map(r => [r.id, r]));
-    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations), trips = merge('trips', base.trips), clients = merge('clients', base.clients || []), supervisors = merge('supervisors', base.supervisors || []), customers = merge('customers', base.customers || []), bunks = merge('bunks', base.bunks || []);
-    this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) }, trips, T: { ...base.T, ...by(trips) }, clients, C: { ...base.C, ...by(clients) }, supervisors, S: { ...base.S, ...by(supervisors) }, customers, U: { ...base.U, ...by(customers) }, bunks, F: { ...base.F, ...by(bunks) } }; this._tKey = key;
+    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations), trips = merge('trips', base.trips), clients = merge('clients', base.clients || []), supervisors = merge('supervisors', base.supervisors || []), customers = merge('customers', base.customers || []), bunks = merge('bunks', base.bunks || []), branches = merge('branches', base.branches || []);
+    this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) }, trips, T: { ...base.T, ...by(trips) }, clients, C: { ...base.C, ...by(clients) }, supervisors, S: { ...base.S, ...by(supervisors) }, customers, U: { ...base.U, ...by(customers) }, bunks, F: { ...base.F, ...by(bunks) }, branches, B: { ...base.B, ...by(branches) } }; this._tKey = key;
     return this._t;
   }
   MASTER_KEY = 'kr-tms-master-edits';

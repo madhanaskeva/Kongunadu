@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Avatar, Badge, Button, Dropdown, Flex, Modal, Radio, Tag, Typography } from 'antd';
-import { AlertTriangle, Bell, ChevronDown, ChevronLeft, LogOut, User } from 'lucide-react';
+import { AlertTriangle, Bell, ChevronDown, ChevronLeft, LogOut, MapPin, User } from 'lucide-react';
 import DeviceApproval from '../auth/SupervisorDeviceApproval';
 import VerifyOtp from '../auth/SupervisorVerifyOtp';
 import Register from '../auth/SupervisorRegister';
@@ -65,7 +65,11 @@ export const SupervisorScreens = ({ v }) => (
               <Title level={5} ellipsis style={{ margin: 0 }}>
                 {v.title}
               </Title>
-              <Text type="secondary" className="sv-appbar-sub">{v.branchName} · {v.supName}</Text>
+              {/* Branch as a highlighted pill, then the supervisor's name */}
+              <Flex align="center" gap={6} className="sv-appbar-meta">
+                <span className="sv-branch-pill"><MapPin size={11} strokeWidth={2.5} aria-hidden />{v.branchName}</span>
+                <Text className="sv-appbar-name" ellipsis>{v.supName}</Text>
+              </Flex>
             </div>
             <span title="GPS status">
               <Badge status="processing" color={v.gpsColor} text={<Text strong className="sv-gps-label" style={{ color: v.gpsColor }}>{v.gpsLabel}</Text>} />
