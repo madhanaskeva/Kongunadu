@@ -1061,7 +1061,6 @@ export const TMSAdminProvider = ({ children }) => {
       vehicles: '/admin/masters/vehicles',
       drivers: '/admin/masters/drivers',
       clients: '/admin/masters/clients',
-      locations: '/admin/masters/locations',
       routes: '/admin/masters/routes',
       analytics: '/admin/analytics',
       reports: '/admin/reports',

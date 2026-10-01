@@ -5,7 +5,7 @@ export const BarChart = ({
   data = [],
   title,
   height = 200,
-  barColor = 'var(--color-brand, #00623F)',
+  barColor = 'var(--color-brand, #0d6efd)',
   valueSuffix = '',
   orientation = 'vertical', // 'vertical' | 'horizontal'
 }) => {

@@ -53,6 +53,8 @@ export class SupervisorApp extends React.Component {
   // Seeded supervisors have no password of their own yet; they use the demo password until they register.
   DEMO_PASSWORD = 'password';
   findSupervisorByPhone(digits) { return (this.T().supervisors || []).find(r => String(r.phone || '').replace(/\D/g, '') === digits); }
+  // The sign-in email set for the supervisor in the admin Supervisor Master.
+  findSupervisorByEmail(email) { const e = String(email || '').trim().toLowerCase(); return (this.T().supervisors || []).find(r => String(r.email || '').trim().toLowerCase() === e); }
   // Device approval is shared with the Admin Portal through localStorage (same origin), polled once a second.
   REQ_KEY = 'kr-tms-device-approvals'; IMEI_KEY = 'kr-tms-device-imei'; NOTICE_KEY = 'kr-tms-supervisor-notices';
   // New-driver requests go to the Admin Portal the same way; its approve/reject decisions come back on the same keys.
@@ -250,7 +252,8 @@ export class SupervisorApp extends React.Component {
   statusTone(label) {
     const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent', 'Nearly reached': 'nearly' }[label] || 'neutral';
     // 4th entry: the antd Tag preset colour for the same status.
-    const tag = { enroute: 'processing', loading: 'processing', unloading: 'volcano', delayed: 'volcano', long: 'warning', nearly: 'warning', gps: 'error', closed: 'success', flagged: 'purple', absent: 'error', neutral: 'default' }[k];
+    // On road green · Nearly reached yellow · Unloading red · Long open orange.
+    const tag = { enroute: 'success', loading: 'processing', unloading: 'red', delayed: 'volcano', long: 'orange', nearly: 'gold', gps: 'error', closed: 'success', flagged: 'purple', absent: 'error', neutral: 'default' }[k];
     return [`var(--st-${k}-bg)`, `var(--st-${k}-fg)`, `var(--st-${k}-edge)`, tag];
   }
   decorate(t) {
@@ -879,22 +882,32 @@ export class SupervisorApp extends React.Component {
         }, 900);
       },
       supName: me.name, branchName: me.branch, todayLong, todayDM, monthLabel: `${MONTH_FULL[TD.getMonth()]} ${TD.getFullYear()}`, nowHM: `${pd(TD.getHours())}:${pd(TD.getMinutes())}`, loginPhone, loginPassword,
-      setLoginPhone: e => { const d = e.target.value.replace(/\D/g, '').slice(0, 10); this.setState({ loginPhone: d.length > 5 ? d.slice(0, 5) + ' ' + d.slice(5) : d, loginErr: '' }); },
+      setLoginPhone: e => {
+        const raw = e.target.value;
+        if (/[a-z@]/i.test(raw)) { this.setState({ loginPhone: raw.trim().slice(0, 80), loginErr: '' }); return; }
+        const d = raw.replace(/\D/g, '').slice(0, 10);
+        this.setState({ loginPhone: d.length > 5 ? d.slice(0, 5) + ' ' + d.slice(5) : d, loginErr: '' });
+      },
       setLoginPassword: e => this.setState({ loginPassword: e.target.value, loginErr: '' }),
       title: titles[s.screen] || '', showBack: s.screen !== 'home',
       loginError: !!s.loginErr, loginErrText: s.loginErr, loginLoading: s.loginState === 'loading', loginIdle: s.loginState !== 'loading',
       doLogin: () => {
-        const phone = loginPhone.replace(/\D/g, '');
-        if (phone.length !== 10) { this.setState({ loginErr: 'Enter your 10 digit mobile number.' }); return; }
+        // Either the mobile number or the sign-in email from the Supervisor Master.
+        const id = String(loginPhone || '').trim();
+        const byEmail = /[a-z@]/i.test(id);
+        const phone = id.replace(/\D/g, '');
+        if (byEmail ? !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id) : phone.length !== 10) {
+          this.setState({ loginErr: byEmail ? 'Enter a valid email address.' : 'Enter your 10 digit mobile number or your email.' }); return;
+        }
         if (!loginPassword) { this.setState({ loginErr: 'Enter your password.' }); return; }
         this.setState({ loginState: 'loading', loginErr: '' });
         setTimeout(() => {
-          const sup = this.findSupervisorByPhone(phone);
-          const err = !sup ? 'This mobile number is not a registered supervisor. Request device approval first.'
+          const sup = byEmail ? this.findSupervisorByEmail(id) : this.findSupervisorByPhone(phone);
+          const err = !sup ? `This ${byEmail ? 'email' : 'mobile number'} is not a registered supervisor. Contact Head Office.`
             : sup.status === 'Inactive' ? 'This supervisor account is inactive. Contact Head Office.'
-            : loginPassword !== (sup.password || this.DEMO_PASSWORD) ? 'Incorrect mobile number or password.' : '';
+            : loginPassword !== (sup.password || this.DEMO_PASSWORD) ? `Incorrect ${byEmail ? 'email' : 'mobile number'} or password.` : '';
           if (err) { this.setState({ loginState: 'idle', loginErr: err }); return; }
-          this.updateSupervisorRecord(phone, { lastLogin: this.nowText() });
+          this.updateSupervisorRecord(String(sup.phone || '').replace(/\D/g, ''), { lastLogin: this.nowText() });
           // Branch-scoped data was loaded for the previous branch; reload it for this supervisor's branch.
           this._drvJson = undefined; this._noticeJson = undefined;
           this.setState({ loginState: 'idle', loginErr: '', loginPassword: null, supId: sup.id, branchId: sup.branch || 'B01', screen: 'home', history: [], activity: [] },

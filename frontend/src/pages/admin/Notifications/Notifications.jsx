@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Card, Flex, Tabs } from 'antd';
 import { useSearchParams } from 'react-router-dom';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
 import {
-  createNotification, getAutomaticAlerts, getNotifications, getSupervisors, resendNotification, setAlertStatus, shareAlert,
+  MANUAL_CHANGED_EVENT, createNotification, getAutomaticAlerts, getNotifications, getSupervisors, resendNotification, setAlertStatus, shareAlert,
 } from '../../../utils/notificationUtils';
 import { AutomaticAlerts } from './AutomaticAlerts';
 import { ManualNotifications } from './ManualNotifications';
@@ -32,6 +32,12 @@ export const Notifications = () => {
   const [statusRev, setStatusRev] = useState(0);
   const alerts = useMemo(() => getAutomaticAlerts(tms), [tms, statusRev]);
   const [notifications, setNotifications] = useState(getNotifications);
+  // Notices sent from the header's "Send notice" land here too.
+  useEffect(() => {
+    const reload = () => setNotifications(getNotifications());
+    window.addEventListener(MANUAL_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(MANUAL_CHANGED_EVENT, reload);
+  }, []);
   const supervisors = useMemo(() => getSupervisors(tms), [tms]);
 
   const unreadAlerts = alerts.filter(a => a.status === 'unread').length;

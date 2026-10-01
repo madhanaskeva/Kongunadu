@@ -225,7 +225,7 @@ export const FormCheckboxSelect = ({
             error
               ? 'var(--kr-red-600, #dc2626)'
               : isOpen
-              ? 'var(--color-brand, #00623f)'
+              ? 'var(--color-brand, #0d6efd)'
               : 'var(--border-strong, #cbd5e1)'
           }`,
           boxShadow: isOpen ? 'var(--focus-ring)' : 'none',
@@ -273,7 +273,7 @@ export const FormCheckboxSelect = ({
               <span
                 style={{
                   background: 'var(--color-brand-soft, #e6f4ea)',
-                  color: 'var(--kr-green-800, #00623f)',
+                  color: 'var(--kr-green-800, #0d6efd)',
                   padding: '2px 8px',
                   borderRadius: '4px',
                   fontSize: '12px',
@@ -425,7 +425,7 @@ export const FormCheckboxSelect = ({
                 style={{
                   all: 'unset',
                   cursor: 'pointer',
-                  color: 'var(--color-brand, #00623f)',
+                  color: 'var(--color-brand, #0d6efd)',
                   fontWeight: 700,
                 }}
               >
@@ -493,7 +493,7 @@ export const FormCheckboxSelect = ({
                       borderRadius: 'var(--radius-md, 8px)',
                       outline: 'none',
                       cursor: 'pointer',
-                      background: isSelected ? 'var(--color-brand-tint, rgba(0, 98, 63, 0.05))' : 'transparent',
+                      background: isSelected ? 'var(--color-brand-tint, rgba(13, 110, 253, 0.05))' : 'transparent',
                       transition: 'background 0.12s ease',
                     }}
                   >
@@ -504,9 +504,9 @@ export const FormCheckboxSelect = ({
                         height: '18px',
                         borderRadius: '4px',
                         border: `2px solid ${
-                          isSelected ? 'var(--color-brand, #00623f)' : 'var(--border-strong, #cbd5e1)'
+                          isSelected ? 'var(--color-brand, #0d6efd)' : 'var(--border-strong, #cbd5e1)'
                         }`,
-                        background: isSelected ? 'var(--color-brand, #00623f)' : '#ffffff',
+                        background: isSelected ? 'var(--color-brand, #0d6efd)' : '#ffffff',
                         display: 'grid',
                         placeItems: 'center',
                         flexShrink: 0,
@@ -521,7 +521,7 @@ export const FormCheckboxSelect = ({
                       style={{
                         fontSize: '13px',
                         fontWeight: isSelected ? 700 : 400,
-                        color: isSelected ? 'var(--kr-green-900, #003021)' : 'var(--text-heading, #1c1c1a)',
+                        color: isSelected ? 'var(--kr-green-900, #06367e)' : 'var(--text-heading, #1c1c1a)',
                         lineHeight: 1.4,
                       }}
                     >

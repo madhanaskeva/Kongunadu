@@ -120,8 +120,8 @@ export const FormLocationsInput = ({
       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
         {hint || (
           <>
-            Type a location and click <strong>+ Add</strong> (or press Enter). Each one is saved to the
-            Loading Location Master under this client, where you can set its address, safe radius and GPS.
+            Type a location and click <strong>+ Add</strong> (or press Enter). Each one is saved as a
+            loading location for this client.
           </>
         )}
       </span>
@@ -153,7 +153,7 @@ export const FormLocationsInput = ({
                 padding: '6px 12px',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--color-brand-tint)',
-                border: '1px solid rgba(0, 98, 63, 0.25)',
+                border: '1px solid rgba(13, 110, 253, 0.25)',
                 color: 'var(--kr-green-900)',
                 fontSize: '13px',
                 fontWeight: 600,

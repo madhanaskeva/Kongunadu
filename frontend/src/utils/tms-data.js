@@ -82,13 +82,13 @@ const locations=[
  {id:'L06',client:'C01',clientId:'C01',name:'Bhiwandi Warehouse',branch:'B05',address:'Bhiwandi, Thane',radius:200,lat:'19.2813',lng:'73.0483',status:'Inactive'}
 ];
 const bunks=[
- {id:'F01',name:'IOC – Sriperumbudur Highway',branch:'B01',rate:94.80,status:'Active'},
- {id:'F02',name:'HP – Ambattur Industrial Estate',branch:'B01',rate:95.20,status:'Active'},
- {id:'F03',name:'BPCL – Poonamallee Bypass',branch:'B01',rate:94.60,status:'Active'},
- {id:'F04',name:'IOC – Namakkal Salem Road',branch:'B02',rate:93.90,status:'Active'},
- {id:'F05',name:'HP – Jeedimetla',branch:'B03',rate:96.40,status:'Active'},
- {id:'F06',name:'BPCL – Dindigul Bypass',branch:'B01',rate:95.20,status:'Active'},
- {id:'F07',name:'IOC – Hosur Road',branch:'B04',rate:95.90,status:'Inactive'}
+ {id:'F01',name:'IOC – Sriperumbudur Highway',branch:'B01',rate:94.80,status:'Active',lat:'12.9571',lng:'79.9718'},
+ {id:'F02',name:'HP – Ambattur Industrial Estate',branch:'B01',rate:95.20,status:'Active',lat:'13.1012',lng:'80.1625'},
+ {id:'F03',name:'BPCL – Poonamallee Bypass',branch:'B01',rate:94.60,status:'Active',lat:'13.0446',lng:'80.1031'},
+ {id:'F04',name:'IOC – Namakkal Salem Road',branch:'B02',rate:93.90,status:'Active',lat:'11.2251',lng:'78.1525'},
+ {id:'F05',name:'HP – Jeedimetla',branch:'B03',rate:96.40,status:'Active',lat:'17.5196',lng:'78.4512'},
+ {id:'F06',name:'BPCL – Dindigul Bypass',branch:'B01',rate:95.20,status:'Active',lat:'10.3780',lng:'77.9512'},
+ {id:'F07',name:'IOC – Hosur Road',branch:'B04',rate:95.90,status:'Inactive',lat:'12.8399',lng:'77.6774'}
 ];
 const routes=[
  {id:'R01',dieselLimit:255,name:'Sriperumbudur \u2192 Hyderabad',from:'L01',to:'Hyderabad',km:628,hours:14,toll:'\u20B92,340',status:'Active'},
@@ -235,6 +235,14 @@ const supervisorNotices=[
  {id:'N08',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-13 16:10',title:'Bunk approved \u00b7 BPCL \u2013 Dindigul Bypass',body:'Head Office approved bunk "BPCL \u2013 Dindigul Bypass". It is now authorized for route Ambattur \u2192 Madurai.',rows:[['Bunk','BPCL \u2013 Dindigul Bypass'],['Route','Ambattur \u2192 Madurai'],['Status','Authorized']]},
  {id:'N06',kind:'action',branch:'B01',from:'Head Office Admin',sort:'2026-09-10 17:20',title:'Vehicle master updated · TN 28 AR 7712',body:'TN 28 AR 7712 is now mapped to Linde India and Suguna Foods. Its driver mapping was cleared, so pick a driver when you open a trip for it.',rows:[['Vehicle','TN 28 AR 7712 · Closed body 19ft'],['Clients','Linde India, Suguna Foods'],['Driver','Not mapped'],['Action taken','Master record edited']]}
 ];
+// Mock GPS tracker reports of vehicles standing still right now, until the live
+// feed is connected. `kind` + `place` say where (bunk id, location id or a name),
+// `minutes` how long the tracker has seen it stationary, `limitMin` the allowed
+// halt there, `lat`/`lng` the confirmed fix. Add rows here (or replace the list
+// with the live feed) and the Fleet cards pick them up.
+const gpsIdleReports=[
+ {vehicle:'V01',kind:'bunk',place:'F01',minutes:85,limitMin:20,lat:'12.9571',lng:'79.9718',ignition:false,note:'Driver Murugan S. reported a queue at the diesel dispenser.'}
+];
 // Monthly kilometre targets and actuals per vehicle, for Analytics › Vehicle.
 // Compact source rows: `start` is the first month ('YYYY-MM'); `target` is one
 // number for every month or an array when the target changed; `actual` is the
@@ -289,6 +297,7 @@ export const TMS = {
   radiusAlerts,
   supervisorNotices,
   vehiclePerformance,
+  gpsIdleReports,
   B,
   S,
   V,
@@ -323,6 +332,7 @@ export {
   radiusAlerts,
   supervisorNotices,
   vehiclePerformance,
+  gpsIdleReports,
 };
 
 export default TMS;

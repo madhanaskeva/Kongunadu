@@ -20,7 +20,7 @@
   font-size: 12px;
   font-weight: 800;
   color: var(--color-brand);
-  background: var(--color-brand-tint, #eef7f2);
+  background: var(--color-brand-tint, #f1f5ff);
   border: 1px solid var(--color-brand);
 }
 
@@ -48,7 +48,7 @@
 
 /* The combined "All selected" block that heads a comparison. */
 .vp-stats-table .vp-band-all > td {
-  background: var(--color-brand-tint, #eef7f2);
+  background: var(--color-brand-tint, #f1f5ff);
 }
 
 .vp-stats-table .vp-group-start > td {

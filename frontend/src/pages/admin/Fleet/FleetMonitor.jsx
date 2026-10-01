@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag } from 'lucide-react';
 import dayjs from 'dayjs';
 import {
-  Alert, Button, Card, Col, DatePicker, Descriptions, Empty, Flex, Form, Input, Pagination, Row, Segmented,
+  Alert, Button, Card, Col, DatePicker, Descriptions, Empty, Flex, Form, Input, Pagination, Row,
   Select, Space, Statistic, Table, Tag, Timeline, Typography,
 } from 'antd';
 import { AimOutlined, ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
-import VehicleActivityModal, { ActivityBar, ACTIVITY_TONE } from './VehicleActivityModal';
-import { ACTIVITY, fmtDuration, minutesAgo, vehicleActivity } from '../../../utils/vehicleActivity';
+import VehicleActivityModal, { ActivityBar, ACTIVITY_TONE, IdleNowPanel } from './VehicleActivityModal';
+import { ACTIVITY, fmtDuration, minutesAgo, vehicleActivity, withIdlePlaces } from '../../../utils/vehicleActivity';
 import { useDebounce } from '../../../utils/debounce';
 import { matchesSearch as textMatches } from '../../../utils/search';
 import { evaluateDateRange } from '../Reports/reportEngine';
@@ -52,7 +52,7 @@ const DIVERSION_TAG = { 'Off route now': 'error', Rejoined: 'warning', Reviewed:
 
 // Card edge + status chip colours, one entry per vehicle status.
 const FLEET_TONES = {
-  Running: { edge: 'var(--kr-green-600)', bg: 'var(--kr-green-100)', fg: 'var(--kr-green-800)' },
+  Running: { edge: 'var(--good-600)', bg: 'var(--good-100)', fg: 'var(--good-800)' },
   Idle: { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
   Maintenance: { edge: 'var(--st-enroute-edge)', bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-fg)' },
   default: { edge: 'var(--kr-grey-300)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
@@ -170,9 +170,11 @@ export const FleetMonitor = () => {
       idleHours,
       lastSeen: idleText,
       branchName: (tms.B[v.branch] || {}).name,
+      // Mock GPS tracker report of the vehicle standing still now (live feed later).
+      gpsIdle: (tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || null,
       driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
-      gpsColor: v.gps === 'OK' ? 'var(--kr-green-600)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
-      gpsBg: v.gps === 'OK' ? 'var(--kr-green-100)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
+      gpsColor: v.gps === 'OK' ? 'var(--good-600)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
+      gpsBg: v.gps === 'OK' ? 'var(--good-100)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
       // Each card is edged and chipped in its own status colour.
       tone: FLEET_TONES[v.status] || FLEET_TONES.default,
       radiusAlert: v.id === 'V04'
@@ -214,7 +216,7 @@ export const FleetMonitor = () => {
   // A branch can run hundreds of vehicles, so the grid is paged like every other list (default 10 / page).
   const fleetPg = usePagedCards(fleetCards, [ff, idleDurationFilter, debouncedFleetQ, fltKey], 'vehicles');
 
-  const gpsTone = g => g === 'OK' ? 'var(--kr-green-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
+  const gpsTone = g => g === 'OK' ? 'var(--good-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
   // Diversions
   const divStates = {
@@ -549,18 +551,25 @@ export const FleetMonitor = () => {
       {/* Filter Pills, Search Bar, and Right Side Duration Filter Option */}
       <Flex justify="space-between" align="center" gap={12} wrap>
         <Flex gap={8} wrap align="center" style={{ flex: '1 1 auto', minWidth: 0 }}>
-          <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
-            <Segmented
-              value={ff}
-              onChange={value => {
-                setFleetFilter(value);
-                if (value !== 'idle') {
-                  setIdleDurationFilter('all');
-                }
-              }}
-              options={fleetFilters.map(f => ({ value: f.id, label: f.label }))}
-            />
-          </div>
+          {/* View tabs as rounded pill buttons; the active one is filled. */}
+          <Flex gap={8} wrap role="tablist" aria-label="Fleet view">
+            {fleetFilters.map(f => (
+              <Button
+                key={f.id}
+                shape="round"
+                role="tab"
+                aria-selected={ff === f.id}
+                type={ff === f.id ? 'primary' : 'default'}
+                onClick={() => {
+                  setFleetFilter(f.id);
+                  if (f.id !== 'idle') setIdleDurationFilter('all');
+                }}
+                style={{ fontWeight: 600 }}
+              >
+                {f.label}
+              </Button>
+            ))}
+          </Flex>
 
           <Input
             allowClear
@@ -652,6 +661,9 @@ export const FleetMonitor = () => {
           <Row gutter={[16, 16]}>
             {fleetPg.rows.map(v => {
               const act = vehicleActivity(v, activityRange.from.valueOf(), activityRange.to.valueOf());
+              // If GPS shows the vehicle standing right now, one message says where, since when and why.
+              const lastSpan = withIdlePlaces(act.segments.slice(-1), v, tms)[0];
+              const idleNow = isToday && lastSpan && lastSpan.state === ACTIVITY.IDLE ? lastSpan : null;
               return (
               <Col key={v.id} xs={24} sm={12} xl={8} xxl={6}>
                 <Card
@@ -690,6 +702,7 @@ export const FleetMonitor = () => {
                     {v.radiusAlert && (
                       <Alert type="warning" showIcon icon={<TriangleAlert size={13} />} title={v.radiusAlert} style={{ fontSize: 12.5, padding: '8px 10px' }} />
                     )}
+                    {idleNow && <IdleNowPanel span={idleNow} />}
                   </Flex>
 
                   {/* Status, driver and last fix, on one aligned line */}
@@ -712,7 +725,7 @@ export const FleetMonitor = () => {
                       <Flex justify="space-between" gap={8}>
                         <Typography.Text type="secondary" style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
                         <Typography.Text style={{ fontSize: 12 }}>
-                          <span style={{ color: 'var(--kr-green-700)', fontWeight: 700 }}>Run {fmtDuration(act.summary.running)}</span>
+                          <span style={{ color: 'var(--good-700)', fontWeight: 700 }}>Run {fmtDuration(act.summary.running)}</span>
                           {' · '}
                           <span style={{ color: '#7A4300', fontWeight: 700 }}>Idle {fmtDuration(act.summary.idle)}</span>
                         </Typography.Text>
@@ -734,7 +747,7 @@ export const FleetMonitor = () => {
                             <Typography.Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                               {dayjs(s.start).format('HH:mm')} – {dayjs(s.end).format('HH:mm')}
                             </Typography.Text>
-                            <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--kr-green-700)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
+                            <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--good-700)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
                               {s.state}
                             </Typography.Text>
                             <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
@@ -790,6 +803,7 @@ export const FleetMonitor = () => {
       {activityId && (
         <VehicleActivityModal
           vehicle={fleetAll.find(x => x.id === activityId)}
+          tms={tms}
           initialFrom={activityRange.from}
           initialTo={activityRange.to}
           onClose={() => setActivityId(null)}

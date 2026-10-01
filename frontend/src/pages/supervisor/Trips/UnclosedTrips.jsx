@@ -26,7 +26,7 @@ export const UnclosedTrips = ({ v }) => (
             </Flex>
             <Text strong style={{ display: "block", marginTop: 6, fontSize: 15 }}>{t.crewLine}</Text>
             <Text type="secondary">{t.routeLine}</Text>
-            <Progress percent={parseFloat(t.progress) || 0} showInfo={false} size="small" style={{ margin: "8px 0 0" }} />
+            <Progress percent={parseFloat(t.progress) || 0} showInfo={false} size="small" strokeColor="var(--good-600)" style={{ margin: "8px 0 0" }} />
             <Flex justify="space-between" gap={8}>
               <Text type="secondary" style={{ fontSize: 13 }}>{t.gpsKm} of {t.fixedKm} km by GPS</Text>
               <Text type="secondary" style={{ fontSize: 13 }}>{t.hoursOpen} h open</Text>

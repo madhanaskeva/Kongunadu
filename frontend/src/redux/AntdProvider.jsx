@@ -11,13 +11,13 @@ import { App as AntApp, ConfigProvider } from 'antd';
 const TMS_THEME = {
   token: {
     /* ── Brand colours ── */
-    colorPrimary: '#00623f',          // --kr-green-700 / --color-brand
-    colorPrimaryHover: '#004a31',     // --kr-green-800
-    colorPrimaryActive: '#003021',    // --kr-green-900
-    colorPrimaryBg: '#edf8f3',        // --kr-green-50 / --color-brand-tint
-    colorPrimaryBgHover: '#daf1e7',   // --kr-green-100 / --color-brand-soft
-    colorPrimaryBorder: '#0b7e52',    // --kr-green-600
-    colorPrimaryText: '#00623f',      // --text-brand
+    colorPrimary: '#0d6efd',          // --kr-green-700 / --color-brand
+    colorPrimaryHover: '#0a4fb8',     // --kr-green-800
+    colorPrimaryActive: '#06367e',    // --kr-green-900
+    colorPrimaryBg: '#f1f5ff',        // --kr-green-50 / --color-brand-tint
+    colorPrimaryBgHover: '#dbe7fe',   // --kr-green-100 / --color-brand-soft
+    colorPrimaryBorder: '#3b82f6',    // --kr-green-600
+    colorPrimaryText: '#0d6efd',      // --text-brand
 
     colorError: '#d91619',            // --kr-red-600 / --color-accent
     colorErrorHover: '#b31114',       // --kr-red-700
@@ -27,18 +27,18 @@ const TMS_THEME = {
     colorWarning: '#f29a1f',          // --kr-saffron-500
     colorWarningBg: '#fdebd3',        // --kr-saffron-100
 
-    colorSuccess: '#0b7e52',          // --status-success
-    // Explicit tints: antd's derived ones from #0b7e52 come out grey-green and
+    colorSuccess: '#3b82f6',          // --status-success
+    // Explicit tints: antd's derived ones from #3b82f6 come out grey-green and
     // make "Active" / "Approved" tags look disabled.
     colorSuccessBg: '#dff5e9',
     colorSuccessBgHover: '#c8ecd9',
     colorSuccessBorder: '#86d1ab',
     colorSuccessBorderHover: '#5fbf8f',
-    colorSuccessText: '#00623f',
+    colorSuccessText: '#0d6efd',
 
-    colorLink: '#00623f',             // --link
-    colorLinkHover: '#004a31',        // --link-hover
-    colorLinkActive: '#003021',
+    colorLink: '#0d6efd',             // --link
+    colorLinkHover: '#0a4fb8',        // --link-hover
+    colorLinkActive: '#06367e',
 
     /* ── Neutral / surface ── */
     colorTextBase: '#4a4a46',         // --text-body / --kr-grey-700
@@ -108,8 +108,8 @@ const TMS_THEME = {
       borderRadius: 8,
       colorBorder: '#c2c2bb',         // --border-strong
       colorBgContainer: '#ffffff',
-      activeBorderColor: '#00623f',   // --color-brand
-      activeShadow: '0 0 0 3px rgba(0, 98, 63, 0.35)', // --focus-ring
+      activeBorderColor: '#0d6efd',   // --color-brand
+      activeShadow: '0 0 0 3px rgba(13, 110, 253, 0.35)', // --focus-ring
     },
     /* One dropdown spec for the whole portal (see .ant-select-dropdown in
        global.css for the panel border/shadow and the selected-row check mark):
@@ -122,20 +122,20 @@ const TMS_THEME = {
       borderRadiusLG: 12,             // open panel
       colorBorder: '#c2c2bb',         // --border-strong
       colorBgContainer: '#ffffff',
-      hoverBorderColor: '#00623f',    // --color-brand
-      activeBorderColor: '#00623f',
-      activeOutlineColor: 'rgba(0, 98, 63, 0.35)', // --focus-ring
+      hoverBorderColor: '#0d6efd',    // --color-brand
+      activeBorderColor: '#0d6efd',
+      activeOutlineColor: 'rgba(13, 110, 253, 0.35)', // --focus-ring
       controlOutlineWidth: 3,
       colorTextPlaceholder: '#6f716b',
       colorText: '#1c1c1a',           // --text-heading
       optionHeight: 40,
       optionPadding: '9px 12px',
       optionFontSize: 14,
-      optionActiveBg: '#edf8f3',      // --color-brand-tint (hover / keyboard)
-      optionSelectedBg: '#edf8f3',    // --color-brand-tint
-      optionSelectedColor: '#003021', // --kr-green-900
+      optionActiveBg: '#f1f5ff',      // --color-brand-tint (hover / keyboard)
+      optionSelectedBg: '#f1f5ff',    // --color-brand-tint
+      optionSelectedColor: '#06367e', // --kr-green-900
       optionSelectedFontWeight: 700,
-      controlItemBgActiveHover: '#daf1e7', // --kr-green-100 (selected + hover)
+      controlItemBgActiveHover: '#dbe7fe', // --kr-green-100 (selected + hover)
       boxShadowSecondary: '0 12px 32px rgba(20, 32, 43, 0.14)', // --shadow-lg
     },
     Table: {
@@ -143,7 +143,7 @@ const TMS_THEME = {
       headerBg: '#f6f6f4',            // --surface-muted
       headerColor: '#7c7c76',         // --text-muted
       headerSplitColor: '#dcdcd6',
-      rowHoverBg: '#edf8f3',          // --color-brand-tint (light green)
+      rowHoverBg: '#f1f5ff',          // --color-brand-tint (light green)
       cellPaddingBlock: 14,
       cellPaddingInline: 16,
       headerCellSplitColor: '#dcdcd6',
@@ -165,10 +165,10 @@ const TMS_THEME = {
       fontSizeSM: 12,
     },
     Tabs: {
-      inkBarColor: '#00623f',
-      itemActiveColor: '#00623f',
-      itemSelectedColor: '#00623f',
-      itemHoverColor: '#004a31',
+      inkBarColor: '#0d6efd',
+      itemActiveColor: '#0d6efd',
+      itemSelectedColor: '#0d6efd',
+      itemHoverColor: '#0a4fb8',
       itemColor: '#7c7c76',           // --text-muted
       titleFontSize: 14,
       horizontalMargin: '0',
@@ -189,8 +189,8 @@ const TMS_THEME = {
       darkItemColor: 'rgba(255, 255, 255, 0.92)',
       darkItemHoverColor: '#ffffff',
       darkItemHoverBg: 'rgba(218, 241, 231, 0.16)',
-      darkItemSelectedBg: '#daf1e7',  // --kr-green-100
-      darkItemSelectedColor: '#004a31', // --kr-green-800
+      darkItemSelectedBg: '#dbe7fe',  // --kr-green-100
+      darkItemSelectedColor: '#0a4fb8', // --kr-green-800
       darkGroupTitleColor: 'rgba(255, 255, 255, 0.62)',
       itemBorderRadius: 10,
       itemHeight: 38,
@@ -203,7 +203,7 @@ const TMS_THEME = {
     },
     Pagination: {
       itemSize: 36,
-      itemActiveBg: '#00623f',        // filled green current page
+      itemActiveBg: '#0d6efd',        // filled green current page
       itemActiveColor: '#ffffff',
       itemActiveColorHover: '#ffffff',
     },
@@ -217,7 +217,7 @@ const TMS_THEME = {
       contentFontSize: 26,
     },
     Spin: {
-      colorPrimary: '#00623f',
+      colorPrimary: '#0d6efd',
     },
     Notification: {
       borderRadius: 8,

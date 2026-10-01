@@ -13,7 +13,6 @@ import {
   VehicleMaster,
   DriverMaster,
   ClientMaster,
-  LocationMaster,
   RouteMaster,
 } from '../pages/admin/Masters';
 import ClientProfile from '../pages/admin/Masters/ClientProfile';
@@ -48,7 +47,6 @@ export const AppRouter = () => {
             <Route path="masters/drivers" element={<DriverMaster />} />
             <Route path="masters/clients" element={<ClientMaster />} />
             <Route path="masters/clients/:id" element={<ClientProfile />} />
-            <Route path="masters/locations" element={<LocationMaster />} />
             <Route path="masters/routes" element={<RouteMaster />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="reports" element={<Reports />} />

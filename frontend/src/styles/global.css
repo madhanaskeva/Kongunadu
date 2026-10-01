@@ -463,7 +463,7 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
    tinted shadow. Press: settles back down. Colour per action via --ra:
    edit green (default), view teal, delete red, accent amber. */
 .tms-row-action.ant-btn {
-  --ra: #00623f;
+  --ra: #0d6efd;
   --ra-tint: #e3f4ec;
   width: 32px;
   height: 32px;
@@ -826,14 +826,14 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-sort,
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-left,
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right {
-  background: linear-gradient(180deg, #0b7e52 0%, #00623f 55%, #004a31 100%);
+  background: linear-gradient(180deg, #3b82f6 0%, #0d6efd 55%, #0a4fb8 100%);
   color: #ffffff;
   font-weight: 700;
-  border-bottom: 1px solid #003021;
+  border-bottom: 1px solid #06367e;
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-has-sorters:hover {
-  background: linear-gradient(180deg, #169a66 0%, #0b7e52 55%, #00623f 100%);
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 55%, #0d6efd 100%);
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th:not(:last-child):not(.ant-table-selection-column):not(.ant-table-row-expand-icon-cell):not([colspan])::before {

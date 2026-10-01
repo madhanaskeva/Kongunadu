@@ -45,7 +45,7 @@
 
 .reports-result-kicker {
   display: inline;
-  color: var(--color-brand, #00623f);
+  color: var(--color-brand, #0d6efd);
 }
 
 h5.ant-typography.reports-col-title {
@@ -92,9 +92,9 @@ h5.ant-typography.reports-col-title {
 }
 
 .reports-module-card.selected {
-  background: var(--color-brand-tint, #edf8f3);
-  border-color: var(--color-brand, #00623f);
-  box-shadow: 0 0 0 1px var(--color-brand, #00623f);
+  background: var(--color-brand-tint, #f1f5ff);
+  border-color: var(--color-brand, #0d6efd);
+  box-shadow: 0 0 0 1px var(--color-brand, #0d6efd);
 }
 
 /* Result view: filter-chip strip and table cells */

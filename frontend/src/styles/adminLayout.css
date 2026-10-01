@@ -161,9 +161,8 @@
   box-sizing: border-box;
   overflow-y: auto;
   scrollbar-width: none;
-  background:
-    radial-gradient(120% 40% at 100% 100%, rgba(255, 255, 255, 0.06), transparent 60%),
-    linear-gradient(180deg, var(--kr-green-700) 0%, var(--kr-green-800) 60%, var(--kr-green-900) 100%);
+  /* Solid theme Primary (#0D6EFD) top to bottom. */
+  background: var(--color-brand);
 }
 
 .tms-sidebar::-webkit-scrollbar {

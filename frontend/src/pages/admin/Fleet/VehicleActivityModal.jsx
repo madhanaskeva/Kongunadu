@@ -1,15 +1,16 @@
 import React, { useMemo, useState } from 'react';
+import { Fuel, MapPin, ParkingSquare, Power, Warehouse, Wrench } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Alert, Button, Card, Col, DatePicker, Flex, Form, Modal, Row, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
 import {
-  ACTIVITY, GPS_GAP_MIN, IDLE_SPEED_KMH, PING_MIN, fmtDuration, vehicleActivity,
+  ACTIVITY, GPS_GAP_MIN, IDLE_PLACE_KIND, IDLE_SPEED_KMH, PING_MIN, fmtDuration, vehicleActivity, withIdlePlaces,
 } from '../../../utils/vehicleActivity';
 
 const MAX_DAYS = 7;
 const DT_FMT = 'DD MMM YYYY HH:mm';
 
 export const ACTIVITY_TONE = {
-  [ACTIVITY.RUNNING]: { color: 'var(--kr-green-600)', tag: 'success' },
+  [ACTIVITY.RUNNING]: { color: 'var(--good-600)', tag: 'success' },
   [ACTIVITY.IDLE]: { color: 'var(--kr-saffron-500)', tag: 'warning' },
   [ACTIVITY.NO_GPS]: { color: 'var(--kr-grey-300)', tag: 'default' },
 };
@@ -25,6 +26,100 @@ const spanText = (s, multiDay) => {
 };
 
 // A compact strip: one coloured block per span, sized by its share of the range.
+// Where an idle span happened: an icon for the kind of place, then its name.
+const PLACE_ICON = { bunk: Fuel, loading: Warehouse, yard: ParkingSquare, service: Wrench, stop: MapPin };
+export const IdlePlace = ({ place, compact = false }) => {
+  const Icon = PLACE_ICON[place.kind] || MapPin;
+  return (
+    <Flex align="center" gap={6} style={{ marginTop: compact ? 0 : 3, paddingLeft: compact ? 0 : 16, minWidth: 0 }}>
+      <Icon size={13} style={{ color: '#7A4300', flex: 'none' }} aria-hidden />
+      <Typography.Text ellipsis={{ tooltip: `${IDLE_PLACE_KIND[place.kind]} · ${place.name}` }} style={{ fontSize: 12, color: 'var(--text-heading)' }}>
+        <span style={{ color: 'var(--text-muted)' }}>{IDLE_PLACE_KIND[place.kind]} · </span>{place.name}
+      </Typography.Text>
+    </Flex>
+  );
+};
+
+// Why it was idle, as the tracker reports it: the reason, then ignition and speed.
+export const IdleReason = ({ reason, compact = false }) => (
+  <Flex align="center" gap={6} wrap style={{ marginTop: compact ? 0 : 4, paddingLeft: compact ? 0 : 16 }}>
+    <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '18px', fontWeight: 600 }}>{reason.label}</Tag>
+    <Flex align="center" gap={4}>
+      <Power size={11} style={{ color: reason.ignition ? 'var(--kr-green-700)' : 'var(--text-muted)' }} aria-hidden />
+      <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+        Ignition {reason.ignition ? 'on' : 'off'} · 0 km/h
+      </Typography.Text>
+    </Flex>
+  </Flex>
+);
+
+// "Idle now" panel for a Fleet card: where the vehicle is standing, for how long,
+// why, and the GPS fix that places it there.
+export const IdleNowPanel = ({ span }) => {
+  const { place, reason } = span;
+  const Icon = PLACE_ICON[place.kind] || MapPin;
+  const alert = reason.tone === 'error';
+  const tone = alert
+    ? { edge: 'var(--kr-red-600)', bg: 'var(--kr-red-50)', fg: 'var(--kr-red-700)' }
+    : { edge: 'var(--kr-saffron-500)', bg: '#fff8ec', fg: '#7A4300' };
+  return (
+    <div
+      role="status"
+      style={{ borderRadius: 10, border: `1px solid ${tone.edge}`, borderLeft: `4px solid ${tone.edge}`, background: tone.bg, padding: '10px 12px' }}
+    >
+      {/* Headline: IDLE NOW and how long */}
+      <Flex justify="space-between" align="center" gap={8}>
+        <Flex align="center" gap={6}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone.edge, animation: 'tmsPulse 1.6s ease-in-out infinite' }} aria-hidden />
+          <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tone.fg }}>Idle now</Typography.Text>
+        </Flex>
+        <Typography.Text strong style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: tone.fg, whiteSpace: 'nowrap' }}>
+          {fmtDuration(span.minutes)}
+        </Typography.Text>
+      </Flex>
+
+      {/* Where */}
+      <Flex align="flex-start" gap={8} style={{ marginTop: 8 }}>
+        <span style={{ width: 28, height: 28, borderRadius: 8, background: '#fff', border: `1px solid ${tone.edge}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>
+          <Icon size={15} style={{ color: tone.fg }} aria-hidden />
+        </span>
+        <div style={{ minWidth: 0 }}>
+          <Typography.Text strong ellipsis={{ tooltip: place.name }} style={{ display: 'block', fontSize: 13.5, color: 'var(--text-heading)' }}>
+            {place.name}
+          </Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {IDLE_PLACE_KIND[place.kind]} · since {dayjs(span.start).format('HH:mm')}
+            {place.limitMin ? ` · limit ${place.limitMin} min` : ''}
+          </Typography.Text>
+        </div>
+      </Flex>
+
+      {/* Why, and the tracker's reading */}
+      <Flex align="center" gap={8} wrap style={{ marginTop: 8 }}>
+        <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontWeight: 700 }}>{reason.label}</Tag>
+        <Flex align="center" gap={4}>
+          <Power size={12} style={{ color: reason.ignition ? 'var(--good-700)' : 'var(--text-muted)' }} aria-hidden />
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>Ignition {reason.ignition ? 'on' : 'off'} · 0 km/h</Typography.Text>
+        </Flex>
+      </Flex>
+      {place.note && (
+        <Typography.Text style={{ display: 'block', fontSize: 12, marginTop: 6, color: 'var(--text-body)' }}>{place.note}</Typography.Text>
+      )}
+
+      {/* The GPS fix that confirms the place */}
+      {place.lat && (
+        <Flex align="center" gap={6} style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(0,0,0,0.12)' }}>
+          <MapPin size={12} style={{ color: 'var(--color-brand)' }} aria-hidden />
+          <Typography.Text style={{ fontSize: 11.5, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+            {place.lat}, {place.lng}
+          </Typography.Text>
+          <Tag color="processing" style={{ marginInlineEnd: 0, marginLeft: 'auto', fontSize: 10.5, lineHeight: '16px' }}>GPS confirmed</Tag>
+        </Flex>
+      )}
+    </div>
+  );
+};
+
 export const ActivityBar = ({ segments, height = 10, multiDay = false }) => {
   const total = segments.reduce((a, s) => a + (s.end - s.start), 0) || 1;
   return (
@@ -69,7 +164,7 @@ const Stat = ({ label, value, color }) => (
   </Card>
 );
 
-export const VehicleActivityModal = ({ vehicle: v, initialFrom, initialTo, onClose }) => {
+export const VehicleActivityModal = ({ vehicle: v, tms, initialFrom, initialTo, onClose }) => {
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
 
@@ -78,8 +173,12 @@ export const VehicleActivityModal = ({ vehicle: v, initialFrom, initialTo, onClo
   const multiDay = !sameDay(from.valueOf(), Math.min(to.valueOf(), Date.now()));
 
   const { segments, summary } = useMemo(
-    () => (valid ? vehicleActivity(v, from.valueOf(), to.valueOf()) : { segments: [], summary: null }),
-    [v, from, to, valid],
+    () => {
+      if (!valid) return { segments: [], summary: null };
+      const act = vehicleActivity(v, from.valueOf(), to.valueOf());
+      return { ...act, segments: tms ? withIdlePlaces(act.segments, v, tms) : act.segments };
+    },
+    [v, tms, from, to, valid],
   );
 
   const preset = (a, b) => { setFrom(a); setTo(b); };
@@ -105,6 +204,18 @@ export const VehicleActivityModal = ({ vehicle: v, initialFrom, initialTo, onClo
       ),
     },
     { title: 'Duration', key: 'dur', render: (_, s) => fmtDuration(s.minutes) },
+    {
+      title: 'Why idle',
+      key: 'reason',
+      width: 230,
+      render: (_, s) => (s.reason ? <IdleReason reason={s.reason} compact /> : <Typography.Text type="secondary">—</Typography.Text>),
+    },
+    {
+      title: 'Location',
+      key: 'place',
+      width: 260,
+      render: (_, s) => (s.place ? <IdlePlace place={s.place} compact /> : <Typography.Text type="secondary">{s.state === ACTIVITY.RUNNING ? 'On the road' : '—'}</Typography.Text>),
+    },
     {
       title: 'Distance',
       key: 'km',
@@ -170,7 +281,7 @@ export const VehicleActivityModal = ({ vehicle: v, initialFrom, initialTo, onClo
         {valid && summary && (
           <>
             <Row gutter={[8, 8]}>
-              <Col xs={12} sm={8} md={4}><Stat label="Running" value={fmtDuration(summary.running)} color="var(--kr-green-700)" /></Col>
+              <Col xs={12} sm={8} md={4}><Stat label="Running" value={fmtDuration(summary.running)} color="var(--good-700)" /></Col>
               <Col xs={12} sm={8} md={4}><Stat label="Idle" value={fmtDuration(summary.idle)} color="#7A4300" /></Col>
               <Col xs={12} sm={8} md={4}><Stat label="No GPS" value={fmtDuration(summary.noGps)} /></Col>
               <Col xs={12} sm={8} md={4}><Stat label="Idle stops" value={summary.idleStops} /></Col>
@@ -198,7 +309,7 @@ export const VehicleActivityModal = ({ vehicle: v, initialFrom, initialTo, onClo
               dataSource={segments.map((s, i) => ({ ...s, _key: i }))}
               rowKey="_key"
               pagination={segments.length > 12 ? { pageSize: 12, showSizeChanger: false, size: 'small' } : false}
-              scroll={{ x: 520 }}
+              scroll={{ x: 990 }}
             />
 
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>

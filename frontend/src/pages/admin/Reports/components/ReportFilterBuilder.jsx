@@ -43,7 +43,7 @@ export const ReportFilterBuilder = ({
           <Typography.Text className="reports-col-kicker">Step 2 · Refine Your Report</Typography.Text>
           <Typography.Title level={5} className="reports-col-title">
             <Flex align="center" gap={8}>
-              <Filter size={18} color="var(--color-brand, #00623f)" />
+              <Filter size={18} color="var(--color-brand, #0d6efd)" />
               Choose the details you want
             </Flex>
           </Typography.Title>

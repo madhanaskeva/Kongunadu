@@ -1,12 +1,19 @@
 :root {
-  /* Brand Colours */
-  --kr-green-900: #003021;
-  --kr-green-800: #004a31;
-  --kr-green-700: #00623f;
-  --kr-green-600: #0b7e52;
-  --kr-green-500: #169a66;
-  --kr-green-100: #daf1e7;
-  --kr-green-50: #edf8f3;
+  /* Brand Colours — blue theme. The --kr-green-* names are kept so every existing
+     reference picks up the blue: 700 primary, 600 secondary, 500 accent, 50 background. */
+  --kr-green-900: #06367e;
+  --kr-green-800: #0a4fb8;
+  --kr-green-700: #0d6efd;
+  --kr-green-600: #3b82f6;
+  --kr-green-500: #60a5fa;
+  --kr-green-100: #dbe7fe;
+  --kr-green-50: #f1f5ff;
+
+  /* Status green: "good / running / OK" keeps its meaning under the blue brand. */
+  --good-800: #166534;
+  --good-700: #15803d;
+  --good-600: #16a34a;
+  --good-100: #dcfce7;
 
   --kr-red-800: #8f0d10;
   --kr-red-700: #b31114;
@@ -47,7 +54,7 @@
   --color-hazard-soft: var(--kr-saffron-100);
 
   --surface-page: var(--kr-white);
-  --surface-muted: var(--kr-grey-50);
+  --surface-muted: #f4f7fd;          /* light blue-grey page background */
   --surface-card: var(--kr-white);
   --surface-inverse: var(--kr-steel-900);
   --surface-inverse-raised: var(--kr-steel-800);
@@ -64,14 +71,14 @@
   --border-strong: var(--kr-grey-300);
   --border-brand: var(--kr-green-700);
 
-  --status-success: var(--kr-green-600);
+  --status-success: var(--good-600);
   --status-danger: var(--kr-red-600);
   --status-warning: var(--kr-saffron-500);
   --status-info: #1f5f8b;
 
   --link: var(--kr-green-700);
   --link-hover: var(--kr-green-900);
-  --focus-ring: 0 0 0 3px rgba(0, 98, 63, 0.35);
+  --focus-ring: 0 0 0 3px rgba(13, 110, 253, 0.35);
 
   /* Status badge specific colors */
   /* --st-enroute-bg: #e2eef7;

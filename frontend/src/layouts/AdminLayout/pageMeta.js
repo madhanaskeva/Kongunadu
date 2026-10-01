@@ -10,7 +10,6 @@ const PAGE_META = [
   ['/admin/masters/drivers', 'Masters', 'Driver Master'],
   ['/admin/masters/clients/', 'Client Master', 'Client profile', 'Client details and the customers it delivers to'],
   ['/admin/masters/clients', 'Masters', 'Client Master'],
-  ['/admin/masters/locations', 'Masters', 'Loading Location Master'],
   ['/admin/masters/routes', 'Masters', 'Route Master'],
   ['/admin/analytics', 'Insight', 'Analytics'],
   ['/admin/reports', 'Insight', 'Reports & export'],

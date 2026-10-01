@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, Check, Clock, Eye, Fuel, Hash, MapPin, Pencil, Plus, Search, Trash2, User, UserCheck, X } from 'lucide-react';
+import { BadgeCheck, Check, Clock, Eye, EyeOff, Fuel, Hash, MapPin, Pencil, Plus, Search, Trash2, User, UserCheck, X } from 'lucide-react';
 import { Alert, Button, Card, Empty, Flex, Input, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
@@ -146,6 +146,8 @@ export const MasterManager = ({ type }) => {
   } = useTMSAdmin();
 
   const [masterQ, setMasterQ] = useState('');
+  // Rows whose password is revealed in the table (Supervisor Master).
+  const [shownPw, setShownPw] = useState({});
   const debouncedMasterQ = useDebounce(masterQ, 300);
   const [activeBunksPopover, setActiveBunksPopover] = useState(null);
   // Loading Location Master: pick the client first — locations belong to one client,
@@ -248,6 +250,9 @@ export const MasterManager = ({ type }) => {
       : 'default',
   });
 
+  // A sign-in password: masked in the table, revealed per row with the eye button.
+  const pwCell = (r) => ({ v: r.password || '', password: true, id: r.id, name: r.name });
+
   const txtCell = (v, strong = false) => ({
     v: v == null ? '—' : String(v),
     text: true,
@@ -332,16 +337,17 @@ export const MasterManager = ({ type }) => {
           clientIds: supsClients.map(c => c.id),
         };
       }),
-      cols: ['Name', 'Phone', 'Branch', 'Clients handled', 'Last login', 'Status'],
+      cols: ['Name', 'Phone', 'Password', 'Branch', 'Clients handled', 'Last login', 'Status'],
       cells: s => [
         txtCell(s.name, true),
         txtCell(s.phone),
+        pwCell(s),
         txtCell(bn(s.branch)),
         txtCell(s.clients),
         txtCell(s.lastLogin),
         statusBadge(s.status),
       ],
-      required: ['name', 'phone', 'email', 'branch', 'clients', 'status'],
+      required: ['name', 'phone', 'email', 'password', 'branch', 'clients', 'status'],
       validate: (f, isNew, self) => {
         const errs = {};
         const dg = x => String(x || '').replace(/\D/g, '');
@@ -352,6 +358,8 @@ export const MasterManager = ({ type }) => {
         if (!f.name || !String(f.name).trim()) errs.name = 'Enter the full name.';
         if (!f.phone || dg(f.phone).length !== 10) errs.phone = 'Enter a 10-digit mobile number.';
         if (!f.email || !String(f.email).trim()) errs.email = 'Enter the sign-in email.';
+        // Same rule as portal users on the Users & Roles page.
+        if (String(f.password || '').length < 8) errs.password = 'Use at least 8 characters.';
 
         if (!f.branch) {
           errs.branch = 'Select a branch.';
@@ -370,6 +378,7 @@ export const MasterManager = ({ type }) => {
         ['name', 'Full name'],
         ['phone', 'Mobile number', null, '90031 55012', { clean: 'phone', prefix: '+91' }],
         ['email', 'Sign-in email', null, 'name@transport.example'],
+        ['password', 'Password', null, 'At least 8 characters', { type: 'password', hint: 'The supervisor signs in to the Supervisor App with this mobile number and password.' }],
         ['branch', 'Branch', branchOpts],
         ['clients', 'Clients handled', 'checkbox-select', 'Select clients handled', { options: clientOpts }],
         ['status', 'Status', ['Active', 'Suspended']],
@@ -575,13 +584,16 @@ export const MasterManager = ({ type }) => {
         };
       }),
       rowLink: c => `/admin/masters/clients/${c.id}`,
-      cols: ['Client', 'GSTIN', 'Branch', 'Loading Locations', 'Phone', 'Supervisors', 'Customers', 'Status'],
+      cols: ['Client', 'GSTIN', 'Branch', 'Loading Locations', 'Phone', 'Latitude', 'Longitude', 'Supervisors', 'Customers', 'Status'],
       cells: c => [
         { ...txtCell(c.name, true), brand: true },
         txtCell(c.gst),
         txtCell(bn(c.branch)),
         txtCell(c.loadingLocation || '—', true),
         txtCell(c.phone ? (String(c.phone).startsWith('+91') ? c.phone : `+91 ${c.phone}`) : '—'),
+        // Client site coordinates; older clients saved before these fields show —.
+        txtCell(c.lat != null && c.lat !== '' ? String(c.lat) : '—'),
+        txtCell(c.lng != null && c.lng !== '' ? String(c.lng) : '—'),
         txtCell(c.supervisorsFormatted || '—'),
         txtCell(c.customers),
         statusBadge(c.status),
@@ -1109,6 +1121,24 @@ export const MasterManager = ({ type }) => {
           );
         }
         if (cell.badge) return <Tag color={cell.tag}>{cell.v}</Tag>;
+        if (cell.password) {
+          if (!cell.v) return <Typography.Text type="secondary">Not set</Typography.Text>;
+          const shown = !!shownPw[cell.id];
+          return (
+            <Space size={8} onClick={e => e.stopPropagation()}>
+              <span style={{ fontFamily: shown ? 'var(--font-mono)' : 'inherit', letterSpacing: shown ? 0 : '0.15em', color: 'var(--text-heading)' }}>
+                {shown ? cell.v : '••••••••'}
+              </span>
+              <Button
+                type="text"
+                size="small"
+                onClick={() => setShownPw(p => ({ ...p, [cell.id]: !shown }))}
+                aria-label={shown ? `Hide password for ${cell.name}` : `Show password for ${cell.name}`}
+                icon={shown ? <EyeOff size={16} /> : <Eye size={16} />}
+              />
+            </Space>
+          );
+        }
         if (cell.brand) return <Typography.Text strong style={{ color: 'var(--text-brand)' }}>{cell.v}</Typography.Text>;
         return cell.strong ? <Typography.Text strong>{cell.v}</Typography.Text> : cell.v;
       },

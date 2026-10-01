@@ -46,15 +46,6 @@ export const ClientMaster = () => (
   />
 );
 
-export const LocationMaster = () => (
-  <MasterManager
-    type="locations"
-    title="Loading Location Master"
-    singular="Location"
-    subtitle="Loading plants, cold storage warehouses, and geofenced hub coordinates."
-  />
-);
-
 export const RouteMaster = () => (
   <MasterManager
     type="routes"

@@ -30,7 +30,6 @@ export const MODULE_GROUPS = [
       ['vehicles', 'Vehicles', ['view', 'add', 'edit', 'delete'], '/admin/masters/vehicles'],
       ['drivers', 'Drivers', ['view', 'add', 'edit', 'delete'], '/admin/masters/drivers'],
       ['clients', 'Clients & customers', ['view', 'add', 'edit', 'delete'], '/admin/masters/clients'],
-      ['locations', 'Loading Locations', ['view', 'add', 'edit', 'delete'], '/admin/masters/locations'],
       ['routes', 'Routes', ['view', 'add', 'edit', 'delete'], '/admin/masters/routes'],
     ],
   },

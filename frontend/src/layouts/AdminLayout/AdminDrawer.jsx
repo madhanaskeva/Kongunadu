@@ -668,8 +668,8 @@ export const AdminDrawer = () => {
                     const helpText = isLoc
                       ? (extra.hint || (
                         <>
-                          Type a location and click <strong>+ Add</strong> (or press Enter). Each one is saved to the
-                          Loading Location Master under this client, where you can set its address, safe radius and GPS.
+                          Type a location and click <strong>+ Add</strong> (or press Enter). Each one is saved as a
+                          loading location for this client.
                         </>
                       ))
                       : <>Type a bunk name above and click <strong>+ Add</strong> (or press Enter) to authorize it for this route.</>;

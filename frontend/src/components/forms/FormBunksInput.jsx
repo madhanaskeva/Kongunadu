@@ -149,7 +149,7 @@ export const FormBunksInput = ({
                 padding: '6px 12px',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--color-brand-tint)',
-                border: '1px solid rgba(0, 98, 63, 0.25)',
+                border: '1px solid rgba(13, 110, 253, 0.25)',
                 color: 'var(--kr-green-900)',
                 fontSize: '13px',
                 fontWeight: 600,

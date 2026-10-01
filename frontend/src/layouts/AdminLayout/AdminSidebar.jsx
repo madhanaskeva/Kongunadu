@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Badge, Menu } from 'antd';
 import {
-  Building2, CalendarCheck, ChartColumn, ChevronRight, Contact, FileText, House, MapPin, MapPinned,
+  Building2, CalendarCheck, ChartColumn, ChevronRight, Contact, FileText, House, MapPin,
   Bell, Route, Settings, ShieldCheck, Truck, User, Users, UsersRound,
 } from 'lucide-react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
@@ -46,7 +46,6 @@ export const AdminSidebar = ({ onClose }) => {
         { label: 'Vehicles', path: '/admin/masters/vehicles', icon: Truck },
         { label: 'Drivers', path: '/admin/masters/drivers', icon: User, count: pendingDrivers || null, countBg: 'var(--kr-saffron-600)' },
         { label: 'Clients', path: '/admin/masters/clients', icon: Contact },
-        { label: 'Loading Locations', path: '/admin/masters/locations', icon: MapPinned },
         { label: 'Routes', path: '/admin/masters/routes', icon: Route },
       ],
     },

@@ -86,8 +86,10 @@ export const getGpsPings = (v, fromMs, toMs, now = Date.now()) => {
   const lastFixAgo = v.gps === 'Failed' ? minutesAgo(v.lastSeen) : null;
   const lastFix = lastFixAgo != null ? now - lastFixAgo * MIN : null;
   // The live card says how long an idle vehicle has been standing; honour it.
-  const idleSince = v.status === 'Idle' && v.idleHours ? now - v.idleHours * HOUR : null;
-  const runningSince = v.status === 'Running' ? now - 25 * MIN : null;
+  // A GPS idle report (v.gpsIdle) means the tracker has seen it stationary for that long.
+  const idleSince = v.gpsIdle ? now - v.gpsIdle.minutes * MIN
+    : v.status === 'Idle' && v.idleHours ? now - v.idleHours * HOUR : null;
+  const runningSince = !v.gpsIdle && v.status === 'Running' ? now - 25 * MIN : null;
   if (v.gps === 'Pending') return [];
 
   const pings = [];
@@ -184,3 +186,113 @@ export const fmtDuration = (mins) => {
   if (!h) return `${m} min`;
   return m ? `${h} h ${m} min` : `${h} h`;
 };
+
+/* ------------------------------------------------------------------ */
+/* 3. Where each idle span happened                                    */
+/* ------------------------------------------------------------------ */
+
+// Until the live feed sends positions, an idle span is placed at a real place
+// from the masters, picked by how long and when the vehicle stood:
+//   still standing now / overnight → its yard (the parked place on its card)
+//   in maintenance                 → its service bay
+//   under 15 min                   → a short stop on the road
+//   15–45 min                      → a fuel bunk of its branch
+//   45 min – 3 h                   → a loading point of one of its clients
+//   longer                         → its yard
+// With the live feed, replace this with the place nearest the idle GPS fix.
+export const IDLE_PLACE_KIND = {
+  yard: 'Yard',
+  service: 'Service bay',
+  bunk: 'Fuel bunk',
+  loading: 'Loading point',
+  stop: 'Short stop',
+};
+
+const homeOf = (v, tms) => {
+  const text = String(v.route || '');
+  const parked = /^(Parked at|Service bay,)\s*/i.test(text) ? text.replace(/^Parked at\s*/i, '') : '';
+  if (parked) return parked;
+  const loc = (tms.locations || []).find(l => l.branch === v.branch && (v.clients || []).includes(l.clientId || l.client));
+  return loc ? loc.name : `${((tms.B || {})[v.branch] || {}).name || 'Branch'} yard`;
+};
+
+// The GPS fix for a place: loading points and bunks carry their own; a yard or
+// service bay uses the loading point of the same name, else one of its branch.
+const fixOf = (name, tms, branch) => {
+  const all = [...(tms.locations || []), ...(tms.bunks || [])];
+  const hit = all.find(x => x.lat && name && (x.name === name || String(name).toLowerCase().includes(String(x.name).split(' ')[0].toLowerCase())))
+    || (tms.locations || []).find(l => l.lat && l.branch === branch);
+  return hit ? { lat: hit.lat, lng: hit.lng } : {};
+};
+
+const placeOf = (v, seg, tms, now) => {
+  const home = homeOf(v, tms);
+  const standingNow = now - seg.end < PING_MIN * MIN * 2;
+  // A tracker report for the stop it is in right now names the place exactly.
+  if (standingNow && v.gpsIdle) {
+    const r = v.gpsIdle;
+    const ref = [...(tms.bunks || []), ...(tms.locations || [])].find(x => x.id === r.place);
+    return { kind: r.kind, name: ref ? ref.name : r.place, lat: r.lat, lng: r.lng, limitMin: r.limitMin, note: r.note, reported: true };
+  }
+  if (v.status === 'Maintenance') return { kind: 'service', name: /^Service bay/i.test(v.route || '') ? v.route : home };
+  const h = new Date(seg.start).getHours();
+  const overnight = h >= 21 || h < 5;
+  if ((standingNow && v.status === 'Idle') || overnight || seg.minutes > 180) return { kind: 'yard', name: home };
+  if (seg.minutes < 15) return { kind: 'stop', name: 'Short stop on the road' };
+  const pick = (list) => list[hash(`${v.id}|${seg.start}`) % list.length];
+  const bunks = (tms.bunks || []).filter(b => b.branch === v.branch && b.status !== 'Inactive');
+  const loads = (tms.locations || []).filter(l => (v.clients || []).includes(l.clientId || l.client) && l.status !== 'Inactive');
+  if (seg.minutes <= 45 && bunks.length) return { kind: 'bunk', name: pick(bunks).name };
+  if (loads.length) return { kind: 'loading', name: pick(loads).name };
+  if (bunks.length) return { kind: 'bunk', name: pick(bunks).name };
+  return { kind: 'yard', name: home };
+};
+
+export const idlePlaceFor = (v, seg, tms, now = Date.now()) => {
+  const p = placeOf(v, seg, tms, now);
+  return p.lat ? p : { ...p, ...fixOf(p.name, tms, v.branch) };
+};
+
+// Why the vehicle stood still, as the tracker would report it: the reason and
+// whether the ignition was on. Follows the place and the vehicle's own record
+// (no driver → "Waiting for driver", the Idle · no driver tile; no trip → no business).
+export const IDLE_REASON = {
+  night: { label: 'Night halt', tone: 'default' },
+  noDriver: { label: 'Waiting for driver', tone: 'error' },
+  noBusiness: { label: 'No trip assigned', tone: 'warning' },
+  refuel: { label: 'Refuelling', tone: 'processing' },
+  fuelHalt: { label: 'Fuel halt over limit', tone: 'error' },
+  loading: { label: 'Loading / unloading', tone: 'processing' },
+  maintenance: { label: 'Under maintenance', tone: 'default' },
+  traffic: { label: 'Traffic / signal stop', tone: 'default' },
+  rest: { label: 'Driver rest break', tone: 'default' },
+};
+
+export const idleReasonFor = (v, seg, place, now = Date.now()) => {
+  const h = new Date(seg.start).getHours();
+  const overnight = h >= 21 || h < 5;
+  const standingNow = now - seg.end < PING_MIN * MIN * 2;
+  switch (place.kind) {
+    case 'service': return { key: 'maintenance', ignition: false };
+    // Standing at a bunk longer than the allowed fuel halt is flagged.
+    case 'bunk': return { key: place.limitMin && seg.minutes > place.limitMin ? 'fuelHalt' : 'refuel', ignition: false };
+    case 'loading': return { key: 'loading', ignition: false };
+    // Engine left running in traffic: the tracker sees ignition on at 0 km/h.
+    case 'stop': return { key: 'traffic', ignition: true };
+    default:
+      if (overnight && !standingNow) return { key: 'night', ignition: false };
+      if (!v.driver) return { key: 'noDriver', ignition: false };
+      if (standingNow || seg.minutes > 180) return { key: 'noBusiness', ignition: false };
+      return { key: 'rest', ignition: false };
+  }
+};
+
+// The same segments, each Idle one carrying `place: { kind, name }`.
+// Each idle one also carries `reason: { key, label, tone, ignition }`.
+export const withIdlePlaces = (segments, v, tms, now = Date.now()) =>
+  segments.map(s => {
+    if (s.state !== ACTIVITY.IDLE) return s;
+    const place = idlePlaceFor(v, s, tms, now);
+    const r = idleReasonFor(v, s, place, now);
+    return { ...s, place, reason: { ...r, ...IDLE_REASON[r.key] } };
+  });

@@ -19,8 +19,16 @@ export const SupervisorLogin = ({ v }) => (
         </>
       ) : null}
       <Form layout="vertical" requiredMark={false} component="div">
-        <Form.Item label="Mobile number">
-          <Input size="large" value={v.loginPhone ?? ''} onChange={v.setLoginPhone} prefix="+91" inputMode="numeric" autoComplete="tel" />
+        {/* Sign in with either the mobile number or the email set in the Supervisor Master. */}
+        <Form.Item label="Mobile number / Email">
+          <Input
+            size="large"
+            value={v.loginPhone ?? ''}
+            onChange={v.setLoginPhone}
+            prefix={/[a-z@]/i.test(v.loginPhone || '') ? undefined : '+91'}
+            placeholder="98410 22314 or name@transport.example"
+            autoComplete="username"
+          />
         </Form.Item>
         <Form.Item label="Password" style={{ marginBottom: 0 }}>
           <Input.Password size="large" value={v.loginPassword ?? ''} onChange={v.setLoginPassword} autoComplete="current-password" />
@@ -40,7 +48,6 @@ export const SupervisorLogin = ({ v }) => (
           </>
         ) : null}
         <Button type="text" size="large" block onClick={v.loginFail}>Forgot password</Button>
-        <Button type="text" size="large" block onClick={v.restartApproval}>New device? Request approval</Button>
       </Flex>
       <Typography.Text type="secondary" style={{ marginTop: 'auto', paddingTop: 24, fontSize: 13 }}>
         Session expires after 12 hours of inactivity. OTP login is planned for a later phase.

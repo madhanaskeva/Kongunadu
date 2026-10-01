@@ -90,7 +90,12 @@ export const getNotifications = () => {
   return SEED_MANUAL;
 };
 
-export const saveNotifications = list => writeJson(MANUAL_KEY, list);
+export const MANUAL_CHANGED_EVENT = 'kr-tms-manual-notifications-changed';
+// Saves and tells any open Notifications page (e.g. a notice sent from the header) to reload.
+export const saveNotifications = list => {
+  writeJson(MANUAL_KEY, list);
+  try { window.dispatchEvent(new Event(MANUAL_CHANGED_EVENT)); } catch (e) {}
+};
 
 export const getNotificationById = id => getNotifications().find(n => n.id === id) || null;
 

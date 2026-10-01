@@ -35,13 +35,13 @@ export const CHART_LABELS = {
 };
 
 export const CHART_PALETTE = [
-  '#00623F', // Brand green
+  '#0d6efd', // Brand green
   '#F29A1F', // Saffron / Orange
   '#D91619', // Red / Crimson
   '#2F7DB5', // Blue / Info
   '#7A4300', // Amber / Brown
   '#5B52D4', // Indigo / Purple
-  '#0B7E52', // Emerald
+  '#3b82f6', // Emerald
   '#0B6B5C', // Teal
   '#9A3412', // Rust
   '#4A4A46', // Steel Slate

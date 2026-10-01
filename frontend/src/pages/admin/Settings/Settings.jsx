@@ -373,7 +373,7 @@ export const Settings = () => {
               <Form.Item label="Distance variance flag (%)" extra="Fixed vs GPS vs odometer. Trips above this are flagged.">
                 <Input type="number" value={st.variance || '5'} onChange={(e) => setSt({ ...st, variance: e.target.value })} />
               </Form.Item>
-              <Form.Item label="Default safe radius (m)" extra="Loading and unloading locations. Per-location override in Loading Locations.">
+              <Form.Item label="Default safe radius (m)" extra="Applies to all loading and unloading locations.">
                 <Input type="number" value={st.radius || '100'} onChange={(e) => setSt({ ...st, radius: e.target.value })} />
               </Form.Item>
               <Form.Item label="Long open trip alert (h)" extra="Hours beyond route duration before an alert is raised.">

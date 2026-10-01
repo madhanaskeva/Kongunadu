@@ -5,7 +5,7 @@
 export const PERFORMANCE_THRESHOLDS = { above: 100, near: 90 };
 
 export const PERFORMANCE_STATUS = {
-  ABOVE: { key: 'above', label: 'Above Target', tag: 'success', color: 'var(--kr-green-700)' },
+  ABOVE: { key: 'above', label: 'Above Target', tag: 'success', color: 'var(--good-700)' },
   NEAR: { key: 'near', label: 'Near Target', tag: 'warning', color: '#7A4300' },
   BELOW: { key: 'below', label: 'Below Target', tag: 'error', color: 'var(--kr-red-700)' },
 };
