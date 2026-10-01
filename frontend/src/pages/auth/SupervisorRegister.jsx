@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Flex, Form, Input, Progress, Typography } from 'antd';
+import { Button, Flex, Form, Input, Typography } from 'antd';
 import logoImg from '@/assets/images/logo-1600.png';
 
 export const SupervisorRegister = ({ v }) => (
@@ -9,21 +9,7 @@ export const SupervisorRegister = ({ v }) => (
       <Typography.Title level={4} style={{ margin: '10px 0 0' }}>
         Kongunadu Road Lines
       </Typography.Title>
-      <Flex align="center" justify="space-between" gap={12} style={{ marginTop: 28 }}>
-        <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-brand)' }}>
-          Step 3 of 3 · Register
-        </Typography.Text>
-        <Progress
-          aria-hidden="true"
-          steps={(v.obSteps || []).length}
-          percent={(v.obSteps || []).length ? ((v.obSteps || []).filter(st => st.bg === 'var(--color-brand)').length / (v.obSteps || []).length) * 100 : 0}
-          showInfo={false}
-          size={[22, 4]}
-          strokeColor="var(--color-brand)"
-          railColor="var(--kr-grey-200)"
-        />
-      </Flex>
-      <Typography.Title level={2} style={{ margin: '6px 0 0', lineHeight: 1.1 }}>
+      <Typography.Title level={2} style={{ margin: '28px 0 0', lineHeight: 1.1 }}>
         Register
       </Typography.Title>
       <Typography.Paragraph type="secondary" style={{ margin: '8px 0 24px', fontSize: 15 }}>Create your supervisor account. You sign in with this mobile number and password.</Typography.Paragraph>

@@ -241,7 +241,11 @@ const supervisorNotices=[
 // halt there, `lat`/`lng` the confirmed fix. Add rows here (or replace the list
 // with the live feed) and the Fleet cards pick them up.
 const gpsIdleReports=[
- {vehicle:'V01',kind:'bunk',place:'F01',minutes:85,limitMin:20,lat:'12.9571',lng:'79.9718',ignition:false,note:'Driver Murugan S. reported a queue at the diesel dispenser.'}
+ {vehicle:'V01',kind:'bunk',place:'F01',minutes:85,limitMin:20,lat:'12.9571',lng:'79.9718',ignition:false,note:'Driver Murugan S. reported a queue at the diesel dispenser.'},
+ {vehicle:'V02',kind:'bunk',place:'F02',minutes:15,limitMin:20,lat:'13.1012',lng:'80.1625',ignition:false,note:'Refuelling before the evening Sriperumbudur run.'},
+ {vehicle:'V08',kind:'bunk',place:'F03',minutes:40,limitMin:20,lat:'13.0446',lng:'80.1031',ignition:false,note:'Bunk card declined; driver Saravanan K. waiting for cash approval.'},
+ {vehicle:'V03',kind:'bunk',place:'F04',minutes:10,limitMin:20,lat:'11.2251',lng:'78.1525',ignition:false,note:'Top-up on the Namakkal → Bengaluru leg.'},
+ {vehicle:'V10',kind:'bunk',place:'F06',minutes:55,limitMin:20,lat:'10.3780',lng:'77.9512',ignition:false,note:'Halted at the bunk beyond the fuel limit; no diesel slip uploaded yet.'}
 ];
 // Monthly kilometre targets and actuals per vehicle, for Analytics › Vehicle.
 // Compact source rows: `start` is the first month ('YYYY-MM'); `target` is one

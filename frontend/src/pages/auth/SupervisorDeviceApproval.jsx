@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Button, Card, Descriptions, Flex, Form, Input, Progress, Spin, Typography } from 'antd';
+import { Alert, Button, Card, Descriptions, Flex, Form, Input, Spin, Typography } from 'antd';
 import logoImg from '@/assets/images/logo-1600.png';
 
 // DEV-ONLY: double-click / double-tap the logo to jump straight to Sign In.
@@ -11,21 +11,7 @@ export const SupervisorDeviceApproval = ({ v }) => (
       <Typography.Title level={4} style={{ margin: '10px 0 0' }}>
         Kongunadu Road Lines
       </Typography.Title>
-      <Flex align="center" justify="space-between" gap={12} style={{ marginTop: 28 }}>
-        <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-brand)' }}>
-          Step 1 of 3 · Approval
-        </Typography.Text>
-        <Progress
-          aria-hidden="true"
-          steps={(v.obSteps || []).length}
-          percent={(v.obSteps || []).length ? ((v.obSteps || []).filter(st => st.bg === 'var(--color-brand)').length / (v.obSteps || []).length) * 100 : 0}
-          showInfo={false}
-          size={[22, 4]}
-          strokeColor="var(--color-brand)"
-          railColor="var(--kr-grey-200)"
-        />
-      </Flex>
-      <Typography.Title level={2} style={{ margin: '6px 0 0', lineHeight: 1.1 }}>
+      <Typography.Title level={2} style={{ margin: '28px 0 0', lineHeight: 1.1 }}>
         Request approval
       </Typography.Title>
       <Typography.Paragraph type="secondary" style={{ margin: '8px 0 24px', fontSize: 15 }}>Enter your name and mobile number. Head Office approves this phone, assigns your branch and shares a 4-digit OTP with you.</Typography.Paragraph>

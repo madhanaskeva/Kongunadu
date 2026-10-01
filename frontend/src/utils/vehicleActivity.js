@@ -97,13 +97,16 @@ export const getGpsPings = (v, fromMs, toMs, now = Date.now()) => {
   let km = 0;
   for (let t = Math.ceil(fromMs / step) * step; t <= end; t += step) {
     if (lastFix != null && t > lastFix) break;
-    if (v.gps === 'Weak' && weakDrop(v, t)) continue;
+    // A weak tracker drops out now and then, but not during a stop it has reported.
+    if (v.gps === 'Weak' && weakDrop(v, t) && !(v.gpsIdle && idleSince != null && t >= idleSince - 20 * MIN)) continue;
     const ds = startOfDay(t);
     if (!cache.has(ds)) cache.set(ds, dayBlocks(v, ds));
     const b = cache.get(ds).find(x => t >= x.start && t < x.end) || { moving: false, speed: 0 };
     let moving = b.moving;
     if (idleSince != null && t >= idleSince) moving = false;
     else if (runningSince != null && t >= runningSince) moving = true;
+    // A reported stop begins on arrival: the vehicle was driving in just before it.
+    else if (v.gpsIdle && idleSince != null && t >= idleSince - 20 * MIN) moving = true;
     const speed = moving ? Math.round(b.speed + ((t / step) % 7) - 3) : ((t / step) % 5 === 0 ? 2 : 0);
     // Stationary jitter (a couple of km/h while parked) is not distance travelled.
     if (speed > IDLE_SPEED_KMH) km += (speed * PING_MIN) / 60;

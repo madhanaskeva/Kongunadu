@@ -1220,3 +1220,114 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
   font-weight: 700;
   line-height: 1;
 }
+
+/* ==========================================================================
+   Fleet & GPS — vehicle cards
+   Vehicle header · info rows · alerts · the day from GPS · actions.
+   --fl-tone* is the vehicle's status colour (set per card).
+   ========================================================================== */
+.tms-shell .ant-card.fl-card {
+  border-radius: 14px;
+  border: 1px solid var(--border-default);
+  border-top: 3px solid var(--fl-tone);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.tms-shell .ant-card.fl-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -12px rgba(3, 68, 139, 0.28);
+}
+
+.fl-card-icon {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--fl-tone-bg);
+  color: var(--fl-tone-fg);
+}
+
+.fl-card-plate.ant-typography {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--text-heading);
+  white-space: nowrap;
+}
+
+.fl-card-status.ant-tag {
+  margin-inline-end: 0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fl-card-gps {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fl-card-gps-dot,
+.fl-card-stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.fl-card-info {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.fl-card-info-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.fl-card-alert {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fff8ec;
+  border: 1px solid var(--kr-saffron-500);
+  color: #7a4300;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+/* The day block sits at the bottom of every card, so a row of cards lines up. */
+.fl-card-day {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+}
+
+.fl-card-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.fl-card-span {
+  padding: 3px 0;
+}
+
+.fl-card-btn.ant-btn {
+  font-size: 12px;
+  font-weight: 700;
+}

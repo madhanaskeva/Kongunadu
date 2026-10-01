@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag } from 'lucide-react';
+import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag, User } from 'lucide-react';
 import dayjs from 'dayjs';
 import {
   Alert, Button, Card, Col, DatePicker, Descriptions, Empty, Flex, Form, Input, Pagination, Row,
@@ -548,9 +548,10 @@ export const FleetMonitor = () => {
         </Form>
       </Card>
 
-      {/* Filter Pills, Search Bar, and Right Side Duration Filter Option */}
-      <Flex justify="space-between" align="center" gap={12} wrap>
-        <Flex gap={8} wrap align="center" style={{ flex: '1 1 auto', minWidth: 0 }}>
+      {/* Toolbar: the view pills on top, then search, timeline date and idle duration */}
+      <Card styles={{ body: { padding: '14px 16px' } }}>
+      <Flex vertical gap={12}>
+        <Flex gap={8} wrap align="center">
           {/* View tabs as rounded pill buttons; the active one is filled. */}
           <Flex gap={8} wrap role="tablist" aria-label="Fleet view">
             {fleetFilters.map(f => (
@@ -570,7 +571,10 @@ export const FleetMonitor = () => {
               </Button>
             ))}
           </Flex>
+        </Flex>
 
+        {/* Row 2: search, the timeline date, and (Idle view) the idle-duration filter */}
+        <Flex gap={10} wrap align="center">
           <Input
             allowClear
             prefix={<Search size={15} style={{ color: 'var(--text-muted)' }} />}
@@ -586,7 +590,7 @@ export const FleetMonitor = () => {
             value={fleetQ}
             onChange={(e) => setFleetQ(e.target.value)}
             aria-label="Search fleet vehicles and GPS health"
-            style={{ flex: '1 1 250px', maxWidth: 360 }}
+            style={{ flex: '1 1 260px', maxWidth: 420 }}
           />
 
           {/* The day whose GPS running / idle times the vehicle cards show. Empty means today. */}
@@ -604,7 +608,6 @@ export const FleetMonitor = () => {
               style={{ width: 170 }}
             />
           )}
-        </Flex>
 
         {/* Right side duration filter option — ONLY shown in IDLE section */}
         {ff === 'idle' && (
@@ -620,10 +623,12 @@ export const FleetMonitor = () => {
             ]}
             prefix={<Clock size={15} />}
             aria-label="Idle duration"
-            style={{ width: 200, maxWidth: '100%', marginLeft: 'auto' }}
+            style={{ width: 200, maxWidth: '100%' }}
           />
         )}
+        </Flex>
       </Flex>
+      </Card>
 
       {/* VEHICLES VIEW */}
       {fleetShowVehicles && (
@@ -664,6 +669,10 @@ export const FleetMonitor = () => {
               // If GPS shows the vehicle standing right now, one message says where, since when and why.
               const lastSpan = withIdlePlaces(act.segments.slice(-1), v, tms)[0];
               const idleNow = isToday && lastSpan && lastSpan.state === ACTIVITY.IDLE ? lastSpan : null;
+              const noGps = act.segments.every(s => s.state === ACTIVITY.NO_GPS);
+              // Only the latest few spans on the card; the full day is in Activity timeline.
+              const recent = act.segments.slice(-3);
+              const earlier = act.segments.length - recent.length;
               return (
               <Col key={v.id} xs={24} sm={12} xl={8} xxl={6}>
                 <Card
@@ -673,103 +682,117 @@ export const FleetMonitor = () => {
                   aria-label={`Track ${v.number} on the map`}
                   onClick={() => setTrackId(v.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTrackId(v.id); } }}
-                  style={{ height: '100%', borderLeft: `4px solid ${v.tone.edge}` }}
-                  styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 16px' } }}
+                  className="fl-card"
+                  style={{ height: '100%', '--fl-tone': v.tone.edge, '--fl-tone-bg': v.tone.bg, '--fl-tone-fg': v.tone.fg }}
+                  styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 16 } }}
                 >
-                  {/* Plate + GPS state */}
-                  <Flex justify="space-between" align="center" gap={8}>
-                    <Typography.Text style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>
-                      {v.number}
-                    </Typography.Text>
-                    <Tag color={GPS_TAG[v.gps] || 'error'} title={`GPS ${v.gps}`} style={{ ...kicker, fontSize: 10.5, marginInlineEnd: 0 }}>
-                      {v.gps}
-                    </Tag>
-                  </Flex>
-
-                  <Typography.Text type="secondary" ellipsis style={{ fontSize: 12.5 }}>
-                    {v.type} · {v.branchName}
-                  </Typography.Text>
-
-                  {/* Body takes the slack, so every footer in a row lines up */}
-                  <Flex vertical gap={8} style={{ flex: 1, minHeight: 46 }}>
-                    <Typography.Paragraph
-                      strong
-                      ellipsis={{ rows: 2, tooltip: v.route }}
-                      style={{ margin: 0, lineHeight: 1.4, color: 'var(--text-heading)' }}
-                    >
-                      {v.route}
-                    </Typography.Paragraph>
-                    {v.radiusAlert && (
-                      <Alert type="warning" showIcon icon={<TriangleAlert size={13} />} title={v.radiusAlert} style={{ fontSize: 12.5, padding: '8px 10px' }} />
-                    )}
-                    {idleNow && <IdleNowPanel span={idleNow} />}
-                  </Flex>
-
-                  {/* Status, driver and last fix, on one aligned line */}
-                  <Flex align="center" gap={8} style={{ borderTop: '1px solid var(--border-default)', paddingTop: 10, fontSize: 12.5 }}>
-                    <Tag color={STATUS_TAG[v.status] || 'default'} style={{ ...kicker, fontSize: 10.5, letterSpacing: '0.06em', marginInlineEnd: 0 }}>
-                      {v.status}
-                    </Tag>
-                    <Typography.Text type="secondary" ellipsis style={{ fontSize: 12.5, minWidth: 0 }}>{v.driverName}</Typography.Text>
-                    <Typography.Text type="secondary" style={{ fontSize: 12.5, marginLeft: 'auto', flex: 'none', whiteSpace: 'nowrap' }}>{v.lastSeen}</Typography.Text>
-                  </Flex>
-
-                  {/* The selected day's Running / Idle times, from GPS */}
-                  {act.segments.every(s => s.state === ACTIVITY.NO_GPS) ? (
-                    <Flex justify="space-between" gap={8}>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
-                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>No GPS data for this day</Typography.Text>
+                  {/* 1 · Vehicle: icon in its status colour, plate, type · branch; status + GPS on the right */}
+                  <Flex align="flex-start" gap={10}>
+                    <span className="fl-card-icon" aria-hidden><Truck size={18} strokeWidth={2.2} /></span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Typography.Text className="fl-card-plate">{v.number}</Typography.Text>
+                      <Typography.Text type="secondary" ellipsis style={{ display: 'block', fontSize: 12 }}>
+                        {v.type} · {v.branchName}
+                      </Typography.Text>
+                    </div>
+                    <Flex vertical align="flex-end" gap={4} style={{ flex: 'none' }}>
+                      <Tag color={STATUS_TAG[v.status] || 'default'} className="fl-card-status">{v.status}</Tag>
+                      <span className="fl-card-gps" style={{ color: v.gpsColor }} title={`GPS ${v.gps}`}>
+                        <span className="fl-card-gps-dot" style={{ background: v.gpsColor }} />GPS {v.gps}
+                      </span>
                     </Flex>
-                  ) : (
-                    <Flex vertical gap={6}>
-                      <Flex justify="space-between" gap={8}>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
-                        <Typography.Text style={{ fontSize: 12 }}>
-                          <span style={{ color: 'var(--kr-green-800)', fontWeight: 700 }}>Run {fmtDuration(act.summary.running)}</span>
-                          {' · '}
-                          <span style={{ color: '#7A4300', fontWeight: 700 }}>Idle {fmtDuration(act.summary.idle)}</span>
-                        </Typography.Text>
+                  </Flex>
+
+                  {/* 2 · Where it is, who drives it, when it last reported */}
+                  <Flex vertical gap={6} className="fl-card-info">
+                    <Flex align="center" gap={8}>
+                      <MapPin size={14} className="fl-card-info-icon" aria-hidden />
+                      <Typography.Text strong ellipsis={{ tooltip: v.route }} style={{ color: 'var(--text-heading)' }}>{v.route}</Typography.Text>
+                    </Flex>
+                    <Flex align="center" gap={8}>
+                      <User size={14} className="fl-card-info-icon" aria-hidden />
+                      <Typography.Text type="secondary" ellipsis style={{ fontSize: 12.5, minWidth: 0 }}>{v.driverName}</Typography.Text>
+                      <Flex align="center" gap={4} style={{ marginLeft: 'auto', flex: 'none' }}>
+                        <Clock size={12} className="fl-card-info-icon" aria-hidden />
+                        <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{v.lastSeen}</Typography.Text>
                       </Flex>
-                      <ActivityBar segments={act.segments} height={8} />
-                      <div
-                        className="fl-spans"
-                        onClick={e => e.stopPropagation()}
-                        style={{ maxHeight: 118, overflowY: 'auto', border: '1px solid var(--border-default)', borderRadius: 8 }}
-                      >
-                        {act.segments.map((s, i) => (
-                          <Flex
-                            key={i}
-                            align="center"
-                            gap={8}
-                            style={{ padding: '4px 10px', fontSize: 12, borderTop: i ? '1px solid var(--border-default)' : 0 }}
-                          >
-                            <span style={{ width: 8, height: 8, borderRadius: 2, flex: 'none', background: ACTIVITY_TONE[s.state].color }} />
-                            <Typography.Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                              {dayjs(s.start).format('HH:mm')} – {dayjs(s.end).format('HH:mm')}
-                            </Typography.Text>
-                            <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--kr-green-800)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
-                              {s.state}
-                            </Typography.Text>
-                            <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-                              {fmtDuration(s.minutes)}
-                            </Typography.Text>
-                          </Flex>
-                        ))}
-                      </div>
+                    </Flex>
+                  </Flex>
+
+                  {/* 3 · Anything that needs attention */}
+                  {v.radiusAlert && (
+                    <Flex align="flex-start" gap={8} className="fl-card-alert">
+                      <TriangleAlert size={14} style={{ flex: 'none', marginTop: 2 }} aria-hidden />
+                      <span>{v.radiusAlert}</span>
                     </Flex>
                   )}
+                  {idleNow && <IdleNowPanel span={idleNow} />}
 
-                  <Flex justify="space-between" align="center" gap={8}>
-                    <Space size={6} style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-brand)' }}>
-                      <MapPin size={13} /> Track on map
-                    </Space>
+                  {/* 4 · The day from GPS, pinned to the bottom so cards line up */}
+                  <div className="fl-card-day">
+                    {noGps ? (
+                      <Flex justify="space-between" gap={8}>
+                        <Typography.Text strong style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>No GPS data for this day</Typography.Text>
+                      </Flex>
+                    ) : (
+                      <Flex vertical gap={8}>
+                        <Flex justify="space-between" align="baseline" gap={8}>
+                          <Typography.Text strong style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
+                          <Flex gap={12}>
+                            <span className="fl-card-stat" style={{ color: 'var(--good-700)' }}>
+                              <span className="fl-card-stat-dot" style={{ background: 'var(--good-600)' }} />Run {fmtDuration(act.summary.running)}
+                            </span>
+                            <span className="fl-card-stat" style={{ color: '#7A4300' }}>
+                              <span className="fl-card-stat-dot" style={{ background: 'var(--kr-saffron-500)' }} />Idle {fmtDuration(act.summary.idle)}
+                            </span>
+                          </Flex>
+                        </Flex>
+                        <ActivityBar segments={act.segments} height={8} />
+                        <Flex vertical gap={2}>
+                          {recent.map((s, i) => (
+                            <Flex key={i} align="center" gap={8} className="fl-card-span">
+                              <span style={{ width: 8, height: 8, borderRadius: 2, flex: 'none', background: ACTIVITY_TONE[s.state].color }} />
+                              <Typography.Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                                {dayjs(s.start).format('HH:mm')} – {dayjs(s.end).format('HH:mm')}
+                              </Typography.Text>
+                              <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--good-700)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
+                                {s.state}
+                              </Typography.Text>
+                              <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                                {fmtDuration(s.minutes)}
+                              </Typography.Text>
+                            </Flex>
+                          ))}
+                          {earlier > 0 && (
+                            <Typography.Text type="secondary" style={{ fontSize: 11.5, paddingLeft: 16 }}>
+                              + {earlier} earlier {earlier === 1 ? 'span' : 'spans'} in Activity timeline
+                            </Typography.Text>
+                          )}
+                        </Flex>
+                      </Flex>
+                    )}
+                  </div>
+
+                  {/* 5 · Actions */}
+                  <Flex gap={8}>
                     <Button
-                      type="link"
+                      block
                       size="small"
-                      icon={<Clock size={13} />}
-                      style={{ paddingInline: 0, fontSize: 12, fontWeight: 700 }}
+                      icon={<MapPin size={14} />}
+                      onClick={e => { e.stopPropagation(); setTrackId(v.id); }}
+                      onKeyDown={e => e.stopPropagation()}
+                      className="fl-card-btn"
+                    >
+                      Track on map
+                    </Button>
+                    <Button
+                      block
+                      size="small"
+                      icon={<Clock size={14} />}
                       onClick={e => { e.stopPropagation(); setActivityId(v.id); }}
                       onKeyDown={e => e.stopPropagation()}
+                      className="fl-card-btn"
                     >
                       Activity timeline
                     </Button>
