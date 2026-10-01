@@ -2,10 +2,12 @@ import React from 'react';
 import { Alert, Button, Card, Descriptions, Flex, Form, Input, Progress, Spin, Typography } from 'antd';
 import logoImg from '@/assets/images/logo-1600.png';
 
+// DEV-ONLY: double-click / double-tap the logo to jump straight to Sign In.
+
 export const SupervisorDeviceApproval = ({ v }) => (
   <>
     <Flex vertical style={{ flex: 1, padding: 'calc(40px + env(safe-area-inset-top)) 24px 40px' }}>
-      <Flex align="center" gap={12}><img src={logoImg} alt="" style={{ height: 44, width: 'auto' }} /></Flex>
+      <Flex align="center" gap={12}><img src={logoImg} alt="" onDoubleClick={v.goLogin} style={{ height: 44, width: 'auto', WebkitTapHighlightColor: 'transparent' }} /></Flex>
       <Typography.Title level={4} style={{ margin: '10px 0 0' }}>
         Kongunadu Road Lines
       </Typography.Title>
@@ -85,7 +87,7 @@ export const SupervisorDeviceApproval = ({ v }) => (
             <Button size="large" block onClick={v.cancelApproval}>Change mobile number</Button>
           </>
         ) : null}
-        <Button type="text" size="large" block onClick={v.goLogin}>Already registered? Sign in</Button>
+
       </Flex>
     </Flex>
   </>

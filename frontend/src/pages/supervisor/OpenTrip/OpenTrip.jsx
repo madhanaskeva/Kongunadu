@@ -113,20 +113,14 @@ export const OpenTrip = ({ v }) => (
                             </Flex>
                           ) : null}
                           {card.ok ? (
-                            <Button type="link" size="large" onClick={() => (v.driverCards || []).length > 1 ? v.removeDriver(card.id) : v.openDrvPick(card.id)} style={{ flex: 'none' }}>
-                              {(v.driverCards || []).length > 1 ? 'Remove' : 'Change'}
+                            <Button type="link" size="large" onClick={() => v.openDrvPick(card.id)} style={{ flex: 'none' }}>
+                              Change
                             </Button>
                           ) : null}
                         </Flex>
                       </Card>
                     ))}
-                    {v.dc.ok ? (
-                      <Flex justify="flex-end">
-                        <Button type="dashed" size="small" onClick={() => v.openDrvPick('__add')}>
-                          + Add another driver
-                        </Button>
-                      </Flex>
-                    ) : null}
+
                   </Flex>
                 ) : null}
                 {v.dc.empty ? (
@@ -345,20 +339,14 @@ export const OpenTrip = ({ v }) => (
                             </Flex>
                           ) : null}
                           {card.ok ? (
-                            <Button type="link" size="large" onClick={() => (v.driverCards || []).length > 1 ? v.removeDriver(card.id) : v.openDrvPick(card.id)} style={{ flex: 'none' }}>
-                              {(v.driverCards || []).length > 1 ? 'Remove' : 'Change'}
+                            <Button type="link" size="large" onClick={() => v.openDrvPick(card.id)} style={{ flex: 'none' }}>
+                              Change
                             </Button>
                           ) : null}
                         </Flex>
                       </Card>
                     ))}
-                    {v.dc.ok ? (
-                      <Flex justify="flex-end">
-                        <Button type="dashed" size="small" onClick={() => v.openDrvPick('__add')}>
-                          + Add another driver
-                        </Button>
-                      </Flex>
-                    ) : null}
+
                   </Flex>
                 ) : null}
                 {v.dc.empty ? (

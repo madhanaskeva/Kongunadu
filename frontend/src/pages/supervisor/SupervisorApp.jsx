@@ -279,7 +279,9 @@ export class SupervisorApp extends React.Component {
     const regBad = { name: !s.reg.name.trim() ? 'Enter your full name.' : undefined, password: s.reg.password.length < 6 ? 'Use at least 6 characters.' : undefined };
     const titles = { home: 'Kongunadu Road Lines', profile: 'Supervisor profile', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance',  reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
     // Open trip options
-    const activeVeh = new Set(this.active().map(t => t.vehicle)), activeDrv = new Set(this.active().map(t => t.driver));
+    const activeVeh = new Set(this.active().map(t => t.vehicle));
+    // activeDrv must include ALL drivers from multi-driver trips, not just t.driver (the first).
+    const activeDrv = new Set(this.active().flatMap(t => Array.isArray(t.drivers) && t.drivers.length > 0 ? t.drivers : (t.driver ? [t.driver] : [])));
     const sup = T.S[this.SUP] || {}, me = this.me();
     // Live date for everything the screens show and the records sent to Head Office.
     const TD = new Date(), pd = n => String(n).padStart(2, '0');
@@ -334,12 +336,21 @@ export class SupervisorApp extends React.Component {
     const liveAttDrvIds = veh ? Object.keys(s.attVeh).filter(dId => s.attVeh[dId] === veh.id && s.att[dId] === 'P') : [];
     const savedTodayEntriesForOpen = (s.attSaved.find(r => r.day === todayIso) || {}).entries || (s.attSaved[0] || {}).entries || {};
     const savedAttDrvIds = veh ? Object.keys(savedTodayEntriesForOpen).filter(dId => {
-      const [st, vId] = savedTodayEntriesForOpen[dId] || [];
-      return st === 'P' && vId === veh.id;
+      // Entries may be stored as ['P', vehicleId] array OR { status, vehicle } object — handle both.
+      const entry = savedTodayEntriesForOpen[dId];
+      if (!entry) return false;
+      if (Array.isArray(entry)) { const [st, vId] = entry; return st === 'P' && vId === veh.id; }
+      if (typeof entry === 'object') return entry.status === 'P' && entry.vehicle === veh.id;
+      return false;
     }) : [];
-    const combinedAttDrvIds = [...new Set([...liveAttDrvIds, ...savedAttDrvIds])].filter(dId => !activeDrv.has(dId));
+    // Drivers explicitly marked present on THIS vehicle in attendance are always shown in Open Trip,
+    // even if they appear in activeDrv (e.g. seed data trips, or a previous trip on another vehicle).
+    // The vehicle-specific attendance mark is the authoritative signal for this open-trip form.
+    const combinedAttDrvIds = [...new Set([...liveAttDrvIds, ...savedAttDrvIds])];
     const defaultDriverIds = combinedAttDrvIds.length > 0 ? combinedAttDrvIds : (mappedDrv && drvList.some(d => d.id === mappedDrv.id) ? [mappedDrv.id] : []);
-    const activeDriverIds = !veh ? [] : (Array.isArray(f.drivers) && f.drivers.length > 0 ? f.drivers : (f.driver ? [f.driver] : defaultDriverIds));
+    // When a vehicle is selected/changed, form.driver is cleared (set to '') so the attendance-derived
+    // defaultDriverIds correctly takes precedence over the stale legacy f.driver field.
+    const activeDriverIds = !veh ? [] : (Array.isArray(f.drivers) && f.drivers.length > 0 ? f.drivers : defaultDriverIds);
     const driverVal = activeDriverIds[0] || '';
     const drvOk = activeDriverIds.length > 0 && (
       !!f.driverOk || (Array.isArray(f.confirmedDrivers) && activeDriverIds.every(id => f.confirmedDrivers.includes(id)))
@@ -864,8 +875,9 @@ export class SupervisorApp extends React.Component {
         const live = s.obReqId ? (this.readReqs().find(r => r.id === s.obReqId) || {}).otp : '';
         if (code !== (live || ob.expected)) { this.setState({ obOtpErr: 'That OTP does not match. Check the code Head Office shared.', railVariant: 'error' }); return; }
         if (s.obReqId) this.patchReq(s.obReqId, { status: 'Verified', verifiedAt: this.nowText() });
-        this.setState({ screen: 'register', history: [], obOtpErr: '', railVariant: '', regShowErr: false, reg: { name: ob.name || '', password: '' } });
-        this.toast('success', 'OTP verified', 'Create your account to finish.');
+        this.setState({ screen: 'login', history: [], obOtpErr: '', railVariant: '', loginState: 'idle', loginPhone: null, loginPassword: null, loginErr: '' });
+        this.toast('success', 'OTP verified', 'Sign in to continue.');
+
       },
       reg: s.reg, regErr: s.regShowErr ? regBad : {}, regSaving: s.regSaving, regIdle: !s.regSaving,
       regPasswordHint: s.reg.password && s.reg.password.length < 6 ? `${6 - s.reg.password.length} more characters needed.` : 'At least 6 characters.',
