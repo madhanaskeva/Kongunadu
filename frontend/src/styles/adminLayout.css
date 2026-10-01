@@ -537,8 +537,19 @@
     padding-right: 6px;
   }
 
+  /* The inline gap from <Flex gap={12}> needs !important to tighten here. */
   .tms-topbar-actions {
-    gap: 4px;
+    gap: 4px !important;
+  }
+
+  /* The logo gives way first so the avatar never runs off a 320px screen. */
+  .tms-topbar-brand {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .tms-topbar-brand img {
+    width: clamp(100px, 34vw, 160px);
   }
 
   .tms-topbar-account {

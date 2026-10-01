@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Button, Card, Dropdown, Flex, Input, Segmented, Table, Tag, Typography } from 'antd';
+import { Button, Card, Dropdown, Flex, Input, Table, Tag, Typography } from 'antd';
 import {
   FileSpreadsheet,
   SlidersHorizontal,
@@ -11,6 +11,7 @@ import { downloadXlsx, fileDate } from '../../../../utils/spreadsheet';
 import { ReportEmptyState } from './ReportEmptyState';
 import { useTMSAdmin } from '../../../../context/TMSAdminContext';
 import { useDebounce } from '../../../../utils/debounce';
+import { TabButtons } from '../../../../components/common/TabButtons';
 import { FILE_TRANSFER_ENABLED } from '../../../../utils/featureFlags';
 
 export const ReportResultView = ({
@@ -344,13 +345,14 @@ export const ReportResultView = ({
             <Typography.Text strong style={{ fontSize: 13 }}>
               Performance Level:
             </Typography.Text>
-            <Segmented
+            <TabButtons
+              ariaLabel="Performance level"
               value={perfViewMode}
               onChange={(val) => {
                 setPerfViewMode(val);
                 setPage(1);
               }}
-              options={[
+              items={[
                 { label: `Trip-Level Performance (${rows.length})`, value: 'trips' },
                 { label: `Vehicle-Level Performance (${result.vehicleRows?.length || 0})`, value: 'vehicles' },
               ]}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Card, Segmented, Typography } from 'antd';
+import { Card, Typography } from 'antd';
 import { fmtMetric } from '../../../../utils/analyticsCompare';
+import { TabButtons } from '../../../../components/common/TabButtons';
 import { BarChart, MAX_SERIES, RankBars } from './BarChart';
 
 // One metric's chart card:
@@ -44,11 +45,12 @@ export const MetricChart = ({ metric, comparison, colorOf }) => {
         </div>
       }
       extra={multi && (
-        <Segmented
+        <TabButtons
           size="small"
+          ariaLabel="Chart view"
           value={mode}
           onChange={setView}
-          options={[
+          items={[
             { value: 'compare', label: 'Compare' },
             { value: 'combined', label: 'Combined' },
             { value: 'totals', label: 'Totals' },

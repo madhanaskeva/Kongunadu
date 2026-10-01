@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Card, Flex, Segmented, Table, Typography } from 'antd';
+import { Card, Flex, Grid, Table, Typography } from 'antd';
 import { LayoutGrid } from 'lucide-react';
 import { fmtCell, unitOf } from '../../../../utils/analyticsCompare';
+import { TabButtons } from '../../../../components/common/TabButtons';
 
 const dash = <Typography.Text type="secondary">—</Typography.Text>;
 const cellOf = (m, v) => {
@@ -23,12 +24,14 @@ const MetricSheet = ({ metric, comparison, entityLabel, colorOf }) => {
   const { buckets, rows, all } = comparison;
   const list = rows.length > 1 ? [all, ...rows] : rows;
   const whole = all.total[metric.key] || 0;
+  // Phones: a pinned column would cover most of the screen, so the whole table scrolls instead.
+  const pin = Grid.useBreakpoint().md ? 'left' : false;
 
   const columns = [
     {
       title: entityLabel,
       key: 'entity',
-      fixed: 'left',
+      fixed: pin,
       width: 200,
       render: (_, r) => (
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -93,12 +96,14 @@ const FullSheet = ({ metrics, comparison, entityLabel, colorOf }) => {
   const blocks = rows.length > 1 ? [all, ...rows] : rows;
   const dataSource = blocks.flatMap((b, bi) =>
     metrics.map((m, mi) => ({ key: `${b.key}-${m.key}`, b, m, first: mi === 0, band: b.combined ? 'all' : bi % 2 })));
+  // Phones: the two pinned columns are wider than the screen, so the whole table scrolls instead.
+  const pin = Grid.useBreakpoint().md ? 'left' : false;
 
   const columns = [
     {
       title: entityLabel,
       key: 'entity',
-      fixed: 'left',
+      fixed: pin,
       width: 180,
       onCell: r => ({ rowSpan: r.first ? metrics.length : 0, className: 'vp-vehicle-cell' }),
       render: (_, r) => (
@@ -111,7 +116,7 @@ const FullSheet = ({ metrics, comparison, entityLabel, colorOf }) => {
     {
       title: 'Metric',
       key: 'metric',
-      fixed: 'left',
+      fixed: pin,
       width: 180,
       render: (_, r) => <Typography.Text style={{ whiteSpace: 'nowrap', color: 'var(--text-heading)', fontWeight: 500 }}>{r.m.label}{unitLabel(r.m)}</Typography.Text>,
     },
@@ -156,10 +161,11 @@ export const CompareTable = ({ title, entityLabel, comparison, metrics, colorOf 
           </Typography.Text>
         </Flex>
         <div className="an-metric-scroll">
-          <Segmented
+          <TabButtons
+            ariaLabel="Metric"
             value={active}
             onChange={setTab}
-            options={[
+            items={[
               ...metrics.map(m => ({ value: m.key, label: m.label })),
               { value: '__all', label: <Flex align="center" gap={6}><LayoutGrid size={14} strokeWidth={2.2} />All metrics</Flex> },
             ]}

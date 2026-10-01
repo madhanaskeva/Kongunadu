@@ -6,3 +6,4 @@ export { RowActions } from './RowActions';
 export { NotificationCard } from './NotificationCard';
 export { SendNoticeModal } from './SendNoticeModal';
 export { AdminNotificationsModal } from './AdminNotificationsModal';
+export { TabButtons } from './TabButtons';

@@ -4,6 +4,7 @@ import { TMS, formatPhone, formatImei } from '../utils';
 import { isPendingClose, pendingCloseDetail } from '../utils/tripStatus';
 import { MOCK_ADMIN_NOTIFICATIONS } from '../utils/mockSeed';
 import { NOTICE_LIMIT, deliverAutomaticAlerts } from '../utils/notificationUtils';
+import { normDriver } from '../utils/driverTypes';
 
 const TMSAdminContext = createContext(null);
 
@@ -269,6 +270,7 @@ export const TMSAdminProvider = ({ children }) => {
           return true;
         });
       }
+      if (key === 'drivers') list = list.map(normDriver);
       if (key === 'trips') {
         list = list.map(t => (t.supervisor === 'S03' ? { ...t, supervisor: 'S01' } : t));
       }
@@ -458,14 +460,16 @@ export const TMSAdminProvider = ({ children }) => {
     try { localStorage.setItem(DRV_APPROVAL_KEY, JSON.stringify(next)); } catch (e) {}
   };
 
-  const decideDriver = (id, approval, reason = '') => {
+  // `type` (Regular / Acting) is chosen by Head Office when approving.
+  const decideDriver = (id, approval, reason = '', type = '') => {
     const tms = T(), req = drvReqs.find(r => r.id === id), d = req || (tms.drivers || []).find(x => x.id === id);
     if (!d) return;
     const ok = approval === 'Approved', bname = (tms.B[d.branch] || {}).name || 'branch';
     if (req) {
-      writeDrvReqs(readDrvReqs().map(r => r.id === id ? { ...r, status: ok ? 'Approved' : 'Rejected', decidedAt: stampNow(), reason } : r));
+      writeDrvReqs(readDrvReqs().map(r => r.id === id ? { ...r, status: ok ? 'Approved' : 'Rejected', decidedAt: stampNow(), reason, ...(ok && type ? { type } : {}) } : r));
     } else {
       setSeedApproval(id, approval);
+      if (ok && type) saveMasterMany('drivers', [{ rec: { id, type }, isNew: false }]);
     }
     setDrawer(null);
     setRejectReason('');
@@ -473,7 +477,7 @@ export const TMSAdminProvider = ({ children }) => {
     pushNotice({
       kind: 'action', branch: d.branch, title: ok ? `Driver approved · ${d.name}` : `Driver request rejected · ${d.name}`,
       body: ok ? `Your request to add ${d.name} is approved. The driver is in the driver list and can be assigned to trips.` : `Head Office rejected the request to add ${d.name}.${reason ? ' Reason: ' + reason + '.' : ''} The driver cannot be assigned to trips.`,
-      rows: [['Driver', d.name], ['Licence', d.licence], ['Mobile', '+91 ' + fmtPhone(d.phone)], ['Action taken', ok ? 'Approved' : 'Rejected'], ...(reason ? [['Reason', reason]] : [])]
+      rows: [['Driver', d.name], ['Licence', d.licence], ['Mobile', '+91 ' + fmtPhone(d.phone)], ...(ok && type ? [['Driver type', type]] : []), ['Action taken', ok ? 'Approved' : 'Rejected'], ...(reason ? [['Reason', reason]] : [])]
     });
   };
 

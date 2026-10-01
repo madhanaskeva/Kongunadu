@@ -1,5 +1,6 @@
 import React from 'react';
-import { Card, Flex, Tabs } from 'antd';
+import { Card, Flex } from 'antd';
+import { TabButtons } from '../../../components/common/TabButtons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import VehiclePerformance from './components/VehiclePerformance';
 import AnalyticsCompareView from './components/AnalyticsCompareView';
@@ -24,8 +25,8 @@ export const Analytics = () => {
 
   return (
     <Flex vertical gap={20}>
-      <Card styles={{ body: { padding: '0 18px' } }}>
-        <Tabs activeKey={tab} onChange={setAnTab} items={TABS.map(t => ({ key: t.value, label: t.label }))} />
+      <Card styles={{ body: { padding: '12px 16px' } }}>
+        <TabButtons ariaLabel="Analytics view" value={tab} onChange={setAnTab} items={TABS} />
       </Card>
 
       {tab === 'vehicles' ? (

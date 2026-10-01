@@ -9,7 +9,6 @@ import {
   Form,
   Modal,
   Row,
-  Segmented,
   Select,
   Space,
   Statistic,
@@ -18,6 +17,7 @@ import {
   Typography,
 } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { TabButtons } from '../../../components/common/TabButtons';
 
 export const DeviceApprovals = () => {
   const {
@@ -53,17 +53,10 @@ export const DeviceApprovals = () => {
     { id: 'all', label: `All (${devCounts.all})` },
     { id: 'Pending', label: `Pending (${devCounts.Pending})` },
     { id: 'Approved', label: `Approved (${devCounts.Approved})` },
-    { id: 'done', label: `Registered (${devCounts.done})` },
     { id: 'Rejected', label: `Rejected (${devCounts.Rejected})` },
   ];
 
-  const devShown = devReqs.filter(r =>
-    devFilter === 'all'
-      ? true
-      : devFilter === 'done'
-      ? ['Verified', 'Registered'].includes(r.status)
-      : r.status === devFilter
-  );
+  const devShown = devReqs.filter(r => devFilter === 'all' || r.status === devFilter);
   // Table pagination; back to page 1 whenever the filter or page size changes.
   const [devPage, setDevPage] = useState(1);
   const [devPageSize, setDevPageSize] = useState(10);
@@ -290,13 +283,12 @@ export const DeviceApprovals = () => {
           <Typography.Text style={{ maxWidth: 640 }}>
             Supervisors request access from the mobile app. <Typography.Text strong>Approve</Typography.Text> to create a 4-digit OTP, then share it with the supervisor to finish registration.
           </Typography.Text>
-          <div style={{ maxWidth: '100%', overflowX: 'auto' }}>
-            <Segmented
-              value={devFilter}
-              onChange={setDevFilter}
-              options={devFilters.map(f => ({ value: f.id, label: f.label }))}
-            />
-          </div>
+          <TabButtons
+            ariaLabel="Request status"
+            value={devFilter}
+            onChange={setDevFilter}
+            items={devFilters.map(f => ({ value: f.id, label: f.label }))}
+          />
         </Flex>
 
         <Table

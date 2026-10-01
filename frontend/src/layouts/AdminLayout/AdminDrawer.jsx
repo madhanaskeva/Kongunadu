@@ -14,6 +14,7 @@ import {
   Modal,
   Row,
   Col,
+  Segmented,
   Select,
   Space,
   Tag,
@@ -22,6 +23,7 @@ import {
 } from 'antd';
 import { Fuel, MapPin, Plus, Upload as UploadIcon } from 'lucide-react';
 import { useTMSAdmin } from '../../context/TMSAdminContext';
+import { DRIVER_TYPES, normDriverType } from '../../utils/driverTypes';
 
 /* Small uppercase label used for the drawer kicker and the review panels' block titles. */
 const kickerStyle = { fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' };
@@ -142,6 +144,16 @@ export const AdminDrawer = () => {
   } = useTMSAdmin();
 
   const [fieldErrors, setFieldErrors] = useState({});
+  // Regular / Acting, picked when approving a driver; starts from the driver's current type.
+  const [drvType, setDrvType] = useState('Regular');
+  const drvReqId = drawer && drawer.isDriverReq ? drawer.reqId : null;
+  useEffect(() => {
+    if (!drvReqId) return;
+    const rec = drvReqs.find(r => r.id === drvReqId) || (T().drivers || []).find(x => x.id === drvReqId);
+    const t = rec ? normDriverType(rec.type) : '';
+    setDrvType(DRIVER_TYPES.includes(t) ? t : 'Regular');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drvReqId]);
   // Text typed into the "add bunk / add location" boxes, keyed by field.
   const [listDrafts, setListDrafts] = useState({});
   // Dropdowns render inside the modal's scrolling body, so a list opened near
@@ -250,6 +262,7 @@ export const AdminDrawer = () => {
   const isReq = drvReq && !!drvReq.supervisorName;
   const drvStatus = drvReq ? (isReq ? (drvReq.status === 'Pending' ? 'Pending approval' : drvReq.status) : drvReq.approval) : '';
   const isPendingDrv = drvStatus === 'Pending approval' || drvStatus === 'Pending';
+  const currentDrvType = drvReq ? normDriverType(drvReq.type) : '';
   const mask = a => a ? '•••• ' + String(a).slice(-4) + ` (${String(a).length} digits)` : '—';
 
   // A form whose shape depends on its own answers resolves these per render.
@@ -435,7 +448,7 @@ export const AdminDrawer = () => {
               <Button danger onClick={() => decideDriver(drawer.reqId, 'Rejected', rejectReason.trim())}>
                 Reject
               </Button>
-              <Button type="primary" onClick={() => decideDriver(drawer.reqId, 'Approved')}>
+              <Button type="primary" onClick={() => decideDriver(drawer.reqId, 'Approved', '', drvType)}>
                 Approve driver
               </Button>
             </>
@@ -540,8 +553,22 @@ export const AdminDrawer = () => {
                     { key: 'name', label: 'Name', children: drvReq.name },
                     { key: 'licence', label: 'Licence number', children: drvReq.licence },
                     { key: 'phone', label: 'Mobile', children: `+91 ${drvReq.phone}` },
+                    ...(!isPendingDrv && DRIVER_TYPES.includes(currentDrvType)
+                      ? [{ key: 'type', label: 'Driver type', children: <Tag color={currentDrvType === 'Regular' ? 'blue' : 'purple'}>{currentDrvType}</Tag> }]
+                      : []),
                   ]}
                 />
+
+                {isPendingDrv && (
+                  <Form.Item
+                    label="Driver type"
+                    required
+                    extra="Saved with the approval and shown in the driver list and the supervisor app."
+                    style={{ marginBottom: 0 }}
+                  >
+                    <Segmented block value={drvType} onChange={setDrvType} options={DRIVER_TYPES} />
+                  </Form.Item>
+                )}
 
                 {isReq && (
                   <>

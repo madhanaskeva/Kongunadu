@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Table, Tag, Typography } from 'antd';
+import { Card, Grid, Table, Tag, Typography } from 'antd';
 import { fmtNum, fmtSigned, monthLabel, PERFORMANCE_STATUS, PERFORMANCE_THRESHOLDS } from '../../../../utils/vehiclePerformance';
 import PerformanceValue from './PerformanceValue';
 
@@ -30,6 +30,8 @@ const cellFor = (metric, f) => {
 // and a range total at the end — read across to follow a vehicle month by month.
 export const VehiclePerformanceTable = ({ stats, months }) => {
   const multiYear = months.length && months[0].slice(0, 4) !== months[months.length - 1].slice(0, 4);
+  // Phones: the two pinned columns are wider than the screen, so the whole table scrolls instead.
+  const pin = Grid.useBreakpoint().md ? 'left' : false;
 
   const dataSource = stats.flatMap((s, vi) =>
     METRICS.map((m, mi) => ({ key: `${s.vehicle}-${m.key}`, s, m, first: mi === 0, band: vi % 2 })));
@@ -38,7 +40,7 @@ export const VehiclePerformanceTable = ({ stats, months }) => {
     {
       title: 'Vehicle No',
       key: 'vehicle',
-      fixed: 'left',
+      fixed: pin,
       width: 150,
       onCell: r => ({ rowSpan: r.first ? METRICS.length : 0, className: 'vp-vehicle-cell' }),
       render: (_, r) => (
@@ -57,7 +59,7 @@ export const VehiclePerformanceTable = ({ stats, months }) => {
     {
       title: 'Metric',
       key: 'metric',
-      fixed: 'left',
+      fixed: pin,
       width: 120,
       render: (_, r) => <Typography.Text style={{ whiteSpace: 'nowrap', color: 'var(--text-heading)', fontWeight: 500 }}>{r.m.label}</Typography.Text>,
     },

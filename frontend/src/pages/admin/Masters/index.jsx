@@ -33,7 +33,7 @@ export const DriverMaster = () => (
     type="drivers"
     title="Driver Master"
     singular="Driver"
-    subtitle="Regular and supporting drivers with verified driving licences."
+    subtitle="Regular and acting drivers with verified driving licences."
   />
 );
 

@@ -568,7 +568,7 @@ export const Attendance = () => {
           <Divider style={{ margin: '16px 0' }} />
 
           {/* Action Buttons Row */}
-          <Flex justify="flex-end" align="center" gap={10} wrap>
+          <Flex justify="flex-end" align="center" gap={10} className="tms-form-actions">
             <Button htmlType="button" icon={<RotateCcw size={14} />} onClick={handleResetFilters}>
               Reset Filters
             </Button>

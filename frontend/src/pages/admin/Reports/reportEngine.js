@@ -203,7 +203,7 @@ export const MODULE_FIELDS = {
     { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
-    { key: 'type', label: 'Driver Type', type: 'select', options: ['Regular', 'Supporting'] },
+    { key: 'type', label: 'Driver Type', type: 'select', options: ['Regular', 'Acting'] },
     { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive', 'Pending'] },
     { key: 'approval', label: 'Approval Status', type: 'select', options: ['Approved', 'Pending approval'] },
     { key: 'attendance', label: 'Attendance', type: 'select', options: ['Present', 'Absent', 'High Absence (>3 days)'] },

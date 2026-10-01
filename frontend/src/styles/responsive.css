@@ -169,3 +169,115 @@
 .tms-filter-grid .ant-picker {
   width: 100%;
 }
+
+/* ---------- Tab buttons (components/common/TabButtons) -------------------- */
+.tms-tab-buttons .ant-btn {
+  font-weight: 600;
+}
+
+.tms-tab-buttons .ant-btn-default:not(:disabled):hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+/* Count badges inside the active (filled) button turn white so they stay visible */
+.tms-tab-buttons .ant-btn-primary .ant-badge-count {
+  background: #ffffff !important;
+  color: var(--color-brand);
+}
+
+/* ======================= Phones (≤ 600px) ===================================== */
+@media (max-width: 600px) {
+  /* Pill / tab rows stay on one line and scroll sideways instead of stacking
+     three or four rows deep. */
+  .tms-scroll-row {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tms-scroll-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tms-scroll-row > * {
+    flex: none;
+  }
+
+
+  /* Toolbars above master tables: search on its own full row, the filter
+     pills and the action buttons each share a row in equal halves. */
+  .tms-toolbar,
+  .tms-toolbar-main {
+    width: 100%;
+  }
+
+  .tms-toolbar-main .tms-search {
+    flex: 1 1 100%;
+    width: auto !important;
+  }
+
+  .tms-toolbar-main > .ant-space,
+  .tms-toolbar-actions.ant-space {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+
+  .tms-toolbar-main > .ant-space > .ant-space-item,
+  .tms-toolbar-actions.ant-space > .ant-space-item {
+    flex: 1 1 0;
+    min-width: max-content;
+  }
+
+  .tms-toolbar-main > .ant-space .ant-btn,
+  .tms-toolbar-actions.ant-space .ant-btn {
+    width: 100%;
+  }
+
+  /* Loose fields in a toolbar (dates, small selects) take the full row */
+  .tms-toolbar-field.ant-picker,
+  .tms-toolbar-field.ant-select {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Form action rows (Reset / Apply): side by side in equal halves, each on
+     its own full row when the two do not fit */
+  .tms-form-actions {
+    flex-wrap: wrap;
+  }
+
+  .tms-form-actions > .ant-btn {
+    flex: 1 1 120px;
+  }
+
+  /* Pager hugs the card edges a little closer */
+  .ant-table-wrapper .ant-table-pagination.ant-pagination {
+    padding-inline: 8px;
+  }
+}
+
+/* Very narrow phones: smaller pager items so the pages fit on one line */
+@media (max-width: 400px) {
+  .ant-table-wrapper .ant-pagination .ant-pagination-item,
+  .ant-table-wrapper .ant-pagination .ant-pagination-prev,
+  .ant-table-wrapper .ant-pagination .ant-pagination-next,
+  .ant-table-wrapper .ant-pagination .ant-pagination-jump-prev,
+  .ant-table-wrapper .ant-pagination .ant-pagination-jump-next {
+    min-width: 28px;
+    height: 28px;
+    line-height: 26px;
+    margin-inline-end: 4px;
+  }
+}
+
+/* ---------- Tables that scroll sideways ----------------------------------
+   No edge shadow: antd's scroll hint washes a white haze over the blue header
+   and the last visible column. The table still swipes as before. */
+.ant-table-wrapper .ant-table-container::before,
+.ant-table-wrapper .ant-table-container::after {
+  box-shadow: none !important;
+}

@@ -514,7 +514,7 @@ export const TripList = () => {
       <Card styles={{ body: { padding: 0 } }}>
         <Flex justify="space-between" align="center" gap={12} wrap className="tl-table-head">
           {/* Status filters — press one to narrow the list, press it again to go back to All. */}
-          <Flex gap={8} wrap align="center" className="tl-status-tabs">
+          <Flex gap={8} wrap align="center" className="tl-status-tabs tms-scroll-row">
             {statusTabs.map(tab => {
               const on = (tf.status || '') === tab.id;
               const TabIcon = tab.icon;

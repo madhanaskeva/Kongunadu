@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Table, Typography } from 'antd';
+import { Card, Grid, Table, Typography } from 'antd';
 import { fmtNum, fmtSigned, monthLabel } from '../../../../utils/vehiclePerformance';
 import PerformanceValue from './PerformanceValue';
 
@@ -9,6 +9,8 @@ const signedTone = n => (n == null || n === 0 ? 'var(--text-muted)' : n > 0 ? 'v
 // Previous month vs current month (the range's last month) for every selected vehicle.
 export const MonthComparison = ({ mom }) => {
   const { previousMonth, currentMonth, rows } = mom;
+  // Phones: the pinned column would cover most of the screen, so the whole table scrolls instead.
+  const pin = Grid.useBreakpoint().md ? 'left' : false;
   if (!currentMonth) return null;
 
   const monthGroup = (key, label) => ({
@@ -25,7 +27,7 @@ export const MonthComparison = ({ mom }) => {
     {
       title: 'Vehicle No',
       key: 'vehicle',
-      fixed: 'left',
+      fixed: pin,
       width: 150,
       render: (_, r) => <Typography.Text strong style={{ color: 'var(--text-heading)', whiteSpace: 'nowrap' }}>{r.vehicleNumber}</Typography.Text>,
     },

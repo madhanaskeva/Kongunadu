@@ -553,7 +553,7 @@ export const FleetMonitor = () => {
       <Flex vertical gap={12}>
         <Flex gap={8} wrap align="center">
           {/* View tabs as rounded pill buttons; the active one is filled. */}
-          <Flex gap={8} wrap role="tablist" aria-label="Fleet view">
+          <Flex gap={8} wrap role="tablist" aria-label="Fleet view" className="tms-scroll-row">
             {fleetFilters.map(f => (
               <Button
                 key={f.id}
@@ -605,6 +605,7 @@ export const FleetMonitor = () => {
                 || (rangeStart && d.isBefore(rangeStart, 'day'))
                 || (rangeEnd && d.isAfter(rangeEnd, 'day'))}
               onChange={d => setTlDate(d ? d.format(DATE_FMT) : '')}
+              className="tms-toolbar-field"
               style={{ width: 170 }}
             />
           )}
@@ -623,6 +624,7 @@ export const FleetMonitor = () => {
             ]}
             prefix={<Clock size={15} />}
             aria-label="Idle duration"
+            className="tms-toolbar-field"
             style={{ width: 200, maxWidth: '100%' }}
           />
         )}

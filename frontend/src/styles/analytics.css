@@ -91,3 +91,43 @@
 .vp-stats-table .ant-table-cell {
   font-variant-numeric: tabular-nums;
 }
+
+/* "Group by" sits in the filter row: two grid columns wide on large screens so
+   Day / Week / Month fit on one line beside the other filters. */
+.an-grain.tms-tab-buttons {
+  flex-wrap: nowrap;
+  gap: 6px !important;
+}
+.an-grain .ant-btn {
+  height: 42px;
+  padding-inline: 14px;
+}
+/* Wide screens: every filter, Group by and Compare on one row. Fields share the
+   space; Group by and Compare keep their natural width. Narrower screens fall
+   back to the wrapping grid. */
+@media (min-width: 1200px) {
+  .tms-filter-grid.an-filter-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+  }
+  .tms-filter-grid.an-filter-row > * {
+    flex: 1 1 120px;
+  }
+  .tms-filter-grid.an-filter-row > .an-grain-cell,
+  .tms-filter-grid.an-filter-row > .tms-filter-end {
+    flex: none;
+  }
+  .tms-filter-grid.an-filter-row > .tms-filter-end .ant-btn {
+    min-width: 140px;
+  }
+}
+@media (min-width: 900px) and (max-width: 1199px) {
+  .tms-filter-grid > .an-grain-cell {
+    grid-column: span 2;
+  }
+}
+/* Small screens: Group by takes its own full-width row. */
+@media (max-width: 899px) {
+  .tms-filter-grid > .an-grain-cell { grid-column: 1 / -1; }
+}

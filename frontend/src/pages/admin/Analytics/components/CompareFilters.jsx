@@ -1,8 +1,9 @@
 import React from 'react';
 import dayjs from 'dayjs';
-import { Button, Card, DatePicker, Divider, Flex, Segmented, Select, Typography } from 'antd';
+import { Button, Card, DatePicker, Divider, Flex, Select, Typography } from 'antd';
 import { BarChart3, Building2, ListChecks, Users } from 'lucide-react';
 import { matchesSearch } from '../../../../utils/search';
+import { TabButtons } from '../../../../components/common/TabButtons';
 
 const DATE_FMT = 'DD MMM YYYY';
 
@@ -20,13 +21,15 @@ const PickMany = ({ value, options, onChange, placeholder, prefix, noun }) => {
       maxTagCount="responsive"
       showSearch={{ filterOption: (input, o) => matchesSearch(input, o.label) }}
       onChange={onChange}
+      // The field can be narrower than this header, so the panel gets its own width.
+      popupMatchSelectWidth={false}
       popupRender={menu => (
-        <>
-          <Flex justify="space-between" align="center" style={{ padding: '4px 8px' }}>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        <div style={{ minWidth: 280, maxWidth: 'calc(100vw - 32px)' }}>
+          <Flex justify="space-between" align="center" gap={8} wrap style={{ padding: '4px 8px' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               {value.length} of {all.length} {noun} selected
             </Typography.Text>
-            <Flex gap={4}>
+            <Flex gap={4} style={{ flex: 'none' }}>
               <Button size="small" type="link" disabled={value.length === all.length} onClick={() => onChange(all)}>
                 Select all
               </Button>
@@ -37,7 +40,7 @@ const PickMany = ({ value, options, onChange, placeholder, prefix, noun }) => {
           </Flex>
           <Divider style={{ margin: '4px 0' }} />
           {menu}
-        </>
+        </div>
       )}
       style={{ width: '100%' }}
     />
@@ -63,7 +66,7 @@ export const CompareFilters = ({
 
   return (
     <Card styles={{ body: { padding: '18px 20px' } }}>
-      <div className="tms-filter-grid" style={{ '--filter-min': '160px' }}>
+      <div className={`tms-filter-grid${grainOptions ? ' an-filter-row' : ''}`} style={{ '--filter-min': '150px' }}>
         {branchOptions && (
           <div>
             <Label>Branch</Label>
@@ -123,6 +126,18 @@ export const CompareFilters = ({
             style={{ width: '100%' }}
           />
         </div>
+        {grainOptions && (
+          <div className="an-grain-cell">
+            <Label>Group by</Label>
+            <TabButtons
+              ariaLabel="Group by"
+              value={draft.grain || autoGrainValue}
+              items={grainOptions}
+              onChange={v => onChange({ grain: v })}
+              className="an-grain"
+            />
+          </div>
+        )}
         <div className="tms-filter-end">
           <Button type="primary" block icon={<BarChart3 size={16} />} disabled={!!missing} onClick={onApply}>
             {applyLabel}
@@ -130,24 +145,11 @@ export const CompareFilters = ({
         </div>
       </div>
 
-      {(grainOptions || missing || dirty) && (
-        <Flex justify="space-between" align="center" gap={12} wrap style={{ marginTop: 12 }}>
-          {grainOptions ? (
-            <Flex align="center" gap={8} wrap>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>Group by</Typography.Text>
-              <Segmented
-                size="small"
-                value={draft.grain || autoGrainValue}
-                options={grainOptions}
-                onChange={v => onChange({ grain: v })}
-              />
-            </Flex>
-          ) : <span />}
-          {(missing || dirty) && (
-            <Typography.Text type={missing ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>
-              {missing || `Filters changed — press ${applyLabel} to update.`}
-            </Typography.Text>
-          )}
+      {(missing || dirty) && (
+        <Flex justify="flex-end" style={{ marginTop: 10 }}>
+          <Typography.Text type={missing ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>
+            {missing || `Filters changed — press ${applyLabel} to update.`}
+          </Typography.Text>
         </Flex>
       )}
     </Card>

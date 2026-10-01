@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, KeyRound, Pencil, Trash2 } from 'lucide-react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
-import { Button, Card, Flex, Space, Table, Tabs, Tag, Tooltip, Typography } from 'antd';
+import { Button, Card, Flex, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { TabButtons } from '../../../components/common/TabButtons';
 import { ModuleAccess, MODULE_TOTAL, accessCount, userAccess } from './ModuleAccess';
 
 export const UserList = () => {
@@ -159,12 +160,8 @@ export const UserList = () => {
 
   return (
     <Flex vertical gap={20}>
-      <Card styles={{ body: { padding: '0 18px' } }}>
-        <Tabs
-          activeKey={userTab}
-          onChange={setUserTab}
-          items={userTabs.map(t => ({ key: t.value, label: t.label }))}
-        />
+      <Card styles={{ body: { padding: '12px 16px' } }}>
+        <TabButtons ariaLabel="Users view" value={userTab} onChange={setUserTab} items={userTabs} />
       </Card>
 
       {userTab === 'users' && (

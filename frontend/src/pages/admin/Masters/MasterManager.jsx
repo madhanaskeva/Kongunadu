@@ -9,6 +9,7 @@ import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
 import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 import { coordErrors } from '../../../utils/coords';
+import { DRIVER_TYPES } from '../../../utils/driverTypes';
 
 const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
   const rawBunks = route.authorizedBunks || [];
@@ -454,7 +455,8 @@ export const MasterManager = ({ type }) => {
           licence: r.licence,
           phone: fmtPhone(r.phone),
           branch: r.branch,
-          type: 'New',
+          // A supervisor's request is "New" until Head Office approves it as Regular or Acting.
+          type: r.status === 'Approved' && r.type ? r.type : 'New',
           status: 'Active',
           approval: r.status === 'Pending' ? 'Pending approval' : r.status,
         })),
@@ -481,7 +483,7 @@ export const MasterManager = ({ type }) => {
         ['phone', 'Mobile number', null, '90031 55012', { prefix: '+91', clean: 'phone' }],
         ['s2', 'Branch and status', 'section'],
         ['branch', 'Branch', branchOpts],
-        ['type', 'Driver type', ['Regular', 'Supporting']],
+        ['type', 'Driver type', DRIVER_TYPES],
         ['status', 'Status', ['Active', 'Inactive']],
         ['s3', 'Documents', 'section'],
         ['licImg', 'Licence image', 'upload', 'Front side'],
@@ -1279,9 +1281,10 @@ export const MasterManager = ({ type }) => {
           align="center"
           gap={12}
           wrap
+          className="tms-toolbar"
           style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-default)' }}
         >
-          <Flex gap={12} align="center" wrap>
+          <Flex gap={12} align="center" wrap className="tms-toolbar-main">
             <Typography.Text type="secondary" style={nowrap}>
               {showRequests
                 ? <><Typography.Text strong>{pendingBunkReqs.length}</Typography.Text> pending {pendingBunkReqs.length === 1 ? 'request' : 'requests'}</>
@@ -1315,7 +1318,7 @@ export const MasterManager = ({ type }) => {
             {/* Route / Bunk master: switch between the records and the bunk approval requests.
                 Requests live in their own table so a long queue never pushes the routes down. */}
             {hasBunkQueue && (
-              <Space size={8}>
+              <Space size={8} wrap>
                 <Button
                   className="tms-filter-pill"
                   style={{ '--pill': 'var(--color-brand)' }}
@@ -1340,7 +1343,7 @@ export const MasterManager = ({ type }) => {
 
             {/* Driver Approval Filter Pills (click the active one again to clear it) */}
             {type === 'drivers' && (
-              <Space size={8}>
+              <Space size={8} wrap>
                 <Button
                   className="tms-filter-pill"
                   style={{ '--pill': 'var(--color-brand)' }}
@@ -1363,9 +1366,10 @@ export const MasterManager = ({ type }) => {
             )}
           </Flex>
 
+          {/* Hidden native file picker, opened by the Import button (keeps handleImportFile's change-event contract).
+              Kept outside the Space so it does not take an empty slot in the button row. */}
+          {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
           <Space wrap className="tms-toolbar-actions" style={showRequests ? { display: 'none' } : undefined}>
-            {/* Hidden native file picker, opened by the Import button (keeps handleImportFile's change-event contract). */}
-            {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
             {canAdd && (
               <Button
                 onClick={() => FILE_TRANSFER_ENABLED && importRef.current && importRef.current.click()}

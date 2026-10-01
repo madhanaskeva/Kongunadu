@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Button, Card, Col, Empty, Flex, Form, Input, Row, Segmented, Select, Space, Tabs, Tag, Tooltip, Typography } from 'antd';
+import { Button, Card, Col, Empty, Flex, Form, Input, Row, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { TabButtons } from '../../../components/common/TabButtons';
 import { CHART_TYPES, CHART_LABELS } from '../../../components/charts';
 
 export const Settings = () => {
@@ -156,14 +157,15 @@ export const Settings = () => {
         styles={{ body: { padding: 0 } }}
       >
         {/* View Tabs */}
-        <Tabs
-          activeKey={dt}
+        <TabButtons
+          ariaLabel="Dashboard item type"
+          value={dt}
           onChange={key => {
             setDashTab(key);
             setDashFormErr('');
           }}
-          items={dashTabs.map(t => ({ key: t.value, label: t.label }))}
-          tabBarStyle={{ paddingInline: 18, marginBottom: 0 }}
+          items={dashTabs}
+          style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-default)' }}
         />
 
         <Row>

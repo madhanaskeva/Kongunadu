@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, Card, Flex, Tabs } from 'antd';
+import { Badge, Card, Flex } from 'antd';
+import { TabButtons } from '../../../components/common/TabButtons';
 import { useSearchParams } from 'react-router-dom';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useAuth } from '../../../hooks/useAuth';
@@ -128,8 +129,8 @@ export const Notifications = () => {
 
   return (
     <Flex vertical gap={20} className="ntf-page">
-      <Card styles={{ body: { padding: '0 18px' } }}>
-        <Tabs activeKey={tab} onChange={setTab} items={items.map(({ key, label: l }) => ({ key, label: l }))} tabBarStyle={{ marginBottom: 0 }} />
+      <Card styles={{ body: { padding: '12px 16px' } }}>
+        <TabButtons ariaLabel="Notification type" scroll={false} value={tab} onChange={setTab} items={items.map(({ key, label: l }) => ({ value: key, label: l }))} />
       </Card>
       {items.find(i => i.key === tab).children}
     </Flex>

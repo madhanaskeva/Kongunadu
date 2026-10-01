@@ -841,11 +841,14 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 
 /* Columns pinned while scrolling sideways need a solid fill: the colour at
    their end of the band. */
-.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-left {
+/* antd v6 names them fix-start / fix-end; fix-left / fix-right kept for older markup. */
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-left,
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-start {
   background: #03448b;
 }
 
-.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right {
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right,
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-end {
   background: #0d6efd;
 }
 

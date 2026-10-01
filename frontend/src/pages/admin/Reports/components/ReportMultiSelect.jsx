@@ -81,8 +81,10 @@ export const ReportMultiSelect = ({
       }}
       listHeight={240}
       notFoundContent={`No matching ${fieldName.toLowerCase()} found.`}
+      // The field can be narrower than the option labels (phones), so the panel sizes itself.
+      popupMatchSelectWidth={false}
       popupRender={(menu) => (
-        <>
+        <div style={{ minWidth: 280, maxWidth: 'calc(100vw - 32px)' }}>
           <Flex justify="space-between" align="center" style={{ padding: '0 4px' }}>
             <Flex align="center">
               <Button type="link" size="small" onClick={handleSelectAll}>
@@ -93,7 +95,7 @@ export const ReportMultiSelect = ({
                 Clear all
               </Button>
             </Flex>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               {selectedList.length} of {normalizedOptions.length}
             </Typography.Text>
           </Flex>
@@ -105,7 +107,7 @@ export const ReportMultiSelect = ({
               Done
             </Button>
           </Flex>
-        </>
+        </div>
       )}
       style={{ width: '100%', ...style }}
     />

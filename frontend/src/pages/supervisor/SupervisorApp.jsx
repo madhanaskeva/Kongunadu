@@ -1,4 +1,5 @@
 import React from 'react';
+import { normDriver, normDriverType } from '../../utils/driverTypes';
 import SupervisorScreens from './SupervisorScreens';
 import { TMS, formatPhone } from '../../utils';
 import { isPendingClose, pendingCloseDetail, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../utils/tripStatus';
@@ -148,7 +149,7 @@ export class SupervisorApp extends React.Component {
   branchDrivers() {
     const s = this.state, T = this.T();
     const seed = T.drivers.filter(d => d.branch === this.BR).map(d => { const ap = s.seedApprovals[d.id]; return ap ? { ...d, approval: ap, status: ap === 'Approved' && d.status === 'Pending' ? 'Active' : ap === 'Rejected' ? 'Inactive' : d.status } : d; });
-    const req = s.drvReqs.map(r => ({ id: r.id, name: r.name, licence: r.licence, phone: this.fmtPhone(r.phone), branch: r.branch, type: 'New', status: r.status === 'Rejected' ? 'Inactive' : 'Active', approval: r.status === 'Pending' ? 'Pending approval' : r.status, requested: true }));
+    const req = s.drvReqs.map(r => ({ id: r.id, name: r.name, licence: r.licence, phone: this.fmtPhone(r.phone), branch: r.branch, type: r.status === 'Approved' && r.type ? normDriverType(r.type) : 'New', status: r.status === 'Rejected' ? 'Inactive' : 'Active', approval: r.status === 'Pending' ? 'Pending approval' : r.status, requested: true }));
     return [...seed, ...req];
   }
   fmtPhone(d) { return formatPhone(d); }
@@ -237,7 +238,7 @@ export class SupervisorApp extends React.Component {
     let gone; try { gone = new Set(JSON.parse(delJson)); } catch (err) { gone = new Set(); }
     const merge = (route, seed) => { const x = e[route] || {}, ed = x.edited || {}; return [...seed.map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r), ...(x.added || [])].filter(r => !gone.has(r.id)); };
     const by = a => Object.fromEntries(a.map(r => [r.id, r]));
-    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers), locations = merge('locations', base.locations), trips = merge('trips', base.trips), clients = merge('clients', base.clients || []), supervisors = merge('supervisors', base.supervisors || []), customers = merge('customers', base.customers || []), bunks = merge('bunks', base.bunks || []), branches = merge('branches', base.branches || []);
+    const vehicles = merge('vehicles', base.vehicles), drivers = merge('drivers', base.drivers).map(normDriver), locations = merge('locations', base.locations), trips = merge('trips', base.trips), clients = merge('clients', base.clients || []), supervisors = merge('supervisors', base.supervisors || []), customers = merge('customers', base.customers || []), bunks = merge('bunks', base.bunks || []), branches = merge('branches', base.branches || []);
     this._t = { ...base, vehicles, V: { ...base.V, ...by(vehicles) }, drivers, D: { ...base.D, ...by(drivers) }, locations, L: { ...base.L, ...by(locations) }, trips, T: { ...base.T, ...by(trips) }, clients, C: { ...base.C, ...by(clients) }, supervisors, S: { ...base.S, ...by(supervisors) }, customers, U: { ...base.U, ...by(customers) }, bunks, F: { ...base.F, ...by(bunks) }, branches, B: { ...base.B, ...by(branches) } }; this._tKey = key;
     return this._t;
   }
