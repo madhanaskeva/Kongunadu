@@ -45,7 +45,7 @@ export const SupervisorSelector = ({ supervisors = [], value = [], onChange, err
               <Typography.Text type="secondary" style={{ fontSize: 12 }} ellipsis>{s.branchName || '—'}</Typography.Text>
             </Flex>
             {s.disabled && <Tag>Suspended</Tag>}
-            {!s.disabled && markIds.includes(s.id) && <Tag color="green">{markLabel}</Tag>}
+            {!s.disabled && markIds.includes(s.id) && <Tag color="blue">{markLabel}</Tag>}
           </label>
         ))}
         {!shown.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No supervisors found" style={{ margin: '16px 0' }} />}

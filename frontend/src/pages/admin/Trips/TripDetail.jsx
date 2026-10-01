@@ -1,8 +1,8 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { CircleCheck, Fuel, Lock, ShieldCheck, TriangleAlert, Eye } from 'lucide-react';
+import { ArrowLeft, Building2, CalendarClock, CircleCheck, Eye, Fuel, Lock, Pencil, ShieldCheck, Trash2, TriangleAlert, Truck, User, UserRound } from 'lucide-react';
 import {
-  Alert, Badge, Button, Card, Col, Descriptions, Empty, Flex, Progress, Row, Space, Table, Tag, Timeline, Tooltip, Typography,
+  Alert, Badge, Button, Card, Descriptions, Empty, Flex, Progress, Space, Steps, Table, Tag, Tooltip, Typography,
 } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
@@ -870,41 +870,46 @@ export const TripDetail = () => {
 
   return (
     <Flex vertical gap={24}>
-      {/* Top action row */}
-      <Flex justify="space-between" align="flex-start" gap={16} wrap>
-        <div>
-          <Button type="link" size="small" className="td-back" onClick={() => navTo('trips')}>
-            ← All trips
+      {/* Trip header: number, status, key facts and actions */}
+      <Card className="td-hero" styles={{ body: { padding: 0 } }}>
+        <div className="td-hero-top">
+          <Button type="link" size="small" className="td-back" icon={<ArrowLeft size={15} />} onClick={() => navTo('trips')}>
+            All trips
           </Button>
+          <Space size={8} wrap>
+            {recordLocked && (
+              <Tag icon={<Lock size={12} />} className="td-lock-tag">Locked after approval</Tag>
+            )}
+            {can('trips', 'edit') && !recordLocked && (
+              <Button color="primary" variant="outlined" icon={<Pencil size={15} />} onClick={editTrip}>
+                Edit record
+              </Button>
+            )}
+            {can('trips', 'delete') && !recordLocked && (
+              <Button danger icon={<Trash2 size={15} />} onClick={askDeleteTrip}>
+                Delete
+              </Button>
+            )}
+          </Space>
+        </div>
+        <div className="td-hero-body">
           <Flex align="center" gap={12} wrap className="td-title-row">
             <Typography.Text className="td-trip-number">{rawTrip.number}</Typography.Text>
             {/* Trip states carry their own palette (var(--st-*)), which no preset colour matches. */}
-            <Tag variant="filled" className="td-caps-tag" style={{ background: badgeBg, color: badgeFg }}>
+            <Tag variant="filled" className="td-caps-tag td-status-tag" style={{ background: badgeBg, color: badgeFg }}>
               {badge}
             </Tag>
-            <Typography.Text type="secondary">
-              {rawTrip.type} · {(b || {}).name} · opened by {(s || {}).name}
-            </Typography.Text>
           </Flex>
+          <div className="td-facts">
+            <span className="td-fact"><span className="td-fact-label">Type</span><span className="td-fact-value">{rawTrip.type || '—'}</span></span>
+            <span className="td-fact"><Building2 size={15} /><span className="td-fact-label">Branch</span><span className="td-fact-value">{(b || {}).name || '—'}</span></span>
+            <span className="td-fact"><Truck size={15} /><span className="td-fact-label">Vehicle</span><span className="td-fact-value">{(v || {}).number || '—'}</span></span>
+            <span className="td-fact"><UserRound size={15} /><span className="td-fact-label">Driver</span><span className="td-fact-value">{(d || {}).name || '—'}</span></span>
+            <span className="td-fact"><User size={15} /><span className="td-fact-label">Opened by</span><span className="td-fact-value">{(s || {}).name || '—'}</span></span>
+            <span className="td-fact"><CalendarClock size={15} /><span className="td-fact-label">Opened</span><span className="td-fact-value">{rawTrip.opened || '—'}</span></span>
+          </div>
         </div>
-        <Space size={8} wrap>
-          {recordLocked && (
-            <Typography.Text strong>
-              <Space size={6}><Lock size={14} /> Locked after approval</Space>
-            </Typography.Text>
-          )}
-          {can('trips', 'edit') && !recordLocked && (
-            <Button size="small" color="primary" variant="outlined" onClick={editTrip}>
-              Edit record
-            </Button>
-          )}
-          {can('trips', 'delete') && !recordLocked && (
-            <Button size="small" type="text" danger onClick={askDeleteTrip}>
-              Delete
-            </Button>
-          )}
-        </Space>
-      </Flex>
+      </Card>
 
       {/* Attention banner: variance over threshold and / or open exceptions */}
       {(flagged || openExcCount > 0) && (
@@ -934,89 +939,85 @@ export const TripDetail = () => {
         />
       )}
 
-      {/* Distance variation beside the status lifecycle */}
-      <Row gutter={[24, 16]}>
-        <Col xs={24} lg={12}>
-          <Card
-            title="Distance variation"
-            className="td-card td-card--edge"
-            style={{ '--td-edge': distEdge, height: '100%' }}
-          >
-            {/* Three sources on one muted panel, as on the Distance Variation alerts */}
-            <Flex vertical gap={8} className="td-muted-panel">
-              {distBars.map(([label, role, km, color, dl], i) => (
-                <div key={i} className="td-dist-row" title={role}>
-                  <Typography.Text ellipsis className="td-small">{label}</Typography.Text>
-                  <Progress
-                    percent={km == null ? 0 : Math.round((km / maxKm) * 100)}
-                    showInfo={false}
-                    strokeColor={color}
-                    railColor="#fff"
-                    strokeLinecap="square"
-                    size={{ height: 10 }}
-                  />
-                  <span className="td-dist-value">
-                    <Typography.Text strong className="td-small">
-                      {km == null ? '—' : fmtKm(km)}
-                    </Typography.Text>
-                    {dl != null && (
-                      <Typography.Text type={Math.abs(dl) > thr ? 'danger' : undefined} className="td-dist-delta">
-                        {dl > 0 ? '+' : ''}{dl.toFixed(1)}%
+      {/* Status lifecycle: one horizontal stepper across the page */}
+      <Card title="Status lifecycle" className="td-card td-lifecycle-card">
+        <Steps
+          className="td-steps"
+          size="small"
+          responsive
+          current={lifecycle.filter(([, , done]) => done).length - 1}
+          items={lifecycle.map(([label, meta, done], i, all) => ({
+            title: label,
+            content: meta,
+            // The last completed stage is where the trip is now.
+            status: !done ? 'wait' : i === all.filter(([, , dn]) => dn).length - 1 ? 'process' : 'finish',
+          }))}
+        />
+      </Card>
+
+      {/* Distance variation: the three sources, with the verdict beside them */}
+      <Card
+        title="Distance variation"
+        className="td-card td-card--edge"
+        style={{ '--td-edge': distEdge }}
+      >
+        <div className="td-dist-grid">
+          <div>
+              {/* Three sources on one muted panel, as on the Distance Variation alerts */}
+              <Flex vertical gap={8} className="td-muted-panel">
+                {distBars.map(([label, role, km, color, dl], i) => (
+                  <div key={i} className="td-dist-row" title={role}>
+                    <Typography.Text ellipsis className="td-small">{label}</Typography.Text>
+                    <Progress
+                      percent={km == null ? 0 : Math.round((km / maxKm) * 100)}
+                      showInfo={false}
+                      strokeColor={color}
+                      railColor="#fff"
+                      strokeLinecap="square"
+                      size={{ height: 10 }}
+                    />
+                    <span className="td-dist-value">
+                      <Typography.Text strong className="td-small">
+                        {km == null ? '—' : fmtKm(km)}
                       </Typography.Text>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </Flex>
-
-            {/* Verdict: the headline number and what set it */}
-            <Flex justify="space-between" align="center" gap={12} wrap className="td-verdict">
-              {!hasBaseline ? (
-                <Typography.Text strong className="td-heading-text">
-                  No fixed route on this movement
-                </Typography.Text>
-              ) : (
-                <Flex align="baseline" gap={8} wrap>
-                  <span className={`td-verdict-pct${flagged ? ' td-verdict-pct--bad' : isClosed ? ' td-verdict-pct--good' : ''}`}>
-                    {pct.toFixed(1)}%
-                  </span>
-                  <Typography.Text className="td-small">
-                    {srcDiff == null
-                      ? 'no reading yet'
-                      : `${srcName} ${srcDiff > 0 ? '+' : ''}${srcDiff} km vs fixed${isClosed ? '' : ' so far'}`}
+                      {dl != null && (
+                        <Typography.Text type={Math.abs(dl) > thr ? 'danger' : undefined} className="td-dist-delta">
+                          {dl > 0 ? '+' : ''}{dl.toFixed(1)}%
+                        </Typography.Text>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </Flex>
+              <Typography.Paragraph className="td-note">
+                {distNote} {distFallback}
+              </Typography.Paragraph>
+          </div>
+              {/* Verdict: the headline number and what set it */}
+              <Flex vertical justify="center" gap={10} className="td-verdict">
+              <span className="td-fact-label">Distance variance</span>
+                {!hasBaseline ? (
+                  <Typography.Text strong className="td-heading-text">
+                    No fixed route on this movement
                   </Typography.Text>
-                </Flex>
-              )}
-              <Button type="link" size="small" className="td-link-sm" onClick={() => navTo('settings')}>
-                Threshold {thr}% · Settings →
-              </Button>
-            </Flex>
-
-            <Typography.Paragraph className="td-note">
-              {distNote} {distFallback}
-            </Typography.Paragraph>
-          </Card>
-        </Col>
-
-        <Col xs={24} lg={12}>
-          <Card title="Status lifecycle" className="td-card" style={{ height: '100%' }}>
-            <Timeline
-              className="td-lifecycle"
-              items={lifecycle.map(([label, meta, done]) => ({
-                color: done ? 'var(--color-brand)' : 'gray',
-                content: (
-                  <Flex vertical>
-                    <Typography.Text strong type={done ? undefined : 'secondary'} className={done ? 'td-heading-text' : undefined}>
-                      {label}
+                ) : (
+                  <Flex align="baseline" gap={8} wrap>
+                    <span className={`td-verdict-pct${flagged ? ' td-verdict-pct--bad' : isClosed ? ' td-verdict-pct--good' : ''}`}>
+                      {pct.toFixed(1)}%
+                    </span>
+                    <Typography.Text className="td-small">
+                      {srcDiff == null
+                        ? 'no reading yet'
+                        : `${srcName} ${srcDiff > 0 ? '+' : ''}${srcDiff} km vs fixed${isClosed ? '' : ' so far'}`}
                     </Typography.Text>
-                    <Typography.Text type="secondary" className="td-small">{meta}</Typography.Text>
                   </Flex>
-                ),
-              }))}
-            />
-          </Card>
-        </Col>
-      </Row>
+                )}
+                <Button type="link" size="small" className="td-link-sm" onClick={() => navTo('settings')}>
+                  Threshold {thr}% · Settings →
+                </Button>
+              </Flex>
+        </div>
+      </Card>
 
       {/* Exceptions raised on this trip */}
       {can('exceptions', 'view') && (

@@ -10,7 +10,7 @@ const MAX_DAYS = 7;
 const DT_FMT = 'DD MMM YYYY HH:mm';
 
 export const ACTIVITY_TONE = {
-  [ACTIVITY.RUNNING]: { color: 'var(--good-600)', tag: 'success' },
+  [ACTIVITY.RUNNING]: { color: 'var(--color-brand)', tag: 'processing' },
   [ACTIVITY.IDLE]: { color: 'var(--kr-saffron-500)', tag: 'warning' },
   [ACTIVITY.NO_GPS]: { color: 'var(--kr-grey-300)', tag: 'default' },
 };
@@ -98,7 +98,7 @@ export const IdleNowPanel = ({ span }) => {
       <Flex align="center" gap={8} wrap style={{ marginTop: 8 }}>
         <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontWeight: 700 }}>{reason.label}</Tag>
         <Flex align="center" gap={4}>
-          <Power size={12} style={{ color: reason.ignition ? 'var(--good-700)' : 'var(--text-muted)' }} aria-hidden />
+          <Power size={12} style={{ color: reason.ignition ? 'var(--kr-green-800)' : 'var(--text-muted)' }} aria-hidden />
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>Ignition {reason.ignition ? 'on' : 'off'} · 0 km/h</Typography.Text>
         </Flex>
       </Flex>
@@ -281,7 +281,7 @@ export const VehicleActivityModal = ({ vehicle: v, tms, initialFrom, initialTo, 
         {valid && summary && (
           <>
             <Row gutter={[8, 8]}>
-              <Col xs={12} sm={8} md={4}><Stat label="Running" value={fmtDuration(summary.running)} color="var(--good-700)" /></Col>
+              <Col xs={12} sm={8} md={4}><Stat label="Running" value={fmtDuration(summary.running)} color="var(--kr-green-800)" /></Col>
               <Col xs={12} sm={8} md={4}><Stat label="Idle" value={fmtDuration(summary.idle)} color="#7A4300" /></Col>
               <Col xs={12} sm={8} md={4}><Stat label="No GPS" value={fmtDuration(summary.noGps)} /></Col>
               <Col xs={12} sm={8} md={4}><Stat label="Idle stops" value={summary.idleStops} /></Col>

@@ -25,9 +25,9 @@
 @media (min-width: 560px) {
   .sv-app {
     background:
-      radial-gradient(circle at 100% 0%, rgba(0, 104, 71, 0.18), transparent 45%),
-      radial-gradient(circle at 0% 100%, rgba(218, 37, 29, 0.12), transparent 45%),
-      linear-gradient(135deg, #eef6f2 0%, #f6f7f6 50%, #fbf1f0 100%);
+      radial-gradient(circle at 100% 0%, rgba(13, 110, 253, 0.20), transparent 45%),
+      radial-gradient(circle at 0% 100%, rgba(3, 68, 139, 0.14), transparent 45%),
+      linear-gradient(135deg, #eef4ff 0%, #f4f8fd 50%, #e8f0ff 100%);
   }
 
   .sv-device {

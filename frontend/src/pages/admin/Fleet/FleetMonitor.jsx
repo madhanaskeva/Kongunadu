@@ -46,13 +46,13 @@ const usePagedCards = (items, resetKeys, noun) => {
 };
 
 // Status / state → antd Tag preset (green / amber / blue / red / grey as before).
-const STATUS_TAG = { Running: 'success', Idle: 'warning', Maintenance: 'processing' };
-const GPS_TAG = { OK: 'success', Weak: 'warning' };
+const STATUS_TAG = { Running: 'processing', Idle: 'warning', Maintenance: 'cyan' };
+const GPS_TAG = { OK: 'processing', Weak: 'warning' };
 const DIVERSION_TAG = { 'Off route now': 'error', Rejoined: 'warning', Reviewed: 'default' };
 
 // Card edge + status chip colours, one entry per vehicle status.
 const FLEET_TONES = {
-  Running: { edge: 'var(--good-600)', bg: 'var(--good-100)', fg: 'var(--good-800)' },
+  Running: { edge: 'var(--color-brand)', bg: 'var(--color-brand-soft)', fg: 'var(--kr-green-900)' },
   Idle: { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
   Maintenance: { edge: 'var(--st-enroute-edge)', bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-fg)' },
   default: { edge: 'var(--kr-grey-300)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
@@ -173,8 +173,8 @@ export const FleetMonitor = () => {
       // Mock GPS tracker report of the vehicle standing still now (live feed later).
       gpsIdle: (tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || null,
       driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
-      gpsColor: v.gps === 'OK' ? 'var(--good-600)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
-      gpsBg: v.gps === 'OK' ? 'var(--good-100)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
+      gpsColor: v.gps === 'OK' ? 'var(--color-brand)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
+      gpsBg: v.gps === 'OK' ? 'var(--color-brand-soft)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
       // Each card is edged and chipped in its own status colour.
       tone: FLEET_TONES[v.status] || FLEET_TONES.default,
       radiusAlert: v.id === 'V04'
@@ -216,7 +216,7 @@ export const FleetMonitor = () => {
   // A branch can run hundreds of vehicles, so the grid is paged like every other list (default 10 / page).
   const fleetPg = usePagedCards(fleetCards, [ff, idleDurationFilter, debouncedFleetQ, fltKey], 'vehicles');
 
-  const gpsTone = g => g === 'OK' ? 'var(--good-600)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
+  const gpsTone = g => g === 'OK' ? 'var(--color-brand)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
   // Diversions
   const divStates = {
@@ -725,7 +725,7 @@ export const FleetMonitor = () => {
                       <Flex justify="space-between" gap={8}>
                         <Typography.Text type="secondary" style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
                         <Typography.Text style={{ fontSize: 12 }}>
-                          <span style={{ color: 'var(--good-700)', fontWeight: 700 }}>Run {fmtDuration(act.summary.running)}</span>
+                          <span style={{ color: 'var(--kr-green-800)', fontWeight: 700 }}>Run {fmtDuration(act.summary.running)}</span>
                           {' · '}
                           <span style={{ color: '#7A4300', fontWeight: 700 }}>Idle {fmtDuration(act.summary.idle)}</span>
                         </Typography.Text>
@@ -747,7 +747,7 @@ export const FleetMonitor = () => {
                             <Typography.Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                               {dayjs(s.start).format('HH:mm')} – {dayjs(s.end).format('HH:mm')}
                             </Typography.Text>
-                            <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--good-700)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
+                            <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--kr-green-800)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
                               {s.state}
                             </Typography.Text>
                             <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>

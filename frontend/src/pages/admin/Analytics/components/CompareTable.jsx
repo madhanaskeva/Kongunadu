@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Card, Table, Tabs, Typography } from 'antd';
+import { Card, Flex, Segmented, Table, Typography } from 'antd';
+import { LayoutGrid } from 'lucide-react';
 import { fmtCell, unitOf } from '../../../../utils/analyticsCompare';
 
 const dash = <Typography.Text type="secondary">—</Typography.Text>;
@@ -145,16 +146,26 @@ export const CompareTable = ({ title, entityLabel, comparison, metrics, colorOf 
   const current = metrics.find(m => m.key === active);
 
   return (
-    <Card title={title} styles={{ body: { padding: 0 } }} className="an-table-card">
-      <Tabs
-        activeKey={active}
-        onChange={setTab}
-        className="an-metric-tabs"
-        items={[
-          ...metrics.map(m => ({ key: m.key, label: m.label })),
-          { key: '__all', label: 'All metrics' },
-        ]}
-      />
+    <Card styles={{ body: { padding: 0 } }} className="an-table-card">
+      {/* Header: title + what the table shows, then the metric switch on its own toolbar row. */}
+      <Flex vertical gap={12} className="an-metric-bar">
+        <Flex vertical gap={2}>
+          <Typography.Text strong style={{ fontSize: 16, color: 'var(--text-heading)' }}>{title}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            {active === '__all' ? 'Every metric, grouped by ' + entityLabel.toLowerCase() : `${current.label}${unitLabel(current)} by ${entityLabel.toLowerCase()} and period`}
+          </Typography.Text>
+        </Flex>
+        <div className="an-metric-scroll">
+          <Segmented
+            value={active}
+            onChange={setTab}
+            options={[
+              ...metrics.map(m => ({ value: m.key, label: m.label })),
+              { value: '__all', label: <Flex align="center" gap={6}><LayoutGrid size={14} strokeWidth={2.2} />All metrics</Flex> },
+            ]}
+          />
+        </div>
+      </Flex>
       {active === '__all' ? (
         <FullSheet metrics={metrics} comparison={comparison} entityLabel={entityLabel} colorOf={colorOf} />
       ) : (

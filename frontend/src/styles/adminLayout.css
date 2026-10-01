@@ -14,7 +14,7 @@
 }
 
 .tms-body > main {
-  background: #f3f6f5;
+  background: var(--surface-muted);
 }
 
 /* ---------- Top bar ---------- */
@@ -161,8 +161,8 @@
   box-sizing: border-box;
   overflow-y: auto;
   scrollbar-width: none;
-  /* Solid theme Primary (#0D6EFD) top to bottom. */
-  background: var(--color-brand);
+  /* Deep navy, a touch lighter at the top; the active item is the bright Primary. */
+  background: linear-gradient(180deg, #05499a 0%, var(--sidebar-bg) 45%, #023a7c 100%);
 }
 
 .tms-sidebar::-webkit-scrollbar {
@@ -207,7 +207,7 @@
 }
 
 .tms-sidebar-menu .ant-menu-item-selected {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.45);
   font-weight: 700;
 }
 
@@ -258,8 +258,8 @@
 }
 
 .tms-sidebar-menu .ant-menu-item-selected .tms-sidebar-badge--brand .ant-badge-count {
-  background: var(--kr-green-700) !important;
-  color: #ffffff;
+  background: #ffffff !important;
+  color: var(--color-brand);
 }
 
 .tms-sidebar-footer {

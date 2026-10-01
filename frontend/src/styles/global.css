@@ -826,14 +826,31 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-sort,
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-left,
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right {
-  background: linear-gradient(180deg, #3b82f6 0%, #0d6efd 55%, #0a4fb8 100%);
+  /* Cells are see-through: the header row carries one gradient (below). */
+  background: transparent;
   color: #ffffff;
   font-weight: 700;
   border-bottom: 1px solid #06367e;
 }
 
+/* Left → right across each table's own header: dark navy into brighter blue,
+   one continuous band from the first column to the last. */
+.ant-table-wrapper .ant-table-thead > tr {
+  background: linear-gradient(90deg, #03448b 0%, #0a5bd3 55%, #0d6efd 100%);
+}
+
+/* Columns pinned while scrolling sideways need a solid fill: the colour at
+   their end of the band. */
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-left {
+  background: #03448b;
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right {
+  background: #0d6efd;
+}
+
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-has-sorters:hover {
-  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 55%, #0d6efd 100%);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th:not(:last-child):not(.ant-table-selection-column):not(.ant-table-row-expand-icon-cell):not([colspan])::before {
@@ -950,6 +967,23 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 
 .tms-kpi .ant-card-body {
   position: relative;
+}
+
+/* Blue theme: summary cards on every page take a mix of blue shades by their
+   place in the row (Primary, navy, secondary, sky, indigo, royal), instead of
+   the red / green / amber each page passes in. Label, accent bar, glow, icon and
+   the Trips page's own label all follow --kpi. */
+.tms-shell .ant-col:nth-child(6n + 1) > .ant-card.tms-kpi { --kpi: #0d6efd !important; --tl-kpi-fg: #0d6efd !important; }
+.tms-shell .ant-col:nth-child(6n + 2) > .ant-card.tms-kpi { --kpi: #03448b !important; --tl-kpi-fg: #03448b !important; }
+.tms-shell .ant-col:nth-child(6n + 3) > .ant-card.tms-kpi { --kpi: #3b82f6 !important; --tl-kpi-fg: #3b82f6 !important; }
+.tms-shell .ant-col:nth-child(6n + 4) > .ant-card.tms-kpi { --kpi: #0284c7 !important; --tl-kpi-fg: #0284c7 !important; }
+.tms-shell .ant-col:nth-child(6n + 5) > .ant-card.tms-kpi { --kpi: #4f46e5 !important; --tl-kpi-fg: #4f46e5 !important; }
+.tms-shell .ant-col:nth-child(6n + 6) > .ant-card.tms-kpi { --kpi: #1e40af !important; --tl-kpi-fg: #1e40af !important; }
+
+/* Card icons wear the card's own blue on a light tint of it. */
+.tms-shell .ant-card.tms-kpi .ant-avatar {
+  background: color-mix(in srgb, var(--kpi) 12%, #ffffff) !important;
+  color: var(--kpi) !important;
 }
 
 .tms-kpi-label {
@@ -1131,4 +1165,58 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 
 .tms-approval-meta strong {
   color: var(--text-heading);
+}
+
+/* ── Modals: blue theme ─────────────────────────────────────────────
+   Every antd Modal (forms, confirms, details) shares one look: a blue → red
+   brand strip on top like the login card, a soft blue shade behind the header,
+   and a navy-tinted backdrop. Notes inside modals use the blue tint, not green. */
+.ant-modal .ant-modal-container {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--kr-green-50) 0, #ffffff 120px);
+  border: 1px solid var(--kr-green-100);
+  box-shadow: 0 24px 56px rgba(3, 68, 139, 0.18), 0 2px 6px rgba(3, 68, 139, 0.08);
+}
+.ant-modal .ant-modal-container::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--kr-green-700) 0 70%, var(--kr-red-600) 70% 100%);
+}
+.ant-modal .ant-modal-header { background: transparent; }
+.ant-modal .ant-modal-title { color: var(--kr-steel-900); }
+/* Uppercase kicker above modal titles picks up the brand blue. */
+.ant-modal .ant-modal-title .ant-typography-secondary { color: var(--kr-green-700); }
+.ant-modal-mask { background: rgba(6, 30, 66, 0.45); }
+
+.ant-modal .ant-alert-success,
+.ant-modal .ant-alert-info {
+  background: var(--kr-green-50);
+  border-color: var(--kr-green-100);
+  color: var(--kr-green-900);
+}
+.ant-modal .ant-alert-success .ant-alert-icon,
+.ant-modal .ant-alert-info .ant-alert-icon { color: var(--kr-green-700); }
+.ant-modal .ant-alert-success .ant-alert-title,
+.ant-modal .ant-alert-info .ant-alert-title,
+.ant-modal .ant-alert-success .ant-alert-message,
+.ant-modal .ant-alert-info .ant-alert-message { color: var(--kr-green-900); }
+
+/* Count bubble inside a filter pill (e.g. "Request approval 3") */
+.tms-pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-inline-start: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--pill);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
 }

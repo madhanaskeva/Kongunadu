@@ -49,7 +49,7 @@ const TMS_THEME = {
     colorTextHeading: '#1c1c1a',      // --text-heading / --kr-grey-900
     colorBgBase: '#ffffff',
     colorBgContainer: '#ffffff',
-    colorBgLayout: '#f6f6f4',         // --surface-muted / --kr-grey-50
+    colorBgLayout: '#f4f8fd',         // --surface-muted (light-blue page)
     colorBorder: '#dcdcd6',           // --border-default / --kr-grey-200
     colorBorderSecondary: '#c2c2bb',  // --border-strong / --kr-grey-300
 
@@ -102,6 +102,13 @@ const TMS_THEME = {
       paddingInline: 16,
       paddingInlineSM: 10,
       paddingInlineLG: 24,
+      // Every primary / brand button in dark navy (the sidebar colour),
+      // lifting to the brighter blue on hover.
+      colorPrimary: '#03448b',
+      colorPrimaryHover: '#0a5bd3',
+      colorPrimaryActive: '#023a7c',
+      colorPrimaryBorder: '#03448b',
+      primaryShadow: '0 2px 6px rgba(3, 68, 139, 0.25)',
     },
     Input: {
       controlHeight: 42,
@@ -179,7 +186,7 @@ const TMS_THEME = {
       headerBg: '#ffffff',
       headerHeight: 72,
       headerPadding: 0,
-      bodyBg: '#f3f6f5',
+      bodyBg: '#f4f8fd',
       siderBg: 'transparent',
     },
     /* Sidebar menu sits on the green gradient, so it uses the dark variant. */
@@ -188,9 +195,9 @@ const TMS_THEME = {
       darkSubMenuItemBg: 'transparent',
       darkItemColor: 'rgba(255, 255, 255, 0.92)',
       darkItemHoverColor: '#ffffff',
-      darkItemHoverBg: 'rgba(218, 241, 231, 0.16)',
-      darkItemSelectedBg: '#dbe7fe',  // --kr-green-100
-      darkItemSelectedColor: '#0a4fb8', // --kr-green-800
+      darkItemHoverBg: 'rgba(255, 255, 255, 0.10)',
+      darkItemSelectedBg: '#0d6efd',  // Primary pill on the navy sidebar
+      darkItemSelectedColor: '#ffffff',
       darkGroupTitleColor: 'rgba(255, 255, 255, 0.62)',
       itemBorderRadius: 10,
       itemHeight: 38,

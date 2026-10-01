@@ -176,14 +176,125 @@
 
 /* ---------- Trip detail -------------------------------------------------- */
 
-/* Section headings: display font, uppercase. */
+/* Section headings: display font with a short brand accent bar. */
+.td-card.ant-card {
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(20, 32, 43, 0.04), 0 6px 18px -12px rgba(3, 68, 139, 0.18);
+}
+.td-card .ant-card-head {
+  min-height: 52px;
+  border-bottom-color: var(--kr-grey-100);
+}
 .td-card .ant-card-head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 15px;
-  letter-spacing: 0.02em;
+  font-size: 13.5px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-heading);
+}
+.td-card .ant-card-head-title::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: var(--color-brand);
+}
+
+/* ---- Trip header card ---- */
+.td-hero.ant-card {
+  overflow: hidden;
+  border-radius: 14px;
+  border-color: var(--kr-green-100);
+  background: linear-gradient(135deg, var(--kr-green-50) 0%, #ffffff 55%);
+  box-shadow: 0 1px 2px rgba(20, 32, 43, 0.04), 0 8px 22px -14px rgba(3, 68, 139, 0.25);
+}
+.td-hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 20px 0;
+}
+.td-hero-body {
+  padding: 8px 20px 18px;
+}
+.td-status-tag.ant-tag {
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.td-lock-tag.ant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+/* Key facts: label over value, separated by thin rules; wraps on small screens. */
+.td-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0;
+  margin-top: 16px;
+  border: 1px solid var(--kr-green-100);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+.td-fact {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 10px 14px;
+  border-right: 1px solid var(--kr-grey-100);
+  color: var(--color-brand);
+  min-width: 0;
+}
+.td-fact:last-child { border-right: 0; }
+.td-fact > svg { grid-row: 1 / span 2; }
+.td-fact-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.td-fact-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Facts without an icon (Type) keep the value under the label. */
+.td-fact:not(:has(> svg)) { grid-template-columns: 1fr; }
+
+/* ---- Status lifecycle stepper ---- */
+.td-lifecycle-card .ant-card-body { padding: 20px 22px 18px; }
+.td-steps .ant-steps-item-title { font-weight: 700; color: var(--text-heading); }
+.td-steps .ant-steps-item-wait .ant-steps-item-title { color: var(--text-muted); font-weight: 600; }
+.td-steps .ant-steps-item-content,
+.td-steps .ant-steps-item-description { font-size: 12.5px; color: var(--text-muted); }
+
+/* ---- Distance variation: bars + note on the left, verdict tile on the right ---- */
+.td-dist-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  align-items: stretch;
+}
+@media (max-width: 900px) {
+  .td-dist-grid { grid-template-columns: 1fr; }
 }
 
 /* Cards whose left edge reports a state (distance verdict, verification). */
@@ -261,9 +372,10 @@
 }
 
 .td-muted-panel {
-  padding: 12px;
+  padding: 14px 16px;
   background: var(--surface-muted);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--kr-grey-100);
+  border-radius: 12px;
 }
 
 /* Distance variation rows: label · bar · value + delta */
@@ -303,15 +415,16 @@
 }
 
 .td-verdict {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-default);
+  padding: 18px;
+  border: 1px solid var(--kr-green-100);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--kr-green-50) 0%, #ffffff 100%);
 }
 
 .td-verdict-pct {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 22px;
+  font-size: 34px;
   line-height: 1;
   color: var(--kr-grey-700);
 }
@@ -577,4 +690,18 @@
 .tl-summary.ant-typography {
   color: var(--text-body);
   font-size: 13.5px;
+}
+
+/* Attention banner: rounded, with a stronger left edge so it reads as a call to action. */
+.td-attention.ant-alert {
+  align-items: center;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border-left: 4px solid var(--kr-saffron-500);
+}
+
+@media (max-width: 600px) {
+  .td-fact-value { white-space: normal; }
+  .td-hero-body { padding: 6px 14px 14px; }
+  .td-hero-top { padding: 12px 14px 0; }
 }

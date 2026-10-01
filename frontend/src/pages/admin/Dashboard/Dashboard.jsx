@@ -418,7 +418,7 @@ export const Dashboard = () => {
                   <Statistic
                     title={
                       <Flex justify="space-between" align="flex-start" gap={8}>
-                        <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: edge, lineHeight: 1.35 }}>
+                        <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--kpi)', lineHeight: 1.35 }}>
                           {k.label}
                         </Typography.Text>
                         {Icon && <Avatar size={30} style={{ flex: 'none', background: tint, color: edge }} icon={<Icon size={16} strokeWidth={2.2} />} />}
@@ -427,7 +427,8 @@ export const Dashboard = () => {
                     value={k.value}
                     formatter={v => v}
                   />
-                  <Typography.Text style={{ fontSize: 12.5, color: k.subColor || undefined, marginTop: 'auto', paddingTop: 8 }} type={k.subColor ? undefined : 'secondary'}>
+                  {/* Highlighted sub-lines take the card's blue; plain ones stay muted. */}
+                  <Typography.Text style={{ fontSize: 12.5, color: k.subColor && k.subColor !== 'var(--text-muted)' ? 'var(--kpi)' : undefined, marginTop: 'auto', paddingTop: 8 }} type={k.subColor && k.subColor !== 'var(--text-muted)' ? undefined : 'secondary'}>
                     {k.sub}
                   </Typography.Text>
                   {k.hasStats && k.stats && (

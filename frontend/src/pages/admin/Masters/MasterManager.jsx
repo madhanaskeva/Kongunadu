@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, Check, Clock, Eye, EyeOff, Fuel, Hash, MapPin, Pencil, Plus, Search, Trash2, User, UserCheck, X } from 'lucide-react';
+import { BadgeCheck, Check, Clock, Eye, EyeOff, Fuel, Pencil, Plus, Search, Trash2, UserCheck, X } from 'lucide-react';
 import { Alert, Button, Card, Empty, Flex, Input, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
@@ -153,6 +153,8 @@ export const MasterManager = ({ type }) => {
   // Loading Location Master: pick the client first — locations belong to one client,
   // so there is nothing sensible to add until we know whose location it is.
   const [locClient, setLocClient] = useState('');
+  // Route / Bunk master: the records table ("Approved") or the supervisors' bunk requests.
+  const [bunkView, setBunkView] = useState('approved');
 
   const handleDeleteBunkFromRoute = (routeRec, bunkToDelete) => {
     const rawList = routeRec.authorizedBunks || [];
@@ -1185,54 +1187,55 @@ export const MasterManager = ({ type }) => {
     },
   ];
 
+  const hasBunkQueue = type === 'routes' || type === 'bunks';
   const pendingBunkReqs = (bunkReqs || []).filter(r => r.status === 'Pending');
+  const showRequests = hasBunkQueue && bunkView === 'requests';
+  // Pending first, then decided ones (newest decision on top) as a short history.
+  const requestRows = (bunkReqs || [])
+    .filter(r => matchesSearch(debouncedMasterQ, r.bunkName, r.routeName, r.supervisorName, r.tripNumber))
+    .sort((x, y) => (x.status === 'Pending' ? 0 : 1) - (y.status === 'Pending' ? 0 : 1));
+  const requestColumns = [
+    {
+      title: 'Bunk', dataIndex: 'bunkName',
+      render: (v) => (
+        <Flex align="center" gap={8}>
+          <Fuel size={16} strokeWidth={2} color="var(--kr-saffron-600)" />
+          <Typography.Text strong style={nowrap}>{v}</Typography.Text>
+        </Flex>
+      ),
+    },
+    { title: 'Route', dataIndex: 'routeName', render: (v) => <span style={nowrap}>{v || '—'}</span> },
+    { title: 'Requested by', dataIndex: 'supervisorName', render: (v) => <span style={nowrap}>{v}</span> },
+    { title: 'Trip', dataIndex: 'tripNumber', render: (v) => v || 'Close Trip' },
+    { title: 'Requested', dataIndex: 'requestedAt', render: (v) => <span style={nowrap}>{v}</span> },
+    {
+      title: 'Status', dataIndex: 'status',
+      render: (v, r) => (
+        <Flex vertical gap={2}>
+          <Tag color={v === 'Approved' ? 'success' : v === 'Rejected' ? 'error' : 'warning'} style={{ width: 'fit-content' }}>
+            {v === 'Pending' ? 'Awaiting approval' : v}
+          </Tag>
+          {r.decidedAt && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.decidedAt}</Typography.Text>}
+        </Flex>
+      ),
+    },
+    {
+      title: 'Actions', key: 'act', align: 'right', fixed: 'right',
+      render: (_, r) => (r.status === 'Pending' ? (
+        <Space size={8} wrap={false}>
+          <Button type="primary" size="small" icon={<Check size={15} strokeWidth={2.4} />} onClick={() => decideBunkRequest(r.id, 'Approved')}>
+            Approve &amp; authorize
+          </Button>
+          <Button danger size="small" icon={<X size={15} strokeWidth={2.4} />} onClick={() => decideBunkRequest(r.id, 'Rejected')}>
+            Reject
+          </Button>
+        </Space>
+      ) : <Typography.Text type="secondary">—</Typography.Text>),
+    },
+  ];
 
   return (
     <Flex vertical gap={20}>
-      {/* Bunk Approval Queue banner for Routes / Bunks */}
-      {(type === 'routes' || type === 'bunks') && pendingBunkReqs.length > 0 && (
-        <section className="tms-approvals" aria-label="Bunk approval queue">
-          <header className="tms-approvals-head">
-            <span className="tms-approvals-icon"><Fuel size={20} strokeWidth={2} /></span>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <Flex align="center" gap={8} wrap>
-                <h2 className="tms-approvals-title">Pending bunk approvals</h2>
-                <span className="tms-approvals-count">{pendingBunkReqs.length} requested</span>
-              </Flex>
-              <p className="tms-approvals-desc">
-                New bunks entered by supervisors during trip closing. Approving a bunk adds it to Master Bunks and automatically authorizes it for the route.
-              </p>
-            </div>
-          </header>
-          <ul className="tms-approvals-list">
-            {pendingBunkReqs.map(q => (
-              <li key={q.id} className="tms-approval">
-                <div className="tms-approval-main">
-                  <Flex align="center" gap={8} wrap>
-                    <span className="tms-approval-name">{q.bunkName}</span>
-                    <Tag color="warning">New bunk request</Tag>
-                  </Flex>
-                  <div className="tms-approval-meta">
-                    <span><MapPin size={13} /> <strong>{q.routeName || '—'}</strong></span>
-                    <span><User size={13} /> {q.supervisorName}</span>
-                    <span><Hash size={13} /> {q.tripNumber || 'Close Trip'}</span>
-                    <span><Clock size={13} /> {q.requestedAt}</span>
-                  </div>
-                </div>
-                <Space wrap size={8}>
-                  <Button type="primary" icon={<Check size={16} strokeWidth={2.4} />} onClick={() => decideBunkRequest(q.id, 'Approved')}>
-                    Approve &amp; authorize
-                  </Button>
-                  <Button danger icon={<X size={16} strokeWidth={2.4} />} onClick={() => decideBunkRequest(q.id, 'Rejected')}>
-                    Reject
-                  </Button>
-                </Space>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {/* Driver Approval Queue banner */}
       {/* {type === 'drivers' && drvQueue.length > 0 && (
         <Alert
@@ -1280,7 +1283,9 @@ export const MasterManager = ({ type }) => {
         >
           <Flex gap={12} align="center" wrap>
             <Typography.Text type="secondary" style={nowrap}>
-              <Typography.Text strong>{rows.length}</Typography.Text> {m.plural}
+              {showRequests
+                ? <><Typography.Text strong>{pendingBunkReqs.length}</Typography.Text> pending {pendingBunkReqs.length === 1 ? 'request' : 'requests'}</>
+                : <><Typography.Text strong>{rows.length}</Typography.Text> {m.plural}</>}
             </Typography.Text>
             <Input
               className="tms-search"
@@ -1305,6 +1310,32 @@ export const MasterManager = ({ type }) => {
                 popupMatchSelectWidth={false}
                 style={{ width: 230, maxWidth: '100%' }}
               />
+            )}
+
+            {/* Route / Bunk master: switch between the records and the bunk approval requests.
+                Requests live in their own table so a long queue never pushes the routes down. */}
+            {hasBunkQueue && (
+              <Space size={8}>
+                <Button
+                  className="tms-filter-pill"
+                  style={{ '--pill': 'var(--color-brand)' }}
+                  aria-pressed={bunkView === 'approved'}
+                  icon={<BadgeCheck size={16} strokeWidth={2} />}
+                  onClick={() => setBunkView('approved')}
+                >
+                  Approved
+                </Button>
+                <Button
+                  className="tms-filter-pill"
+                  style={{ '--pill': '#c26a00' }}
+                  aria-pressed={bunkView === 'requests'}
+                  icon={<Clock size={16} strokeWidth={2} />}
+                  onClick={() => setBunkView('requests')}
+                >
+                  Request approval
+                  {pendingBunkReqs.length > 0 && <span className="tms-pill-count">{pendingBunkReqs.length}</span>}
+                </Button>
+              </Space>
             )}
 
             {/* Driver Approval Filter Pills (click the active one again to clear it) */}
@@ -1332,7 +1363,7 @@ export const MasterManager = ({ type }) => {
             )}
           </Flex>
 
-          <Space wrap>
+          <Space wrap style={showRequests ? { display: 'none' } : undefined}>
             {/* Hidden native file picker, opened by the Import button (keeps handleImportFile's change-event contract). */}
             {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
             {canAdd && (
@@ -1356,8 +1387,20 @@ export const MasterManager = ({ type }) => {
           </Space>
         </Flex>
 
+        {showRequests && (
+          <Table
+            columns={requestColumns}
+            dataSource={requestRows}
+            rowKey="id"
+            tableLayout="auto"
+            scroll={{ x: 1100 }}
+            pagination={{ pageSize: 10, hideOnSinglePage: true, showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} requests` }}
+            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={masterQ ? <>No requests match &ldquo;{masterQ}&rdquo;.</> : 'No bunk requests from supervisors.'} /> }}
+          />
+        )}
+
         {/* Records Table */}
-        <Table
+        {!showRequests && <Table
           columns={recordColumns}
           dataSource={rows}
           rowKey="id"
@@ -1398,7 +1441,7 @@ export const MasterManager = ({ type }) => {
               </Empty>
             ),
           }}
-        />
+        />}
       </Card>
     </Flex>
   );

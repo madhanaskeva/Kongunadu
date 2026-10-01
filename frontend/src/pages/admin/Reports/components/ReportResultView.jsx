@@ -215,11 +215,24 @@ export const ReportResultView = ({
     return 'default';
   };
 
-  const tableColumns = activeColumns.map(col => ({
+  // Figures line up on the right: numeric columns, plus text columns whose every
+  // value is a number or percentage (e.g. Utilisation "88%").
+  // A space between digits (phone numbers) keeps a column as text.
+  const NUMERIC_TEXT = /^[-+]?₹?\s?[\d.,]+%?$/;
+  const isRightAligned = col => col.kind === 'num' || (
+    col.kind !== 'badge' &&
+    baseRows.some(r => r[col.key] != null && r[col.key] !== '' && r[col.key] !== '—') &&
+    baseRows.every(r => r[col.key] == null || r[col.key] === '' || r[col.key] === '—' || NUMERIC_TEXT.test(String(r[col.key])))
+  );
+
+  const tableColumns = activeColumns.map(col => {
+    const right = isRightAligned(col);
+    return {
     key: col.key,
-    align: col.kind === 'num' ? 'right' : 'left',
+    align: right ? 'right' : 'left',
+    // The heading sits over its values: right-aligned headings for figure columns.
     title: (
-      <Flex align="center" gap={4} style={{ display: 'inline-flex' }}>
+      <Flex align="center" justify={right ? 'flex-end' : 'flex-start'} gap={4} style={{ width: '100%' }}>
         <span>{col.label} {col.unit ? `(${col.unit})` : ''}</span>
         <ArrowUpDown size={12} opacity={sortConfig.key === col.key ? 1 : 0.4} />
       </Flex>
@@ -249,7 +262,8 @@ export const ReportResultView = ({
       }
       return <span>{rawVal == null || rawVal === '' ? '—' : String(rawVal)}</span>;
     },
-  }));
+  };
+  });
 
   const columnMenuItems = [
     {

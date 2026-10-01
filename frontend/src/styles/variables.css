@@ -54,7 +54,8 @@
   --color-hazard-soft: var(--kr-saffron-100);
 
   --surface-page: var(--kr-white);
-  --surface-muted: #f4f7fd;          /* light blue-grey page background */
+  --surface-muted: #f4f8fd;          /* light-blue inner page background */
+  --sidebar-bg: #03448b;             /* deep navy sidebar (blue theme reference) */
   --surface-card: var(--kr-white);
   --surface-inverse: var(--kr-steel-900);
   --surface-inverse-raised: var(--kr-steel-800);
