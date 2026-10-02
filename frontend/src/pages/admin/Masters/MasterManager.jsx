@@ -183,7 +183,8 @@ export const MasterManager = ({ type }) => {
     return (seed || []).filter(r => !delList.includes(r.id)).map(r => ed[r.id] ? { ...r, ...ed[r.id] } : r);
   };
 
-  const branchOpts = (tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+  const allBranches = mdata('branches', tms.branches || []);
+  const branchOpts = allBranches.map(b => ({ value: b.id, label: b.name }));
   const isBranchEqual = (bVal, bOpt) => {
     if (!bVal || !bOpt) return false;
     const optVal = typeof bOpt === 'string' ? bOpt : bOpt.value;
@@ -195,12 +196,8 @@ export const MasterManager = ({ type }) => {
     if (bId && bVal === bId) return true;
     return false;
   };
-  // A branch takes as many supervisors as its "Number of supervisors" (Branch Master); once full it is
-  // not offered again, except to a supervisor being edited, who keeps their own branch.
-  const branchSeats = (bVal) => supervisorSeats((tms.branches || []).find(b => isBranchEqual(bVal, { value: b.id, label: b.name })));
-  const freeBranchOpts = (self) => branchOpts.filter(o =>
-    (self && isBranchEqual(self.branch, o)) ||
-    (tms.supervisors || []).filter(s => isBranchEqual(s.branch, o) && (!self || s.id !== self.id)).length < branchSeats(o.value));
+  // Multiple supervisors can be assigned to any branch.
+  const freeBranchOpts = () => branchOpts;
   const clientList = mdata('clients', tms.clients || []);
   const clientOpts = clientList.map(c => ({ value: c.id, label: c.name }));
   // Loading locations are owned by exactly one client, so both masters read the same list.
@@ -208,7 +205,7 @@ export const MasterManager = ({ type }) => {
   const supervisorList = mdata('supervisors', tms.supervisors || []);
   const getBranchSupervisor = (b) => {
     if (!b) return '—';
-    const sup = supervisorList.find(s =>
+    const sups = supervisorList.filter(s =>
       s.branch && (
         isBranchEqual(s.branch, { value: b.id, label: b.name }) ||
         s.branch === b.id ||
@@ -217,7 +214,7 @@ export const MasterManager = ({ type }) => {
         ((tms.B[b.id] || {}).name && (tms.B[b.id] || {}).name === s.branch)
       )
     );
-    return sup ? sup.name : '—';
+    return sups.length ? sups.map(s => s.name).join(', ') : '—';
   };
   const getSupervisorOptions = (selectedBranch) => {
     const sups = supervisorList.filter(s => s.status !== 'Inactive' && s.status !== 'Suspended');
@@ -281,7 +278,7 @@ export const MasterManager = ({ type }) => {
           supervisors: supName,
         };
       }),
-      cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisor', 'No. of supervisors', 'Driver–helper combination', 'Status'],
+      cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisors', 'No. of supervisors', 'Driver–helper combination', 'Status'],
       cells: b => [
         txtCell(b.code, true),
         txtCell(b.name, true),
@@ -327,11 +324,6 @@ export const MasterManager = ({ type }) => {
           errs.supervisorCount = 'Enter the number of supervisors.';
         } else if (!Number.isInteger(seats) || seats < 1 || seats > 20) {
           errs.supervisorCount = 'Enter a whole number from 1 to 20.';
-        } else if (selfId) {
-          // Can't go below the supervisors already assigned to the branch.
-          const self = allBranches.find(b => b.id === selfId) || {};
-          const assigned = (tms.supervisors || []).filter(s => isBranchEqual(s.branch, { value: selfId, label: self.name })).length;
-          if (seats < assigned) errs.supervisorCount = `${assigned} supervisors are already assigned to this branch. Move or remove some first.`;
         }
 
         if (!CREW_COMBOS.some(c => c.value === f.crew)) errs.crew = 'Select the driver–helper combination.';
@@ -386,14 +378,6 @@ export const MasterManager = ({ type }) => {
 
         if (!f.branch) {
           errs.branch = 'Select a branch.';
-        } else {
-          const seats = branchSeats(f.branch);
-          const taken = others.filter(s => isBranchEqual(s.branch, f.branch)).length;
-          if (taken >= seats) {
-            errs.branch = seats === 1
-              ? 'A supervisor is already assigned to this branch. Raise "Number of supervisors" in Branch Master to add another.'
-              : `This branch already has its ${seats} supervisors. Raise "Number of supervisors" in Branch Master to add another.`;
-          }
         }
 
         const hasClients = Array.isArray(f.clients) ? f.clients.length > 0 : !!String(f.clients || '').trim();
@@ -882,10 +866,11 @@ export const MasterManager = ({ type }) => {
     setFormError('');
   };
 
-  // Supervisor branch dropdown drops branches that already have an active supervisor.
-  const fieldsFor = (rec) => type === 'supervisors'
-    ? m.fields.map(f => (f[0] === 'branch' ? [f[0], f[1], freeBranchOpts(rec), ...f.slice(3)] : f))
-    : m.fields;
+  // All branches are available to any supervisor.
+  const fieldsFor = () => {
+    const curBranchOpts = mdata('branches', tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+    return m.fields.map(f => (f[0] === 'branch' ? [f[0], f[1], curBranchOpts, ...f.slice(3)] : f));
+  };
 
   const handleEditRecord = (rec) => {
     const req = typeof m.required === 'function' ? m.required(false) : m.required;

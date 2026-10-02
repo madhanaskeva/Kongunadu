@@ -105,20 +105,18 @@ export const DeviceApprovals = () => {
   const [approving, setApproving] = useState(null);
   const [approveBranch, setApproveBranch] = useState('');
   const [approveErr, setApproveErr] = useState('');
-  const branchOpts = (T().branches || []).filter(b => b.status === 'Active');
-  // One supervisor per branch: only branches without an assigned supervisor are offered, plus the
-  // branch of the supervisor this phone already belongs to (a re-registered device).
-  const approveBranchOpts = (r) => {
-    const self = r ? findSupervisor(r) : null;
-    return branchOpts.filter(b => (self && (self.branch === b.id || self.branch === b.name)) ||
-      !(T().supervisors || []).some(s => (s.branch === b.id || s.branch === b.name || (T().B[s.branch] || {}).name === b.name) && (!self || s.id !== self.id)));
-  };
+  const allBranches = T().branches || [];
+  const branchOpts = allBranches.length ? allBranches : [];
+  // Multiple supervisors can be assigned to any branch; offer all branches.
+  const approveBranchOpts = () => (branchOpts.length ? branchOpts : (T().branches || []));
 
   const openApprove = (r) => {
     const existing = findSupervisor(r);
     setApproving(r);
     const pre = r.branchId || (existing && existing.branch) || '';
-    setApproveBranch(approveBranchOpts(r).some(b => b.id === pre) ? pre : '');
+    const curBranches = approveBranchOpts();
+    const matched = curBranches.find(b => b.id === pre || b.name === pre);
+    setApproveBranch(matched ? matched.id : (curBranches[0] ? curBranches[0].id : ''));
     setApproveErr('');
   };
 
@@ -380,7 +378,7 @@ export const DeviceApprovals = () => {
                 <Select
                   value={approveBranch || undefined}
                   onChange={(v) => { setApproveBranch(v); setApproveErr(''); }}
-                  options={approveBranchOpts(approving).map(b => ({ value: b.id, label: b.name }))}
+                  options={approveBranchOpts().map(b => ({ value: b.id, label: b.name }))}
                   placeholder="Select branch"
                   aria-label="Branch"
                 />

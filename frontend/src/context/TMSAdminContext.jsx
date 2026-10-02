@@ -262,17 +262,6 @@ export const TMSAdminProvider = ({ children }) => {
       let list = [...(e.added || []), ...(base[key] || []).map(r => (ed[r.id] ? { ...r, ...ed[r.id] } : r))].filter(r => !gone.has(r.id));
       if (key === 'supervisors') {
         list = list.filter(r => r.id !== 'S03' && r.id !== 'SUAR-seed-3');
-        // Each branch keeps as many supervisors as its "Number of supervisors" allows.
-        const seen = new Map();
-        const seatsOf = (br) => supervisorSeats((out.branches || []).find(b => b.id === br || String(b.name).toLowerCase() === String(br).toLowerCase()));
-        list = list.filter(s => {
-          const brKey = String(s.branch || '').toLowerCase();
-          if (!brKey) return true;
-          const n = seen.get(brKey) || 0;
-          if (n >= seatsOf(s.branch)) return false;
-          seen.set(brKey, n + 1);
-          return true;
-        });
       }
       if (key === 'drivers') list = list.map(normDriver);
       if (key === 'trips') {
@@ -598,7 +587,8 @@ export const TMSAdminProvider = ({ children }) => {
             isDup = allB.some(b => norm(b.code) === norm(rec.code) || norm(b.name) === norm(rec.name));
           } else if (route === 'supervisors') {
             const allS = [...added, ...(TMS.supervisors || [])];
-            isDup = allS.some(s => s.branch === rec.branch);
+            const dg = x => String(x || '').replace(/\D/g, '');
+            isDup = allS.some(s => (rec.phone && dg(s.phone).slice(-10) && dg(s.phone).slice(-10) === dg(rec.phone).slice(-10)) || (rec.email && norm(s.email) === norm(rec.email)));
           } else if (route === 'vehicles') {
             const allV = [...added, ...(TMS.vehicles || [])];
             isDup = allV.some(v => clean(v.number) === clean(rec.number));
