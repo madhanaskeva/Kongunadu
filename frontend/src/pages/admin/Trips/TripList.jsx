@@ -459,7 +459,7 @@ export const TripList = () => {
               />
             </Form.Item>
 
-            <Flex gap={8} align="center" className="tl-search tms-filter-span">
+            <Flex gap={8} align="center" className="tl-search tl-search-cell">
               <Input
                 className="tms-search"
                 prefix={<Search size={16} strokeWidth={2} />}

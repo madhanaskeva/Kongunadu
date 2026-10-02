@@ -739,3 +739,23 @@
   .td-hero-body { padding: 6px 14px 14px; }
   .td-hero-top { padding: 12px 14px 0; }
 }
+
+/* Search sits in the filter grid beside the last field (two columns wide)
+   instead of on a row of its own; the box fills what the buttons leave. */
+.tms-filter-grid > .tl-search-cell {
+  grid-column: span 2;
+  align-self: end;
+  margin-top: 0;
+}
+.tl-search-cell .ant-input-affix-wrapper,
+.tl-search-cell .tms-search {
+  flex: 1 1 auto;
+  width: auto;
+  height: 42px;
+}
+.tl-search-cell .ant-btn {
+  height: 42px;
+}
+@media (max-width: 600px) {
+  .tms-filter-grid > .tl-search-cell { grid-column: 1 / -1; }
+}

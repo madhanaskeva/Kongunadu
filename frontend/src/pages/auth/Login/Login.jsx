@@ -35,10 +35,10 @@ export const Login = () => {
   return (
     <div className="krl-login">
       <style>{`
-        .krl-login { display: grid; grid-template-columns: 46% 1fr; height: 100vh; background: #ffffff; }
-        .krl-login-image { position: relative; height: 100vh; background: url(${loginHero}) center top / cover no-repeat; }
-        .krl-login-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%); }
-        .krl-login-caption { position: absolute; left: 40px; right: 40px; bottom: 36px; color: #ffffff; }
+        .krl-login { display: grid; grid-template-columns: 42% 1fr; height: 100vh; background: #ffffff; }
+        .krl-login-image { position: relative; height: 100vh; background: #0f2f4a url(${loginHero}) center 48% / cover no-repeat; }
+        .krl-login-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(4,20,38,0) 72%, rgba(4,20,38,0.35) 86%, rgba(4,20,38,0.7) 100%); }
+        .krl-login-caption { position: absolute; left: 40px; right: 40px; bottom: 36px; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.45); }
         .krl-login-caption > div { font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; }
         .krl-login-caption > p { margin: 8px 0 0; font-size: 15px; opacity: 0.9; max-width: 440px; line-height: 1.6; }
         .krl-login-form {
