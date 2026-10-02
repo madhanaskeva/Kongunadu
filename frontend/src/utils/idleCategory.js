@@ -7,6 +7,7 @@
 // A tracker report wins (it names the exact place); otherwise the trip stage
 // puts the vehicle at its loading or unloading point; any other open trip that
 // is standing is stopped on the road, and no open trip means parked in the yard.
+// A vehicle under maintenance always stands in its own group.
 
 import { isPendingClose, isTripOpen } from './tripStatus';
 
@@ -16,6 +17,7 @@ export const IDLE_CATEGORIES = [
   { key: 'onroad', label: 'On road', hint: 'Open trip · stopped on the way' },
   { key: 'bunk', label: 'Fuel bunk', hint: 'Standing at a diesel / petrol bunk' },
   { key: 'yard', label: 'Yard · no trip', hint: 'Parked with no open trip' },
+  { key: 'maintenance', label: 'Maintenance', hint: 'In the service bay · under repair' },
 ];
 
 // Minutes a trip-stage stop has lasted, steady per trip until the live feed sends it.
@@ -47,7 +49,7 @@ export const tripStopFor = (v, trip, tms) => {
 
 // Which idle group a vehicle belongs to, or null when it is not standing now.
 export const idleCategoryOf = (v, trip) => {
-  if (v.status === 'Maintenance') return null;
+  if (v.status === 'Maintenance') return 'maintenance';
   const r = v.gpsIdle;
   if (r && (r.kind === 'bunk' || r.kind === 'loading' || r.kind === 'unloading')) return r.kind;
   if (!r && v.status !== 'Idle') return null;

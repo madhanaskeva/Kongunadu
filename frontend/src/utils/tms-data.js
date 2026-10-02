@@ -1,11 +1,11 @@
 // Shared mock data for the Transport Management System (Phase 1).
 const branches=[
- {id:'B01',code:'CHN',name:'Chennai HO',state:'Tamil Nadu',vehicles:212,status:'Active'},
- {id:'B02',code:'NMK',name:'Namakkal',state:'Tamil Nadu',vehicles:168,status:'Active'},
- {id:'B03',code:'HYD',name:'Hyderabad',state:'Telangana',vehicles:124,status:'Active'},
- {id:'B04',code:'BLR',name:'Bengaluru',state:'Karnataka',vehicles:96,status:'Active'},
- {id:'B05',code:'MUM',name:'Mumbai',state:'Maharashtra',vehicles:84,status:'Active'},
- {id:'B06',code:'VZG',name:'Visakhapatnam',state:'Andhra Pradesh',vehicles:38,status:'Inactive'}
+ {id:'B01',code:'CHN',name:'Chennai HO',state:'Tamil Nadu',vehicles:212,supervisorCount:1,crew:'2D1H',status:'Active'},
+ {id:'B02',code:'NMK',name:'Namakkal',state:'Tamil Nadu',vehicles:168,supervisorCount:1,crew:'1D1H',status:'Active'},
+ {id:'B03',code:'HYD',name:'Hyderabad',state:'Telangana',vehicles:124,supervisorCount:1,crew:'2D',status:'Active'},
+ {id:'B04',code:'BLR',name:'Bengaluru',state:'Karnataka',vehicles:96,supervisorCount:1,crew:'1D',status:'Active'},
+ {id:'B05',code:'MUM',name:'Mumbai',state:'Maharashtra',vehicles:84,supervisorCount:1,crew:'1D2H',status:'Active'},
+ {id:'B06',code:'VZG',name:'Visakhapatnam',state:'Andhra Pradesh',vehicles:38,supervisorCount:1,crew:'1D1H',status:'Inactive'}
 ];
 const supervisors=[
  {id:'S01',name:'R. Senthil Kumar',email:'supervisor@transport.example',phone:'98410 22314',branch:'B01',clients:'INOX Air Products, Linde India, Suguna Foods',clientIds:['C01','C02','C05'],status:'Active',lastLogin:'Today 06:12'},
@@ -49,7 +49,13 @@ const drivers=[
  {id:'D14',name:'Mani K.',licence:'TN2820210001902',phone:'90031 70455',branch:'B01',type:'Acting',status:'Active',approval:'Approved',present:20,absent:6,util:'71%'},
  {id:'D15',name:'Prakash N.',licence:'TN2820180004410',phone:'90031 34410',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:25,absent:1,util:'89%'},
  {id:'D16',name:'Dinesh K.',licence:'TN2820200007753',phone:'90031 77530',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:22,absent:4,util:'76%'},
- {id:'D17',name:'Kumaresan J.',licence:'TN3420220003187',phone:'97900 31870',branch:'B02',type:'Acting',status:'Inactive',approval:'Rejected',present:0,absent:0,util:'\u2014'}
+ {id:'D17',name:'Kumaresan J.',licence:'TN3420220003187',phone:'97900 31870',branch:'B02',type:'Acting',status:'Inactive',approval:'Rejected',present:0,absent:0,util:'\u2014'},
+ {id:'D18',name:'Muthu R.',licence:'\u2014',phone:'90031 18018',branch:'B01',type:'Helper',status:'Active',approval:'Approved',present:24,absent:2,util:'\u2014'},
+ {id:'D19',name:'Raja P.',licence:'\u2014',phone:'90031 19019',branch:'B01',type:'Helper',status:'Active',approval:'Approved',present:21,absent:5,util:'\u2014'},
+ {id:'D20',name:'Vijay S.',licence:'\u2014',phone:'90031 20020',branch:'B01',type:'Helper',status:'Active',approval:'Approved',present:23,absent:3,util:'\u2014'},
+ {id:'D21',name:'Ganesan M.',licence:'\u2014',phone:'97900 21021',branch:'B02',type:'Helper',status:'Active',approval:'Approved',present:25,absent:1,util:'\u2014'},
+ {id:'D22',name:'Rahul T.',licence:'\u2014',phone:'98200 22022',branch:'B05',type:'Helper',status:'Active',approval:'Approved',present:22,absent:4,util:'\u2014'},
+ {id:'D23',name:'Sunil K.',licence:'\u2014',phone:'98200 23023',branch:'B05',type:'Helper',status:'Active',approval:'Approved',present:20,absent:6,util:'\u2014'}
 ];
 const clients=[
  {id:'C01',name:'INOX Air Products',gst:'33AAACI4521F1Z6',branch:'B01',phone:'98410 11220',supervisorIds:['S01','S06'],supervisors:'R. Senthil Kumar, A. Deshmukh',customers:4,contact:'Cryogenic desk, Sriperumbudur',status:'Active'},

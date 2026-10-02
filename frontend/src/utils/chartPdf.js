@@ -31,9 +31,9 @@ const M = 40; // side margin
 const CONTENT_W = PAGE_W - 2 * M;
 const FOOTER_Y = PAGE_H - 34;
 
-const NAVY = '#03448b';
-const BRAND = '#0d6efd';
-const RED = '#d71920';
+const NAVY = '#214f63';
+const BRAND = '#275e74';
+const COPPER = '#b8733a'; // the logo's accent stripe
 const INK = '#1c2430';
 const MUTED = '#6b7685';
 const RULE = '#dfe5ee';
@@ -173,17 +173,17 @@ const loadLogo = () => {
 };
 
 // ---- page furniture ---------------------------------------------------------------------------
-const LOGO_W = 168;
+const LOGO_H = 36;
 
 // Letterhead on the first page; returns the y where content may start.
 const drawLetterhead = (pg, logo, { section, title, scope, notes }) => {
   pg.rect(0, 0, PAGE_W, 5, NAVY);
-  pg.rect(0, 5, 90, 2, RED);
+  pg.rect(0, 5, 90, 2, COPPER);
 
   let y = 30;
   if (logo) {
-    const h = (logo.h / logo.w) * LOGO_W;
-    pg.image('Logo', M, y, LOGO_W, h);
+    // Sized by height so the logo always clears the rule below it.
+    pg.image('Logo', M, y - 6, (logo.w / logo.h) * LOGO_H, LOGO_H);
   } else {
     pg.text(M, y + 18, 'KONGUNADU ROAD LINES', { size: 15, bold: true, color: NAVY });
   }
@@ -192,7 +192,7 @@ const drawLetterhead = (pg, logo, { section, title, scope, notes }) => {
 
   y = 72;
   pg.line(M, y, PAGE_W - M, y, NAVY, 1.2);
-  pg.line(M, y, M + 46, y, RED, 2.4);
+  pg.line(M, y, M + 46, y, COPPER, 2.4);
 
   y += 26;
   if (section) pg.text(M, y, String(section).toUpperCase(), { size: 8, bold: true, color: BRAND, spacing: 1.1 });
@@ -206,7 +206,7 @@ const drawLetterhead = (pg, logo, { section, title, scope, notes }) => {
 // Slim header on continuation pages.
 const drawRunningHead = (pg, { section, title }) => {
   pg.rect(0, 0, PAGE_W, 5, NAVY);
-  pg.rect(0, 5, 90, 2, RED);
+  pg.rect(0, 5, 90, 2, COPPER);
   pg.text(M, 32, 'KONGUNADU ROAD LINES', { size: 8.5, bold: true, color: NAVY, spacing: 0.8 });
   pg.text(PAGE_W - M, 32, fit(`${section ? `${section} · ` : ''}${title}`, 8.5, false, CONTENT_W - 160), { size: 8.5, color: MUTED, align: 'right' });
   pg.line(M, 42, PAGE_W - M, 42, RULE, 0.8);

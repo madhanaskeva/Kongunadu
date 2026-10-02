@@ -25,9 +25,9 @@
 @media (min-width: 560px) {
   .sv-app {
     background:
-      radial-gradient(circle at 100% 0%, rgba(13, 110, 253, 0.20), transparent 45%),
-      radial-gradient(circle at 0% 100%, rgba(3, 68, 139, 0.14), transparent 45%),
-      linear-gradient(135deg, #eef4ff 0%, #f4f8fd 50%, #e8f0ff 100%);
+      radial-gradient(circle at 100% 0%, rgba(39, 94, 116, 0.20), transparent 45%),
+      radial-gradient(circle at 0% 100%, rgba(33, 79, 99, 0.14), transparent 45%),
+      linear-gradient(135deg, #eef5f7 0%, #f3f7f8 50%, #e8f0ff 100%);
   }
 
   .sv-device {
@@ -268,14 +268,14 @@
 }
 
 .sv-home-tile--solid.ant-card {
-  background: var(--sidebar-bg);           /* dark navy #03448B */
+  background: var(--sidebar-bg);           /* dark navy #214f63 */
   border-color: var(--sidebar-bg);
   color: #fff;
 }
 
 .sv-home-tile--solid.ant-card:hover {
-  background: #0a4fb8;
-  border-color: #0a4fb8;
+  background: #1c4b5f;
+  border-color: #1c4b5f;
 }
 
 .sv-home-tile.ant-card:active {

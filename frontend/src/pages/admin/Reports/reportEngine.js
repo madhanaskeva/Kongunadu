@@ -13,6 +13,7 @@
  */
 
 import { ENROUTE_LABEL } from '../../../utils/tripStatus.js';
+import { DRIVER_TYPES } from '../../../utils/driverTypes.js';
 import {
   routesOfTrip,
   routeDieselLimit,
@@ -215,7 +216,7 @@ export const MODULE_FIELDS = {
     { key: 'driver', label: 'Driver', type: 'select', entity: 'drivers' },
     { key: 'branch', label: 'Branch', type: 'select', entity: 'branches' },
     { key: 'vehicle', label: 'Vehicle', type: 'select', entity: 'vehicles' },
-    { key: 'type', label: 'Driver Type', type: 'select', options: ['Regular', 'Acting'] },
+    { key: 'type', label: 'Driver Type', type: 'select', options: DRIVER_TYPES },
     { key: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive', 'Pending'] },
     { key: 'approval', label: 'Approval Status', type: 'select', options: ['Approved', 'Pending approval'] },
     { key: 'attendance', label: 'Attendance', type: 'select', options: ['Present', 'Absent', 'High Absence (>3 days)'] },

@@ -11,13 +11,13 @@ import { App as AntApp, ConfigProvider } from 'antd';
 const TMS_THEME = {
   token: {
     /* ── Brand colours ── */
-    colorPrimary: '#0d6efd',          // --kr-green-700 / --color-brand
-    colorPrimaryHover: '#0a4fb8',     // --kr-green-800
-    colorPrimaryActive: '#06367e',    // --kr-green-900
-    colorPrimaryBg: '#f1f5ff',        // --kr-green-50 / --color-brand-tint
-    colorPrimaryBgHover: '#dbe7fe',   // --kr-green-100 / --color-brand-soft
-    colorPrimaryBorder: '#3b82f6',    // --kr-green-600
-    colorPrimaryText: '#0d6efd',      // --text-brand
+    colorPrimary: '#275e74',          // --kr-green-700 / --color-brand
+    colorPrimaryHover: '#1c4b5f',     // --kr-green-800
+    colorPrimaryActive: '#133a4a',    // --kr-green-900
+    colorPrimaryBg: '#f0f6f8',        // --kr-green-50 / --color-brand-tint
+    colorPrimaryBgHover: '#dbe9ef',   // --kr-green-100 / --color-brand-soft
+    colorPrimaryBorder: '#3a768d',    // --kr-green-600
+    colorPrimaryText: '#275e74',      // --text-brand
 
     colorError: '#d91619',            // --kr-red-600 / --color-accent
     colorErrorHover: '#b31114',       // --kr-red-700
@@ -27,18 +27,18 @@ const TMS_THEME = {
     colorWarning: '#f29a1f',          // --kr-saffron-500
     colorWarningBg: '#fdebd3',        // --kr-saffron-100
 
-    colorSuccess: '#3b82f6',          // --status-success
-    // Explicit tints: antd's derived ones from #3b82f6 come out grey-green and
+    colorSuccess: '#3a768d',          // --status-success
+    // Explicit tints: antd's derived ones from #3a768d come out grey-green and
     // make "Active" / "Approved" tags look disabled.
     colorSuccessBg: '#dff5e9',
     colorSuccessBgHover: '#c8ecd9',
     colorSuccessBorder: '#86d1ab',
     colorSuccessBorderHover: '#5fbf8f',
-    colorSuccessText: '#0d6efd',
+    colorSuccessText: '#275e74',
 
-    colorLink: '#0d6efd',             // --link
-    colorLinkHover: '#0a4fb8',        // --link-hover
-    colorLinkActive: '#06367e',
+    colorLink: '#275e74',             // --link
+    colorLinkHover: '#1c4b5f',        // --link-hover
+    colorLinkActive: '#133a4a',
 
     /* ── Neutral / surface ── */
     colorTextBase: '#4a4a46',         // --text-body / --kr-grey-700
@@ -49,7 +49,7 @@ const TMS_THEME = {
     colorTextHeading: '#1c1c1a',      // --text-heading / --kr-grey-900
     colorBgBase: '#ffffff',
     colorBgContainer: '#ffffff',
-    colorBgLayout: '#f4f8fd',         // --surface-muted (light-blue page)
+    colorBgLayout: '#f3f7f8',         // --surface-muted (light-blue page)
     colorBorder: '#dcdcd6',           // --border-default / --kr-grey-200
     colorBorderSecondary: '#c2c2bb',  // --border-strong / --kr-grey-300
 
@@ -102,21 +102,21 @@ const TMS_THEME = {
       paddingInline: 16,
       paddingInlineSM: 10,
       paddingInlineLG: 24,
-      // Every primary / brand button in dark navy (the sidebar colour),
-      // lifting to the brighter blue on hover.
-      colorPrimary: '#03448b',
-      colorPrimaryHover: '#0a5bd3',
-      colorPrimaryActive: '#023a7c',
-      colorPrimaryBorder: '#03448b',
-      primaryShadow: '0 2px 6px rgba(3, 68, 139, 0.25)',
+      // Every primary / brand button in the logo's deep teal (the sidebar colour),
+      // lifting to a brighter teal on hover.
+      colorPrimary: '#214f63',
+      colorPrimaryHover: '#2e6a82',
+      colorPrimaryActive: '#173d4d',
+      colorPrimaryBorder: '#214f63',
+      primaryShadow: '0 2px 6px rgba(33, 79, 99, 0.25)',
     },
     Input: {
       controlHeight: 42,
       borderRadius: 8,
       colorBorder: '#c2c2bb',         // --border-strong
       colorBgContainer: '#ffffff',
-      activeBorderColor: '#0d6efd',   // --color-brand
-      activeShadow: '0 0 0 3px rgba(13, 110, 253, 0.35)', // --focus-ring
+      activeBorderColor: '#275e74',   // --color-brand
+      activeShadow: '0 0 0 3px rgba(39, 94, 116, 0.35)', // --focus-ring
     },
     /* One dropdown spec for the whole portal (see .ant-select-dropdown in
        global.css for the panel border/shadow and the selected-row check mark):
@@ -129,20 +129,20 @@ const TMS_THEME = {
       borderRadiusLG: 12,             // open panel
       colorBorder: '#c2c2bb',         // --border-strong
       colorBgContainer: '#ffffff',
-      hoverBorderColor: '#0d6efd',    // --color-brand
-      activeBorderColor: '#0d6efd',
-      activeOutlineColor: 'rgba(13, 110, 253, 0.35)', // --focus-ring
+      hoverBorderColor: '#275e74',    // --color-brand
+      activeBorderColor: '#275e74',
+      activeOutlineColor: 'rgba(39, 94, 116, 0.35)', // --focus-ring
       controlOutlineWidth: 3,
       colorTextPlaceholder: '#6f716b',
       colorText: '#1c1c1a',           // --text-heading
       optionHeight: 40,
       optionPadding: '9px 12px',
       optionFontSize: 14,
-      optionActiveBg: '#f1f5ff',      // --color-brand-tint (hover / keyboard)
-      optionSelectedBg: '#f1f5ff',    // --color-brand-tint
-      optionSelectedColor: '#06367e', // --kr-green-900
+      optionActiveBg: '#f0f6f8',      // --color-brand-tint (hover / keyboard)
+      optionSelectedBg: '#f0f6f8',    // --color-brand-tint
+      optionSelectedColor: '#133a4a', // --kr-green-900
       optionSelectedFontWeight: 700,
-      controlItemBgActiveHover: '#dbe7fe', // --kr-green-100 (selected + hover)
+      controlItemBgActiveHover: '#dbe9ef', // --kr-green-100 (selected + hover)
       boxShadowSecondary: '0 12px 32px rgba(20, 32, 43, 0.14)', // --shadow-lg
     },
     Table: {
@@ -150,7 +150,7 @@ const TMS_THEME = {
       headerBg: '#f6f6f4',            // --surface-muted
       headerColor: '#7c7c76',         // --text-muted
       headerSplitColor: '#dcdcd6',
-      rowHoverBg: '#f1f5ff',          // --color-brand-tint (light green)
+      rowHoverBg: '#f0f6f8',          // --color-brand-tint (light green)
       cellPaddingBlock: 14,
       cellPaddingInline: 16,
       headerCellSplitColor: '#dcdcd6',
@@ -172,10 +172,10 @@ const TMS_THEME = {
       fontSizeSM: 12,
     },
     Tabs: {
-      inkBarColor: '#0d6efd',
-      itemActiveColor: '#0d6efd',
-      itemSelectedColor: '#0d6efd',
-      itemHoverColor: '#0a4fb8',
+      inkBarColor: '#275e74',
+      itemActiveColor: '#275e74',
+      itemSelectedColor: '#275e74',
+      itemHoverColor: '#1c4b5f',
       itemColor: '#7c7c76',           // --text-muted
       titleFontSize: 14,
       horizontalMargin: '0',
@@ -186,7 +186,7 @@ const TMS_THEME = {
       headerBg: '#ffffff',
       headerHeight: 72,
       headerPadding: 0,
-      bodyBg: '#f4f8fd',
+      bodyBg: '#f3f7f8',
       siderBg: 'transparent',
     },
     /* Sidebar menu sits on the green gradient, so it uses the dark variant. */
@@ -196,7 +196,7 @@ const TMS_THEME = {
       darkItemColor: 'rgba(255, 255, 255, 0.92)',
       darkItemHoverColor: '#ffffff',
       darkItemHoverBg: 'rgba(255, 255, 255, 0.10)',
-      darkItemSelectedBg: '#0d6efd',  // Primary pill on the navy sidebar
+      darkItemSelectedBg: '#b8733a',  // Copper pill on the teal sidebar (the logo's road stripe)
       darkItemSelectedColor: '#ffffff',
       darkGroupTitleColor: 'rgba(255, 255, 255, 0.62)',
       itemBorderRadius: 10,
@@ -210,7 +210,7 @@ const TMS_THEME = {
     },
     Pagination: {
       itemSize: 36,
-      itemActiveBg: '#0d6efd',        // filled green current page
+      itemActiveBg: '#275e74',        // filled green current page
       itemActiveColor: '#ffffff',
       itemActiveColorHover: '#ffffff',
     },
@@ -224,7 +224,7 @@ const TMS_THEME = {
       contentFontSize: 26,
     },
     Spin: {
-      colorPrimary: '#0d6efd',
+      colorPrimary: '#275e74',
     },
     Notification: {
       borderRadius: 8,

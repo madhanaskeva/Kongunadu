@@ -47,6 +47,13 @@ export const IdleDetailModal = ({ vehicle: v, tms, categoryLabel, onClose, onTra
 
   const name = (map, id) => ((tms[map] || {})[id] || {}).name;
 
+  // Under maintenance: the latest trip that took the vehicle to the service bay.
+  const inService = v.idleCat === 'maintenance' || v.status === 'Maintenance';
+  const serviceTrip = inService
+    ? (tms.trips || []).filter(t => t.vehicle === v.id && t.reason === 'Maintenance')
+      .sort((a, b) => (Date.parse(b.opened) || 0) - (Date.parse(a.opened) || 0))[0]
+    : null;
+
   return (
     <Modal
       open
@@ -181,7 +188,34 @@ export const IdleDetailModal = ({ vehicle: v, tms, categoryLabel, onClose, onTra
           </div>
         )}
 
-        {/* 3 · The open trip, as the supervisor app holds it */}
+        {/* 3 · Maintenance: where it is being serviced and the movement that took it there */}
+        {inService && (
+          <div>
+            <SectionTitle extra={serviceTrip && onOpenTrip && (
+              <Button size="small" type="link" onClick={() => onOpenTrip(serviceTrip.id)} style={{ paddingInline: 0 }}>Open movement →</Button>
+            )}>
+              Maintenance
+            </SectionTitle>
+            <Descriptions
+              size="small"
+              bordered
+              column={{ xs: 1, sm: 2 }}
+              items={[
+                { key: 'bay', label: 'Service location', children: v.route || '—' },
+                { key: 'status', label: 'Status', children: <Tag color="cyan" style={{ marginInlineEnd: 0 }}>Under maintenance</Tag> },
+                { key: 'stood', label: 'Standing today', children: idleNow ? `${fmtDuration(idleNow.minutes)} · since ${dayjs(idleNow.start).format('HH:mm')}` : '—' },
+                { key: 'odo', label: 'Odometer', children: v.odometer ? `${Number(v.odometer).toLocaleString('en-IN')} km` : '—' },
+                ...(serviceTrip ? [
+                  { key: 'mv', label: 'Moved in by', children: <Typography.Text strong>{serviceTrip.number}</Typography.Text> },
+                  { key: 'mvwhen', label: 'Reached service bay', children: serviceTrip.closed || serviceTrip.opened || '—' },
+                  { key: 'mvroute', label: 'Movement', span: { xs: 1, sm: 2 }, children: `${name('L', serviceTrip.loading) || serviceTrip.from || '—'} → ${serviceTrip.unloading || '—'}${serviceTrip.odoKm || serviceTrip.gpsKm ? ` · ${serviceTrip.odoKm || serviceTrip.gpsKm} km` : ''}` },
+                ] : []),
+              ]}
+            />
+          </div>
+        )}
+
+        {/* 4 · The open trip, as the supervisor app holds it */}
         <div>
           <SectionTitle extra={trip && onOpenTrip && (
             <Button size="small" type="link" onClick={() => onOpenTrip(trip.id)} style={{ paddingInline: 0 }}>Open trip →</Button>
@@ -222,11 +256,13 @@ export const IdleDetailModal = ({ vehicle: v, tms, categoryLabel, onClose, onTra
               ]}
             />
           ) : (
-            <Typography.Text type="secondary" style={{ fontSize: 13 }}>No open trip · the vehicle is parked without business.</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+              {inService ? 'No open trip · the vehicle is in for maintenance.' : 'No open trip · the vehicle is parked without business.'}
+            </Typography.Text>
           )}
         </div>
 
-        {/* 4 · Every idle stop today, latest first */}
+        {/* 5 · Every idle stop today, latest first */}
         <div>
           <SectionTitle extra={
             <Flex gap={12}>

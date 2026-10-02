@@ -135,7 +135,7 @@ export const Dashboard = () => {
           label: name,
           value: biz + non,
           sub: `${biz} biz · ${non} non-biz`,
-          color: ['#0d6efd', '#3b82f6', '#F29A1F', '#2F7DB5', '#7A4300'][i % 5],
+          color: ['#275e74', '#3a768d', '#F29A1F', '#2F7DB5', '#7A4300'][i % 5],
         })),
         centerValue: bb.reduce((acc, [, biz, non]) => acc + biz + non, 0),
         centerLabel: 'Trips',
@@ -154,7 +154,7 @@ export const Dashboard = () => {
         chartData: trend.map((v, i) => ({
           label: `${i + 1} Sep`,
           value: v,
-          color: i === trend.length - 1 ? '#0a4fb8' : '#0d6efd',
+          color: i === trend.length - 1 ? '#1c4b5f' : '#275e74',
         })),
         centerValue: trend.reduce((acc, v) => acc + v, 0),
         centerLabel: '14-Day Trips',
@@ -170,7 +170,7 @@ export const Dashboard = () => {
         note: 'When GPS fails the odometer is used; when both fail the trip closes as a manual exception.',
         route: 'fleet',
         chartData: [
-          { label: 'Tracking (OK)', value: gpsOk, color: '#0d6efd' },
+          { label: 'Tracking (OK)', value: gpsOk, color: '#275e74' },
           { label: 'Weak signal', value: gpsWeak, color: '#F29A1F' },
           { label: 'No fix', value: gpsFail, color: '#D91619' },
         ],
@@ -189,7 +189,7 @@ export const Dashboard = () => {
         chartData: excByType.map(([t, n], i) => ({
           label: t,
           value: n,
-          color: ['#D91619', '#F29A1F', '#0d6efd', '#2F7DB5', '#7A4300', '#5B52D4'][i % 6],
+          color: ['#D91619', '#F29A1F', '#275e74', '#2F7DB5', '#7A4300', '#5B52D4'][i % 6],
         })),
         centerValue: openExc.length,
         centerLabel: 'Exceptions',
@@ -206,7 +206,7 @@ export const Dashboard = () => {
         chartData: vehStatusBars.map(v => ({
           label: v.label,
           value: v.count,
-          color: v.color === 'var(--kr-green-100)' ? '#3b82f6' : v.color === 'var(--kr-grey-300)' ? '#7C7C76' : v.color,
+          color: v.color === 'var(--kr-green-100)' ? '#3a768d' : v.color === 'var(--kr-grey-300)' ? '#7C7C76' : v.color,
         })),
         centerValue: 722,
         centerLabel: 'Vehicles',
@@ -224,7 +224,7 @@ export const Dashboard = () => {
           label: (tms.V[d.vehicle] || {}).number || d.number,
           value: Number(d.pct.toFixed(1)),
           valueSuffix: '%',
-          color: d.flagged ? '#D91619' : ['#0d6efd', '#F29A1F', '#2F7DB5', '#7A4300', '#5B52D4'][i % 5],
+          color: d.flagged ? '#D91619' : ['#275e74', '#F29A1F', '#2F7DB5', '#7A4300', '#5B52D4'][i % 5],
         })),
         centerValue: worstDist[0]?.pctText || '0%',
         centerLabel: 'Max Variance',

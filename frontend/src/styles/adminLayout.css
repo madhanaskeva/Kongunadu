@@ -42,11 +42,8 @@
   padding: 0 22px;
 }
 
-.tms-topbar-brand img {
-  width: clamp(118px, 36vw, 200px);
-  max-width: 200px;
-  height: auto;
-  display: block;
+.tms-topbar-brand .krl-brand {
+  --krl-brand-size: 48px;
 }
 
 .tms-topbar-tagline {
@@ -161,8 +158,10 @@
   box-sizing: border-box;
   overflow-y: auto;
   scrollbar-width: none;
-  /* Deep navy, a touch lighter at the top; the active item is the bright Primary. */
-  background: linear-gradient(180deg, #05499a 0%, var(--sidebar-bg) 45%, #023a7c 100%);
+  /* Deep teal from the logo, a touch lighter at the top, edged with the copper stripe;
+     the active item is a copper pill. */
+  background: linear-gradient(180deg, #2a6178 0%, var(--sidebar-bg) 45%, #173d4d 100%);
+  box-shadow: inset -3px 0 0 var(--kr-copper-600);
 }
 
 .tms-sidebar::-webkit-scrollbar {
@@ -207,7 +206,7 @@
 }
 
 .tms-sidebar-menu .ant-menu-item-selected {
-  box-shadow: 0 4px 12px rgba(13, 110, 253, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
   font-weight: 700;
 }
 
@@ -259,7 +258,7 @@
 
 .tms-sidebar-menu .ant-menu-item-selected .tms-sidebar-badge--brand .ant-badge-count {
   background: #ffffff !important;
-  color: var(--color-brand);
+  color: var(--kr-copper-700);
 }
 
 .tms-sidebar-footer {
@@ -280,7 +279,7 @@
   height: 3px;
   margin-top: 8px;
   border-radius: 2px;
-  background: var(--kr-red-600);
+  background: var(--kr-copper-600);
 }
 
 /* ---------- Page head ---------- */
@@ -548,8 +547,8 @@
     min-width: 0;
   }
 
-  .tms-topbar-brand img {
-    width: clamp(100px, 34vw, 160px);
+  .tms-topbar-brand .krl-brand {
+    --krl-brand-size: 38px;
   }
 
   .tms-topbar-account {

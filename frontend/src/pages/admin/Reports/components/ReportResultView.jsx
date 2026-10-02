@@ -14,6 +14,28 @@ import { useDebounce } from '../../../../utils/debounce';
 import { TabButtons } from '../../../../components/common/TabButtons';
 import { FILE_TRANSFER_ENABLED } from '../../../../utils/featureFlags';
 
+// A Total row adds up every figure column where a sum means something — litres, km, ₹, counts.
+// Rates, percentages, mileage, readings and capacities are left blank.
+const NO_TOTAL_UNITS = ['%', 'km/L', 'm'];
+const NO_TOTAL_KEYS = ['rate', 'odometer', 'tank', 'radius', 'actualMileage', 'expectedMileage', 'mileage'];
+const isTotalled = col => col.kind === 'num' && !NO_TOTAL_UNITS.includes(col.unit) && !NO_TOTAL_KEYS.includes(col.key);
+const toFigure = v => {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  const n = parseFloat(String(v == null ? '' : v).replace(/[₹,\s]/g, ''));
+  return Number.isFinite(n) ? n : null;
+};
+// One entry per column: the sum (rounded to 2 decimals so litres never show float noise), or null.
+export const columnTotals = (cols, rows) => cols.map(col => {
+  if (!isTotalled(col)) return null;
+  const sum = rows.reduce((a, r) => a + (toFigure(r[col.key]) || 0), 0);
+  return Math.round(sum * 100) / 100;
+});
+// The Total row as spreadsheet cells: 'Total' in the first column unless that column has a figure.
+const totalRowCells = (cols, rows) => {
+  const t = columnTotals(cols, rows);
+  return t.map((v, i) => (v != null ? v : i === 0 ? 'Total' : ''));
+};
+
 export const ReportResultView = ({
   result,
   onResetFilters,
@@ -132,7 +154,7 @@ export const ReportResultView = ({
     if (moduleId === 'driverPerformance') {
       // 1. Trip Performance Sheet
       const tripColHeaders = columns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
-      const tripDataRows = rows.map(r => columns.map(c => (r[c.key] == null ? '' : r[c.key])));
+      const tripDataRows = [...rows.map(r => columns.map(c => (r[c.key] == null ? '' : r[c.key]))), totalRowCells(columns, rows)];
       sheets.push({
         name: 'Trip Performance',
         columns: tripColHeaders,
@@ -142,7 +164,7 @@ export const ReportResultView = ({
       // 2. Vehicle Performance Sheet
       if (result.vehicleColumns && result.vehicleRows) {
         const vehColHeaders = result.vehicleColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
-        const vehDataRows = result.vehicleRows.map(r => result.vehicleColumns.map(c => (r[c.key] == null ? '' : r[c.key])));
+        const vehDataRows = [...result.vehicleRows.map(r => result.vehicleColumns.map(c => (r[c.key] == null ? '' : r[c.key]))), totalRowCells(result.vehicleColumns, result.vehicleRows)];
         sheets.push({
           name: 'Vehicle Performance',
           columns: vehColHeaders,
@@ -174,7 +196,7 @@ export const ReportResultView = ({
     } else {
       // Existing export behavior for standard modules
       const colHeaders = activeColumns.map(c => c.label + (c.unit ? ` (${c.unit})` : ''));
-      const dataRows = processedRows.map(r => activeColumns.map(c => (r[c.key] == null ? '' : r[c.key])));
+      const dataRows = [...processedRows.map(r => activeColumns.map(c => (r[c.key] == null ? '' : r[c.key]))), totalRowCells(activeColumns, processedRows)];
 
       sheets = [
         {
@@ -267,6 +289,20 @@ export const ReportResultView = ({
     },
   };
   });
+
+  // Totals over every row that matches (all pages), shown as the table's last row.
+  const totals = useMemo(() => columnTotals(activeColumns, processedRows), [activeColumns, processedRows]);
+  const renderTotalRow = () => (
+    <Table.Summary fixed="bottom">
+      <Table.Summary.Row className="reports-result-total">
+        {activeColumns.map((col, i) => (
+          <Table.Summary.Cell key={col.key} index={i} align={totals[i] != null || isRightAligned(col) ? 'right' : 'left'}>
+            <strong>{totals[i] != null ? totals[i].toLocaleString('en-IN') : i === 0 ? 'Total' : ''}</strong>
+          </Table.Summary.Cell>
+        ))}
+      </Table.Summary.Row>
+    </Table.Summary>
+  );
 
   const columnMenuItems = [
     {
@@ -408,9 +444,10 @@ export const ReportResultView = ({
             dataSource={tableRows}
             rowKey="rowKey"
             size="middle"
-            bordered={false}
+            bordered
             tableLayout="auto"
             scroll={{ x: 'max-content' }}
+            summary={renderTotalRow}
             pagination={{
               current: page,
               pageSize,

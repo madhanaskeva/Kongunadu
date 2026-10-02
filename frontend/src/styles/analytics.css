@@ -20,7 +20,7 @@
   font-size: 12px;
   font-weight: 800;
   color: var(--color-brand);
-  background: var(--color-brand-tint, #f1f5ff);
+  background: var(--color-brand-tint, #f0f6f8);
   border: 1px solid var(--color-brand);
 }
 
@@ -53,7 +53,7 @@
 .tms-shell .an-metric-bar .ant-segmented .ant-segmented-item-selected,
 .tms-shell .an-metric-bar .ant-segmented .ant-segmented-thumb {
   background: var(--color-brand);
-  box-shadow: 0 2px 6px rgba(13, 110, 253, 0.3);
+  box-shadow: 0 2px 6px rgba(39, 94, 116, 0.3);
 }
 .tms-shell .an-metric-bar .ant-segmented .ant-segmented-item-selected {
   color: #ffffff;
@@ -73,7 +73,7 @@
 
 /* The combined "All selected" block that heads a comparison. */
 .vp-stats-table .vp-band-all > td {
-  background: var(--color-brand-tint, #f1f5ff);
+  background: var(--color-brand-tint, #f0f6f8);
 }
 
 .vp-stats-table .vp-group-start > td {

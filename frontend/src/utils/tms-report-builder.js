@@ -276,6 +276,7 @@ var NOW = new Date(2026, 8, 14, 11, 32).getTime();
       else if (/\bactive\b/.test(t)) add({ field: 'status', op: 'eq', value: 'Active', label: 'Status is Active' });
       if (/acting|supporting/.test(t)) add({ field: 'dtype', op: 'eq', value: 'Acting', label: 'Driver type is Acting' });
       if (/\bregular\b/.test(t)) add({ field: 'dtype', op: 'eq', value: 'Regular', label: 'Driver type is Regular' });
+      if (/\bhelpers?\b/.test(t)) add({ field: 'dtype', op: 'eq', value: 'Helper', label: 'Driver type is Helper' });
       if (/pending/.test(t) && has('approval')) add({ field: 'approval', op: 'contains', value: 'pending', label: 'Approval is pending' });
     }
     if (type === 'exception') {

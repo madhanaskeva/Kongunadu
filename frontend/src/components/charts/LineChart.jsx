@@ -4,7 +4,7 @@ export const LineChart = ({
   data = [],
   title,
   height = 220,
-  lineColor = 'var(--color-brand, #0d6efd)',
+  lineColor = 'var(--color-brand, #275e74)',
   valueSuffix = '',
 }) => {
   const [hoveredIdx, setHoveredIdx] = useState(null);

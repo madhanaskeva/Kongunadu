@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Button, Checkbox, Collapse, Empty, Flex, Form, Select, Table, Tabs, Tag, Typography } from 'antd';
-import { Minus } from 'lucide-react';
+import { Minus, Users } from 'lucide-react';
 
 // The screen handlers read e.target.value (a string, as the old select gave);
 // antd Select hands over the bare value, so it is passed on in that shape.
@@ -24,6 +24,17 @@ export const MarkAttendance = ({ v }) => (
       {v.attTabMark ? (
         <>
           <Flex vertical gap={18} style={{ padding: 16 }}>
+            {/* The crew Head Office set for this branch: how many drivers and helpers one vehicle takes */}
+            <Alert
+              type="info"
+              showIcon
+              icon={<Users size={16} />}
+              title={<span><strong>{v.crewLabel}</strong> per vehicle</span>}
+              description={v.crewText}
+            />
+            {(v.crewIssues || []).length ? (
+              <Alert type="error" showIcon title="Fix the crew before saving" description={v.crewIssues.join(' ')} />
+            ) : null}
             <Form layout="vertical" requiredMark={false} component="div">
               <Form.Item label="Vehicle number" extra={v.amVehicleHint}>
                 <Select
@@ -35,12 +46,13 @@ export const MarkAttendance = ({ v }) => (
                   onChange={val => v.setAmVehicle(asEvent(val))}
                 />
               </Form.Item>
-              <Form.Item label="Driver name" extra={v.amDriverHint}>
+              <Form.Item label={`Driver name · up to ${v.amDriverMax}`} extra={v.amDriverHint}>
                 <Select
                   mode="multiple"
                   size="large"
                   placeholder={(v.amDriverOptions || []).length ? 'Select driver' : 'None available'}
-                  disabled={!(v.amDriverOptions || []).length}
+                  disabled={!(v.amDriverOptions || []).length || !v.amDriverMax}
+                  maxCount={v.amDriverMax || undefined}
                   options={v.amDriverOptions}
                   value={v.amSelectedDrivers || []}
                   onChange={v.setAmDrivers}
@@ -56,6 +68,27 @@ export const MarkAttendance = ({ v }) => (
                   }}
                 />
               </Form.Item>
+              {v.crewHelpers ? (
+                <Form.Item label={`Helper name · up to ${v.amHelperMax}`} extra={v.amHelperHint}>
+                  <Select
+                    mode="multiple"
+                    size="large"
+                    placeholder={(v.amHelperOptions || []).length ? 'Select helper' : 'No helpers in the Driver Master'}
+                    disabled={!(v.amHelperOptions || []).length || !v.amHelperMax}
+                    maxCount={v.amHelperMax || undefined}
+                    options={v.amHelperOptions}
+                    value={v.amSelectedHelpers || []}
+                    onChange={v.setAmHelpers}
+                    maxTagCount="responsive"
+                    optionRender={option => (
+                      <Flex align="center" gap={10} style={{ width: '100%', padding: '2px 0' }}>
+                        <Checkbox checked={(v.amSelectedHelpers || []).includes(option.value)} style={{ pointerEvents: 'none' }} />
+                        <span>{option.label}</span>
+                      </Flex>
+                    )}
+                  />
+                </Form.Item>
+              ) : null}
               <Form.Item label="Vehicle status" extra={v.amStatusHint} style={{ marginBottom: 0 }}>
                 <Select
                   size="large"
@@ -95,11 +128,12 @@ export const MarkAttendance = ({ v }) => (
                 scroll={{ x: 'max-content' }}
                 dataSource={v.amRows || []}
                 onRow={r => ({ style: { background: r.bg } })}
-                locale={{ emptyText: 'No drivers marked yet. Pick a vehicle, driver and vehicle status above.' }}
+                locale={{ emptyText: 'No crew marked yet. Pick a vehicle, driver(s), helper(s) and vehicle status above.' }}
                 columns={[
                   { title: 'S.No', dataIndex: 'sno', key: 'sno', render: sno => <Typography.Text type="secondary" strong>{sno}</Typography.Text> },
                   { title: 'Vehicle number', dataIndex: 'vehicle', key: 'vehicle', render: vehicle => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{vehicle}</span> },
-                  { title: 'Driver name', dataIndex: 'name', key: 'name', render: name => <Typography.Text strong>{name}</Typography.Text> },
+                  { title: 'Name', dataIndex: 'name', key: 'name', render: name => <Typography.Text strong>{name}</Typography.Text> },
+                  { title: 'Role', dataIndex: 'role', key: 'role', render: role => <Tag color={role === 'Helper' ? 'cyan' : 'blue'} style={{ marginInlineEnd: 0 }}>{role}</Tag> },
                   {
                     title: 'Vehicle status',
                     key: 'vehStatus',

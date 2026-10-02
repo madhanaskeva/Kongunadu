@@ -1,11 +1,11 @@
 import React from 'react';
 import { Alert, Button, Flex, Form, Input, Typography } from 'antd';
-import logoImg from '@/assets/images/logo-1600.png';
+import BrandLogo from '@/components/common/BrandLogo';
 
 export const SupervisorLogin = ({ v }) => (
   <>
     <Flex vertical style={{ flex: 1, padding: 'calc(40px + env(safe-area-inset-top)) 24px 40px' }}>
-      <img src={logoImg} alt="Kongunadu Road Lines" style={{ height: 44, width: 'auto', alignSelf: 'flex-start' }} />
+      <BrandLogo size={44} style={{ alignSelf: 'flex-start' }} />
       <Typography.Text strong style={{ marginTop: 36, fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-brand)' }}>
         Transport Management System
       </Typography.Text>

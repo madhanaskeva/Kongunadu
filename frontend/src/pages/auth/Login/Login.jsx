@@ -44,9 +44,9 @@ export const Login = () => {
         .krl-login-form {
           display: flex; align-items: center; justify-content: center; padding: 48px 40px; overflow-y: auto;
           background:
-            radial-gradient(circle at 100% 0%, rgba(13, 110, 253, 0.20), transparent 45%),
-            radial-gradient(circle at 0% 100%, rgba(3, 68, 139, 0.14), transparent 45%),
-            linear-gradient(135deg, #eef4ff 0%, #f8faff 50%, #e8f0ff 100%);
+            radial-gradient(circle at 100% 0%, rgba(39, 94, 116, 0.20), transparent 45%),
+            radial-gradient(circle at 0% 100%, rgba(33, 79, 99, 0.14), transparent 45%),
+            linear-gradient(135deg, #eef5f7 0%, #f8faff 50%, #e8f0ff 100%);
         }
         .krl-login-card {
           position: relative; width: 100%; max-width: 560px; margin: auto 0; padding: 48px 52px 40px;

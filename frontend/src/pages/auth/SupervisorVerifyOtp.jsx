@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, Button, Flex, Input, Typography } from 'antd';
-import logoImg from '@/assets/images/logo-1600.png';
+import BrandLogo from '@/components/common/BrandLogo';
 
 // Input.OTP reports its cells; the screen's digit handler takes one change at a
 // time in the old per-box event shape (index + typed text), so it is fed that.
@@ -17,7 +17,7 @@ const otpInput = (v, cells) => {
 export const SupervisorVerifyOtp = ({ v }) => (
   <>
     <Flex vertical style={{ flex: 1, padding: 'calc(40px + env(safe-area-inset-top)) 24px 40px' }}>
-      <Flex align="center" gap={12}><img src={logoImg} alt="" style={{ height: 44, width: 'auto' }} /></Flex>
+      <Flex align="center" gap={12}><BrandLogo size={44} /></Flex>
       <Typography.Title level={4} style={{ margin: '10px 0 0' }}>
         Kongunadu Road Lines
       </Typography.Title>

@@ -5,6 +5,7 @@ import { isPendingClose, pendingCloseDetail } from '../utils/tripStatus';
 import { MOCK_ADMIN_NOTIFICATIONS } from '../utils/mockSeed';
 import { NOTICE_LIMIT, deliverAutomaticAlerts } from '../utils/notificationUtils';
 import { normDriver } from '../utils/driverTypes';
+import { supervisorSeats } from '../utils/crewCombo';
 
 const TMSAdminContext = createContext(null);
 
@@ -261,12 +262,15 @@ export const TMSAdminProvider = ({ children }) => {
       let list = [...(e.added || []), ...(base[key] || []).map(r => (ed[r.id] ? { ...r, ...ed[r.id] } : r))].filter(r => !gone.has(r.id));
       if (key === 'supervisors') {
         list = list.filter(r => r.id !== 'S03' && r.id !== 'SUAR-seed-3');
-        const seenBranches = new Set();
+        // Each branch keeps as many supervisors as its "Number of supervisors" allows.
+        const seen = new Map();
+        const seatsOf = (br) => supervisorSeats((out.branches || []).find(b => b.id === br || String(b.name).toLowerCase() === String(br).toLowerCase()));
         list = list.filter(s => {
           const brKey = String(s.branch || '').toLowerCase();
           if (!brKey) return true;
-          if (seenBranches.has(brKey)) return false;
-          seenBranches.add(brKey);
+          const n = seen.get(brKey) || 0;
+          if (n >= seatsOf(s.branch)) return false;
+          seen.set(brKey, n + 1);
           return true;
         });
       }
@@ -460,7 +464,7 @@ export const TMSAdminProvider = ({ children }) => {
     try { localStorage.setItem(DRV_APPROVAL_KEY, JSON.stringify(next)); } catch (e) {}
   };
 
-  // `type` (Regular / Acting) is chosen by Head Office when approving.
+  // `type` (Regular / Acting / Helper) is chosen by Head Office when approving.
   const decideDriver = (id, approval, reason = '', type = '') => {
     const tms = T(), req = drvReqs.find(r => r.id === id), d = req || (tms.drivers || []).find(x => x.id === id);
     if (!d) return;

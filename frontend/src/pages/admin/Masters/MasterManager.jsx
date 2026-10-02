@@ -10,6 +10,7 @@ import { useDebounce } from '../../../utils/debounce';
 import { FILE_TRANSFER_ENABLED } from '../../../utils/featureFlags';
 import { coordErrors } from '../../../utils/coords';
 import { DRIVER_TYPES } from '../../../utils/driverTypes';
+import { CREW_COMBOS, crewOf, supervisorSeats } from '../../../utils/crewCombo';
 
 const RouteBunksCell = ({ route, tms, isOpen, onToggle, onEditRoute, onDeleteBunk, isNearBottom = false }) => {
   const rawBunks = route.authorizedBunks || [];
@@ -194,11 +195,12 @@ export const MasterManager = ({ type }) => {
     if (bId && bVal === bId) return true;
     return false;
   };
-  // One supervisor per branch: a branch that already has an assigned supervisor is not offered again,
-  // except to the supervisor being edited, who keeps their own branch.
+  // A branch takes as many supervisors as its "Number of supervisors" (Branch Master); once full it is
+  // not offered again, except to a supervisor being edited, who keeps their own branch.
+  const branchSeats = (bVal) => supervisorSeats((tms.branches || []).find(b => isBranchEqual(bVal, { value: b.id, label: b.name })));
   const freeBranchOpts = (self) => branchOpts.filter(o =>
     (self && isBranchEqual(self.branch, o)) ||
-    !(tms.supervisors || []).some(s => isBranchEqual(s.branch, o) && (!self || s.id !== self.id)));
+    (tms.supervisors || []).filter(s => isBranchEqual(s.branch, o) && (!self || s.id !== self.id)).length < branchSeats(o.value));
   const clientList = mdata('clients', tms.clients || []);
   const clientOpts = clientList.map(c => ({ value: c.id, label: c.name }));
   // Loading locations are owned by exactly one client, so both masters read the same list.
@@ -279,22 +281,26 @@ export const MasterManager = ({ type }) => {
           supervisors: supName,
         };
       }),
-      cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisor', 'Status'],
+      cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisor', 'No. of supervisors', 'Driver–helper combination', 'Status'],
       cells: b => [
         txtCell(b.code, true),
         txtCell(b.name, true),
         txtCell(b.state),
         txtCell(b.vehicles),
         txtCell(b.supervisor || getBranchSupervisor(b)),
+        txtCell(supervisorSeats(b)),
+        txtCell(crewOf(b).label),
         statusBadge(b.status),
       ],
       fields: [
         ['code', 'Branch code'],
         ['name', 'Branch name'],
         ['state', 'State'],
+        ['supervisorCount', 'Number of supervisors', null, 'e.g. 2', { clean: 'count', hint: 'How many supervisors can be assigned to this branch in Supervisor Master.' }],
+        ['crew', 'Driver–helper combination', CREW_COMBOS.map(c => ({ value: c.value, label: c.label })), 'The crew per vehicle. The branch supervisor can mark attendance for only this many drivers and helpers on each vehicle.'],
         ['status', 'Status', ['Active', 'Inactive']],
       ],
-      required: ['code', 'name', 'state', 'status'],
+      required: ['code', 'name', 'state', 'supervisorCount', 'crew', 'status'],
       validate: (f, isNew, self) => {
         const errs = {};
         const selfId = (self && self.id) || (!isNew && f.id);
@@ -315,6 +321,20 @@ export const MasterManager = ({ type }) => {
         }
 
         if (!f.state || !String(f.state).trim()) errs.state = 'Enter the state.';
+
+        const seats = Number(f.supervisorCount);
+        if (f.supervisorCount === undefined || f.supervisorCount === null || String(f.supervisorCount).trim() === '') {
+          errs.supervisorCount = 'Enter the number of supervisors.';
+        } else if (!Number.isInteger(seats) || seats < 1 || seats > 20) {
+          errs.supervisorCount = 'Enter a whole number from 1 to 20.';
+        } else if (selfId) {
+          // Can't go below the supervisors already assigned to the branch.
+          const self = allBranches.find(b => b.id === selfId) || {};
+          const assigned = (tms.supervisors || []).filter(s => isBranchEqual(s.branch, { value: selfId, label: self.name })).length;
+          if (seats < assigned) errs.supervisorCount = `${assigned} supervisors are already assigned to this branch. Move or remove some first.`;
+        }
+
+        if (!CREW_COMBOS.some(c => c.value === f.crew)) errs.crew = 'Select the driver–helper combination.';
         if (!f.status || !String(f.status).trim()) errs.status = 'Select the status.';
 
         return errs;
@@ -367,8 +387,13 @@ export const MasterManager = ({ type }) => {
         if (!f.branch) {
           errs.branch = 'Select a branch.';
         } else {
-          const clash = others.find(s => isBranchEqual(s.branch, f.branch));
-          if (clash) errs.branch = 'A supervisor is already assigned to this branch.';
+          const seats = branchSeats(f.branch);
+          const taken = others.filter(s => isBranchEqual(s.branch, f.branch)).length;
+          if (taken >= seats) {
+            errs.branch = seats === 1
+              ? 'A supervisor is already assigned to this branch. Raise "Number of supervisors" in Branch Master to add another.'
+              : `This branch already has its ${seats} supervisors. Raise "Number of supervisors" in Branch Master to add another.`;
+          }
         }
 
         const hasClients = Array.isArray(f.clients) ? f.clients.length > 0 : !!String(f.clients || '').trim();
@@ -455,7 +480,7 @@ export const MasterManager = ({ type }) => {
           licence: r.licence,
           phone: fmtPhone(r.phone),
           branch: r.branch,
-          // A supervisor's request is "New" until Head Office approves it as Regular or Acting.
+          // A supervisor's request is "New" until Head Office approves it as Regular, Acting or Helper.
           type: r.status === 'Approved' && r.type ? r.type : 'New',
           status: 'Active',
           approval: r.status === 'Pending' ? 'Pending approval' : r.status,
@@ -1004,7 +1029,7 @@ export const MasterManager = ({ type }) => {
         const opt = c[4] || {};
         if (opt.clean === 'phone') { const d = digits(v); v = d.length > 10 && d.startsWith('91') ? d.slice(-10) : d; if (v.length !== 10) errs.push(`${c[1]} must be 10 digits`); }
         else if (opt.clean === 'gstin' || opt.clean === 'ifsc' || opt.clean === 'licence') v = v.toUpperCase();
-        else if (opt.clean === 'litres' || opt.clean === 'account') v = digits(v);
+        else if (opt.clean === 'litres' || opt.clean === 'account' || opt.clean === 'count') v = digits(v);
         if (c[2] === 'bunks-input') { f[c[0]] = v.split(/[,;\n]/).map(s => s.trim()).filter(Boolean); return; }
         if (c[2] === 'checkbox-select') {
           const opts = optionsOf(c, f) || [];

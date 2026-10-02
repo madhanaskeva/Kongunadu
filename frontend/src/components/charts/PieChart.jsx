@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 
 const DEFAULT_COLORS = [
-  '#0d6efd', // Brand green
+  '#275e74', // Brand green
   '#F29A1F', // Saffron / Warning
   '#D91619', // Red / Danger
   '#2F7DB5', // Blue / Info
   '#7A4300', // Amber / Brown
   '#5B52D4', // Indigo / Purple
-  '#3b82f6', // Emerald
+  '#3a768d', // Emerald
   '#0B6B5C', // Teal
   '#4A4A46', // Slate
 ];

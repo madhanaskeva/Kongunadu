@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag, User, ArrowLeft, ChevronRight, Navigation } from 'lucide-react';
+import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag, User, ArrowLeft, ChevronRight, Navigation, LayoutGrid, List as ListIcon, Info } from 'lucide-react';
 import dayjs from 'dayjs';
 import {
   Alert, Button, Card, Col, DatePicker, Descriptions, Empty, Flex, Form, Input, Pagination, Row,
-  Select, Space, Statistic, Table, Tag, Timeline, Typography,
+  Segmented, Select, Space, Statistic, Table, Tag, Timeline, Tooltip, Typography,
 } from 'antd';
 import { AimOutlined, ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
@@ -68,8 +68,9 @@ const IDLE_CAT_TONES = {
   onroad: { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
   bunk: { edge: 'var(--kr-red-600)', bg: 'var(--kr-red-100)', fg: 'var(--kr-red-700)' },
   yard: { edge: 'var(--kr-grey-500)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
+  maintenance: { edge: 'var(--st-enroute-edge)', bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-fg)' },
 };
-const IDLE_CAT_ICON = { ...PLACE_ICON, onroad: Navigation };
+const IDLE_CAT_ICON = { ...PLACE_ICON, onroad: Navigation, maintenance: PLACE_ICON.service };
 
 export const FleetMonitor = () => {
   const { T, fleetFilter, setFleetFilter, navTo, deleted } = useTMSAdmin();
@@ -81,6 +82,15 @@ export const FleetMonitor = () => {
   // In the Idle view a card opens its idle details; elsewhere it opens the map.
   const [idleId, setIdleId] = useState(null);
   const openCard = (id) => (ff === 'idle' ? setIdleId(id) : setTrackId(id));
+  // Card or list layout for the vehicles, remembered on this browser.
+  const VIEW_KEY = 'kr_fleet_view';
+  const [fleetView, setFleetViewState] = useState(() => {
+    try { return localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'card'; } catch (e) { return 'card'; }
+  });
+  const setFleetView = (v) => {
+    setFleetViewState(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* layout is just not remembered */ }
+  };
   const [fleetQ, setFleetQ] = useState('');
   const debouncedFleetQ = useDebounce(fleetQ, 300);
 
@@ -188,6 +198,13 @@ export const FleetMonitor = () => {
     const openTrip = openTripOf(v, trips);
     const gpsIdle = (tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || tripStopFor(v, openTrip, tms);
     const idleCat = idleCategoryOf({ ...v, gpsIdle }, openTrip);
+    // With no stop report, how long it has stood comes from today's GPS: the current idle span.
+    let idleMin = gpsIdle ? gpsIdle.minutes : Math.round(idleHours * 60);
+    if (idleCat && !gpsIdle) {
+      const segs = vehicleActivity({ ...v, idleHours }, dayjs().startOf('day').valueOf(), Date.now()).segments;
+      const last = segs[segs.length - 1];
+      if (last && last.state === ACTIVITY.IDLE) idleMin = last.minutes;
+    }
 
     return {
       ...v,
@@ -198,7 +215,7 @@ export const FleetMonitor = () => {
       gpsIdle: gpsIdle || null,
       openTrip,
       idleCat,
-      idleMin: gpsIdle ? gpsIdle.minutes : Math.round(idleHours * 60),
+      idleMin,
       driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
       gpsColor: v.gps === 'OK' ? 'var(--color-brand)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
       gpsBg: v.gps === 'OK' ? 'var(--color-brand-soft)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
@@ -212,17 +229,17 @@ export const FleetMonitor = () => {
     };
   });
 
-  const fleetCards = fleetAll.filter(v => {
-    const matchesCategory =
-      ff === 'all' ||
-      (ff === 'running' && v.status === 'Running') ||
-      (ff === 'idle' && !!v.idleCat) ||
-      (ff === 'maint' && v.status === 'Maintenance') ||
-      (ff === 'gps' && v.gps !== 'OK');
+  // Which vehicle tab a vehicle belongs to (a vehicle can sit in more than one).
+  const inTab = (v, tab) =>
+    tab === 'all' ||
+    (tab === 'running' && v.status === 'Running') ||
+    (tab === 'idle' && !!v.idleCat &&
+      (idleDurationFilter === 'all' || v.idleMin > Number(idleDurationFilter) * 60)) ||
+    (tab === 'maint' && v.status === 'Maintenance') ||
+    (tab === 'gps' && v.gps !== 'OK');
 
-    const targetMinHours = (ff === 'idle' && idleDurationFilter !== 'all') ? Number(idleDurationFilter) : 0;
-    const matchesDuration = ff !== 'idle' || idleDurationFilter === 'all' || v.idleMin > targetMinHours * 60;
-
+  // Vehicles passing the filter bar and the search, before the tab narrows them.
+  const fleetBase = fleetAll.filter(v => {
     const q = debouncedFleetQ.trim().toLowerCase();
     const matchesSearch = !q || (
       (v.number && v.number.toLowerCase().includes(q)) ||
@@ -236,9 +253,9 @@ export const FleetMonitor = () => {
       (v.lastSeen && v.lastSeen.toLowerCase().includes(q))
     );
 
-    return matchesCategory && matchesDuration && matchesSearch &&
-      vehPass(v) && flagPass(v.gps !== 'OK' || !!v.radiusAlert) && vehDatePass(v);
+    return matchesSearch && vehPass(v) && flagPass(v.gps !== 'OK' || !!v.radiusAlert) && vehDatePass(v);
   });
+  const fleetCards = fleetBase.filter(v => inTab(v, ff));
 
   // A branch can run hundreds of vehicles, so the grid is paged like every other list (default 10 / page).
   // Idle view: the category cards count every idle vehicle; opening one narrows the grid to it.
@@ -254,10 +271,128 @@ export const FleetMonitor = () => {
   // Where an idle vehicle stands, by name: the tracker's / trip's stop, else the road or its yard.
   const idlePlaceName = (v) => {
     const r = v.gpsIdle;
+    if (v.idleCat === 'maintenance') return v.route;
     if (r) return ((tms.F || {})[r.place] || (tms.L || {})[r.place] || {}).name || r.place;
     if (v.openTrip) return `On the way · ${v.route}`;
     return String(v.route || '').replace(/^Parked at\s*/i, '');
   };
+
+  // The selected day from GPS for one vehicle, and the stop it is in right now (today only).
+  const dayOf = (v) => {
+    const act = vehicleActivity(v, activityRange.from.valueOf(), activityRange.to.valueOf());
+    const lastSpan = withIdlePlaces(act.segments.slice(-1), v, tms)[0];
+    return {
+      act,
+      idleNow: isToday && lastSpan && lastSpan.state === ACTIVITY.IDLE ? lastSpan : null,
+      noGps: act.segments.every(s => s.state === ACTIVITY.NO_GPS),
+    };
+  };
+  const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
+
+  // List view: one row per vehicle, the same facts as its card.
+  const fleetListColumns = [
+    {
+      title: 'Vehicle',
+      key: 'vehicle',
+      fixed: 'left',
+      width: 200,
+      render: (_, v) => (
+        <div style={{ minWidth: 0 }}>
+          <Typography.Text strong style={{ display: 'block', fontFamily: 'var(--font-display)', whiteSpace: 'nowrap' }}>{v.number}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{v.type} · {v.branchName}</Typography.Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      width: 130,
+      render: (_, v) => (
+        <Flex vertical gap={4} align="flex-start">
+          <Tag color={STATUS_TAG[v.status] || 'default'} className="fl-card-status">{v.status}</Tag>
+          <span className="fl-card-gps" style={{ color: v.gpsColor }}>
+            <span className="fl-card-gps-dot" style={{ background: v.gpsColor }} />GPS {v.gps}
+          </span>
+        </Flex>
+      ),
+    },
+    {
+      title: 'Location · driver',
+      key: 'where',
+      width: 230,
+      render: (_, v) => (
+        <div style={{ minWidth: 0 }}>
+          <Typography.Text strong ellipsis={{ tooltip: v.route }} style={{ display: 'block', maxWidth: 220 }}>{v.route}</Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>{v.driverName}</Typography.Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Idle now',
+      key: 'idle',
+      width: 260,
+      render: (_, v) => {
+        const { idleNow } = v._day;
+        if (!idleNow) return <Typography.Text type="secondary">—</Typography.Text>;
+        const Icon = PLACE_ICON[idleNow.place.kind] || MapPin;
+        return (
+          <Flex vertical gap={4}>
+            <Flex align="center" gap={6} style={{ minWidth: 0 }}>
+              <Icon size={13} style={{ color: '#7A4300', flex: 'none' }} aria-hidden />
+              <Typography.Text ellipsis={{ tooltip: idleNow.place.name }} style={{ fontSize: 12.5, maxWidth: 200 }}>{idleNow.place.name}</Typography.Text>
+            </Flex>
+            <Flex align="center" gap={6} wrap>
+              <Typography.Text strong style={{ fontSize: 12.5, color: idleNow.reason.tone === 'error' ? 'var(--kr-red-700)' : '#7A4300' }}>
+                {fmtDuration(idleNow.minutes)}
+              </Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>since {dayjs(idleNow.start).format('HH:mm')}</Typography.Text>
+              <Tag color={idleNow.reason.tone} style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '18px' }}>{idleNow.reason.label}</Tag>
+            </Flex>
+          </Flex>
+        );
+      },
+    },
+    {
+      title: dayLabel,
+      key: 'day',
+      width: 190,
+      render: (_, v) => {
+        const { act, noGps } = v._day;
+        if (noGps) return <Typography.Text type="secondary" style={{ fontSize: 12 }}>No GPS data</Typography.Text>;
+        return (
+          <Flex vertical gap={6}>
+            <Flex gap={10}>
+              <span className="fl-card-stat" style={{ color: 'var(--good-700)' }}>Run {fmtDuration(act.summary.running)}</span>
+              <span className="fl-card-stat" style={{ color: '#7A4300' }}>Idle {fmtDuration(act.summary.idle)}</span>
+            </Flex>
+            <ActivityBar segments={act.segments} height={6} />
+          </Flex>
+        );
+      },
+    },
+    { title: 'Last seen', dataIndex: 'lastSeen', key: 'seen', width: 120, render: t => <Typography.Text type="secondary" style={{ fontSize: 12.5, whiteSpace: 'nowrap' }}>{t}</Typography.Text> },
+    {
+      title: 'Actions',
+      key: 'actions',
+      fixed: 'right',
+      width: ff === 'idle' ? 130 : 100,
+      render: (_, v) => (
+        <Flex gap={4}>
+          {ff === 'idle' && (
+            <Tooltip title="Idle details">
+              <Button size="small" type="text" icon={<Info size={15} />} aria-label={`Idle details for ${v.number}`} onClick={stop(() => setIdleId(v.id))} />
+            </Tooltip>
+          )}
+          <Tooltip title="Track on map">
+            <Button size="small" type="text" icon={<MapPin size={15} />} aria-label={`Track ${v.number} on the map`} onClick={stop(() => setTrackId(v.id))} />
+          </Tooltip>
+          <Tooltip title="Activity timeline">
+            <Button size="small" type="text" icon={<Clock size={15} />} aria-label={`Activity timeline for ${v.number}`} onClick={stop(() => setActivityId(v.id))} />
+          </Tooltip>
+        </Flex>
+      ),
+    },
+  ];
 
   const gpsTone = g => g === 'OK' ? 'var(--color-brand)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
@@ -438,16 +573,17 @@ export const FleetMonitor = () => {
   ];
 
   // Filters & Tiles
+  // Each tab shows how many records it holds under the current filters and search.
   const fleetFilters = [
     { id: 'all', label: 'All' },
     { id: 'running', label: 'Running' },
     { id: 'idle', label: 'Idle' },
     { id: 'maint', label: 'Maintenance' },
     { id: 'gps', label: 'GPS issues' },
-    { id: 'diversion', label: 'Route diversion' },
-    { id: 'nonbill', label: 'Non-billable trips' },
-    { id: 'radius', label: 'Radius alert' },
-  ];
+    { id: 'diversion', label: 'Route diversion', count: filteredDivCards.length },
+    { id: 'nonbill', label: 'Non-billable trips', count: filteredNbCards.length },
+    { id: 'radius', label: 'Radius alert', count: filteredRbCards.length },
+  ].map(f => ({ ...f, count: f.count ?? fleetBase.filter(v => inTab(v, f.id)).length }));
 
   const fleetTiles = [
     { label: 'Fleet', value: 722, edge: 'var(--color-brand)' },
@@ -618,7 +754,7 @@ export const FleetMonitor = () => {
                 }}
                 style={{ fontWeight: 600 }}
               >
-                {f.label}
+                {f.label} ({f.count})
               </Button>
             ))}
           </Flex>
@@ -677,6 +813,20 @@ export const FleetMonitor = () => {
             aria-label="Idle duration"
             className="tms-toolbar-field"
             style={{ width: 200, maxWidth: '100%' }}
+          />
+        )}
+
+        {/* Card or list layout for the vehicles */}
+        {fleetShowVehicles && (
+          <Segmented
+            value={fleetView}
+            onChange={setFleetView}
+            aria-label="Vehicle view"
+            style={{ marginLeft: 'auto' }}
+            options={[
+              { value: 'card', label: 'Card view', icon: <LayoutGrid size={14} style={{ verticalAlign: -2 }} /> },
+              { value: 'list', label: 'List view', icon: <ListIcon size={14} style={{ verticalAlign: -2 }} /> },
+            ]}
           />
         )}
         </Flex>
@@ -827,6 +977,27 @@ export const FleetMonitor = () => {
               )}
             </Empty>
           </Card>
+        ) : fleetView === 'list' ? (
+          <>
+          <Card styles={{ body: { padding: 0 } }}>
+            <Table
+              size="middle"
+              rowKey="id"
+              columns={fleetListColumns}
+              dataSource={fleetPg.rows.map(v => ({ ...v, _day: dayOf(v) }))}
+              pagination={false}
+              scroll={{ x: 1300 }}
+              onRow={v => ({
+                onClick: () => openCard(v.id),
+                style: { cursor: 'pointer' },
+                title: ff === 'idle' ? 'Open idle details' : 'Track on map',
+              })}
+            />
+          </Card>
+          <Card size="small">
+            <Pagination align="end" {...fleetPg.pagination} />
+          </Card>
+          </>
         ) : (
           <>
           <Row gutter={[16, 16]}>

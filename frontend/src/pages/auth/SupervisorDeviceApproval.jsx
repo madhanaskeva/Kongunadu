@@ -1,13 +1,13 @@
 import React from 'react';
 import { Alert, Button, Card, Descriptions, Flex, Form, Input, Spin, Typography } from 'antd';
-import logoImg from '@/assets/images/logo-1600.png';
+import BrandLogo from '@/components/common/BrandLogo';
 
 // DEV-ONLY: double-click / double-tap the logo to jump straight to Sign In.
 
 export const SupervisorDeviceApproval = ({ v }) => (
   <>
     <Flex vertical style={{ flex: 1, padding: 'calc(40px + env(safe-area-inset-top)) 24px 40px' }}>
-      <Flex align="center" gap={12}><img src={logoImg} alt="" onDoubleClick={v.goLogin} style={{ height: 44, width: 'auto', WebkitTapHighlightColor: 'transparent' }} /></Flex>
+      <Flex align="center" gap={12}><BrandLogo size={44} onDoubleClick={v.goLogin} style={{ WebkitTapHighlightColor: 'transparent' }} /></Flex>
       <Typography.Title level={4} style={{ margin: '10px 0 0' }}>
         Kongunadu Road Lines
       </Typography.Title>

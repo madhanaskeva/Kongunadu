@@ -6,7 +6,7 @@ import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { ChevronDown, Menu, Bell, Megaphone, User, LogOut } from 'lucide-react';
 import SendNoticeModal from '../../components/common/SendNoticeModal';
 import AdminNotificationsModal from '../../components/common/AdminNotificationsModal';
-import logoImg from '@/assets/images/logo-1600.png';
+import BrandLogo from '@/components/common/BrandLogo';
 
 export const AdminHeader = ({ onOpenNav, narrow }) => {
   const navigate = useNavigate();
@@ -53,7 +53,7 @@ export const AdminHeader = ({ onOpenNav, narrow }) => {
       )}
 
       <Link to="/admin/dashboard" className="tms-topbar-brand">
-        <img src={logoImg} alt="Kongunadu Road Lines" />
+        <BrandLogo />
       </Link>
 
       {!narrow && (

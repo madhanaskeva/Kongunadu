@@ -45,7 +45,7 @@
 
 .reports-result-kicker {
   display: inline;
-  color: var(--color-brand, #0d6efd);
+  color: var(--color-brand, #275e74);
 }
 
 h5.ant-typography.reports-col-title {
@@ -92,9 +92,9 @@ h5.ant-typography.reports-col-title {
 }
 
 .reports-module-card.selected {
-  background: var(--color-brand-tint, #f1f5ff);
-  border-color: var(--color-brand, #0d6efd);
-  box-shadow: 0 0 0 1px var(--color-brand, #0d6efd);
+  background: var(--color-brand-tint, #f0f6f8);
+  border-color: var(--color-brand, #275e74);
+  box-shadow: 0 0 0 1px var(--color-brand, #275e74);
 }
 
 /* Result view: filter-chip strip and table cells */
@@ -119,6 +119,13 @@ h5.ant-typography.reports-col-title {
 
 .reports-result-cell-first {
   font-weight: 700;
+}
+
+/* Total row under the result table, same as the last row of the downloaded sheet */
+.reports-result-total > td {
+  white-space: nowrap;
+  background: var(--surface-muted, #f8fafc);
+  border-top: 2px solid var(--border-strong, #cbd5e1);
 }
 
 .reports-empty {

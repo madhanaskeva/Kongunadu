@@ -84,7 +84,7 @@ export const exportToPDF = ({
   }).join('');
 
   const headersHtml = headers.map(h => 
-    `<th style="padding: 10px 12px; background: #0d6efd; color: #ffffff; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; font-weight: 700;">${escHtml(h)}</th>`
+    `<th style="padding: 10px 12px; background: #275e74; color: #ffffff; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; text-align: left; font-weight: 700;">${escHtml(h)}</th>`
   ).join('');
 
   const html = `
@@ -96,8 +96,8 @@ export const exportToPDF = ({
         <style>
           @page { size: A4 portrait; margin: 15mm; }
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; color: #1e293b; }
-          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 2px solid #0d6efd; margin-bottom: 16px; }
-          .brand { font-size: 20px; font-weight: 800; color: #0d6efd; letter-spacing: -0.02em; }
+          .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 16px; border-bottom: 2px solid #275e74; margin-bottom: 16px; }
+          .brand { font-size: 20px; font-weight: 800; color: #275e74; letter-spacing: -0.02em; }
           .sub { font-size: 12px; color: #64748b; margin-top: 4px; }
           .meta { text-align: right; font-size: 11px; color: #64748b; }
           table { width: 100%; border-collapse: collapse; margin-top: 12px; }

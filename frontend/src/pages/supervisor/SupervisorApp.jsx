@@ -1,5 +1,6 @@
 import React from 'react';
 import { normDriver, normDriverType } from '../../utils/driverTypes';
+import { crewOf, crewLimitText, isHelper } from '../../utils/crewCombo';
 import SupervisorScreens from './SupervisorScreens';
 import { TMS, formatPhone } from '../../utils';
 import { isPendingClose, pendingCloseDetail, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../utils/tripStatus';
@@ -344,7 +345,7 @@ export class SupervisorApp extends React.Component {
     const routeKm = pickedCust.reduce((a, u) => a + ((T.R[u.route] || {}).km || 0), 0);
     const routeHours = pickedCust.reduce((a, u) => a + ((T.R[u.route] || {}).hours || 0), 0);
     const routeSummary = pickedCust.length === 1 ? `${(T.R[pickedCust[0].route] || {}).name || pickedCust[0].city} · ${routeKm.toLocaleString('en-IN')} km fixed · about ${routeHours} h.` : `${pickedCust.map(u => u.city).join(' → ')} · ${routeKm.toLocaleString('en-IN')} km fixed across ${pickedCust.length} drops · about ${routeHours} h.`;
-    const freeDrv = branchDrv.filter(d => (d.status === 'Active' || s.att[d.id] === 'P') && d.approval === 'Approved' && !activeDrv.has(d.id) && s.att[d.id] !== 'A');
+    const freeDrv = branchDrv.filter(d => !isHelper(d) && (d.status === 'Active' || s.att[d.id] === 'P') && d.approval === 'Approved' && !activeDrv.has(d.id) && s.att[d.id] !== 'A');
     const drvList = [...freeDrv, ...allBranchDrv.filter(d => d.requested && d.approval === 'Pending approval' && !activeDrv.has(d.id))];
     const mappedDrv = veh ? this.mappedDriver(veh) : null;
     // Drivers marked present on this vehicle in today's attendance (live session or saved attendance)
@@ -704,18 +705,45 @@ export class SupervisorApp extends React.Component {
     const amSelectedSet = new Set(amSelectedDrivers);
     const amDrv = this.drv(am.driver || amSelectedDrivers[0]);
     const amDriverList = branchDrv.filter(d => d.approval === 'Approved');
+    // The branch's driver–helper combination (Branch Master) caps the crew marked on one vehicle.
+    const crew = crewOf(T.B[this.BR]);
+    const amSelectedHelpers = Array.isArray(am.helpers) ? am.helpers : [];
+    const amHelperSet = new Set(amSelectedHelpers);
+    const crewOnVeh = vid => {
+      const on = amDriverList.filter(d => s.att[d.id] === 'P' && s.attVeh[d.id] === vid);
+      return { drivers: on.filter(d => !isHelper(d)).length, helpers: on.filter(isHelper).length };
+    };
+    const vehFull = vid => { const c = crewOnVeh(vid); return c.drivers >= crew.drivers && c.helpers >= crew.helpers; };
     const amUsedVeh = new Set(amDriverList.filter(d => s.att[d.id] === 'P' && s.attVeh[d.id]).map(d => s.attVeh[d.id]));
-    const amFreeVeh = branchVeh.filter(v => !amUsedVeh.has(v.id) || v.id === am.vehicle);
-    const amVehicleOptions = amFreeVeh.map(v => ({ value: v.id, label: `${v.number} · ${v.type}` }));
-    const amDriverOptions = amDriverList.filter(d => !s.att[d.id] || amSelectedSet.has(d.id)).map(d => ({ value: d.id, label: `${d.name} · ${d.type}${d.status === 'Inactive' ? ' · inactive' : ''}` }));
+    // A vehicle stays on offer until its crew is full.
+    const amFreeVeh = branchVeh.filter(v => !vehFull(v.id) || v.id === am.vehicle);
+    const amVehicleOptions = amFreeVeh.map(v => {
+      const c = crewOnVeh(v.id), part = c.drivers || c.helpers;
+      return { value: v.id, label: `${v.number} · ${v.type}${part ? ` · ${c.drivers}/${crew.drivers} drivers${crew.helpers ? `, ${c.helpers}/${crew.helpers} helpers` : ''} marked` : ''}` };
+    });
+    const amOnVeh = am.vehicle ? crewOnVeh(am.vehicle) : { drivers: 0, helpers: 0 };
+    const amDriverSlots = Math.max(0, crew.drivers - amOnVeh.drivers), amHelperSlots = Math.max(0, crew.helpers - amOnVeh.helpers);
+    const amDriverOptions = amDriverList.filter(d => !isHelper(d) && (!s.att[d.id] || amSelectedSet.has(d.id))).map(d => ({ value: d.id, label: `${d.name} · ${d.type}${d.status === 'Inactive' ? ' · inactive' : ''}` }));
+    const amHelperOptions = amDriverList.filter(d => isHelper(d) && (!s.att[d.id] || amHelperSet.has(d.id))).map(d => ({ value: d.id, label: `${d.name}${d.status === 'Inactive' ? ' · inactive' : ''}` }));
+    // Vehicles whose marked crew breaks the combination (e.g. Head Office lowered it after marking).
+    const crewIssues = [...amUsedVeh].map(vid => {
+      const c = crewOnVeh(vid), n = (T.V[vid] || {}).number || vid;
+      if (c.drivers > crew.drivers || c.helpers > crew.helpers) return `${n} has ${c.drivers} driver(s) and ${c.helpers} helper(s); ${me.branch} allows ${crewLimitText(crew)}.`;
+      if (!c.drivers) return `${n} has a helper but no driver.`;
+      return '';
+    }).filter(Boolean);
     const amMappedDrv = amVeh ? this.mappedDriver(amVeh) : null;
-    const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : amUsedVeh.size ? `${amFreeVeh.length} of ${branchVeh.length} ${me.branch} vehicles free. ${amUsedVeh.size} already marked today are hidden.` : `${branchVeh.length} ${me.branch} vehicles from the admin vehicle master.`;
+    const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : branchVeh.length > amFreeVeh.length ? `${amFreeVeh.length} of ${branchVeh.length} ${me.branch} vehicles still need crew. ${branchVeh.length - amFreeVeh.length} with a full crew are hidden.` : `${branchVeh.length} ${me.branch} vehicles from the admin vehicle master.`;
     // Vehicle status: Idle or Maintenance; a vehicle that is on a trip can also be recorded as On trip
     // Same vehicle statuses as the Admin Portal Vehicle Master.
     const amStatusOptions = ['Idle', 'Running', 'Maintenance', 'Inactive'].map(x => ({ value: x, label: x }));
     const amStatusHint = amVeh && amSelectedDrivers.length ? `Choose the status of ${amVeh.number} to add ${amSelectedDrivers.length === 1 ? (amDrv ? amDrv.name : 'the driver') : `${amSelectedDrivers.length} drivers`} to today’s attendance.` : 'Idle, running, under maintenance or inactive. The driver(s) are added once vehicle, driver(s) and status are chosen.';
     const vehStatusOf = id => s.attVehStatus[id] || ((T.V[s.attVeh[id]] || {}).status === 'Running' ? 'On trip' : 'Not set');
-    const amDriverHint = amVeh && !amSelectedDrivers.length ? `Pick the driver(s) for ${amVeh.number}${amMappedDrv ? ` (mapped: ${amMappedDrv.name})` : ''}, then the vehicle status.`
+    const amHelperHint = amVeh
+      ? (amHelperSlots ? `Up to ${amHelperSlots} helper${amHelperSlots === 1 ? '' : 's'} for ${amVeh.number}.` : `${amVeh.number} already has its ${crew.helpers} helper${crew.helpers === 1 ? '' : 's'}.`)
+      : `Up to ${crew.helpers} helper${crew.helpers === 1 ? '' : 's'} per vehicle.`;
+    const amDriverHint = amVeh && !amDriverSlots ? `${amVeh.number} already has its ${crew.drivers} driver${crew.drivers === 1 ? '' : 's'}.`
+      : amVeh && !amSelectedDrivers.length ? `Pick up to ${amDriverSlots} driver${amDriverSlots === 1 ? '' : 's'} for ${amVeh.number}${amMappedDrv ? ` (mapped: ${amMappedDrv.name})` : ''}, then the vehicle status.`
       : amVeh && amSelectedDrivers.length ? `${amSelectedDrivers.length} driver(s) selected for ${amVeh.number}. Choose vehicle status to assign.`
       : amSelectedDrivers.length && !amVeh ? `Pick the vehicle for the selected driver(s) to mark them present.`
       : `${amDriverOptions.length} of ${amDriverList.length} approved ${me.branch} drivers not marked yet. Pick a vehicle, driver(s) and vehicle status to mark the driver(s) present.`;
@@ -736,7 +764,7 @@ export class SupervisorApp extends React.Component {
     });
     const amRows = amDriverList.filter(d => s.att[d.id]).map((d, i) => { const v = s.att[d.id], vn = (T.V[s.attVeh[d.id]] || {}).number;
       const vs = vehStatusOf(d.id), [vsBg, vsFg] = this.statusTone(vs);
-      return { id: d.id, sno: i + 1, name: d.name, vehicle: vn || (v === 'A' ? '—' : 'No vehicle'), vehStatus: vs, vsBg, vsFg, badge: v === 'P' ? 'Present' : 'Absent', badgeBg: this.statusTone(v === 'P' ? 'Present' : 'Absent')[0], badgeFg: this.statusTone(v === 'P' ? 'Present' : 'Absent')[1], bg: v === 'P' ? 'var(--color-brand-tint)' : '#fff', removeLabel: `Remove ${d.name}` }; });
+      return { id: d.id, sno: i + 1, name: d.name, role: isHelper(d) ? 'Helper' : 'Driver', vehicle: vn || (v === 'A' ? '—' : 'No vehicle'), vehStatus: vs, vsBg, vsFg, badge: v === 'P' ? 'Present' : 'Absent', badgeBg: this.statusTone(v === 'P' ? 'Present' : 'Absent')[0], badgeFg: this.statusTone(v === 'P' ? 'Present' : 'Absent')[1], bg: v === 'P' ? 'var(--color-brand-tint)' : '#fff', removeLabel: `Remove ${d.name}` }; });
     // Vehicle idle status
     const activeByVeh = Object.fromEntries(this.active().map(t => [t.vehicle, t]));
     const idleRows = branchVeh.map(v => {
@@ -1413,37 +1441,17 @@ export class SupervisorApp extends React.Component {
       idleHasErrors: s.showIdleErrors && idleMissing > 0, idleErrorText: `${idleMissing} idle ${idleMissing === 1 ? 'vehicle needs' : 'vehicles need'} a reason before saving.`,
       saveIdle: () => { if (idleMissing) { this.setState({ showIdleErrors: true, railVariant: 'errors' }); return; } this.setState(st => ({ showIdleErrors: false, idle: Object.fromEntries(Object.entries(st.idle).map(([id, r]) => [id, r.on && !r.since ? { ...r, since: this.nowText(), hours: 0 } : r])) })); this.toast('success', 'Idle status saved', `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`); this.logActivity({ title: 'Vehicle idle status saved', body: `${idleStats.idle} idle · ${idleStats.running} on trip · ${idleStats.ready} ready. Shared with Head Office.`, rows: idleRows.filter(v => v.on).map(v => [v.number, v.reason + (v.note ? ' · ' + v.note : '')]), link: { screen: 'idle' }, linkLabel: 'Open idle status' }); this.pushAdminNotif({ title: 'Maintenance Alert', body: `Vehicle idle status updated: ${idleStats.idle} vehicles marked idle.`, time: 'Just now' }); this.go('home'); },
       am, amVehicleOptions, amDriverOptions, amVehicleHint, amDriverHint, amRows, amRowCount: amRows.length, amRowsEmpty: !amRows.length,
-      amSelectedDrivers,
+      amSelectedDrivers, amSelectedHelpers, amHelperOptions, amHelperHint,
+      amDriverMax: am.vehicle ? amDriverSlots : crew.drivers, amHelperMax: am.vehicle ? amHelperSlots : crew.helpers,
+      crewLabel: crew.label, crewHelpers: crew.helpers, crewBranch: me.branch,
+      crewText: `${me.branch} crew: ${crew.label} per vehicle. You can mark up to ${crewLimitText(crew)} on each vehicle.`,
+      crewIssues,
       amVehNumber: amVeh ? amVeh.number : '',
-      canAssignAm: !!(am.vehicle && amSelectedDrivers.length && am.status),
-      assignAmLabel: `Assign ${amSelectedDrivers.length} driver${amSelectedDrivers.length === 1 ? '' : 's'} to ${amVeh ? amVeh.number : 'vehicle'}`,
-      assignAmDrivers: () => {
-        const drivers = amSelectedDrivers.filter(Boolean);
-        if (!am.vehicle || !drivers.length || !am.status) return;
-        const v = amVeh;
-        this.setState(st => {
-          const att = { ...st.att };
-          const attVeh = { ...st.attVeh };
-          const attVehStatus = { ...st.attVehStatus };
-          drivers.forEach(dId => {
-            att[dId] = 'P';
-            attVeh[dId] = am.vehicle;
-            attVehStatus[dId] = am.status;
-          });
-          return {
-            att, attVeh, attVehStatus,
-            am: { vehicle: '', driver: '', drivers: [], status: '' }
-          };
-        });
-        const names = drivers.map(dId => (this.drv(dId) || {}).name || dId).join(', ');
-        this.toast('success', 'Marked present', `${names} · ${v ? v.number : 'Vehicle'} · ${am.status} · ${todayShort}.`);
-      },
-      setAmDrivers: vals => {
-        const ids = Array.isArray(vals) ? vals : [];
-        this.setState(st => ({
-          am: { ...st.am, drivers: ids, driver: ids[0] || '' }
-        }));
-      },
+      canAssignAm: !!(am.vehicle && (amSelectedDrivers.length || amSelectedHelpers.length) && am.status),
+      assignAmLabel: `Assign ${[amSelectedDrivers.length ? `${amSelectedDrivers.length} driver${amSelectedDrivers.length === 1 ? '' : 's'}` : '', amSelectedHelpers.length ? `${amSelectedHelpers.length} helper${amSelectedHelpers.length === 1 ? '' : 's'}` : ''].filter(Boolean).join(' + ') || 'crew'} to ${amVeh ? amVeh.number : 'vehicle'}`,
+      assignAmDrivers: () => this.assignCrew(am),
+      setAmDrivers: vals => this.pickCrew('drivers', vals, amDriverSlots, crew),
+      setAmHelpers: vals => this.pickCrew('helpers', vals, amHelperSlots, crew),
       showAttMonth: SHOW_ATT_MONTH,
       attTabs: [['mark', 'Mark new attendance'], ['marked', 'Marked attendance']].filter(([id]) => !HIDDEN_ATT_TABS.includes(id)).map(([id, label]) => { const on = s.attTab === id; return { id, label, selected: on ? 'true' : 'false', color: on ? 'var(--text-brand)' : 'var(--text-muted)', bar: on ? 'var(--color-brand)' : 'transparent' }; }),
       attTabMark: s.attTab !== 'marked' || HIDDEN_ATT_TABS.includes('marked'), attTabMarked: s.attTab === 'marked' && !HIDDEN_ATT_TABS.includes('marked'),
@@ -1455,7 +1463,7 @@ export class SupervisorApp extends React.Component {
       setAmDriver: e => this.pickAm({ driver: e.target.value, drivers: e.target.value ? [e.target.value] : [] }),
       amStatusOptions, amStatusHint, setAmStatus: e => this.pickAm({ status: e.target.value }),
       removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; delete attVeh[id]; delete attVehStatus[id]; return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
-      saveAmEntry: () => { if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance saved for ${attendanceMarked} drivers by ${me.name} (${me.branch}).`, time: 'Just now' }); },
+      saveAmEntry: () => { if (crewIssues.length) { this.toast('error', 'Crew does not match the branch combination', crewIssues.join(' ')); return; } if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance saved for ${attendanceMarked} drivers by ${me.name} (${me.branch}).`, time: 'Just now' }); },
       markDriver: e => this.set(['att', e.currentTarget.dataset.id], e.currentTarget.dataset.v),
       saveAttendance: () => {
         const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries };
@@ -1517,29 +1525,71 @@ export class SupervisorApp extends React.Component {
   }
   pickAm(patch) {
     const am = { ...this.state.am, ...patch };
-    if (patch.vehicle !== undefined && patch.vehicle !== this.state.am.vehicle) am.status = '';
+    if (patch.vehicle !== undefined && patch.vehicle !== this.state.am.vehicle) {
+      // A new vehicle has its own free crew slots, so the picks start over.
+      am.status = '';
+      am.drivers = []; am.driver = ''; am.helpers = [];
+    }
     const drivers = Array.isArray(am.drivers) && am.drivers.length ? am.drivers : (am.driver ? [am.driver] : []);
-    if (!am.vehicle || !drivers.length || !am.status) {
-      this.setState({ am: { ...am, drivers, driver: drivers[0] || '' } });
+    const helpers = Array.isArray(am.helpers) ? am.helpers : [];
+    if (!am.vehicle || !(drivers.length || helpers.length) || !am.status) {
+      this.setState({ am: { ...am, drivers, helpers, driver: drivers[0] || '' } });
       return;
     }
+    this.assignCrew({ ...am, drivers, helpers });
+  }
+  // Crew already marked present on a vehicle today, split into drivers and helpers.
+  crewOn(vid) {
+    const s = this.state;
+    const on = this.branchDrivers().filter(d => s.att[d.id] === 'P' && s.attVeh[d.id] === vid);
+    return { drivers: on.filter(d => !isHelper(d)).length, helpers: on.filter(isHelper).length };
+  }
+  // Picking drivers or helpers: never more than the vehicle has slots left for.
+  pickCrew(key, vals, slots, crew) {
+    let ids = Array.isArray(vals) ? vals : [];
+    if (ids.length > slots) {
+      const what = key === 'drivers' ? 'driver' : 'helper';
+      this.toast('warning', `${crew.label} per vehicle`, slots
+        ? `Only ${slots} more ${what}${slots === 1 ? '' : 's'} can be marked on this vehicle.`
+        : `This vehicle already has its ${what}s for the branch combination.`);
+      ids = ids.slice(0, slots);
+    }
+    this.setState(st => ({ am: { ...st.am, [key]: ids, ...(key === 'drivers' ? { driver: ids[0] || '' } : {}) } }));
+  }
+  // Mark the chosen drivers and helpers present on the vehicle, within the branch's combination.
+  assignCrew(am) {
     const T = this.T(), v = T.V[am.vehicle];
+    const crew = crewOf(T.B[this.BR]);
+    const drivers = (Array.isArray(am.drivers) && am.drivers.length ? am.drivers : (am.driver ? [am.driver] : [])).filter(Boolean);
+    const helpers = (Array.isArray(am.helpers) ? am.helpers : []).filter(Boolean);
+    if (!am.vehicle || !(drivers.length || helpers.length) || !am.status) return;
+    const on = this.crewOn(am.vehicle);
+    const nd = on.drivers + drivers.length, nh = on.helpers + helpers.length;
+    if (nd > crew.drivers || nh > crew.helpers) {
+      this.toast('error', 'Crew limit', `${v ? v.number : 'This vehicle'} can have ${crewLimitText(crew)} (${crew.label}).`);
+      return;
+    }
+    if (!nd) {
+      this.toast('warning', 'Driver needed', `Pick a driver for ${v ? v.number : 'the vehicle'} before adding a helper.`);
+      return;
+    }
     this.setState(st => {
       const att = { ...st.att };
       const attVeh = { ...st.attVeh };
       const attVehStatus = { ...st.attVehStatus };
-      drivers.forEach(dId => {
+      [...drivers, ...helpers].forEach(dId => {
         att[dId] = 'P';
         attVeh[dId] = am.vehicle;
         attVehStatus[dId] = am.status;
       });
       return {
         att, attVeh, attVehStatus,
-        am: { vehicle: '', driver: '', drivers: [], status: '' }
+        am: { vehicle: '', driver: '', drivers: [], helpers: [], status: '' }
       };
     });
-    const names = drivers.map(dId => (this.drv(dId) || {}).name || dId).join(', ');
-    this.toast('success', 'Marked present', `${names} · ${v ? v.number : 'Vehicle'} · ${am.status} · 14 September.`);
+    const names = [...drivers, ...helpers].map(dId => (this.drv(dId) || {}).name || dId).join(', ');
+    const day = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long' });
+    this.toast('success', 'Marked present', `${names} · ${v ? v.number : 'Vehicle'} · ${am.status} · ${day}.`);
   }
   bind(key, fields) { const o = {}; fields.forEach(k => o[k] = e => this.set([key, k], e.target.value)); return o; }
   blankForm() { return { client: '', vehicle: '', loading: '', unloading: [], unloadMode: 'single', startKm: '', driver: '', drivers: [], confirmedDrivers: [], driverOk: false, type: 'Business', reason: '', remarks: '', from: '', to: '', km: '' }; }

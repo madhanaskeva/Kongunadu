@@ -144,7 +144,7 @@ export const AdminDrawer = () => {
   } = useTMSAdmin();
 
   const [fieldErrors, setFieldErrors] = useState({});
-  // Regular / Acting, picked when approving a driver; starts from the driver's current type.
+  // Regular / Acting / Helper, picked when approving a driver; starts from the driver's current type.
   const [drvType, setDrvType] = useState('Regular');
   const drvReqId = drawer && drawer.isDriverReq ? drawer.reqId : null;
   useEffect(() => {
@@ -554,7 +554,7 @@ export const AdminDrawer = () => {
                     { key: 'licence', label: 'Licence number', children: drvReq.licence },
                     { key: 'phone', label: 'Mobile', children: `+91 ${drvReq.phone}` },
                     ...(!isPendingDrv && DRIVER_TYPES.includes(currentDrvType)
-                      ? [{ key: 'type', label: 'Driver type', children: <Tag color={currentDrvType === 'Regular' ? 'blue' : 'purple'}>{currentDrvType}</Tag> }]
+                      ? [{ key: 'type', label: 'Driver type', children: <Tag color={{ Regular: 'blue', Acting: 'purple', Helper: 'cyan' }[currentDrvType]}>{currentDrvType}</Tag> }]
                       : []),
                   ]}
                 />
@@ -907,7 +907,7 @@ export const AdminDrawer = () => {
                   // Default input text / number (kept as the typed string, as before)
                   const textInput = (
                     <Input
-                      type={extra.clean === 'account' || extra.clean === 'litres' ? 'number' : 'text'}
+                      type={extra.clean === 'account' || extra.clean === 'litres' || extra.clean === 'count' ? 'number' : 'text'}
                       placeholder={hint || ''}
                       value={raw ?? ''}
                       onChange={(e) => {

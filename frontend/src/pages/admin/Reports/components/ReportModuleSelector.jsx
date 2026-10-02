@@ -39,7 +39,7 @@ const MODULE_ICONS = {
   mileage: Gauge,
 };
 
-const BRAND = 'var(--color-brand, #0d6efd)';
+const BRAND = 'var(--color-brand, #275e74)';
 
 export const ReportModuleSelector = ({ activeModuleId, onSelectModule }) => {
   const activeModules = REPORT_MODULES.filter(m => m.available);
@@ -99,7 +99,7 @@ export const ReportModuleSelector = ({ activeModuleId, onSelectModule }) => {
                       />
                       <Tag
                         bordered={false}
-                        color={isSelected ? '#0d6efd' : undefined}
+                        color={isSelected ? '#275e74' : undefined}
                         style={{ marginInlineEnd: 0, fontSize: 9, fontWeight: 700, textTransform: 'uppercase' }}
                       >
                         {m.category}

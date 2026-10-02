@@ -463,7 +463,7 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
    tinted shadow. Press: settles back down. Colour per action via --ra:
    edit green (default), view teal, delete red, accent amber. */
 .tms-row-action.ant-btn {
-  --ra: #0d6efd;
+  --ra: #275e74;
   --ra-tint: #e3f4ec;
   width: 32px;
   height: 32px;
@@ -830,13 +830,13 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
   background: transparent;
   color: #ffffff;
   font-weight: 700;
-  border-bottom: 1px solid #06367e;
+  border-bottom: 1px solid #133a4a;
 }
 
-/* Left → right across each table's own header: dark navy into brighter blue,
+/* Left → right across each table's own header: deep teal into brighter teal,
    one continuous band from the first column to the last. */
 .ant-table-wrapper .ant-table-thead > tr {
-  background: linear-gradient(90deg, #03448b 0%, #0a5bd3 55%, #0d6efd 100%);
+  background: linear-gradient(90deg, #214f63 0%, #2e6a82 55%, #275e74 100%);
 }
 
 /* Columns pinned while scrolling sideways need a solid fill: the colour at
@@ -844,12 +844,12 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 /* antd v6 names them fix-start / fix-end; fix-left / fix-right kept for older markup. */
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-left,
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-start {
-  background: #03448b;
+  background: #214f63;
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-right,
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell-fix-end {
-  background: #0d6efd;
+  background: #275e74;
 }
 
 .ant-table-wrapper .ant-table-thead > tr > th.ant-table-column-has-sorters:hover {
@@ -976,12 +976,12 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
    place in the row (Primary, navy, secondary, sky, indigo, royal), instead of
    the red / green / amber each page passes in. Label, accent bar, glow, icon and
    the Trips page's own label all follow --kpi. */
-.tms-shell .ant-col:nth-child(6n + 1) > .ant-card.tms-kpi { --kpi: #0d6efd !important; --tl-kpi-fg: #0d6efd !important; }
-.tms-shell .ant-col:nth-child(6n + 2) > .ant-card.tms-kpi { --kpi: #03448b !important; --tl-kpi-fg: #03448b !important; }
-.tms-shell .ant-col:nth-child(6n + 3) > .ant-card.tms-kpi { --kpi: #3b82f6 !important; --tl-kpi-fg: #3b82f6 !important; }
-.tms-shell .ant-col:nth-child(6n + 4) > .ant-card.tms-kpi { --kpi: #0284c7 !important; --tl-kpi-fg: #0284c7 !important; }
-.tms-shell .ant-col:nth-child(6n + 5) > .ant-card.tms-kpi { --kpi: #4f46e5 !important; --tl-kpi-fg: #4f46e5 !important; }
-.tms-shell .ant-col:nth-child(6n + 6) > .ant-card.tms-kpi { --kpi: #1e40af !important; --tl-kpi-fg: #1e40af !important; }
+.tms-shell .ant-col:nth-child(6n + 1) > .ant-card.tms-kpi { --kpi: #275e74 !important; --tl-kpi-fg: #275e74 !important; }
+.tms-shell .ant-col:nth-child(6n + 2) > .ant-card.tms-kpi { --kpi: #b8733a !important; --tl-kpi-fg: #b8733a !important; }
+.tms-shell .ant-col:nth-child(6n + 3) > .ant-card.tms-kpi { --kpi: #3a768d !important; --tl-kpi-fg: #3a768d !important; }
+.tms-shell .ant-col:nth-child(6n + 4) > .ant-card.tms-kpi { --kpi: #1c4b5f !important; --tl-kpi-fg: #1c4b5f !important; }
+.tms-shell .ant-col:nth-child(6n + 5) > .ant-card.tms-kpi { --kpi: #9a5d28 !important; --tl-kpi-fg: #9a5d28 !important; }
+.tms-shell .ant-col:nth-child(6n + 6) > .ant-card.tms-kpi { --kpi: #4b8597 !important; --tl-kpi-fg: #4b8597 !important; }
 
 /* Card icons wear the card's own blue on a light tint of it. */
 .tms-shell .ant-card.tms-kpi .ant-avatar {
@@ -1179,14 +1179,14 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
   overflow: hidden;
   background: linear-gradient(180deg, var(--kr-green-50) 0, #ffffff 120px);
   border: 1px solid var(--kr-green-100);
-  box-shadow: 0 24px 56px rgba(3, 68, 139, 0.18), 0 2px 6px rgba(3, 68, 139, 0.08);
+  box-shadow: 0 24px 56px rgba(33, 79, 99, 0.18), 0 2px 6px rgba(33, 79, 99, 0.08);
 }
 .ant-modal .ant-modal-container::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--kr-green-700) 0 70%, var(--kr-red-600) 70% 100%);
+  background: linear-gradient(90deg, var(--kr-green-700) 0 70%, var(--kr-copper-600) 70% 100%);
 }
 .ant-modal .ant-modal-header { background: transparent; }
 .ant-modal .ant-modal-title { color: var(--kr-steel-900); }
@@ -1239,7 +1239,7 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 
 .tms-shell .ant-card.fl-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 24px -12px rgba(3, 68, 139, 0.28);
+  box-shadow: 0 12px 24px -12px rgba(33, 79, 99, 0.28);
 }
 
 .fl-card-icon {
@@ -1333,4 +1333,49 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 .fl-card-btn.ant-btn {
   font-size: 12px;
   font-weight: 700;
+}
+
+/* ==========================================================================
+   Brand logo — hexagon mark + live wordmark (components/common/BrandLogo.jsx).
+   Everything scales from --krl-brand-size, the height of the mark.
+   ========================================================================== */
+.krl-brand {
+  --krl-brand-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--krl-brand-size) * 0.22);
+  min-width: 0;
+  line-height: 1;
+  user-select: none;
+}
+
+.krl-brand-mark {
+  width: var(--krl-brand-size);
+  height: var(--krl-brand-size);
+  flex: none;
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(23, 61, 77, 0.18));
+}
+
+.krl-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--krl-brand-size) * 0.07);
+  min-width: 0;
+  white-space: nowrap;
+  font-family: "Nunito", var(--font-display);
+}
+
+.krl-brand-name {
+  font-size: calc(var(--krl-brand-size) * 0.46);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  color: #255a70;
+}
+
+.krl-brand-sub {
+  font-size: calc(var(--krl-brand-size) * 0.29);
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--kr-copper-600);
 }
