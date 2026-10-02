@@ -194,6 +194,18 @@ export const REPORT_MODULES = [
   },
 ];
 
+// Combined report: used while the Step 1 module picker is hidden. One row per
+// trip, joined with every related module, so all filters and columns are
+// available together. Kept out of REPORT_MODULES so the picker is unaffected.
+export const ALL_MODULE_ID = 'all';
+export const ALL_REPORT_MODULE = {
+  id: ALL_MODULE_ID,
+  label: 'Combined',
+  description: 'Trips with driver, vehicle, branch, client, diesel, advance, attendance and route change details',
+  category: 'All',
+  available: true,
+};
+
 // ============================================================================
 // 2. FIELD DEFINITIONS PER MODULE (Only real project fields)
 // ============================================================================
@@ -282,6 +294,45 @@ export const MODULE_FIELDS = {
     { key: 'date', label: 'Time Period', type: 'dateRange' },
   ],
 };
+
+// Combined report fields: every filter from every module, listed once.
+// Definitions are reused from the modules above; fields that share a key
+// across modules (e.g. 'status') get a distinct key and label here.
+const fieldOf = (moduleId, key, extra = {}) => ({
+  ...MODULE_FIELDS[moduleId].find(f => f.key === key),
+  ...extra,
+});
+
+MODULE_FIELDS[ALL_MODULE_ID] = [
+  fieldOf('driver', 'driver'),
+  fieldOf('driver', 'branch'),
+  fieldOf('driver', 'vehicle'),
+  fieldOf('trip', 'client'),
+  fieldOf('trip', 'loading'),
+  fieldOf('trip', 'supervisor'),
+  fieldOf('diesel', 'bunk'),
+  fieldOf('trip', 'type', { key: 'tripType' }),
+  fieldOf('trip', 'status', { key: 'tripStatus' }),
+  fieldOf('driver', 'type', { key: 'driverType' }),
+  fieldOf('driver', 'status', { key: 'driverStatus', label: 'Driver Status' }),
+  fieldOf('driver', 'approval'),
+  fieldOf('driver', 'attendance', {
+    options: Array.from(new Set([
+      ...fieldOf('driver', 'attendance').options,
+      ...fieldOf('attendance', 'status').options,
+    ])),
+  }),
+  fieldOf('vehicle', 'status', { key: 'vehicleStatus', label: 'Vehicle Status' }),
+  fieldOf('vehicle', 'gps'),
+  fieldOf('vehicle', 'vtype'),
+  fieldOf('client', 'status', { key: 'clientStatus', label: 'Client Status' }),
+  fieldOf('branch', 'state'),
+  fieldOf('branch', 'status', { key: 'branchStatus', label: 'Branch Status' }),
+  fieldOf('location', 'status', { key: 'locationStatus', label: 'Loading Location Status' }),
+  fieldOf('deviation', 'severity', { label: 'Route Change Severity' }),
+  fieldOf('deviation', 'status', { key: 'routeChangeStatus', label: 'Route Change Status' }),
+  fieldOf('trip', 'date'),
+];
 
 // ============================================================================
 // 3. RELATIONSHIP RESOLUTION (Dependent Dropdowns)
@@ -1826,6 +1877,367 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
       break;
     }
 
+    // ------------------------------------------------------------------------
+    // COMBINED: one row per trip, joined with every related module
+    // ------------------------------------------------------------------------
+    case ALL_MODULE_ID: {
+      const S = tms.S || Object.fromEntries((tms.supervisors || []).map(s => [s.id, s]));
+      const todayDate = new Date().toISOString().slice(0, 10);
+      const excByVehicle = {};
+      exceptions.forEach(x => {
+        if (x.vehicle) excByVehicle[x.vehicle] = (excByVehicle[x.vehicle] || 0) + 1;
+      });
+
+      const DEFAULT_VISIBLE = new Set([
+        'number', 'date', 'tripType', 'tripStatus', 'driver', 'vehicle', 'branch', 'client',
+        'from', 'destination', 'distance', 'diesel', 'dieselCost', 'advance', 'totalExpense',
+      ]);
+
+      columns = [
+        // Trip
+        { key: 'number', label: 'Trip Number', kind: 'text' },
+        { key: 'date', label: 'Opened Date', kind: 'date' },
+        { key: 'closedDate', label: 'Closed Date', kind: 'date' },
+        { key: 'tripType', label: 'Trip Type', kind: 'badge' },
+        { key: 'tripStatus', label: 'Trip Status', kind: 'badge' },
+        { key: 'driver', label: 'Driver Name', kind: 'text' },
+        { key: 'vehicle', label: 'Vehicle Number', kind: 'text' },
+        { key: 'branch', label: 'Branch', kind: 'text' },
+        { key: 'client', label: 'Client', kind: 'text' },
+        { key: 'from', label: 'Loading Location', kind: 'text' },
+        { key: 'destination', label: 'Destination', kind: 'text' },
+        { key: 'route', label: 'Route / Corridor', kind: 'text' },
+        { key: 'supervisorName', label: 'Supervisor', kind: 'text' },
+        { key: 'distance', label: 'Actual KM', kind: 'num', unit: 'km' },
+        { key: 'fixedKm', label: 'Fixed KM', kind: 'num', unit: 'km' },
+        { key: 'variance', label: 'Variance %', kind: 'num', unit: '%' },
+        { key: 'diesel', label: 'Diesel', kind: 'num', unit: 'L' },
+        { key: 'dieselCost', label: 'Diesel Cost', kind: 'num', unit: '₹' },
+        { key: 'advance', label: 'Advance', kind: 'num', unit: '₹' },
+        { key: 'totalExpense', label: 'Total Settlement', kind: 'num', unit: '₹' },
+        // Driver & attendance
+        { key: 'driverType', label: 'Driver Type', kind: 'badge' },
+        { key: 'driverStatus', label: 'Driver Status', kind: 'badge' },
+        { key: 'approval', label: 'Approval Status', kind: 'badge' },
+        { key: 'attendance', label: 'Attendance', kind: 'badge' },
+        { key: 'presentDays', label: 'Present Days', kind: 'num' },
+        { key: 'absentDays', label: 'Absent Days', kind: 'num' },
+        { key: 'util', label: 'Utilisation', kind: 'text' },
+        // Vehicle
+        { key: 'vtype', label: 'Vehicle Type', kind: 'text' },
+        { key: 'vehicleStatus', label: 'Vehicle Status', kind: 'badge' },
+        { key: 'gps', label: 'GPS Status', kind: 'badge' },
+        { key: 'odometer', label: 'Odometer KM', kind: 'num', unit: 'km' },
+        { key: 'tank', label: 'Tank Capacity', kind: 'num', unit: 'L' },
+        { key: 'vehicleExceptions', label: 'Vehicle Exceptions', kind: 'num' },
+        // Branch
+        { key: 'branchCode', label: 'Branch Code', kind: 'text' },
+        { key: 'state', label: 'State', kind: 'text' },
+        { key: 'branchStatus', label: 'Branch Status', kind: 'badge' },
+        // Client
+        { key: 'gst', label: 'GST Number', kind: 'text' },
+        { key: 'clientSupervisors', label: 'Client Supervisors', kind: 'text' },
+        { key: 'deliveryPoints', label: 'Delivery Points', kind: 'num' },
+        { key: 'clientStatus', label: 'Client Status', kind: 'badge' },
+        // Loading location
+        { key: 'locationAddress', label: 'Loading Address', kind: 'text' },
+        { key: 'radius', label: 'Safe Radius', kind: 'num', unit: 'm' },
+        { key: 'locationStatus', label: 'Loading Location Status', kind: 'badge' },
+        // Diesel & mileage
+        { key: 'bunk', label: 'Fuel Bunk', kind: 'text' },
+        { key: 'rate', label: 'Rate (₹/L)', kind: 'num', unit: '₹' },
+        { key: 'dieselLimit', label: 'Authorized Diesel Limit', kind: 'num', unit: 'L' },
+        { key: 'overLimitLitres', label: 'Over Limit', kind: 'num', unit: 'L' },
+        { key: 'dieselCompliance', label: 'Diesel Compliance', kind: 'badge' },
+        { key: 'actualMileage', label: 'Actual Mileage', kind: 'num', unit: 'km/L' },
+        { key: 'expectedMileage', label: 'Expected Mileage', kind: 'num', unit: 'km/L' },
+        { key: 'mileageCompliance', label: 'Mileage Compliance', kind: 'badge' },
+        // Advances & expenses
+        { key: 'fastag', label: 'FASTag', kind: 'num', unit: '₹' },
+        { key: 'driverBata', label: 'Driver Bata', kind: 'num', unit: '₹' },
+        { key: 'cleanerBata', label: 'Cleaner Bata', kind: 'num', unit: '₹' },
+        { key: 'toll', label: 'Toll & Weighment', kind: 'num', unit: '₹' },
+        { key: 'other', label: 'Other Expenses', kind: 'text' },
+        // Route changes
+        { key: 'severity', label: 'Route Change Severity', kind: 'badge' },
+        { key: 'routeChangeStatus', label: 'Route Change Status', kind: 'badge' },
+        { key: 'expected', label: 'Expected Corridor', kind: 'text' },
+        { key: 'actual', label: 'Actual Path / Off-Route', kind: 'text' },
+        { key: 'deviationLocation', label: 'Deviation Location', kind: 'text' },
+        { key: 'offKm', label: 'Off-Route KM', kind: 'num', unit: 'km' },
+        { key: 'gpsKm', label: 'GPS KM', kind: 'num', unit: 'km' },
+      ].map(c => (DEFAULT_VISIBLE.has(c.key) ? c : { ...c, defaultHidden: true }));
+
+      rows = trips.map(t => {
+        const d = D[t.driver] || {};
+        const v = V[t.vehicle] || {};
+        const b = B[t.branch] || {};
+        const c = C[t.client] || {};
+        const l = L[t.loading] || {};
+        const exp = t.expBreakdown || {};
+
+        const driverIds = Array.isArray(t.drivers) && t.drivers.length > 0 ? t.drivers : [t.driver].filter(Boolean);
+        const driverName = driverIds.length > 0 ? driverIds.map(id => D[id]?.name || id).join(', ') : '—';
+
+        // Trip distance & route
+        const dist = getTripDistance(t);
+        const primaryRoute = routesOfTrip(t, tms)[0] || null;
+        const fixed = Number(t.fixedKm) || (primaryRoute?.fixedKm ? Number(primaryRoute.fixedKm) : 0);
+        const variance = fixed > 0 && dist > 0 ? Math.round((Math.abs(dist - fixed) / fixed) * 1000) / 10 : null;
+        const isLongOpen = t.status !== 'Closed' && (t.hoursOpen > 24);
+        const tripStatus = isLongOpen ? 'Long open' : t.status === 'Enroute' ? ENROUTE_LABEL : t.status;
+        const routeDisplay = primaryRoute?.name ||
+          (t.loading && t.unloading ? `${l.name || t.loading} → ${t.unloading}` : '—');
+
+        // Diesel & mileage
+        const litres = t.dieselLitres || parseMoney(t.diesel) || 0;
+        const rate = t.rate || 0;
+        const dieselCost = t.dieselTotal || (rate > 0 && litres > 0 ? rate * litres : 0);
+        const authDiesel = routeDieselLimit(t, tms);
+        const overLimit = overLimitLitres(t, authDiesel);
+        const actualMileage = dist > 0 && litres > 0 ? Math.round((dist / litres) * 100) / 100 : null;
+        const expectedMileage = fixed > 0 && authDiesel != null && authDiesel > 0
+          ? Math.round((fixed / authDiesel) * 100) / 100
+          : null;
+        let dieselCompliance = 'Not set';
+        if (authDiesel != null && authDiesel > 0) {
+          dieselCompliance = (overLimit != null && overLimit > 0) ? 'Exceeded' : 'Compliant';
+        }
+        let mileageCompliance = '—';
+        if (actualMileage != null && expectedMileage != null) {
+          if (actualMileage >= expectedMileage) mileageCompliance = 'Compliant';
+          else if (actualMileage >= expectedMileage * 0.9) mileageCompliance = 'Near Target';
+          else mileageCompliance = 'Below Target';
+        }
+
+        // Advances & expenses
+        const advance = parseMoney(t.advance);
+        const fastag = exp.fastag != null && exp.fastag !== '' ? Number(exp.fastag) : (exp.dieselCash != null && exp.dieselCash !== '' ? Number(exp.dieselCash) : 0);
+        const driverBata = exp.driverBatas && Object.keys(exp.driverBatas).length > 0
+          ? Object.values(exp.driverBatas).reduce((a, x) => a + (Number(x) || 0), 0)
+          : (Number(exp.driverBata) || 0);
+        const cleanerBata = Number(exp.cleanerBata) || 0;
+        const toll = (Number(exp.toll) || 0) + (Number(exp.weighment) || 0);
+        const otherList = (t.otherExpenses || []).map(o => `${o.name}: ₹${o.amount}`).join('; ');
+        const totalExpense = parseMoney(t.totalExpense) || (fastag + driverBata + cleanerBata + toll + (Number(exp.rto) || 0));
+
+        // Route change (same detection as the Route Changes module)
+        const tFixed = Number(t.fixedKm) || 0;
+        const isDeviation = Boolean(t.diversion) ||
+          (t.flags || []).some(f => /diversion|variance|route/i.test(f)) ||
+          (tFixed > 0 && dist > 0 && (Math.abs(dist - tFixed) / tFixed) * 100 > 5);
+        const dev = {
+          severity: 'None',
+          routeChangeStatus: 'No route change',
+          routeChangeState: '',
+          expected: '—',
+          actual: '—',
+          deviationLocation: '—',
+          offKm: '—',
+          gpsKm: '—',
+        };
+        if (isDeviation) {
+          const div = t.diversion || {};
+          const gps = Number(t.gpsKm) || dist;
+          const vPct = tFixed > 0 && gps > 0 ? Math.round((Math.abs(gps - tFixed) / tFixed) * 1000) / 10 : 0;
+          const exc = exceptions.find(x => x.trip === t.id);
+          const offKmNum = Number(div.offKm || div.extraKm) || 0;
+          dev.severity = exc?.severity || (offKmNum > 20 || vPct > 10 ? 'High' : offKmNum > 10 || vPct > 5 ? 'Medium' : 'Low');
+          if (div.state === 'Reviewed' || t.status === 'Closed') dev.routeChangeStatus = 'Resolved';
+          else if (div.state === 'Rejoined' || (exc && exc.status === 'Under review')) dev.routeChangeStatus = 'Under review';
+          else dev.routeChangeStatus = 'Open';
+          dev.routeChangeState = div.state || (t.status === 'Closed' ? 'Reviewed' : 'Active diversion');
+          dev.expected = div.expected || ((l.name || 'Origin') + ' → ' + (t.unloading || 'Destination'));
+          dev.actual = div.actual || (t.flags || []).find(f => /diversion|variance/i.test(f)) || 'Distance variance detected';
+          dev.deviationLocation = div.at || `${ENROUTE_LABEL} Corridor`;
+          dev.offKm = div.offKm || div.extraKm || '—';
+          dev.gpsKm = gps || '—';
+        }
+
+        // Driver attendance (same rules as the Attendance module)
+        const presentDays = d.present != null ? d.present : 0;
+        const absentDays = d.absent != null ? d.absent : 0;
+        const branchStore = attStore[d.branch] || (B[d.branch]?.name ? attStore[B[d.branch]?.name] : null) || {};
+        const todayEntry = branchStore[todayDate]?.entries?.[d.id] || branchStore[todayDate]?.entries?.[d.name];
+        let todayStatus = '';
+        if (Array.isArray(todayEntry)) todayStatus = todayEntry[0] === 'P' ? 'Present' : todayEntry[0] === 'A' ? 'Absent' : '';
+        else if (todayEntry && typeof todayEntry === 'object') todayStatus = todayEntry.mark === 'P' || todayEntry.status === 'Present' ? 'Present' : todayEntry.mark === 'A' || todayEntry.status === 'Absent' ? 'Absent' : '';
+        else if (typeof todayEntry === 'string') todayStatus = todayEntry === 'P' || todayEntry === 'Present' ? 'Present' : todayEntry === 'A' || todayEntry === 'Absent' ? 'Absent' : '';
+        let attendance = 'Not marked';
+        if (todayStatus) attendance = todayStatus;
+        else if (d.status === 'Inactive') attendance = 'Absent';
+        else if (d.status === 'Pending') attendance = 'Not marked';
+        else if (presentDays > 0) attendance = 'Present';
+        else if (absentDays > 0) attendance = 'Absent';
+
+        return {
+          id: t.id,
+          // Trip
+          number: t.number,
+          date: t.opened,
+          timestamp: parseTimestamp(t.opened || t.closed),
+          closedDate: t.closed || '—',
+          tripType: t.type || 'Business',
+          tripStatus,
+          rawStatus: t.status,
+          hoursOpen: t.hoursOpen || 0,
+          driver: driverName,
+          driverId: t.driver,
+          driverIds,
+          vehicle: v.number || t.vehicle || '—',
+          vehicleId: t.vehicle,
+          branch: b.name || t.branch || '—',
+          branchId: t.branch,
+          client: c.name || '—',
+          clientId: t.client,
+          from: l.name || t.loading || '—',
+          loadingId: t.loading,
+          destination: t.unloading || '—',
+          route: routeDisplay,
+          supervisorId: t.supervisor,
+          supervisorName: S[t.supervisor]?.name || t.supervisor || '—',
+          distance: dist,
+          fixedKm: fixed || '—',
+          variance: variance != null ? variance : '—',
+          diesel: litres,
+          dieselCost,
+          advance,
+          totalExpense,
+          // Driver & attendance
+          driverType: d.type || 'Regular',
+          driverStatus: d.status || 'Active',
+          approval: d.approval || 'Approved',
+          attendance,
+          presentDays,
+          absentDays,
+          util: d.util || (presentDays + absentDays > 0 ? Math.round((presentDays / (presentDays + absentDays)) * 100) + '%' : '—'),
+          // Vehicle
+          vtype: v.type || '—',
+          vehicleStatus: v.status || 'Running',
+          gps: v.gps || 'OK',
+          odometer: v.odometer || 0,
+          tank: v.tank || 0,
+          vehicleExceptions: excByVehicle[t.vehicle] || 0,
+          // Branch
+          branchCode: b.code || t.branch || '—',
+          state: b.state || '—',
+          branchStatus: b.status || 'Active',
+          // Client
+          gst: c.gst || '—',
+          clientSupervisors: c.supervisors || '—',
+          deliveryPoints: c.customers || 0,
+          clientStatus: t.client ? (c.status || 'Active') : '—',
+          // Loading location
+          locationAddress: l.address || '—',
+          radius: t.loading ? (l.radius || 100) : '—',
+          locationStatus: t.loading ? (l.status || 'Active') : '—',
+          // Diesel & mileage
+          bunk: t.bunk || '—',
+          rate: rate > 0 ? rate : '—',
+          dieselLimit: authDiesel != null && authDiesel > 0 ? authDiesel : '—',
+          overLimitLitres: overLimit != null && overLimit > 0 ? overLimit : 0,
+          dieselCompliance,
+          actualMileage: actualMileage != null ? actualMileage : '—',
+          expectedMileage: expectedMileage != null ? expectedMileage : '—',
+          mileageCompliance,
+          // Advances & expenses
+          fastag,
+          driverBata,
+          cleanerBata,
+          toll,
+          other: otherList || '—',
+          // Route changes
+          ...dev,
+        };
+      });
+
+      if (dateFilter && dateFilter.value) {
+        rows = rows.filter(r => evaluateDateRange(r.timestamp, dateFilter.value));
+      }
+
+      // Multi-value matcher honouring equals / not_equals
+      const filterBy = (f, matcher) => {
+        const vals = (Array.isArray(f.value) ? f.value : [f.value]).filter(Boolean);
+        if (!vals.length) return;
+        const negate = f.op === 'not_equals' || f.op === 'neq';
+        rows = rows.filter(r => {
+          const isMatch = vals.some(val => matcher(r, String(val).trim().toLowerCase(), val));
+          return negate ? !isMatch : isMatch;
+        });
+      };
+
+      activeFilters.forEach(f => {
+        if (isFilterEmpty(f.value) || f.field === 'date') return;
+        switch (f.field) {
+          case 'driver':
+            filterBy(f, (r, cv, val) => r.driverIds.some(id => matchesEntityOrText(id, D[id]?.name, 'equals', val)));
+            break;
+          case 'branch':
+            rows = rows.filter(r => matchesEntityOrText(r.branchId, r.branch, f.op, f.value));
+            break;
+          case 'vehicle':
+            rows = rows.filter(r => matchesEntityOrText(r.vehicleId, r.vehicle, f.op, f.value));
+            break;
+          case 'client':
+            rows = rows.filter(r => matchesEntityOrText(r.clientId, r.client, f.op, f.value));
+            break;
+          case 'loading':
+            rows = rows.filter(r => matchesEntityOrText(r.loadingId, r.from, f.op, f.value));
+            break;
+          case 'supervisor':
+            rows = rows.filter(r => matchesEntityOrText(r.supervisorId, r.supervisorName, f.op, f.value));
+            break;
+          case 'bunk':
+            filterBy(f, (r, cv, val) => r.bunk !== '—' && matchesEntityOrText(null, r.bunk, 'contains', val));
+            break;
+          case 'tripStatus':
+            filterBy(f, (r, cv) => {
+              const rStat = String(r.tripStatus || '').trim().toLowerCase();
+              const rRaw = String(r.rawStatus || '').trim().toLowerCase();
+              if (cv === 'enroute' || cv === 'on road') return rRaw === 'enroute' || rStat === 'on road' || rStat === 'enroute';
+              if (cv === 'closed') return rRaw === 'closed' || rStat === 'closed';
+              if (cv === 'long open') return rStat === 'long open' || (r.hoursOpen > 24 && rRaw !== 'closed');
+              return rStat === cv || rRaw === cv;
+            });
+            break;
+          case 'attendance':
+            filterBy(f, (r, cv) => {
+              if (cv === 'high absence (>3 days)') return r.absentDays > 3;
+              if (cv === 'present') return r.attendance === 'Present' || r.presentDays > 0;
+              if (cv === 'absent') return r.attendance === 'Absent' || r.absentDays > 0;
+              if (cv === 'not marked') return r.attendance === 'Not marked' || (r.presentDays === 0 && r.absentDays === 0);
+              return String(r.attendance).toLowerCase() === cv;
+            });
+            break;
+          case 'routeChangeStatus':
+            filterBy(f, (r, cv) => {
+              const st = String(r.routeChangeState || '').toLowerCase();
+              const sg = String(r.routeChangeStatus || '').toLowerCase();
+              if (cv === 'open') return sg === 'open' || st.includes('active') || st.includes('off route');
+              if (cv === 'under review') return sg === 'under review' || st.includes('rejoined') || st.includes('review');
+              if (cv === 'resolved') return sg === 'resolved' || st.includes('reviewed') || st.includes('closed');
+              return st === cv || sg === cv;
+            });
+            break;
+          default:
+            // Plain value fields: tripType, driverType, driverStatus, approval,
+            // vehicleStatus, gps, vtype, clientStatus, state, branchStatus,
+            // locationStatus, severity — row key matches the field key.
+            rows = rows.filter(r => evaluateCondition(r[f.field], f.op || 'equals', f.value));
+        }
+      });
+
+      summaries = [
+        { label: 'Total Trips', value: rows.length, unit: '' },
+        { label: 'Total Distance', value: rows.reduce((a, r) => a + r.distance, 0).toLocaleString('en-IN'), unit: 'km' },
+        { label: 'Total Diesel', value: rows.reduce((a, r) => a + r.diesel, 0).toLocaleString('en-IN'), unit: 'L' },
+        { label: 'Total Diesel Cost', value: '₹' + rows.reduce((a, r) => a + r.dieselCost, 0).toLocaleString('en-IN'), unit: '' },
+        { label: 'Total Advances', value: '₹' + rows.reduce((a, r) => a + r.advance, 0).toLocaleString('en-IN'), unit: '' },
+        { label: 'Route Changes', value: rows.filter(r => r.routeChangeStatus !== 'No route change').length, unit: '' },
+      ];
+      break;
+    }
+
     default:
       rows = [];
       columns = [];
@@ -1853,6 +2265,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
           if (f.field === 'branch') return B[val]?.name || val;
           if (f.field === 'client') return C[val]?.name || val;
           if (f.field === 'loading') return L[val]?.name || val;
+          if (f.field === 'supervisor') return (tms.supervisors || []).find(s => s.id === val)?.name || val;
           return val;
         });
         return `${fieldLabel}: ${resolvedLabels.join(', ')}`;
@@ -1868,7 +2281,7 @@ export const generateReportData = (moduleId, activeFilters = [], tms, attStore =
 
   return {
     moduleId,
-    moduleMeta: REPORT_MODULES.find(m => m.id === moduleId),
+    moduleMeta: moduleId === ALL_MODULE_ID ? ALL_REPORT_MODULE : REPORT_MODULES.find(m => m.id === moduleId),
     columns,
     rows,
     vehicleColumns,

@@ -6,9 +6,11 @@ import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import {
   REPORT_MODULES,
   MODULE_FIELDS,
+  ALL_MODULE_ID,
   generateReportData,
 } from './reportEngine';
-import { ReportModuleSelector } from './components/ReportModuleSelector';
+// Step 1 module picker temporarily hidden — see the commented block in the render below.
+// import { ReportModuleSelector } from './components/ReportModuleSelector';
 import { ReportFilterBuilder } from './components/ReportFilterBuilder';
 import { ReportResultView } from './components/ReportResultView';
 import '../../../styles/reports.css';
@@ -35,8 +37,9 @@ export const Reports = () => {
   const { can } = useModuleAccess();
   const tms = T();
 
-  // Active module state (Default: 'driver' as requested in prompt workflow)
-  const [activeModuleId, setActiveModuleId] = useState('driver');
+  // Active module state. While Step 1 is hidden this is the combined report
+  // (all modules' filters & columns together). Restore 'driver' with Step 1.
+  const [activeModuleId, setActiveModuleId] = useState(ALL_MODULE_ID);
 
   // Dynamic filter conditions state: [{ field, op, value }]
   const [filters, setFilters] = useState([]);
@@ -171,18 +174,19 @@ export const Reports = () => {
     <Flex vertical gap={22}>
       {/* Step 1 & Step 2: Two-Column Responsive Grid Layout */}
       <Row gutter={[20, 16]} align="stretch">
-        {/* Column 1: Step 1 - Module Selector (Scrollable) */}
-        <Col xs={24} lg={11}>
+        {/* Column 1: Step 1 - Module Selector (Scrollable) — temporarily hidden */}
+        {/* <Col xs={24} lg={11}>
           <Card className="reports-grid-col">
             <ReportModuleSelector
               activeModuleId={activeModuleId}
               onSelectModule={handleSelectModule}
             />
           </Card>
-        </Col>
+        </Col> */}
 
-        {/* Column 2: Step 2 - Dynamic Filter Engine (Scrollable) */}
-        <Col xs={24} lg={13}>
+        {/* Column 2: Step 2 - Dynamic Filter Engine (Scrollable)
+            Full width while Step 1 is hidden; restore lg={13} with Step 1. */}
+        <Col xs={24} lg={24}>
           <Card className="reports-grid-col">
             <ReportFilterBuilder
               moduleId={activeModuleId}

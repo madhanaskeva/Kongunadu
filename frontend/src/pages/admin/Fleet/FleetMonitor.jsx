@@ -8,12 +8,14 @@ import {
 import { AimOutlined, ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
+import IdleDetailModal from './IdleDetailModal';
 import VehicleActivityModal, { ActivityBar, ACTIVITY_TONE, IdleNowPanel, PLACE_ICON } from './VehicleActivityModal';
 import { ACTIVITY, fmtDuration, minutesAgo, vehicleActivity, withIdlePlaces } from '../../../utils/vehicleActivity';
 import { IDLE_CATEGORIES, idleCategoryOf, openTripOf, tripStopFor } from '../../../utils/idleCategory';
 import { useDebounce } from '../../../utils/debounce';
 import { matchesSearch as textMatches } from '../../../utils/search';
 import { evaluateDateRange } from '../Reports/reportEngine';
+import { DatePresetSelect } from '../../../components/common/DatePresetSelect';
 // Shared filter-bar styles (.tl-filters) — the same bar as the Trips page.
 import '../../../styles/tripDetail.css';
 
@@ -76,6 +78,9 @@ export const FleetMonitor = () => {
   const [idleDurationFilter, setIdleDurationFilter] = useState('all');
   // Idle view: null shows the category cards; a key shows that category's vehicles.
   const [idleCat, setIdleCat] = useState(null);
+  // In the Idle view a card opens its idle details; elsewhere it opens the map.
+  const [idleId, setIdleId] = useState(null);
+  const openCard = (id) => (ff === 'idle' ? setIdleId(id) : setTrackId(id));
   const [fleetQ, setFleetQ] = useState('');
   const debouncedFleetQ = useDebounce(fleetQ, 300);
 
@@ -559,6 +564,13 @@ export const FleetMonitor = () => {
               />
             </Form.Item>
             {/* Vehicles match on trips opened in the range; trip cards on their own opened date. */}
+            <Form.Item label="Period" className="tl-filter">
+              <DatePresetSelect
+                from={flt.from}
+                to={flt.to}
+                onChange={(f, t) => patchFlt({ from: f ? f.format(DATE_FMT) : '', to: t ? t.format(DATE_FMT) : '' })}
+              />
+            </Form.Item>
             <Form.Item label="From date" className="tl-filter">
               <DatePicker
                 value={flt.from ? dayjs(flt.from) : null}
@@ -833,9 +845,9 @@ export const FleetMonitor = () => {
                   hoverable
                   role="button"
                   tabIndex={0}
-                  aria-label={`Track ${v.number} on the map`}
-                  onClick={() => setTrackId(v.id)}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setTrackId(v.id); } }}
+                  aria-label={ff === 'idle' ? `Idle details for ${v.number}` : `Track ${v.number} on the map`}
+                  onClick={() => openCard(v.id)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(v.id); } }}
                   className="fl-card"
                   style={{ height: '100%', '--fl-tone': v.tone.edge, '--fl-tone-bg': v.tone.bg, '--fl-tone-fg': v.tone.fg }}
                   styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 16 } }}
@@ -973,6 +985,22 @@ export const FleetMonitor = () => {
             tms={tms}
             onClose={() => setTrackId(null)}
             onOpenTrip={id => { setTrackId(null); navTo('trip', { selectedTrip: id }); }}
+          />
+        );
+      })()}
+
+      {idleId && (() => {
+        const v = fleetAll.find(x => x.id === idleId);
+        const cat = IDLE_CATEGORIES.find(c => c.key === v.idleCat);
+        return (
+          <IdleDetailModal
+            vehicle={v}
+            tms={tms}
+            categoryLabel={cat && cat.label}
+            onClose={() => setIdleId(null)}
+            onTrack={() => { setIdleId(null); setTrackId(v.id); }}
+            onActivity={() => { setIdleId(null); setActivityId(v.id); }}
+            onOpenTrip={id => { setIdleId(null); navTo('trip', { selectedTrip: id }); }}
           />
         );
       })()}

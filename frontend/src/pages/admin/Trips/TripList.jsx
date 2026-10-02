@@ -25,6 +25,7 @@ import { downloadXlsx, fileDate } from '../../../utils/spreadsheet';
 import { matchesSearch } from '../../../utils/search';
 import { useDebounce } from '../../../utils/debounce';
 import { evaluateDateRange } from '../Reports/reportEngine';
+import { DatePresetSelect } from '../../../components/common/DatePresetSelect';
 import { isPendingClose, pendingCloseDetail, PENDING_CLOSE_LABEL, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../../utils/tripStatus';
 // Scoped filter-bar styles (.tl-filters) live with the other Trips page CSS.
 import '../../../styles/tripDetail.css';
@@ -428,6 +429,13 @@ export const TripList = () => {
             </Form.Item>
             {/* Matches on the trip's opened date; either end may be left open.
                 Each end has its own calendar, and can't be set past the other end. */}
+            <Form.Item label="Period" className="tl-filter">
+              <DatePresetSelect
+                from={tf.from}
+                to={tf.to}
+                onChange={(f, t) => setTf({ ...tf, from: f ? f.format(DATE_FMT) : '', to: t ? t.format(DATE_FMT) : '' })}
+              />
+            </Form.Item>
             <Form.Item label="From date" className="tl-filter">
               <DatePicker
                 value={fromDay}

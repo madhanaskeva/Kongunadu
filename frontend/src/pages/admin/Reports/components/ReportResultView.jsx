@@ -47,11 +47,13 @@ export const ReportResultView = ({
   const debouncedSearchQ = useDebounce(searchQ, 300);
 
   // Column visibility
-  const [visibleColKeys, setVisibleColKeys] = useState(() => baseColumns.map(c => c.key));
+  // Columns flagged defaultHidden start off but stay available in the Columns picker
+  const defaultColKeys = cols => cols.filter(c => !c.defaultHidden).map(c => c.key);
+  const [visibleColKeys, setVisibleColKeys] = useState(() => defaultColKeys(baseColumns));
   const [colDropdownOpen, setColDropdownOpen] = useState(false);
 
   useEffect(() => {
-    setVisibleColKeys(baseColumns.map(c => c.key));
+    setVisibleColKeys(defaultColKeys(baseColumns));
   }, [baseColumns]);
 
   // Sorting

@@ -37,8 +37,7 @@ export const tripStopFor = (v, trip, tms) => {
   const atLoad = !atUnload && (trip.stage === 'Loading' || /^loading at/i.test(route));
   if (!atUnload && !atLoad) return null;
   const minutes = stageMinutes(trip);
-  const stage = trip.stage || (atUnload ? 'Unloading' : 'Loading');
-  const note = `Trip ${trip.number} · ${stage} stage from the supervisor app.`;
+  const note = `Trip ${trip.number} · the supervisor app shows the vehicle at its ${atLoad ? 'loading' : 'unloading'} point.`;
   if (atLoad) {
     const loc = (tms.L || {})[trip.loading] || {};
     return { vehicle: v.id, kind: 'loading', place: trip.loading || loc.name, minutes, lat: loc.lat, lng: loc.lng, ignition: false, note, fromTrip: true };

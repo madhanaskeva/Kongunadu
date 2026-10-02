@@ -4,6 +4,7 @@ import { Button, Card, DatePicker, Divider, Flex, Select, Typography } from 'ant
 import { BarChart3, Building2, ListChecks, Users } from 'lucide-react';
 import { matchesSearch } from '../../../../utils/search';
 import { TabButtons } from '../../../../components/common/TabButtons';
+import { DatePresetSelect } from '../../../../components/common/DatePresetSelect';
 
 const DATE_FMT = 'DD MMM YYYY';
 
@@ -104,6 +105,16 @@ export const CompareFilters = ({
             />
           </div>
         )}
+        <div>
+          <Label>Period</Label>
+          <DatePresetSelect
+            from={draft.from}
+            to={draft.to}
+            allowClear={false}
+            placeholder="Custom range"
+            onChange={(f, t) => onChange({ from: f, to: t })}
+          />
+        </div>
         <div>
           <Label>From Date</Label>
           <DatePicker

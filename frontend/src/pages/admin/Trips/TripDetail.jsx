@@ -13,6 +13,7 @@ import {
   routeDieselLimit, overLimitLitres, overLimitValue, routesOfTrip,
 } from '../../../utils/tripVerification';
 import '../../../styles/tripDetail.css';
+import { moneySigned } from '../../../utils/carryForward';
 
 // Tag colour, left-edge colour and the line explaining what is expected next, per workflow state.
 const VERIFY_VIEW = {
@@ -811,6 +812,9 @@ export const TripDetail = () => {
         ],
         ['Diesel amount', dieselAmount ? fmtMoney(dieselAmount) : pending],
         ['Total expense', fmtMoney(rawTrip.totalExpense) || pending],
+        // Saved when the supervisor closes the trip: previous carry forward + advances − total expense, sign kept.
+        ...(rawTrip.carryForward != null ? [['Previous carry forward', moneySigned(rawTrip.prevCarryForward)]] : []),
+        ['Carry forward', rawTrip.carryForward != null ? moneySigned(rawTrip.carryForward) : rawTrip.status === 'Closed' ? '—' : pending],
       ],
     },
     {

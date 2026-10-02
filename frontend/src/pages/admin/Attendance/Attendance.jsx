@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
+import { DatePresetSelect } from '../../../components/common/DatePresetSelect';
 import { exportToExcel } from '../../../utils';
 import {
   Filter,
@@ -476,6 +477,21 @@ export const Attendance = () => {
         {/* Filter Inputs Grid */}
         <form onSubmit={handleApplyFilters}>
           <Row gutter={[14, 14]} align="bottom">
+            {/* Period: fills From / To in one pick */}
+            <Col xs={24} sm={12} lg={8} xl={4}>
+              <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>
+                <Calendar size={13} style={{ color: 'var(--text-muted)', marginRight: 4, verticalAlign: '-2px' }} />
+                Period
+              </Typography.Text>
+              <DatePresetSelect
+                from={filterForm.fromDate}
+                to={filterForm.toDate}
+                allowClear={false}
+                placeholder="Custom range"
+                onChange={(f, t) => setFilterForm({ ...filterForm, fromDate: f.format('YYYY-MM-DD'), toDate: t.format('YYYY-MM-DD') })}
+              />
+            </Col>
+
             {/* From Date */}
             <Col xs={24} sm={12} lg={8} xl={4}>
               <Typography.Text strong style={{ display: 'block', fontSize: 12, marginBottom: 6 }}>
