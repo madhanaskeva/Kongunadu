@@ -910,6 +910,8 @@ export const AdminDrawer = () => {
                       type={extra.clean === 'account' || extra.clean === 'litres' || extra.clean === 'count' ? 'number' : 'text'}
                       placeholder={hint || ''}
                       value={raw ?? ''}
+                      disabled={extra.disabled}
+                      readOnly={extra.readOnly}
                       onChange={(e) => {
                         setForm({ ...form, [key]: e.target.value });
                         clearFieldError(key);

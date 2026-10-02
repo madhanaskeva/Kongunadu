@@ -203,9 +203,9 @@ export const MasterManager = ({ type }) => {
   // Loading locations are owned by exactly one client, so both masters read the same list.
   const locationList = mdata('locations', tms.locations || []);
   const supervisorList = mdata('supervisors', tms.supervisors || []);
-  const getBranchSupervisor = (b) => {
-    if (!b) return '—';
-    const sups = supervisorList.filter(s =>
+  const getBranchSupervisorsList = (b) => {
+    if (!b) return [];
+    return supervisorList.filter(s =>
       s.branch && (
         isBranchEqual(s.branch, { value: b.id, label: b.name }) ||
         s.branch === b.id ||
@@ -214,8 +214,12 @@ export const MasterManager = ({ type }) => {
         ((tms.B[b.id] || {}).name && (tms.B[b.id] || {}).name === s.branch)
       )
     );
+  };
+  const getBranchSupervisor = (b) => {
+    const sups = getBranchSupervisorsList(b);
     return sups.length ? sups.map(s => s.name).join(', ') : '—';
   };
+  const getBranchSupervisorCount = (b) => getBranchSupervisorsList(b).length;
   const getSupervisorOptions = (selectedBranch) => {
     const sups = supervisorList.filter(s => s.status !== 'Inactive' && s.status !== 'Suspended');
     const sorted = [...sups].sort((a, b) => {
@@ -256,7 +260,7 @@ export const MasterManager = ({ type }) => {
   const pwCell = (r) => ({ v: r.password || '', password: true, id: r.id, name: r.name });
 
   const txtCell = (v, strong = false) => ({
-    v: v == null ? '—' : String(v),
+    v: v == null ? '—' : (typeof v === 'object' && React.isValidElement(v) ? v : String(v)),
     text: true,
     badge: false,
     strong,
@@ -272,10 +276,12 @@ export const MasterManager = ({ type }) => {
       searchPh: 'Search branch or state',
       data: mdata('branches', tms.branches || []).map(b => {
         const supName = getBranchSupervisor(b);
+        const supCount = getBranchSupervisorCount(b);
         return {
           ...b,
           supervisor: supName,
           supervisors: supName,
+          supervisorCount: supCount,
         };
       }),
       cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisors', 'No. of supervisors', 'Driver–helper combination', 'Status'],
@@ -285,7 +291,7 @@ export const MasterManager = ({ type }) => {
         txtCell(b.state),
         txtCell(b.vehicles),
         txtCell(b.supervisor || getBranchSupervisor(b)),
-        txtCell(supervisorSeats(b)),
+        txtCell(getBranchSupervisorCount(b)),
         txtCell(crewOf(b).label),
         statusBadge(b.status),
       ],
@@ -293,11 +299,11 @@ export const MasterManager = ({ type }) => {
         ['code', 'Branch code'],
         ['name', 'Branch name'],
         ['state', 'State'],
-        ['supervisorCount', 'Number of supervisors', null, 'e.g. 2', { clean: 'count', hint: 'How many supervisors can be assigned to this branch in Supervisor Master.' }],
+        ['supervisorCount', 'Number of supervisors', null, '0', { clean: 'count', disabled: true, hint: 'Automatically updated based on supervisors assigned in Supervisor Master.' }],
         ['crew', 'Driver–helper combination', CREW_COMBOS.map(c => ({ value: c.value, label: c.label })), 'The crew per vehicle. The branch supervisor can mark attendance for only this many drivers and helpers on each vehicle.'],
         ['status', 'Status', ['Active', 'Inactive']],
       ],
-      required: ['code', 'name', 'state', 'supervisorCount', 'crew', 'status'],
+      required: ['code', 'name', 'state', 'crew', 'status'],
       validate: (f, isNew, self) => {
         const errs = {};
         const selfId = (self && self.id) || (!isNew && f.id);
@@ -320,10 +326,10 @@ export const MasterManager = ({ type }) => {
         if (!f.state || !String(f.state).trim()) errs.state = 'Enter the state.';
 
         const seats = Number(f.supervisorCount);
-        if (f.supervisorCount === undefined || f.supervisorCount === null || String(f.supervisorCount).trim() === '') {
-          errs.supervisorCount = 'Enter the number of supervisors.';
-        } else if (!Number.isInteger(seats) || seats < 1 || seats > 20) {
-          errs.supervisorCount = 'Enter a whole number from 1 to 20.';
+        if (f.supervisorCount !== undefined && f.supervisorCount !== null && String(f.supervisorCount).trim() !== '') {
+          if (!Number.isInteger(seats) || seats < 0) {
+            errs.supervisorCount = 'Enter a whole number.';
+          }
         }
 
         if (!CREW_COMBOS.some(c => c.value === f.crew)) errs.crew = 'Select the driver–helper combination.';
@@ -345,23 +351,65 @@ export const MasterManager = ({ type }) => {
           (s.clients && typeof s.clients === 'string' && s.clients.toLowerCase().includes(c.name.toLowerCase())) ||
           (c.supervisors && typeof c.supervisors === 'string' && c.supervisors.toLowerCase().includes(s.name.toLowerCase()))
         );
-        const clientNames = supsClients.map(c => c.name).join(', ') || s.clients || '—';
+        const clientObjNames = supsClients.map(c => c.name);
+        const rawNames = typeof s.clients === 'string'
+          ? s.clients.split(',').map(x => x.trim()).filter(x => x && x !== '—')
+          : (Array.isArray(s.clients) ? s.clients : []);
+        const combinedNames = Array.from(new Set([...clientObjNames, ...rawNames]));
+        const clientNames = combinedNames.join(', ') || '—';
         return {
           ...s,
           clients: clientNames,
+          clientListNames: combinedNames,
           clientIds: supsClients.map(c => c.id),
         };
       }),
       cols: ['Name', 'Phone', 'Password', 'Branch', 'Clients handled', 'Last login', 'Status'],
-      cells: s => [
-        txtCell(s.name, true),
-        txtCell(s.phone),
-        pwCell(s),
-        txtCell(bn(s.branch)),
-        txtCell(s.clients),
-        txtCell(s.lastLogin),
-        statusBadge(s.status),
-      ],
+      cells: s => {
+        const names = Array.isArray(s.clientListNames) && s.clientListNames.length
+          ? s.clientListNames
+          : (typeof s.clients === 'string' && s.clients !== '—'
+              ? s.clients.split(',').map(x => x.trim()).filter(Boolean)
+              : []);
+        let clientsNode;
+        if (!names.length) {
+          clientsNode = '—';
+        } else if (names.length <= 3) {
+          clientsNode = names.join(', ');
+        } else {
+          const first3 = names.slice(0, 3).join(', ');
+          const extra = names.length - 3;
+          clientsNode = (
+            <Space size={6} align="center">
+              <span>{first3}</span>
+              <Tooltip
+                title={
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>All {names.length} clients:</div>
+                    {names.map((n, i) => (
+                      <div key={i}>• {n}</div>
+                    ))}
+                  </div>
+                }
+              >
+                <Tag color="processing" style={{ margin: 0, fontWeight: 600, cursor: 'pointer' }}>
+                  +{extra}
+                </Tag>
+              </Tooltip>
+            </Space>
+          );
+        }
+
+        return [
+          txtCell(s.name, true),
+          txtCell(s.phone),
+          pwCell(s),
+          txtCell(bn(s.branch)),
+          txtCell(clientsNode),
+          txtCell(s.lastLogin),
+          statusBadge(s.status),
+        ];
+      },
       required: ['name', 'phone', 'email', 'password', 'branch', 'clients', 'status'],
       validate: (f, isNew, self) => {
         const errs = {};
@@ -860,7 +908,7 @@ export const MasterManager = ({ type }) => {
         : type === 'drivers'
         ? { status: 'Active', type: 'Regular' }
         : type === 'branches'
-        ? { status: 'Active' }
+        ? { status: 'Active', supervisorCount: 0 }
         : {}
     );
     setFormError('');
@@ -933,6 +981,7 @@ export const MasterManager = ({ type }) => {
     setForm({
       ...rec,
       authorizedBunks: initialAuthBunks,
+      ...(type === 'branches' ? { supervisorCount: getBranchSupervisorCount(rec) } : {}),
       ...(type === 'supervisors' ? { clients: initialClients } : {}),
       ...(type === 'clients' ? { supervisors: initialSupervisors, loadingLocations: rec.loadingLocations || [] } : {}),
       ...(type === 'locations' ? { client: rec.clientId || rec.client || '' } : {}),

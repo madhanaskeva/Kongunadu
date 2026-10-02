@@ -19,8 +19,8 @@ export const crewOf = (branch) =>
 // Helpers sit in the Driver Master with type "Helper"; everyone else drives.
 export const isHelper = (d) => !!d && d.type === 'Helper';
 
-// How many supervisors a branch is set up for (at least one).
-export const supervisorSeats = (branch) => Math.max(1, Number(branch && branch.supervisorCount) || 1);
+// How many supervisors a branch is set up for.
+export const supervisorSeats = (branch) => Number(branch && branch.supervisorCount) || 0;
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export const crewLimitText = (c) =>

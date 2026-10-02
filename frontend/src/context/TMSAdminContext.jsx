@@ -355,6 +355,29 @@ export const TMSAdminProvider = ({ children }) => {
       out.S = { ...base.S, ...by(out.supervisors) };
       out.C = { ...base.C, ...by(out.clients) };
     }
+
+    // Automatically keep branch supervisor count and supervisor names in sync with assigned supervisors
+    if (out.branches && out.supervisors) {
+      const isBrMatch = (sBranch, bId, bName) => {
+        if (!sBranch) return false;
+        if (sBranch === bId || sBranch === bName) return true;
+        const bObj = out.B?.[sBranch];
+        if (bObj && (bObj.id === bId || bObj.name === bName)) return true;
+        const bTarget = out.B?.[bId];
+        if (bTarget && (bTarget.name === sBranch || bTarget.id === sBranch)) return true;
+        return false;
+      };
+      out.branches = out.branches.map(b => {
+        const sups = out.supervisors.filter(s => isBrMatch(s.branch, b.id, b.name));
+        return {
+          ...b,
+          supervisorCount: sups.length,
+          supervisors: sups.length ? sups.map(s => s.name).join(', ') : '—',
+          supervisor: sups.length ? sups.map(s => s.name).join(', ') : '—',
+        };
+      });
+      out.B = { ...base.B, ...by(out.branches) };
+    }
     // Distance comparison is derived from closed trips so every row links to a real trip.
     // Drivers requested from the Supervisor App can be put on a trip before Head Office decides,
     // so trips reference them by request id. Lookup only: the Driver Master lists requests itself.
