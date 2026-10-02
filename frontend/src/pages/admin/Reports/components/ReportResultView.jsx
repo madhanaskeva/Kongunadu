@@ -408,7 +408,7 @@ export const ReportResultView = ({
             placeholder="Search in this report…"
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
-            style={{ width: 280, maxWidth: '100%' }}
+            style={{ width: 'clamp(220px, 24vw, 300px)', maxWidth: '100%' }}
           />
 
           {/* Column Visibility Dropdown */}

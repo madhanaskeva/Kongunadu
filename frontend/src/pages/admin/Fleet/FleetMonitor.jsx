@@ -763,6 +763,7 @@ export const FleetMonitor = () => {
         {/* Row 2: search, the timeline date, and (Idle view) the idle-duration filter */}
         <Flex gap={10} wrap align="center">
           <Input
+            className="tms-search"
             allowClear
             prefix={<Search size={15} style={{ color: 'var(--text-muted)' }} />}
             placeholder={
@@ -777,7 +778,7 @@ export const FleetMonitor = () => {
             value={fleetQ}
             onChange={(e) => setFleetQ(e.target.value)}
             aria-label="Search fleet vehicles and GPS health"
-            style={{ flex: '1 1 260px', maxWidth: 420 }}
+            style={{ width: 'clamp(220px, 24vw, 300px)', maxWidth: '100%' }}
           />
 
           {/* The day whose GPS running / idle times the vehicle cards show. Empty means today. */}
@@ -832,7 +833,106 @@ export const FleetMonitor = () => {
         </Flex>
       </Flex>
       </Card>
-
+      {/* Filters Bar — same filters as the Trips page */}
+      <Card className="tl-filters" styles={{ body: { padding: '18px 20px' } }}>
+        <Form layout="vertical">
+          <div className="tms-filter-grid">
+            <Form.Item label="Branch" className="tl-filter">
+              <Select
+                prefix={<Building2 size={17} />}
+                value={flt.branch}
+                options={[{ value: '', label: 'All branches' }, ...branchOptions]}
+                popupMatchSelectWidth={false}
+                // A new branch drops any client or vehicle it does not own.
+                onChange={(v) => patchFlt({
+                  branch: v,
+                  client: flt.client && clientsOfBranch(v).some(c => c.id === flt.client) ? flt.client : '',
+                  vehicles: flt.vehicles.filter(id => !v || (tms.V[id] || {}).branch === v),
+                })}
+              />
+            </Form.Item>
+            <Form.Item label="Client" className="tl-filter">
+              <Select
+                prefix={<Users size={17} />}
+                value={flt.client}
+                options={[{ value: '', label: 'All clients' }, ...clientOptions]}
+                popupMatchSelectWidth={false}
+                showSearch={{ filterOption: (input, o) => textMatches(input, o.label) }}
+                onChange={(v) => patchFlt({
+                  client: v,
+                  vehicles: flt.vehicles.filter(id => !v || ((tms.V[id] || {}).clients || []).includes(v)),
+                })}
+              />
+            </Form.Item>
+            <Form.Item label="Vehicle" className="tl-filter">
+              <Select
+                mode="multiple"
+                prefix={<Truck size={17} />}
+                placeholder="All vehicles"
+                value={flt.vehicles}
+                options={vehicleOptions}
+                onChange={(ids) => patchFlt({ vehicles: ids })}
+                maxTagCount={0}
+                maxTagPlaceholder={() => (flt.vehicles.length === 1
+                  ? (tms.V[flt.vehicles[0]] || {}).number || '1 vehicle'
+                  : `${flt.vehicles.length} vehicles`)}
+                popupMatchSelectWidth={240}
+                showSearch={{ filterOption: (input, o) => textMatches(input, o.label) }}
+              />
+            </Form.Item>
+            <Form.Item label="Type" className="tl-filter">
+              <Select
+                prefix={<TagIcon size={17} />}
+                value={flt.type}
+                options={[{ value: '', label: 'All types' }, ...typeOptions]}
+                popupMatchSelectWidth={false}
+                onChange={(v) => patchFlt({ type: v })}
+              />
+            </Form.Item>
+            <Form.Item label="Flags" className="tl-filter">
+              <Select
+                prefix={<Flag size={17} />}
+                value={flt.flag}
+                options={[{ value: '', label: 'All flags' }, ...flagOptions]}
+                popupMatchSelectWidth={false}
+                onChange={(v) => patchFlt({ flag: v })}
+              />
+            </Form.Item>
+            {/* Vehicles match on trips opened in the range; trip cards on their own opened date. */}
+            <Form.Item label="Period" className="tl-filter">
+              <DatePresetSelect
+                from={flt.from}
+                to={flt.to}
+                onChange={(f, t) => patchFlt({ from: f ? f.format(DATE_FMT) : '', to: t ? t.format(DATE_FMT) : '' })}
+              />
+            </Form.Item>
+            <Form.Item label="From date" className="tl-filter">
+              <DatePicker
+                value={flt.from ? dayjs(flt.from) : null}
+                format="DD MMM YYYY"
+                placeholder="From date"
+                disabledDate={d => !!flt.to && d.isAfter(dayjs(flt.to), 'day')}
+                onChange={d => patchFlt({ from: d ? d.format(DATE_FMT) : '' })}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+            <Form.Item label="To date" className="tl-filter">
+              <DatePicker
+                value={flt.to ? dayjs(flt.to) : null}
+                format="DD MMM YYYY"
+                placeholder="To date"
+                disabledDate={d => !!flt.from && d.isBefore(dayjs(flt.from), 'day')}
+                onChange={d => patchFlt({ to: d ? d.format(DATE_FMT) : '' })}
+                style={{ width: '100%' }}
+              />
+            </Form.Item>
+            <Button className="tms-filter-end" onClick={() => { setFlt(EMPTY_FILTERS); setFleetQ(''); setTlDate(''); }} disabled={!hasFilters && !fleetQ && !tlDate}>
+              Clear
+            </Button>
+          </div>
+        </Form>
+      </Card>
+      
       {/* IDLE · open category: back to the category cards, or jump to another one */}
       {ff === 'idle' && idleCatInfo && (() => {
         const tone = IDLE_CAT_TONES[idleCatInfo.key];
@@ -848,7 +948,7 @@ export const FleetMonitor = () => {
                 </Typography.Text>
                 <Typography.Text type="secondary" style={{ fontSize: 12 }}>{idleCatInfo.hint}</Typography.Text>
               </div>
-              <Flex gap={6} wrap style={{ marginLeft: 'auto' }} role="tablist" aria-label="Idle category">
+              <Flex gap={6} wrap style={{ marginLeft: 'auto' }} role="tablist" aria-label="Idle category" className="tms-scroll-row">
                 {idleGroups.map(g => (
                   <Button
                     key={g.key}
@@ -910,27 +1010,27 @@ export const FleetMonitor = () => {
                     )}
                   </Flex>
 
-                  {/* The longest waits first */}
-                  <Flex vertical gap={6} className="fl-card-info" style={{ flex: 1 }}>
-                    {empty ? (
-                      <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>No vehicles idle here right now.</Typography.Text>
-                    ) : (
-                      <>
-                        {g.list.slice(0, 3).map(v => (
-                          <Flex key={v.id} align="center" gap={8} style={{ minWidth: 0 }}>
-                            <Typography.Text strong style={{ fontSize: 12.5, whiteSpace: 'nowrap', color: 'var(--text-heading)' }}>{v.number}</Typography.Text>
-                            <Typography.Text type="secondary" ellipsis={{ tooltip: idlePlaceName(v) }} style={{ fontSize: 12, minWidth: 0, flex: 1 }}>
-                              {idlePlaceName(v)}
-                            </Typography.Text>
-                            <Typography.Text strong style={{ fontSize: 12, whiteSpace: 'nowrap', color: tone.fg }}>{fmtDuration(v.idleMin)}</Typography.Text>
-                          </Flex>
-                        ))}
-                        {g.list.length > 3 && (
-                          <Typography.Text type="secondary" style={{ fontSize: 11.5 }}>+ {g.list.length - 3} more</Typography.Text>
-                        )}
-                      </>
-                    )}
-                  </Flex>
+                    {/* The longest waits first */}
+                    <Flex vertical gap={6} className="fl-card-info" style={{ flex: 1 }}>
+                      {empty ? (
+                        <Typography.Text style={{ fontSize: 12.5, color: 'var(--text-heading, #1c1c1a)' }}>No vehicles idle here right now.</Typography.Text>
+                      ) : (
+                        <>
+                          {g.list.slice(0, 3).map(v => (
+                            <Flex key={v.id} align="center" gap={8} style={{ minWidth: 0 }}>
+                              <Typography.Text strong style={{ fontSize: 12.5, whiteSpace: 'nowrap', color: 'var(--color-brand, #275e74)' }}>{v.number}</Typography.Text>
+                              <Typography.Text ellipsis={{ tooltip: idlePlaceName(v) }} style={{ fontSize: 12, minWidth: 0, flex: 1, color: 'var(--text-heading, #1c1c1a)' }}>
+                                {idlePlaceName(v)}
+                              </Typography.Text>
+                              <Typography.Text strong style={{ fontSize: 12, whiteSpace: 'nowrap', color: tone.fg }}>{fmtDuration(v.idleMin)}</Typography.Text>
+                            </Flex>
+                          ))}
+                          {g.list.length > 3 && (
+                            <Typography.Text style={{ fontSize: 11.5, color: 'var(--text-heading, #1c1c1a)', fontWeight: 600 }}>+ {g.list.length - 3} more</Typography.Text>
+                          )}
+                        </>
+                      )}
+                    </Flex>
 
                   {!empty && (
                     <Flex align="center" justify="flex-end" gap={4} style={{ color: tone.fg, fontSize: 12.5, fontWeight: 700 }}>
@@ -1509,6 +1609,7 @@ export const FleetMonitor = () => {
           rowKey={r => `${r.o}-${r.g}`}
           tableLayout="auto"
           pagination={false}
+          scroll={{ x: 360 }}
         />
       </Card>
     </Flex>

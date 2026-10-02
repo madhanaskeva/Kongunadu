@@ -366,7 +366,7 @@ export const ClientProfile = () => {
               placeholder="Search customer or city"
               value={q}
               onChange={e => setQ(e.target.value)}
-              style={{ width: 240, maxWidth: '100%' }}
+              style={{ width: 'clamp(200px, 22vw, 260px)', maxWidth: '100%' }}
             />
           </Flex>
           {can('clients', 'add') && (

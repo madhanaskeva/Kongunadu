@@ -36,8 +36,8 @@ export const Login = () => {
     <div className="krl-login">
       <style>{`
         .krl-login { display: grid; grid-template-columns: 46% 1fr; height: 100vh; background: #ffffff; }
-        .krl-login-image { position: relative; height: 100vh; background: url(${loginHero}) center 35% / cover no-repeat; }
-        .krl-login-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%); }
+        .krl-login-image { position: relative; height: 100vh; background: url(${loginHero}) center top / cover no-repeat; }
+        .krl-login-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%); }
         .krl-login-caption { position: absolute; left: 40px; right: 40px; bottom: 36px; color: #ffffff; }
         .krl-login-caption > div { font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.24em; text-transform: uppercase; }
         .krl-login-caption > p { margin: 8px 0 0; font-size: 15px; opacity: 0.9; max-width: 440px; line-height: 1.6; }
@@ -61,17 +61,18 @@ export const Login = () => {
         .krl-login-logo { width: 240px; max-width: 100%; height: auto; align-self: flex-start; }
         @media (max-width: 900px) {
           .krl-login { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
-          /* Portrait photo: keep the logo and the truck in view, smaller caption on the road below the truck */
-          .krl-login-image { width: 100%; height: auto; aspect-ratio: 4 / 5; max-height: 75vh; background-position: center 56%; }
+          .krl-login-image { width: 100%; height: 380px; max-height: 48vh; background-position: center top; background-size: cover; }
           .krl-login-caption { left: 16px; right: 16px; bottom: 14px; }
           .krl-login-caption > div { font-size: 10px; letter-spacing: 0.16em; }
           .krl-login-caption > p { font-size: 12.5px; line-height: 1.45; margin-top: 4px; }
           .krl-login-form { padding: 24px 16px 48px; }
           .krl-login-card { padding: 36px 20px 28px; }
         }
-        @media (min-width: 601px) and (max-width: 900px) {
-          /* Tablets: the height cap makes the box wider than 4:5, so crop higher to keep the logo */
-          .krl-login-image { background-position: center 30%; }
+        @media (max-width: 480px) {
+          .krl-login-image { height: 280px; max-height: 38vh; background-position: center top; }
+          .krl-login-form { padding: 16px 12px 36px; }
+          .krl-login-card { padding: 26px 16px 20px; border-radius: 16px; gap: 18px; }
+          .krl-login-logo { width: 190px; }
         }
       `}</style>
 

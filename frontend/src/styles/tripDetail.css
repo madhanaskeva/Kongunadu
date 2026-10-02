@@ -33,12 +33,40 @@
   color: var(--text-heading);
 }
 
-.tl-search .ant-btn {
-  flex: none;
+.tl-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  margin-top: 4px;
 }
 
-.tl-search .ant-input-affix-wrapper {
-  flex: 1;
+.tl-search .ant-btn {
+  flex: 0 0 auto;
+  height: 38px;
+  min-width: 76px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.tl-search .ant-input-affix-wrapper,
+.tl-search .tms-search {
+  flex: 0 1 320px;
+  width: 320px;
+  max-width: 100%;
+  min-width: 0;
+  height: 38px;
+  border-radius: 8px;
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .tl-search .ant-input-affix-wrapper,
+  .tl-search .tms-search {
+    flex: 0 1 clamp(220px, 32vw, 280px);
+    width: clamp(220px, 32vw, 280px);
+  }
 }
 
 /* Ticked-vehicle chips under the filter row. */
@@ -154,16 +182,29 @@
 }
 
 @media (max-width: 600px) {
-  .tl-search {
-    flex-wrap: wrap;
+  .tl-filters .ant-card-body {
+    padding: 12px 14px !important;
   }
 
-  .tl-search .ant-input-affix-wrapper {
-    flex-basis: 100%;
+  .tl-search {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .tl-search .ant-input-affix-wrapper,
+  .tl-search .tms-search {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 
   .tl-search > .ant-btn {
-    flex: 1;
+    flex: 1 1 calc(50% - 4px) !important;
+    width: calc(50% - 4px) !important;
+    height: 38px !important;
+    text-align: center !important;
   }
 }
 

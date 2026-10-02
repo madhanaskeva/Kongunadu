@@ -1322,7 +1322,7 @@ export const MasterManager = ({ type }) => {
               placeholder={m.searchPh}
               value={masterQ}
               onChange={(e) => setMasterQ(e.target.value)}
-              style={{ width: 240, maxWidth: '100%' }}
+              style={{ width: 'clamp(200px, 22vw, 280px)', maxWidth: '100%' }}
             />
 
             {/* Loading Location Master: choose the client before adding anything */}

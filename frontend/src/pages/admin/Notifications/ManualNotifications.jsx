@@ -94,7 +94,7 @@ export const ManualNotifications = ({ notifications, supervisors, canSend, onSen
       )}
     >
       <Flex gap={10} wrap className="ntf-filters">
-        <Input prefix={<Search size={16} />} placeholder="Search title, message, supervisor" value={q} onChange={e => setQ(e.target.value)} allowClear className="ntf-search" />
+        <Input prefix={<Search size={16} />} placeholder="Search title, message, supervisor" value={q} onChange={e => setQ(e.target.value)} allowClear className="ntf-search tms-search" />
         <Select value={priority} onChange={setPriority} options={[{ value: '', label: 'All priorities' }, ...PRIORITIES]} popupMatchSelectWidth={false} />
         {filtered && <Button type="link" onClick={() => { setQ(''); setPriority(''); }}>Clear filters</Button>}
       </Flex>

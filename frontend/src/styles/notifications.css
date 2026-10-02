@@ -5,7 +5,10 @@
   border-bottom: 1px solid var(--ant-color-border-secondary, #f0f0f0);
 }
 .ntf-filters .ant-select { min-width: 150px; }
-.ntf-search { width: 280px; }
+.ntf-search {
+  width: clamp(220px, 24vw, 280px);
+  max-width: 100%;
+}
 
 /* Unread alerts stand out with a brand edge and slightly tinted row. */
 /* Mixed with white, not transparent: the pinned Actions cell must stay opaque

@@ -459,12 +459,14 @@ export const TripList = () => {
               />
             </Form.Item>
 
-            <Flex gap={10} align="center" className="tl-search tms-filter-span">
+            <Flex gap={8} align="center" className="tl-search tms-filter-span">
               <Input
-                prefix={<Search size={17} />}
+                className="tms-search"
+                prefix={<Search size={16} strokeWidth={2} />}
                 placeholder="Trip no., vehicle, driver, client..."
                 value={draftQ}
                 onChange={(e) => setDraftQ(e.target.value)}
+                allowClear
               />
               <Button type="primary" htmlType="submit">Search</Button>
               <Button onClick={clearTf}>Clear</Button>

@@ -102,7 +102,7 @@ export const AutomaticAlerts = ({ alerts, onSetStatus, supervisors, canSend, onS
       }
     >
       <Flex gap={10} wrap className="ntf-filters">
-        <Input prefix={<Search size={16} />} placeholder="Search alert, vehicle, trip, message" value={q} onChange={e => setQ(e.target.value)} allowClear className="ntf-search" />
+        <Input prefix={<Search size={16} />} placeholder="Search alert, vehicle, trip, message" value={q} onChange={e => setQ(e.target.value)} allowClear className="ntf-search tms-search" />
         <Select value={source} onChange={setSource} options={opt('All sources', ALERT_SOURCES.map(s => ({ value: s, label: s })))} popupMatchSelectWidth={false} />
         <Select value={type} onChange={setType} options={opt('All alert types', Object.entries(ALERT_TYPES).map(([value, label]) => ({ value, label })))} popupMatchSelectWidth={false} />
         <Select value={severity} onChange={setSeverity} options={opt('All severities', SEVERITIES)} popupMatchSelectWidth={false} />

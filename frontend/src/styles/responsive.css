@@ -52,16 +52,24 @@
   justify-self: end;
 }
 
-@media (max-width: 600px) {
+@media (min-width: 681px) and (max-width: 1024px) {
+  .tms-filter-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+    gap: 12px 14px;
+  }
+}
+
+@media (min-width: 441px) and (max-width: 680px) {
   .tms-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
 }
 
-@media (max-width: 360px) {
+@media (max-width: 440px) {
   .tms-filter-grid {
     grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
   }
 }
 
@@ -125,19 +133,27 @@
   }
 }
 
-/* ---------- Table pager --------------------------------------------------
+/* ---------- Table pager & standalone pagers ----------------------------
    Phones: the "Showing x to y" line gets its own row and the pages centre
    under it, instead of breaking mid-way across two lines. */
 @media (max-width: 600px) {
+  .ant-pagination,
   .ant-table-wrapper .ant-table-pagination.ant-pagination {
-    flex-wrap: wrap;
-    justify-content: center;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    row-gap: 8px !important;
+    column-gap: 4px !important;
   }
 
+  .ant-pagination .ant-pagination-total-text,
   .ant-table-wrapper .ant-pagination .ant-pagination-total-text {
-    flex-basis: 100%;
-    margin-inline-end: 0;
-    text-align: center;
+    flex-basis: 100% !important;
+    width: 100% !important;
+    margin-inline-end: 0 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
   }
 }
 
@@ -186,6 +202,30 @@
   color: var(--color-brand);
 }
 
+/* ---------- Responsive Search Bars across all pages -----------------------
+   Search bars maintain a compact, small/medium width on desktop/tablet,
+   adapting proportionally to screen size instead of stretching full-width. */
+.tms-search,
+.ntf-search {
+  width: clamp(220px, 24vw, 300px);
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1200px) {
+  .tms-search,
+  .ntf-search {
+    width: clamp(260px, 20vw, 320px);
+  }
+}
+
+@media (min-width: 601px) and (max-width: 900px) {
+  .tms-search,
+  .ntf-search {
+    width: clamp(200px, 30vw, 260px);
+  }
+}
+
 /* ======================= Phones (≤ 600px) ===================================== */
 @media (max-width: 600px) {
   /* Pill / tab rows stay on one line and scroll sideways instead of stacking
@@ -215,9 +255,13 @@
     width: 100%;
   }
 
-  .tms-toolbar-main .tms-search {
-    flex: 1 1 100%;
-    width: auto !important;
+  .tms-search,
+  .tms-toolbar-main .tms-search,
+  .ntf-search {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
 
   .tms-toolbar-main > .ant-space,
@@ -247,11 +291,15 @@
   /* Form action rows (Reset / Apply): side by side in equal halves, each on
      its own full row when the two do not fit */
   .tms-form-actions {
-    flex-wrap: wrap;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    gap: 8px !important;
   }
 
   .tms-form-actions > .ant-btn {
-    flex: 1 1 120px;
+    flex: 1 1 calc(50% - 4px) !important;
+    height: 38px !important;
+    text-align: center !important;
   }
 
   /* Pager hugs the card edges a little closer */
@@ -262,15 +310,25 @@
 
 /* Very narrow phones: smaller pager items so the pages fit on one line */
 @media (max-width: 400px) {
+  .ant-pagination .ant-pagination-item,
+  .ant-pagination .ant-pagination-prev,
+  .ant-pagination .ant-pagination-next,
+  .ant-pagination .ant-pagination-jump-prev,
+  .ant-pagination .ant-pagination-jump-next,
   .ant-table-wrapper .ant-pagination .ant-pagination-item,
   .ant-table-wrapper .ant-pagination .ant-pagination-prev,
   .ant-table-wrapper .ant-pagination .ant-pagination-next,
   .ant-table-wrapper .ant-pagination .ant-pagination-jump-prev,
   .ant-table-wrapper .ant-pagination .ant-pagination-jump-next {
-    min-width: 28px;
-    height: 28px;
-    line-height: 26px;
-    margin-inline-end: 4px;
+    min-width: 28px !important;
+    height: 28px !important;
+    line-height: 26px !important;
+    margin-inline-end: 3px !important;
+  }
+
+  .ant-pagination .ant-pagination-total-text,
+  .ant-table-wrapper .ant-pagination .ant-pagination-total-text {
+    font-size: 12px !important;
   }
 }
 
@@ -280,4 +338,43 @@
 .ant-table-wrapper .ant-table-container::before,
 .ant-table-wrapper .ant-table-container::after {
   box-shadow: none !important;
+}
+
+/* ---------- Modals & Page Padding on Mobile ------------------------------- */
+@media (max-width: 600px) {
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 12px auto !important;
+    padding-bottom: 12px !important;
+  }
+
+  .ant-modal .ant-modal-content,
+  .ant-modal .ant-modal-container {
+    padding: 18px 14px !important;
+    border-radius: 14px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .tms-page-enter {
+    padding: 12px 10px 24px !important;
+    gap: 16px !important;
+  }
+
+  .tms-pagehead {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  .tms-pagehead h1 {
+    font-size: 20px !important;
+  }
+
+  .tms-pagehead p {
+    font-size: 13px !important;
+  }
+
+  .tms-pagehead-date {
+    padding: 6px 10px !important;
+  }
 }

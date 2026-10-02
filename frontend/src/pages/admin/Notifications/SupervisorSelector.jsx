@@ -33,7 +33,7 @@ export const SupervisorSelector = ({ supervisors = [], value = [], onChange, err
       </Flex>
 
       {supervisors.length > 5 && (
-        <Input prefix={<Search size={16} />} placeholder="Search supervisors or branch" value={q} onChange={e => setQ(e.target.value)} allowClear />
+        <Input className="tms-search" style={{ width: '100%' }} prefix={<Search size={16} />} placeholder="Search supervisors or branch" value={q} onChange={e => setQ(e.target.value)} allowClear />
       )}
 
       <div className="ntf-sup-list" style={{ borderColor: error ? 'var(--ant-color-error, #ff4d4f)' : undefined }}>

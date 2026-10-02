@@ -530,45 +530,144 @@
   }
 }
 
-/* Small phones (320–400px): tighter top bar so the avatar stays on screen */
-@media (max-width: 400px) {
+/* Mobile Topbar (≤ 480px): Keep full brand logo and text visible with refined scaling */
+@media (max-width: 480px) {
   .tms-topbar {
-    padding-right: 6px;
+    height: 58px;
+    padding-left: 2px !important;
+    padding-right: 6px !important;
+    gap: 4px !important;
   }
 
   /* The inline gap from <Flex gap={12}> needs !important to tighten here. */
   .tms-topbar-actions {
     gap: 4px !important;
+    flex: none !important;
   }
 
-  /* The logo gives way first so the avatar never runs off a 320px screen. */
   .tms-topbar-brand {
-    flex: 0 1 auto;
+    flex: 0 1 auto !important;
     min-width: 0;
+    max-width: none !important;
+    padding: 0 4px !important;
+    display: flex !important;
+    align-items: center !important;
   }
 
+  /* Ensure both mark and wordmark text (KONGUNADU + ROAD LINES) stay visible */
   .tms-topbar-brand .krl-brand {
-    --krl-brand-size: 38px;
+    display: inline-flex !important;
+    --krl-brand-size: 29px !important;
+    gap: 6px !important;
+  }
+
+  .tms-topbar-brand .krl-brand-mark {
+    width: 29px !important;
+    height: 29px !important;
+    flex: none !important;
+  }
+
+  .tms-topbar-brand .krl-brand-text {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1px !important;
+  }
+
+  .tms-topbar-brand .krl-brand-name {
+    display: block !important;
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .tms-topbar-brand .krl-brand-sub {
+    display: block !important;
+    font-size: 8px !important;
+    line-height: 1 !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.1em !important;
   }
 
   .tms-topbar-account {
-    padding: 4px 2px;
+    padding: 2px 2px !important;
   }
 
   .tms-topbar-avatar.ant-avatar {
-    width: 36px;
-    height: 36px;
-    line-height: 36px;
-    font-size: 13px;
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    font-size: 12px !important;
   }
 
   .tms-topbar-send-notice-btn.ant-btn {
-    width: 36px;
-    height: 36px;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
   }
 
   .tms-topbar-icon.ant-btn {
-    width: 38px;
-    height: 38px;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
+  }
+}
+
+/* Very small phones (320px–360px): ultra-compact scaling so everything fits with zero overflow */
+@media (max-width: 360px) {
+  .tms-topbar {
+    height: 54px;
+    padding-left: 1px !important;
+    padding-right: 4px !important;
+    gap: 2px !important;
+  }
+
+  .tms-topbar-actions {
+    gap: 3px !important;
+  }
+
+  .tms-topbar-brand {
+    padding: 0 2px !important;
+  }
+
+  .tms-topbar-brand .krl-brand {
+    --krl-brand-size: 25px !important;
+    gap: 4px !important;
+  }
+
+  .tms-topbar-brand .krl-brand-mark {
+    width: 25px !important;
+    height: 25px !important;
+  }
+
+  .tms-topbar-brand .krl-brand-name {
+    font-size: 11px !important;
+    letter-spacing: 0.01em !important;
+  }
+
+  .tms-topbar-brand .krl-brand-sub {
+    font-size: 6.8px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .tms-topbar-avatar.ant-avatar {
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    font-size: 11px !important;
+  }
+
+  .tms-topbar-send-notice-btn.ant-btn {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+  }
+
+  .tms-topbar-icon.ant-btn {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
   }
 }

@@ -542,12 +542,15 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 }
 
 /* Toolbar search boxes: leading search icon, tinted rest state that turns
-   white with the brand ring on focus. */
-.tms-search.ant-input-affix-wrapper {
+   white with the brand ring on focus. Responsive small/medium width. */
+.tms-search.ant-input-affix-wrapper,
+.tms-search {
   border-radius: 10px;
   border-color: #d5dfda;
   background: #f7faf8;
   transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  width: clamp(220px, 24vw, 320px);
+  max-width: 100%;
 }
 .tms-search.ant-input-affix-wrapper:hover {
   background: #ffffff;
@@ -733,6 +736,25 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 .rb-pop {
   width: 320px;
   max-width: calc(100vw - 56px);
+}
+
+@media (max-width: 600px) {
+  .rb-popover {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    max-width: calc(100vw - 20px) !important;
+    width: min(340px, calc(100vw - 20px)) !important;
+    z-index: 1060 !important;
+  }
+  .rb-popover .ant-popover-inner {
+    max-width: 100% !important;
+  }
+  .rb-pop {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
 }
 
 .rb-list {
@@ -1260,7 +1282,7 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
   font-size: 16px;
   font-weight: 800;
   line-height: 1.25;
-  color: var(--text-heading);
+  color: var(--color-brand);
   white-space: nowrap;
 }
 
