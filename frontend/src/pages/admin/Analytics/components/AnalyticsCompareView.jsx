@@ -139,7 +139,7 @@ export const AnalyticsCompareView = ({ config, tms }) => {
             <Row gutter={[16, 16]}>
               {metrics.map(m => (
                 <Col key={m.key} xs={24} xl={12}>
-                  <MetricChart metric={m} comparison={comparison} colorOf={colorOf} />
+                  <MetricChart metric={m} comparison={comparison} colorOf={colorOf} context={{ section: config.title, scope, period: `${periodWord} periods` }} />
                 </Col>
               ))}
             </Row>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Card, Col, Row, Select, Typography } from 'antd';
+import { Card, Col, Flex, Row, Select, Typography } from 'antd';
 import { buildTrend, fmtKm, fmtPct, monthLabel, totalsOf } from '../../../../utils/vehiclePerformance';
 import { BarChart, MAX_SERIES, SERIES_COLORS } from './BarChart';
+import ChartPdfButton from './ChartPdfButton';
 
 const TARGET_COLOR = 'var(--kr-grey-300)';
 const ACTUAL_COLOR = 'var(--color-brand)';
@@ -15,13 +16,27 @@ const ChartTitle = ({ title, sub }) => (
 
 // Vehicle charts: Target vs Actual KM per month (all selected or one vehicle),
 // and Performance % per month with a bar for each vehicle.
-export const PerformanceTrend = ({ stats, months }) => {
+// scope: the range and selection, printed on the PDF downloads.
+export const PerformanceTrend = ({ stats, months, scope }) => {
   const [focus, setFocus] = useState('all');
   const focusId = focus === 'all' || stats.some(s => s.vehicle === focus) ? focus : 'all';
   const trend = buildTrend(stats, months, focusId);
   const categories = months.map(k => ({ key: k, label: months.length > 12 ? monthLabel(k) : monthLabel(k, true) }));
   const focusTotal = totalsOf(trend.map(t => ({ targetKm: t.targetKm, actualKm: t.actualKm })).filter(t => t.targetKm != null));
   const shown = stats.slice(0, MAX_SERIES);
+  const focusLabel = focusId === 'all' ? `All ${stats.length} vehicle${stats.length !== 1 ? 's' : ''}` : (stats.find(s => s.vehicle === focusId) || {}).vehicleNumber;
+  const kmSub = `Actual ${fmtKm(focusTotal.actualKm)} of ${fmtKm(focusTotal.targetKm)} · ${fmtPct(focusTotal.pct)}`;
+  const kmSeries = [
+    { key: 'target', label: 'Target KM', color: TARGET_COLOR, values: trend.map(t => t.targetKm) },
+    { key: 'actual', label: 'Actual KM', color: ACTUAL_COLOR, values: trend.map(t => t.actualKm) },
+  ];
+  const pctSeries = shown.map((s, i) => ({
+    key: s.vehicle,
+    label: s.vehicleNumber,
+    color: stats.length > 1 ? SERIES_COLORS[i] : ACTUAL_COLOR,
+    values: s.byMonth.map(f => f.pct),
+  }));
+  const sum = vals => vals.reduce((a, v) => (v == null ? a : (a ?? 0) + v), null);
 
   return (
     <Row gutter={[16, 16]}>
@@ -30,8 +45,10 @@ export const PerformanceTrend = ({ stats, months }) => {
           size="small"
           className="an-chart-card"
           style={{ height: '100%' }}
-          title={<ChartTitle title="Target vs Actual KM" sub={`Actual ${fmtKm(focusTotal.actualKm)} of ${fmtKm(focusTotal.targetKm)} · ${fmtPct(focusTotal.pct)}`} />}
-          extra={stats.length > 1 && (
+          title={<ChartTitle title="Target vs Actual KM" sub={kmSub} />}
+          extra={
+            <Flex gap={8} align="center" wrap>
+            {stats.length > 1 && (
             <Select
               size="small"
               value={focusId}
@@ -43,16 +60,23 @@ export const PerformanceTrend = ({ stats, months }) => {
                 ...stats.map(s => ({ value: s.vehicle, label: s.vehicleNumber })),
               ]}
             />
-          )}
+            )}
+            <ChartPdfButton
+              label="Target vs Actual KM"
+              getSpec={() => ({
+                section: 'Vehicle Performance',
+                title: 'Target vs Actual KM',
+                scope,
+                notes: [`Vehicles: ${focusLabel} · Monthly periods`, kmSub],
+                chart: { type: 'bars', categories, series: kmSeries },
+                totals: kmSeries.map(s => sum(s.values)),
+                format: v => fmtKm(v),
+              })}
+            />
+            </Flex>
+          }
         >
-          <BarChart
-            categories={categories}
-            format={v => fmtKm(v)}
-            series={[
-              { key: 'target', label: 'Target KM', color: TARGET_COLOR, values: trend.map(t => t.targetKm) },
-              { key: 'actual', label: 'Actual KM', color: ACTUAL_COLOR, values: trend.map(t => t.actualKm) },
-            ]}
-          />
+          <BarChart categories={categories} format={v => fmtKm(v)} series={kmSeries} />
         </Card>
       </Col>
 
@@ -62,17 +86,24 @@ export const PerformanceTrend = ({ stats, months }) => {
           className="an-chart-card"
           style={{ height: '100%' }}
           title={<ChartTitle title="Performance %" sub={stats.length > 1 ? 'One bar per vehicle · 100% is on target' : '100% is on target'} />}
+          extra={
+            <ChartPdfButton
+              label="Performance %"
+              getSpec={() => ({
+                section: 'Vehicle Performance',
+                title: 'Performance %',
+                scope,
+                notes: [
+                  'Actual KM ÷ Target KM × 100 · 100% is on target · Monthly periods',
+                  stats.length > MAX_SERIES ? `Showing the first ${MAX_SERIES} of ${stats.length} vehicles.` : '',
+                ],
+                chart: { type: 'bars', categories, series: pctSeries },
+                format: v => fmtPct(v),
+              })}
+            />
+          }
         >
-          <BarChart
-            categories={categories}
-            format={v => fmtPct(v)}
-            series={shown.map((s, i) => ({
-              key: s.vehicle,
-              label: s.vehicleNumber,
-              color: stats.length > 1 ? SERIES_COLORS[i] : ACTUAL_COLOR,
-              values: s.byMonth.map(f => f.pct),
-            }))}
-          />
+          <BarChart categories={categories} format={v => fmtPct(v)} series={pctSeries} />
           {stats.length > MAX_SERIES && (
             <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12, marginTop: 8 }}>
               Showing the first {MAX_SERIES} of {stats.length} vehicles. The table lists all of them.

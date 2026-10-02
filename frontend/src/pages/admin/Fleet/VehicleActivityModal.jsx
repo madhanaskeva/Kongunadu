@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Fuel, MapPin, ParkingSquare, Power, Warehouse, Wrench } from 'lucide-react';
+import { Fuel, MapPin, PackageOpen, ParkingSquare, Power, Warehouse, Wrench } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Alert, Button, Card, Col, DatePicker, Flex, Form, Modal, Row, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
 import {
@@ -27,7 +27,7 @@ const spanText = (s, multiDay) => {
 
 // A compact strip: one coloured block per span, sized by its share of the range.
 // Where an idle span happened: an icon for the kind of place, then its name.
-const PLACE_ICON = { bunk: Fuel, loading: Warehouse, yard: ParkingSquare, service: Wrench, stop: MapPin };
+export const PLACE_ICON = { bunk: Fuel, loading: Warehouse, unloading: PackageOpen, yard: ParkingSquare, service: Wrench, stop: MapPin };
 export const IdlePlace = ({ place, compact = false }) => {
   const Icon = PLACE_ICON[place.kind] || MapPin;
   return (

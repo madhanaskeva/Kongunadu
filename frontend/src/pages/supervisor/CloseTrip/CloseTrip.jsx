@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, Avatar, Button, Card, Flex, Form, Input, Select, Typography, Upload } from 'antd';
 import { Camera, Image as ImageIcon, X } from 'lucide-react';
+import { AdvanceEntries, CarryForwardSummary } from '../components/AdvanceEntries';
 
 // The screen handlers read e.target.value (a string, as the old select gave);
 // antd Select hands over the bare value, so it is passed on in that shape.
@@ -319,6 +320,8 @@ export const CloseTrip = ({ v }) => (
               <Input size="large" value={v.cf.qtyUnload ?? ''} onChange={v.setCf.qtyUnload} />
             </Form.Item>
           </div>
+          {/* ADVANCE GIVEN · one row per cash advance; the total follows every add, edit and delete */}
+          <AdvanceEntries a={v.closeAdv} />
           {/* Expense breakdown — every box feeds the total, so nothing is typed twice */}
           <Card size="small" title="Trip expenses" style={{ marginBottom: 18 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', columnGap: 12 }}>
@@ -391,6 +394,8 @@ export const CloseTrip = ({ v }) => (
           {v.cerr.totalExpense ? (
             <Typography.Text type="danger" strong style={{ display: 'block', marginBottom: 18, fontSize: 13 }}>{v.cerr.totalExpense}</Typography.Text>
           ) : null}
+          {/* Previous carry forward + advances − expenses, saved against the vehicle when the trip closes */}
+          <CarryForwardSummary b={v.closeBalance} />
           <Form.Item label={<Flex gap={12} align="baseline">Remarks <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>Optional · {v.closeRemarksCount}/250</Typography.Text></Flex>}>
             <Input.TextArea value={v.cf.remarks} onChange={v.setCloseRemarks} maxLength={250} rows={3} placeholder="Delays, short delivery, extra stops or anything Head Office should know" style={{ minHeight: 88, fontSize: 16 }} />
           </Form.Item>

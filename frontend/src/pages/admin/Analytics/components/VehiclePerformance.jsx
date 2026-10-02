@@ -82,7 +82,11 @@ export const VehiclePerformance = ({ tms }) => {
 
           <section className="an-section">
             <SectionHeader step={2} title="Charts" sub="Hover a bar for its value" />
-            <PerformanceTrend stats={stats} months={months} />
+            <PerformanceTrend
+              stats={stats}
+              months={months}
+              scope={`${applied.from.format('DD MMM YYYY')} – ${applied.to.format('DD MMM YYYY')} · ${months.length} month${months.length !== 1 ? 's' : ''} · ${stats.length} vehicle${stats.length !== 1 ? 's' : ''}`}
+            />
           </section>
 
           <section className="an-section">

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag, User } from 'lucide-react';
+import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag, User, ArrowLeft, ChevronRight, Navigation } from 'lucide-react';
 import dayjs from 'dayjs';
 import {
   Alert, Button, Card, Col, DatePicker, Descriptions, Empty, Flex, Form, Input, Pagination, Row,
@@ -8,8 +8,9 @@ import {
 import { AimOutlined, ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import FleetTrackModal from './FleetTrackModal';
-import VehicleActivityModal, { ActivityBar, ACTIVITY_TONE, IdleNowPanel } from './VehicleActivityModal';
+import VehicleActivityModal, { ActivityBar, ACTIVITY_TONE, IdleNowPanel, PLACE_ICON } from './VehicleActivityModal';
 import { ACTIVITY, fmtDuration, minutesAgo, vehicleActivity, withIdlePlaces } from '../../../utils/vehicleActivity';
+import { IDLE_CATEGORIES, idleCategoryOf, openTripOf, tripStopFor } from '../../../utils/idleCategory';
 import { useDebounce } from '../../../utils/debounce';
 import { matchesSearch as textMatches } from '../../../utils/search';
 import { evaluateDateRange } from '../Reports/reportEngine';
@@ -58,11 +59,23 @@ const FLEET_TONES = {
   default: { edge: 'var(--kr-grey-300)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
 };
 
+// Idle category cards: icon and colours per group.
+const IDLE_CAT_TONES = {
+  loading: { edge: 'var(--color-brand)', bg: 'var(--color-brand-soft)', fg: 'var(--color-brand)' },
+  unloading: { edge: 'var(--good-600)', bg: '#E7F6EC', fg: 'var(--good-700)' },
+  onroad: { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
+  bunk: { edge: 'var(--kr-red-600)', bg: 'var(--kr-red-100)', fg: 'var(--kr-red-700)' },
+  yard: { edge: 'var(--kr-grey-500)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
+};
+const IDLE_CAT_ICON = { ...PLACE_ICON, onroad: Navigation };
+
 export const FleetMonitor = () => {
   const { T, fleetFilter, setFleetFilter, navTo, deleted } = useTMSAdmin();
   const tms = T();
   const [trackId, setTrackId] = useState(null);
   const [idleDurationFilter, setIdleDurationFilter] = useState('all');
+  // Idle view: null shows the category cards; a key shows that category's vehicles.
+  const [idleCat, setIdleCat] = useState(null);
   const [fleetQ, setFleetQ] = useState('');
   const debouncedFleetQ = useDebounce(fleetQ, 300);
 
@@ -165,13 +178,22 @@ export const FleetMonitor = () => {
     else if (v.id === 'V10') { idleHours = 4.5; idleText = '4 h 30 min ago'; }
     else if (v.status === 'Idle') { idleHours = 1.2; idleText = '1 h 12 min ago'; }
 
+    // Where it is standing: the GPS tracker's report of the stop, else the stop
+    // its open trip's supervisor stage puts it in (loading / unloading point).
+    const openTrip = openTripOf(v, trips);
+    const gpsIdle = (tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || tripStopFor(v, openTrip, tms);
+    const idleCat = idleCategoryOf({ ...v, gpsIdle }, openTrip);
+
     return {
       ...v,
       idleHours,
       lastSeen: idleText,
       branchName: (tms.B[v.branch] || {}).name,
       // Mock GPS tracker report of the vehicle standing still now (live feed later).
-      gpsIdle: (tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || null,
+      gpsIdle: gpsIdle || null,
+      openTrip,
+      idleCat,
+      idleMin: gpsIdle ? gpsIdle.minutes : Math.round(idleHours * 60),
       driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
       gpsColor: v.gps === 'OK' ? 'var(--color-brand)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
       gpsBg: v.gps === 'OK' ? 'var(--color-brand-soft)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
@@ -189,12 +211,12 @@ export const FleetMonitor = () => {
     const matchesCategory =
       ff === 'all' ||
       (ff === 'running' && v.status === 'Running') ||
-      (ff === 'idle' && v.status === 'Idle') ||
+      (ff === 'idle' && !!v.idleCat) ||
       (ff === 'maint' && v.status === 'Maintenance') ||
       (ff === 'gps' && v.gps !== 'OK');
 
     const targetMinHours = (ff === 'idle' && idleDurationFilter !== 'all') ? Number(idleDurationFilter) : 0;
-    const matchesDuration = ff !== 'idle' || idleDurationFilter === 'all' || v.idleHours > targetMinHours;
+    const matchesDuration = ff !== 'idle' || idleDurationFilter === 'all' || v.idleMin > targetMinHours * 60;
 
     const q = debouncedFleetQ.trim().toLowerCase();
     const matchesSearch = !q || (
@@ -214,7 +236,23 @@ export const FleetMonitor = () => {
   });
 
   // A branch can run hundreds of vehicles, so the grid is paged like every other list (default 10 / page).
-  const fleetPg = usePagedCards(fleetCards, [ff, idleDurationFilter, debouncedFleetQ, fltKey], 'vehicles');
+  // Idle view: the category cards count every idle vehicle; opening one narrows the grid to it.
+  const idleOverview = ff === 'idle' && !idleCat;
+  const idleCatInfo = IDLE_CATEGORIES.find(c => c.key === idleCat) || null;
+  const fleetShown = ff === 'idle' && idleCat ? fleetCards.filter(v => v.idleCat === idleCat) : fleetCards;
+  const idleGroups = IDLE_CATEGORIES.map(c => {
+    const list = fleetCards.filter(v => v.idleCat === c.key).sort((a, b) => b.idleMin - a.idleMin);
+    return { ...c, list, longest: list.length ? list[0].idleMin : 0 };
+  });
+  const fleetPg = usePagedCards(fleetShown, [ff, idleCat, idleDurationFilter, debouncedFleetQ, fltKey], 'vehicles');
+
+  // Where an idle vehicle stands, by name: the tracker's / trip's stop, else the road or its yard.
+  const idlePlaceName = (v) => {
+    const r = v.gpsIdle;
+    if (r) return ((tms.F || {})[r.place] || (tms.L || {})[r.place] || {}).name || r.place;
+    if (v.openTrip) return `On the way · ${v.route}`;
+    return String(v.route || '').replace(/^Parked at\s*/i, '');
+  };
 
   const gpsTone = g => g === 'OK' ? 'var(--color-brand)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
 
@@ -564,6 +602,7 @@ export const FleetMonitor = () => {
                 onClick={() => {
                   setFleetFilter(f.id);
                   if (f.id !== 'idle') setIdleDurationFilter('all');
+                  setIdleCat(null);
                 }}
                 style={{ fontWeight: 600 }}
               >
@@ -632,9 +671,120 @@ export const FleetMonitor = () => {
       </Flex>
       </Card>
 
+      {/* IDLE · open category: back to the category cards, or jump to another one */}
+      {ff === 'idle' && idleCatInfo && (() => {
+        const tone = IDLE_CAT_TONES[idleCatInfo.key];
+        const Icon = IDLE_CAT_ICON[idleCatInfo.key];
+        return (
+          <Card styles={{ body: { padding: '12px 16px' } }} style={{ borderLeft: `4px solid ${tone.edge}` }}>
+            <Flex align="center" gap={12} wrap>
+              <Button icon={<ArrowLeft size={15} />} onClick={() => setIdleCat(null)}>All idle categories</Button>
+              <span className="fl-card-icon" style={{ background: tone.bg, color: tone.fg }} aria-hidden><Icon size={18} /></span>
+              <div style={{ minWidth: 0 }}>
+                <Typography.Text strong style={{ display: 'block', fontSize: 15, color: 'var(--text-heading)' }}>
+                  {idleCatInfo.label} · {fleetShown.length} {fleetShown.length === 1 ? 'vehicle' : 'vehicles'}
+                </Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{idleCatInfo.hint}</Typography.Text>
+              </div>
+              <Flex gap={6} wrap style={{ marginLeft: 'auto' }} role="tablist" aria-label="Idle category">
+                {idleGroups.map(g => (
+                  <Button
+                    key={g.key}
+                    size="small"
+                    shape="round"
+                    role="tab"
+                    aria-selected={g.key === idleCat}
+                    type={g.key === idleCat ? 'primary' : 'default'}
+                    onClick={() => setIdleCat(g.key)}
+                  >
+                    {g.label} · {g.list.length}
+                  </Button>
+                ))}
+              </Flex>
+            </Flex>
+          </Card>
+        );
+      })()}
+
+      {/* IDLE · category cards: how many vehicles stand where, and the longest waits */}
+      {idleOverview && fleetCards.length > 0 && (
+        <Row gutter={[16, 16]}>
+          {idleGroups.map(g => {
+            const tone = IDLE_CAT_TONES[g.key];
+            const Icon = IDLE_CAT_ICON[g.key];
+            const empty = g.list.length === 0;
+            const open = () => { if (!empty) setIdleCat(g.key); };
+            return (
+              <Col key={g.key} xs={24} sm={12} lg={8} xxl={{ flex: '1 1 0' }}>
+                <Card
+                  hoverable={!empty}
+                  role="button"
+                  tabIndex={empty ? -1 : 0}
+                  aria-disabled={empty}
+                  aria-label={`${g.label}: ${g.list.length} idle vehicles`}
+                  onClick={open}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } }}
+                  className="fl-card"
+                  style={{ height: '100%', cursor: empty ? 'default' : 'pointer', opacity: empty ? 0.7 : 1, '--fl-tone': tone.edge, '--fl-tone-bg': tone.bg, '--fl-tone-fg': tone.fg }}
+                  styles={{ body: { height: '100%', display: 'flex', flexDirection: 'column', gap: 12, padding: 16 } }}
+                >
+                  <Flex align="flex-start" gap={10}>
+                    <span className="fl-card-icon" aria-hidden><Icon size={18} strokeWidth={2.2} /></span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <Typography.Text strong style={{ display: 'block', fontSize: 14.5, color: 'var(--text-heading)' }}>{g.label}</Typography.Text>
+                      <Typography.Text type="secondary" style={{ fontSize: 12 }}>{g.hint}</Typography.Text>
+                    </div>
+                  </Flex>
+
+                  <Flex align="baseline" justify="space-between" gap={8}>
+                    <Flex align="baseline" gap={6}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 800, lineHeight: 1, color: tone.fg }}>{g.list.length}</span>
+                      <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>{g.list.length === 1 ? 'vehicle' : 'vehicles'}</Typography.Text>
+                    </Flex>
+                    {!empty && (
+                      <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+                        Longest <strong style={{ color: 'var(--text-heading)' }}>{fmtDuration(g.longest)}</strong>
+                      </Typography.Text>
+                    )}
+                  </Flex>
+
+                  {/* The longest waits first */}
+                  <Flex vertical gap={6} className="fl-card-info" style={{ flex: 1 }}>
+                    {empty ? (
+                      <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>No vehicles idle here right now.</Typography.Text>
+                    ) : (
+                      <>
+                        {g.list.slice(0, 3).map(v => (
+                          <Flex key={v.id} align="center" gap={8} style={{ minWidth: 0 }}>
+                            <Typography.Text strong style={{ fontSize: 12.5, whiteSpace: 'nowrap', color: 'var(--text-heading)' }}>{v.number}</Typography.Text>
+                            <Typography.Text type="secondary" ellipsis={{ tooltip: idlePlaceName(v) }} style={{ fontSize: 12, minWidth: 0, flex: 1 }}>
+                              {idlePlaceName(v)}
+                            </Typography.Text>
+                            <Typography.Text strong style={{ fontSize: 12, whiteSpace: 'nowrap', color: tone.fg }}>{fmtDuration(v.idleMin)}</Typography.Text>
+                          </Flex>
+                        ))}
+                        {g.list.length > 3 && (
+                          <Typography.Text type="secondary" style={{ fontSize: 11.5 }}>+ {g.list.length - 3} more</Typography.Text>
+                        )}
+                      </>
+                    )}
+                  </Flex>
+
+                  {!empty && (
+                    <Flex align="center" justify="flex-end" gap={4} style={{ color: tone.fg, fontSize: 12.5, fontWeight: 700 }}>
+                      View vehicles <ChevronRight size={15} aria-hidden />
+                    </Flex>
+                  )}
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+      )}
+
       {/* VEHICLES VIEW */}
-      {fleetShowVehicles && (
-        fleetCards.length === 0 ? (
+      {fleetShowVehicles && !(idleOverview && fleetCards.length > 0) && (
+        fleetShown.length === 0 ? (
           <Card>
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -646,6 +796,8 @@ export const FleetMonitor = () => {
                   </>
                 ) : hasFilters ? (
                   'No vehicles match the selected filters.'
+                ) : idleCatInfo ? (
+                  `No vehicles idle at ${idleCatInfo.label.toLowerCase()} right now.`
                 ) : (
                   `No idle vehicles match the selected duration filter ${idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.`
                 )

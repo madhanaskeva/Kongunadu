@@ -208,6 +208,7 @@ export const IDLE_PLACE_KIND = {
   service: 'Service bay',
   bunk: 'Fuel bunk',
   loading: 'Loading point',
+  unloading: 'Unloading point',
   stop: 'Short stop',
 };
 
@@ -253,7 +254,8 @@ const placeOf = (v, seg, tms, now) => {
 
 export const idlePlaceFor = (v, seg, tms, now = Date.now()) => {
   const p = placeOf(v, seg, tms, now);
-  return p.lat ? p : { ...p, ...fixOf(p.name, tms, v.branch) };
+  // A customer's unloading point has no fix in the masters; never borrow another place's.
+  return p.lat || p.kind === 'unloading' ? p : { ...p, ...fixOf(p.name, tms, v.branch) };
 };
 
 // Why the vehicle stood still, as the tracker would report it: the reason and
@@ -266,6 +268,7 @@ export const IDLE_REASON = {
   refuel: { label: 'Refuelling', tone: 'processing' },
   fuelHalt: { label: 'Fuel halt over limit', tone: 'error' },
   loading: { label: 'Loading / unloading', tone: 'processing' },
+  unloading: { label: 'Unloading at customer', tone: 'processing' },
   maintenance: { label: 'Under maintenance', tone: 'default' },
   traffic: { label: 'Traffic / signal stop', tone: 'default' },
   rest: { label: 'Driver rest break', tone: 'default' },
@@ -280,6 +283,7 @@ export const idleReasonFor = (v, seg, place, now = Date.now()) => {
     // Standing at a bunk longer than the allowed fuel halt is flagged.
     case 'bunk': return { key: place.limitMin && seg.minutes > place.limitMin ? 'fuelHalt' : 'refuel', ignition: false };
     case 'loading': return { key: 'loading', ignition: false };
+    case 'unloading': return { key: 'unloading', ignition: false };
     // Engine left running in traffic: the tracker sees ignition on at 0 km/h.
     case 'stop': return { key: 'traffic', ignition: true };
     default:

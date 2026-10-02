@@ -3,6 +3,7 @@ import { normDriver, normDriverType } from '../../utils/driverTypes';
 import SupervisorScreens from './SupervisorScreens';
 import { TMS, formatPhone } from '../../utils';
 import { isPendingClose, pendingCloseDetail, ENROUTE_LABEL, ENROUTE_LABEL_LOWER } from '../../utils/tripStatus';
+import { toRupees, moneySigned, balanceTone, advanceDateText, validateAdvance, cleanAdvances, sumAdvances, calcCarryForward, previousCarryForward } from '../../utils/carryForward';
 import '../../styles/supervisorApp.css';
 import '../../styles/supervisorStates.css';
 
@@ -326,6 +327,14 @@ export class SupervisorApp extends React.Component {
     const locationOptions = !f.client ? [] : clientLocs
       .map(l => ({ value: l.id, label: l.name })).concat([{ value: '__add', label: '+ Add loading location (GPS)' }]);
     const veh = T.V[f.vehicle]; const firstTrip = f.vehicle === 'V04';
+    // Carry forward ledger · every trip, with the ones closed this session carrying their saved balance
+    // until the master edits are read back.
+    const isClosedTrip = t => t.status === 'Closed' || s.closedIds.includes(t.id);
+    const ledger = this.allTrips().map(t => { const cd = s.closedData[t.id]; return cd ? { ...t, status: 'Closed', carryForward: cd.carryForward, closedAtIso: cd.closedAtIso, closed: cd.closedAt } : t; });
+    const prevSourceText = p => !p.trip ? 'No previous closed trip for this vehicle · starts at ₹0'
+      : !p.recorded ? `Last trip ${p.trip.number} was closed before carry forward was recorded · starts at ₹0`
+      : `Carried from trip ${p.trip.number} · closed ${p.trip.closed || '—'}`;
+    const openPrev = veh ? previousCarryForward(ledger, veh.id, { isClosed: isClosedTrip }) : null;
     // Unloading — customers predefined against the selected client
     const clientCust = f.client ? T.customers.filter(u => u.client === f.client && u.status === 'Active') : [];
     const picked = (f.unloading || []).filter(id => clientCust.some(u => u.id === id));
@@ -463,7 +472,9 @@ export class SupervisorApp extends React.Component {
     const reviewRows = !veh ? [] : (needsLoad
       ? [['Trip number', tripNumberPreview], ['Trip type', 'Business'], ['Client', (T.C[f.client] || {}).name], ['Vehicle number', veh.number], ['Vehicle type', veh.type], ['Loading location', (this.loc(f.loading) || {}).name], ['Unloading', pickedCust.map(u => u.name).join(', ')], ['Start KM', startKmVal ? Number(startKmVal).toLocaleString('en-IN') + ' km' : ''], ['Driver', drvReviewText], ['Remarks', f.remarks]]
       : [['Trip number', tripNumberPreview], ['Trip type', 'Non-Business'], ['From', f.from], ['To', f.to], ['KM', f.km ? Number(f.km).toLocaleString('en-IN') + ' km' : ''], ['Purpose', f.reason], ['Vehicle number', veh.number], ['Driver', drvReviewText]]
-    ).map(([k, v]) => ({ k, v: v || '—' }));
+    ).concat(!veh ? [] : [
+      ['Previous carry forward', moneySigned(openPrev.amount) + (openPrev.recorded ? ` · from ${openPrev.trip.number}` : '')]
+    ]).map(([k, v]) => ({ k, v: v || '—' }));
     // Trip history — every closed trip for this branch, with the closing details kept
     const money = n => '₹' + Number(n || 0).toLocaleString('en-IN');
     const closedTrips = this.allTrips().filter(t => t.branch === this.BR && (t.status === 'Closed' || s.closedIds.includes(t.id)));
@@ -480,6 +491,7 @@ export class SupervisorApp extends React.Component {
         qtyLoad: (cd ? cd.qtyLoad : t.qtyLoad) || '—', qtyUnload: (cd ? cd.qtyUnload : t.qtyUnload) || '—',
         totalExpense: cd && cd.totalExpense ? money(cd.totalExpense) : t.totalExpense ? (String(t.totalExpense).startsWith('₹') ? t.totalExpense : money(t.totalExpense)) : '—',
         closeRemarks: (cd && cd.remarks) || t.closeRemarks || '—',
+        advances: (cd || t).advances || [], prevCarryForward: (cd || t).prevCarryForward, carryForward: (cd || t).carryForward,
         thisSession: !!cd };
     };
     // '12 Sep 2026 19:45' → '2026-09-12' so it compares with <input type="date"> values
@@ -569,13 +581,18 @@ export class SupervisorApp extends React.Component {
         closeRows: [['Loading invoice', i.invoice], ['LR number', i.lr], ['Closing odometer', i.closeKm ? i.closeKm.toLocaleString('en-IN') + ' km' : '—'],
           ['Trip distance', i.odo ? i.odo.toLocaleString('en-IN') + ' km' : '—'],
           ['Variance vs fixed', fixed ? pct + '%' : 'Not applicable'],
-          ['Advance given', i.advance], ['Bunk name', i.bunk],
+          ...(i.carryForward == null ? [['Advance given', i.advance]] : [
+            ['Previous carry forward', moneySigned(i.prevCarryForward)],
+            ...i.advances.map((x, n) => [`Advance ${n + 1} · ${advanceDateText(x.date)}`, moneySigned(x.amount)]),
+            ['Total advance', moneySigned(sumAdvances(i.advances))]]),
+          ['Bunk name', i.bunk],
           ['Diesel rate', i.rate ? '₹' + i.rate.toFixed(2) + '/L' : '—'],
           ['Diesel quantity', i.litres ? i.litres.toLocaleString('en-IN') + ' L' : '—'],
           ['Diesel amount', i.rate && i.litres ? money(Math.round(i.rate * i.litres)) : '—'],
-          ['Loading qty', i.qtyLoad], ['Unloading qty', i.qtyUnload], ['Total expense', i.totalExpense], ['Close remarks', i.closeRemarks]].map(([k, v2]) => ({ k, v: v2,
-            bg: k === 'Variance vs fixed' && over ? 'var(--color-hazard-soft)' : 'transparent',
-            color: k === 'Variance vs fixed' && over ? '#7A4300' : 'var(--text-heading)' }))
+          ['Loading qty', i.qtyLoad], ['Unloading qty', i.qtyUnload], ['Total expense', i.totalExpense],
+          ...(i.carryForward == null ? [] : [['Carry forward', moneySigned(i.carryForward)]]), ['Close remarks', i.closeRemarks]].map(([k, v2]) => ({ k, v: v2,
+            bg: k === 'Variance vs fixed' && over ? 'var(--color-hazard-soft)' : k === 'Carry forward' ? (i.carryForward < 0 ? 'var(--kr-red-100)' : 'var(--color-brand-tint)') : 'transparent',
+            color: k === 'Variance vs fixed' && over ? '#7A4300' : k === 'Carry forward' ? (i.carryForward < 0 ? 'var(--kr-red-800)' : 'var(--kr-green-900)') : 'var(--text-heading)' }))
       };
     }
     // Selected trip
@@ -651,7 +668,12 @@ export class SupervisorApp extends React.Component {
       legs: legDirty ? 'Tap Add reading to save the reading you entered, or cancel it.' : !legs.length ? 'Add at least one odometer reading with its photo.' : undefined,
       fills: fillDirty ? 'Tap Add bunk to save the bunk you entered, or cancel it.' : !fills.length ? 'Add the bunk where diesel was filled.' : overFill >= 0 ? `Bunk ${overFill + 1} is more than the ${km(tank)} L tank. Edit the quantity.` : undefined,
       totalExpense: !(Number(cf.totalExpense) > 0) ? 'Enter the total expense for this trip.' : undefined,
-      qtyLoad: !cf.qtyLoad ? 'Required.' : undefined, qtyUnload: !cf.qtyUnload ? 'Required.' : undefined };
+      qtyLoad: !cf.qtyLoad ? 'Required.' : undefined, qtyUnload: !cf.qtyUnload ? 'Required.' : undefined,
+      advances: this.advanceProblem(cf) };
+    // Carry forward = previous carry forward (vehicle's last closed trip) + advances given − total expense.
+    const closePrev = previousCarryForward(ledger, selTrip.vehicle, { excludeId: selTrip.id, isClosed: isClosedTrip });
+    const closeBal = calcCarryForward({ previous: closePrev.amount, advances: sumAdvances(cf.advances), expense: cf.totalExpense });
+    const closeAdvCount = (cf.advances || []).length;
     const cerr = s.showCloseErrors ? closeBad : {};
     const odo = closeNum > startNum ? closeNum - startNum : (selTrip.odoKm || 0), gps = selTrip.gpsKm || 0, fixed = selTrip.fixedKm || 0;
     const pct = fixed ? Math.round(Math.abs(Math.max(odo, gps) - fixed) / fixed * 1000) / 10 : 0; const flagged = fixed && pct > 5;
@@ -663,7 +685,11 @@ export class SupervisorApp extends React.Component {
       sumSec('Odometer', [['Start KM', km(startNum) + ' km'], ...legs.map((l, i) => [`${i + 1}. ${l.from} → ${l.to}`, `${km(l.reading)} km · +${km(l.reading - legPrev(i))} km`]), ['Closing odometer', closeNum ? km(closeNum) + ' km' : ''], ['Trip distance', odo ? km(odo) + ' km' : ''], ['Variance vs fixed', fixed ? pct + '%' : 'Not applicable', flagged]]),
       sumSec('Billing', [['Loading invoice', cf.invoice], ['LR number', cf.lr], ['Loading qty', cf.qtyLoad], ['Unloading qty', cf.qtyUnload]]),
       sumSec('Diesel', [...fills.map(x => [x.bunk, `${km(x.litres)} L × ₹${Number(x.rate).toFixed(2)} = ${money0(x.litres * x.rate)}`]), ['Total diesel', dieselLitres ? `${km(dieselLitres)} L · ${money0(dieselTotal)}` : '']]),
-      sumSec('Expenses', [['Total expense', cf.totalExpense ? money0(Number(cf.totalExpense)) : ''], ['Remarks', (cf.remarks || '').trim()]])
+      sumSec('Expenses', [['Total expense', cf.totalExpense ? money0(Number(cf.totalExpense)) : ''], ['Remarks', (cf.remarks || '').trim()]]),
+      sumSec('Advance & carry forward', [['Previous carry forward', moneySigned(closeBal.previous) + (closePrev.recorded ? ` · from ${closePrev.trip.number}` : '')],
+        ...(cf.advances || []).map((x, i) => [`Advance ${i + 1} · ${advanceDateText(x.date)}`, moneySigned(x.amount)]),
+        ['Total advance', moneySigned(closeBal.advances)], ['Available amount', moneySigned(closeBal.available)], ['Total expense', moneySigned(closeBal.expense)],
+        ['Carry forward', moneySigned(closeBal.carryForward), closeBal.carryForward < 0]])
     ];
     const closePhotos = legs.filter(l => l.photo).map((l, i) => ({ caption: `${i + 1}. ${l.to} · ${km(l.reading)} km`, url: l.photo.url || '' }));
     // Unclosed
@@ -959,7 +985,9 @@ export class SupervisorApp extends React.Component {
         if (l.screen === 'idle') return this.go('idle', { railVariant: '', showIdleErrors: false });
         if (l.screen) this.go(l.screen, { railVariant: '' });
       },
-      // open trip
+      // open trip · previous carry forward and new advances
+      openAdvShown: !!veh,
+      openPrevCF: openPrev ? { amount: moneySigned(openPrev.amount), tone: balanceTone(openPrev.amount), source: prevSourceText(openPrev) } : null,
       form: { ...f, startKm: startKmVal, driver: driverVal }, clientOptions, vehicleOptions, locationOptions, remarksCount: (f.remarks || '').length,
       clientHint: !needsLoad
         ? 'Non-business movement has no client, so this list is empty.'
@@ -1125,7 +1153,9 @@ export class SupervisorApp extends React.Component {
           const num = tripNumberPreview.replace(/\s/g, '');
           const tripDrivers = (Array.isArray(f.drivers) && f.drivers.length > 0) ? f.drivers : (f.driver ? [f.driver] : activeDriverIds);
           const tripDriverNamesStr = tripDrivers.map(dId => (this.drv(dId) || {}).name || dId).join(', ');
-          const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: tripDrivers[0] || driverVal, drivers: tripDrivers, driverNames: tripDriverNamesStr, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: this.stampText(), supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [] };
+          const t = { id: 'TN' + Date.now(), number: num, branch: this.BR, client: f.client, customers: picked, vehicle: f.vehicle, driver: tripDrivers[0] || driverVal, drivers: tripDrivers, driverNames: tripDriverNamesStr, loading: needsLoad ? f.loading : '', unloading: needsLoad ? pickedCust.map(u => u.name).join(', ') : f.to, from: needsLoad ? '' : f.from, startKm: Number(startKmVal) || 0, type: f.type, reason: f.reason, remarks: needsLoad ? f.remarks : '', status: 'Enroute', opened: this.stampText(), supervisor: this.SUP, fixedKm: needsLoad ? routeKm : 0, nbKm: needsLoad ? 0 : Number(f.km) || 0, gpsKm: 0, hoursOpen: 0, flags: [],
+            // The vehicle's previous balance, kept apart from the advances entered when the trip closes.
+            prevCarryForward: openPrev ? openPrev.amount : 0, carryForwardFromTrip: openPrev && openPrev.recorded ? openPrev.trip.id : null };
           try {
             const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
             const cur = m.trips || { added: [], edited: {} };
@@ -1142,7 +1172,7 @@ export class SupervisorApp extends React.Component {
       },
       newTripNumber: (s.newTrip || {}).number || tripNumberPreview, newTripVehicle: s.newTrip ? T.V[s.newTrip.vehicle].number : '',
       // close
-      activeTrips: activeD, noActive: !activeD.length, pickClose: e => this.go('close', { selected: e.currentTarget.dataset.id, showCloseErrors: false, cf: this.blankClose() }),
+      activeTrips: activeD, noActive: !activeD.length, pickClose: e => { const id = e.currentTarget.dataset.id; this.go('close', { selected: id, showCloseErrors: false, cf: this.blankClose(this.allTrips().find(t => t.id === id)) }); },
       sel: selD, selLongOpen: selD.hoursOpen > 24, selRows, gpsLog: T.gpsLog,
       cf: { ...cf, legDraft: ld }, setCf: this.bind('cf', ['invoice', 'lr', 'qtyLoad', 'qtyUnload']), cerr,
       closeHasErrors: Object.values(cerr).some(Boolean), closeManualException: (selTrip.flags || []).includes('GPS weak') || (selTrip.flags || []).includes('GPS failed'),
@@ -1224,6 +1254,16 @@ export class SupervisorApp extends React.Component {
       setOtherExpense: (idx, field, val) => this.setOtherExpense(idx, field, val),
       addOtherExpense: () => this.addOtherExpense(),
       removeOtherExpense: (idx) => this.removeOtherExpense(idx),
+      closeAdv: { ...this.advanceVals('cf', { title: 'Advance given', totalLabel: closeAdvCount > 1 ? `Total advance · ${closeAdvCount} advances` : 'Total advance', emptyText: 'No advance recorded for this trip. Add each cash advance given to the crew.', stage: 'close' }), err: cerr.advances },
+      closeBalance: {
+        rows: [
+          ['Previous carry forward', moneySigned(closeBal.previous), closePrev.recorded ? `From trip ${closePrev.trip.number}` : 'No balance from an earlier trip'],
+          ['Total advance', moneySigned(closeBal.advances), `${closeAdvCount} ${closeAdvCount === 1 ? 'advance' : 'advances'} on this trip`],
+          ['Available amount', moneySigned(closeBal.available)],
+          ['Total expense', moneySigned(closeBal.expense), 'From the expense breakup above'],
+        ],
+        carryForward: moneySigned(closeBal.carryForward), tone: balanceTone(closeBal.carryForward),
+      },
       totalExpenseDisplay: Number(cf.totalExpense) > 0 ? money0(Number(cf.totalExpense)) : '₹0',
       totalExpenseHint: 'Added up automatically: bunk diesel, FASTag, driver bata, cleaner bata, RTO, toll, weighment and other expenses.',
       setCloseRemarks: e => this.patchCf({ remarks: e.target.value.slice(0, 250) }), closeRemarksCount: (cf.remarks || '').length,
@@ -1232,11 +1272,17 @@ export class SupervisorApp extends React.Component {
       closeReviewNote: flagged ? `The odometer distance is outside 5% of the ${km(fixed)} km fixed route, so Head Office reviews it after you close.` : fixed ? `Odometer distance is within 5% of the ${km(fixed)} km fixed route.` : 'Non-business movement. No fixed route to check against.',
       submitClose: () => { if (Object.values(closeBad).some(Boolean)) { this.setState({ showCloseErrors: true, railVariant: 'errors' }); return; } this.go('closeReview', { railVariant: '' }); },
       confirmClose: () => {
+        // The balance is worked out again from the saved entries, never taken from what is on screen.
+        let advances;
+        try { advances = cleanAdvances(cf.advances, { today: this.todayIso() }); } catch (e) { this.toast('warning', 'Check the advances', e.message); return; }
+        const bal = calcCarryForward({ previous: closePrev.amount, advances: sumAdvances(advances), expense: this.recalcTotalExpense(cf) });
+        const closedAtIso = new Date().toISOString();
         // Only the rows the supervisor actually filled in are worth keeping.
         const otherExp = (cf.otherExpenses || [])
           .map(x => ({ name: String(x.name || '').trim(), amount: Number(x.amount) || 0 }))
           .filter(x => x.name || x.amount);
-        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, expBreakdown: cf.expBreakdown || {}, otherExpenses: otherExp, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: this.stampText() };
+        const rec = { invoice: cf.invoice, lr: cf.lr, closeKm: String(closeNum), bunk: fills.map(x => x.bunk).join(', '), litres: String(dieselLitres), rate: dieselLitres ? (dieselTotal / dieselLitres).toFixed(2) : '', fills, legs, totalExpense: cf.totalExpense, expBreakdown: cf.expBreakdown || {}, otherExpenses: otherExp, remarks: (cf.remarks || '').trim(), qtyLoad: cf.qtyLoad, qtyUnload: cf.qtyUnload, closedAt: this.stampText(), closedAtIso,
+          advances, advance: String(bal.advances), prevCarryForward: bal.previous, carryForward: bal.carryForward };
         try {
           const m = JSON.parse(localStorage.getItem(this.MASTER_KEY) || '{}') || {};
           const cur = m.trips || { added: [], edited: {} };
@@ -1262,6 +1308,14 @@ export class SupervisorApp extends React.Component {
             qtyLoad: rec.qtyLoad || selTrip.qtyLoad,
             qtyUnload: rec.qtyUnload || selTrip.qtyUnload,
             closed: rec.closedAt,
+            closedAtIso,
+            // Advances and the carry forward the vehicle takes into its next trip.
+            advances,
+            advance: bal.advances ? '₹' + bal.advances.toLocaleString('en-IN') : '₹0',
+            totalAdvance: bal.advances,
+            prevCarryForward: bal.previous,
+            carryForwardFromTrip: closePrev.recorded ? closePrev.trip.id : null,
+            carryForward: bal.carryForward,
             flags: flagged ? [...(selTrip.flags || []).filter(f => !f.startsWith('Variance')), `Variance ${pct}%`] : (selTrip.flags || []),
           };
           const isAdded = (cur.added || []).some(x => x.id === selTrip.id);
@@ -1274,6 +1328,7 @@ export class SupervisorApp extends React.Component {
           localStorage.setItem(this.MASTER_KEY, JSON.stringify(m));
           window.dispatchEvent(new Event('storage'));
           window.dispatchEvent(new CustomEvent('tms-master-change', { detail: { key: 'trips' } }));
+          this.syncMaster();
         } catch (e) {}
         this.setState(st => ({ closedIds: [...st.closedIds, selTrip.id], closedData: { ...st.closedData, [selTrip.id]: rec } }));
         const resume = s.resumeOpen && s.resumeOpen.trip === selTrip.id;
@@ -1284,7 +1339,7 @@ export class SupervisorApp extends React.Component {
           this.go('closeDone');
           this.toast(flagged ? 'warning' : 'success', flagged ? 'Closed with flag' : 'Trip closed', flagged ? `Variance ${pct}% sent to admin exceptions.` : `${selD.vehicleNumber} is available again.`);
         }
-        this.logActivity({ title: `Trip closed · ${selD.number}`, body: flagged ? `Closed with a ${pct}% distance variance. It was sent to Head Office exceptions for review.` : `${selD.vehicleNumber} is available again. Distance is within the 5% limit.`, rows: [['Trip', selD.number], ['Vehicle', selD.vehicleNumber], ['Invoice', cf.invoice], ['Closing odometer', km(closeNum) + ' km'], ['Diesel', `${km(dieselLitres)} L · ${fills.length} ${fills.length === 1 ? 'bunk' : 'bunks'} · ${money0(dieselTotal)}`], ['Total expense', money0(Number(cf.totalExpense))], ['Variance', fixed ? pct + '%' : 'Not applicable']], link: { trip: selTrip.id }, linkLabel: 'View closed trip' });
+        this.logActivity({ title: `Trip closed · ${selD.number}`, body: flagged ? `Closed with a ${pct}% distance variance. It was sent to Head Office exceptions for review.` : `${selD.vehicleNumber} is available again. Distance is within the 5% limit.`, rows: [['Trip', selD.number], ['Vehicle', selD.vehicleNumber], ['Invoice', cf.invoice], ['Closing odometer', km(closeNum) + ' km'], ['Diesel', `${km(dieselLitres)} L · ${fills.length} ${fills.length === 1 ? 'bunk' : 'bunks'} · ${money0(dieselTotal)}`], ['Total expense', money0(Number(cf.totalExpense))], ['Total advance', moneySigned(bal.advances)], ['Carry forward', moneySigned(bal.carryForward)], ['Variance', fixed ? pct + '%' : 'Not applicable']], link: { trip: selTrip.id }, linkLabel: 'View closed trip' });
         this.pushAdminNotif({ title: 'Trip Update', body: `Trip #${selD.number} closed by ${me.name}. ${flagged ? `Variance ${pct}% flagged.` : 'Successfully reached destination.'}`, time: 'Just now' });
       },
       verify,
@@ -1347,7 +1402,7 @@ export class SupervisorApp extends React.Component {
       ua: (() => { const a = s.unclosedAlert; const tr = a && this.allTrips().find(x => x.id === a.trip); if (!tr) return { vehicle: '', number: '', route: '', opened: '', hoursOpen: '' }; const d = this.decorate(tr); return { vehicle: d.vehicleNumber, number: d.number, route: d.routeLine, opened: d.opened, hoursOpen: d.hoursOpen }; })(),
       ackUnclosedAlert: () => { const a = s.unclosedAlert; if (!a) return; this.go('trip', { selected: a.trip, unclosedAlert: null, resumeOpen: { vehicle: a.vehicle, trip: a.trip }, railVariant: '' }); },
       resumeHere: !!(s.resumeOpen && s.resumeOpen.trip === s.selected && ['trip', 'close'].includes(s.screen)), resumeVehicle: s.resumeOpen ? (T.V[s.resumeOpen.vehicle] || {}).number : '', unclosedEmpty: !unclosedList.length,
-      openTripDetail: e => this.go('trip', { selected: e.currentTarget.dataset.id, railVariant: '' }), closeFromDetail: () => this.go('close', { showCloseErrors: false, cf: this.blankClose() }),
+      openTripDetail: e => this.go('trip', { selected: e.currentTarget.dataset.id, railVariant: '' }), closeFromDetail: () => this.go('close', { showCloseErrors: false, cf: this.blankClose(selTrip) }),
       // attendance
       attDrivers, idleSummary: idleStats.idle ? `${idleStats.idle} ${idleStats.idle === 1 ? 'vehicle' : 'vehicles'} idle` + (idleMissing ? ` · ${idleMissing} without reason` : ' · reasons recorded') : 'No vehicles marked idle', goIdle: () => this.go('idle', { railVariant: '', showIdleErrors: false }),
       // vehicle idle status
@@ -1507,7 +1562,9 @@ export class SupervisorApp extends React.Component {
       { day: '2026-09-11', label: 'Thu, 11 Sep 2026', savedAt: '18:20', entries: { D01: ['P', 'V01'], D02: ['P', 'V02'], D09: ['A', ''], D10: ['P', 'V04'], D11: ['P', 'V08'] } }
     ];
   }
-  blankClose() { return { invoice: '', lr: '', qtyLoad: '', qtyUnload: '', totalExpense: '', remarks: '',
+  // A trip's close form starts with the advances already recorded on it when it was opened.
+  blankClose(trip) { return { invoice: '', lr: '', qtyLoad: '', qtyUnload: '', totalExpense: '', remarks: '',
+    ...this.blankAdvEditor((trip && trip.advances) || []),
     expBreakdown: { fastag: '', driverBatas: {}, driverBata: '', cleanerBata: '', rto: '', toll: '', weighment: '' },
     otherExpenses: [{ name: '', amount: '' }],
     legs: [], legDraft: this.blankLeg(), legEdit: -1, legOpen: false, legTried: false,
@@ -1585,6 +1642,46 @@ export class SupervisorApp extends React.Component {
   }
   blankLeg() { return { from: '', to: '', reading: '', photo: null }; }
   blankFill() { return { bunk: '', litres: '', rate: '' }; }
+  // Advance Given entries live on the Open Trip form (`form`) and the Close Trip form (`cf`) with the same editor.
+  todayIso() { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
+  blankAdvDraft() { return { amount: '', date: this.todayIso() }; }
+  blankAdvEditor(advances = []) { return { advances: advances.map(x => ({ ...x, amount: String(toRupees(x.amount)) })), advDraft: this.blankAdvDraft(), advEdit: -1, advOpen: false, advTried: false }; }
+  patchAdv(key, patch) { this.setState(st => ({ [key]: { ...st[key], ...(typeof patch === 'function' ? patch(st[key]) : patch) } })); }
+  saveAdvance(key, stage) {
+    this.patchAdv(key, o => {
+      const draft = o.advDraft || this.blankAdvDraft(), bad = validateAdvance(draft, { today: this.todayIso() });
+      if (bad.amount || bad.date) return { advTried: true };
+      const list = o.advances || [], editing = o.advEdit >= 0 && o.advEdit < list.length;
+      const entry = { ...(editing ? list[o.advEdit] : { id: 'ADV' + Date.now(), stage }), amount: String(toRupees(draft.amount)), date: draft.date };
+      const advances = (editing ? list.map((x, j) => (j === o.advEdit ? entry : x)) : [...list, entry]).sort((a, b) => a.date.localeCompare(b.date));
+      return { advances, advDraft: this.blankAdvDraft(), advEdit: -1, advOpen: false, advTried: false };
+    });
+  }
+  // View values for the AdvanceEntries component on either form.
+  advanceVals(key, { title, totalLabel, emptyText, stage }) {
+    const o = this.state[key] || {}, list = o.advances || [], today = this.todayIso();
+    const editing = o.advEdit >= 0, draft = o.advDraft || this.blankAdvDraft();
+    return {
+      title, totalLabel, emptyText, maxDate: today,
+      rows: list.map((x, i) => ({ i, label: `Advance ${i + 1}`, date: advanceDateText(x.date), amount: moneySigned(x.amount), editing: editing && o.advEdit === i })),
+      total: moneySigned(sumAdvances(list)), count: list.length,
+      editorOpen: !!o.advOpen, editorTitle: editing ? `Edit advance ${o.advEdit + 1}` : `Advance ${list.length + 1}`, saveLabel: editing ? 'Save changes' : 'Add advance',
+      draft, draftErr: o.advTried ? validateAdvance(draft, { today }) : {},
+      setAmount: val => this.patchAdv(key, st => ({ advDraft: { ...(st.advDraft || this.blankAdvDraft()), amount: String(val).replace(/\D/g, '').slice(0, 7) } })),
+      setDate: val => this.patchAdv(key, st => ({ advDraft: { ...(st.advDraft || this.blankAdvDraft()), date: val } })),
+      save: () => this.saveAdvance(key, stage),
+      cancel: () => this.patchAdv(key, { advDraft: this.blankAdvDraft(), advEdit: -1, advOpen: false, advTried: false }),
+      openEditor: () => this.patchAdv(key, { advDraft: this.blankAdvDraft(), advEdit: -1, advOpen: true, advTried: false }),
+      edit: i => this.patchAdv(key, st => ({ advDraft: { amount: String(toRupees((st.advances || [])[i]?.amount)), date: (st.advances || [])[i]?.date || this.todayIso() }, advEdit: i, advOpen: true, advTried: false })),
+      remove: i => this.patchAdv(key, st => ({ advances: (st.advances || []).filter((_, j) => j !== i), advDraft: this.blankAdvDraft(), advEdit: -1, advOpen: false, advTried: false })),
+    };
+  }
+  // An advance typed but not saved, or a saved one that no longer passes the checks.
+  advanceProblem(o) {
+    if (o.advOpen && String((o.advDraft || {}).amount || '').trim()) return 'Tap Add advance to save the advance you entered, or cancel it.';
+    const today = this.todayIso(), bad = (o.advances || []).findIndex(x => { const e = validateAdvance(x, { today }); return e.amount || e.date; });
+    return bad >= 0 ? `Advance ${bad + 1} is not valid. Edit or delete it.` : undefined;
+  }
   patchCf(patch) {
     this.setState(st => {
       const cf = { ...st.cf, ...patch };

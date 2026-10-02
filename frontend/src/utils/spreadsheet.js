@@ -24,7 +24,7 @@ export const cellValue = (v) => {
   return String(v);
 };
 
-const saveBlob = (blob, fileName) => {
+export const saveBlob = (blob, fileName) => {
   if (typeof window !== 'undefined' && window.navigator && window.navigator.msSaveOrOpenBlob) {
     window.navigator.msSaveOrOpenBlob(blob, fileName);
     return;

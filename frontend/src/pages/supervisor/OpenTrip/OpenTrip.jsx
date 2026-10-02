@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Avatar, Badge, Button, Card, Checkbox, Flex, Form, Input, Select, Tag, Typography } from 'antd';
 import { Check, X } from 'lucide-react';
 import { ENROUTE_LABEL } from '../../../utils/tripStatus';
+import { PreviousCarryForward } from '../components/AdvanceEntries';
 
 // The screen handlers read e.target.value (a string, as the old select gave);
 // antd Select hands over the bare value, so it is passed on in that shape.
@@ -365,6 +366,8 @@ export const OpenTrip = ({ v }) => (
               </Form.Item>
             </>
           ) : null}
+          {/* Balance the vehicle brings from its last closed trip (read only). Advances are entered at Close Trip. */}
+          {v.openAdvShown ? <PreviousCarryForward p={v.openPrevCF} /> : null}
         </Form>
         <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }}>
           <Flex justify="space-between" align="center">
