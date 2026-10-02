@@ -43,9 +43,13 @@ const TMS_THEME = {
     /* ── Neutral / surface ── */
     colorTextBase: '#4a4a46',         // --text-body / --kr-grey-700
     colorText: '#4a4a46',
-    colorTextSecondary: '#62645e',    // --text-muted (darkened for contrast)
+    colorTextSecondary: '#4f514b',    // --text-muted (darkened for contrast)
+    // Typography type="secondary", hints, table S.No and helper lines use these; antd's defaults are 45% / 25% grey.
+    colorTextTertiary: '#55574f',
+    colorTextDescription: '#55574f',
+    colorTextQuaternary: '#7c7c76',
     colorTextDisabled: '#7c7c76',
-    colorTextPlaceholder: '#6f716b',  // readable placeholders (antd default is 25% grey)
+    colorTextPlaceholder: '#5f615b',  // readable placeholders (antd default is 25% grey)
     colorTextHeading: '#1c1c1a',      // --text-heading / --kr-grey-900
     colorBgBase: '#ffffff',
     colorBgContainer: '#ffffff',
@@ -133,7 +137,7 @@ const TMS_THEME = {
       activeBorderColor: '#275e74',
       activeOutlineColor: 'rgba(39, 94, 116, 0.35)', // --focus-ring
       controlOutlineWidth: 3,
-      colorTextPlaceholder: '#6f716b',
+      colorTextPlaceholder: '#5f615b',
       colorText: '#1c1c1a',           // --text-heading
       optionHeight: 40,
       optionPadding: '9px 12px',
@@ -148,7 +152,7 @@ const TMS_THEME = {
     Table: {
       borderRadius: 14,
       headerBg: '#f6f6f4',            // --surface-muted
-      headerColor: '#7c7c76',         // --text-muted
+      headerColor: '#4f514b',         // --text-muted
       headerSplitColor: '#dcdcd6',
       rowHoverBg: '#f0f6f8',          // --color-brand-tint (light green)
       cellPaddingBlock: 14,
@@ -176,7 +180,7 @@ const TMS_THEME = {
       itemActiveColor: '#275e74',
       itemSelectedColor: '#275e74',
       itemHoverColor: '#1c4b5f',
-      itemColor: '#7c7c76',           // --text-muted
+      itemColor: '#4f514b',           // --text-muted
       titleFontSize: 14,
       horizontalMargin: '0',
     },

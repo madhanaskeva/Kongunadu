@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Button, Checkbox, Collapse, Empty, Flex, Form, Select, Table, Tabs, Tag, Typography } from 'antd';
+import { Alert, Button, Collapse, Divider, Empty, Flex, Form, Select, Table, Tabs, Tag, Typography } from 'antd';
 import { Minus, Users } from 'lucide-react';
 
 // The screen handlers read e.target.value (a string, as the old select gave);
@@ -46,49 +46,58 @@ export const MarkAttendance = ({ v }) => (
                   onChange={val => v.setAmVehicle(asEvent(val))}
                 />
               </Form.Item>
-              <Form.Item label={`Driver name · up to ${v.amDriverMax}`} extra={v.amDriverHint}>
-                <Select
-                  mode="multiple"
-                  size="large"
-                  placeholder={(v.amDriverOptions || []).length ? 'Select driver' : 'None available'}
-                  disabled={!(v.amDriverOptions || []).length || !v.amDriverMax}
-                  maxCount={v.amDriverMax || undefined}
-                  options={v.amDriverOptions}
-                  value={v.amSelectedDrivers || []}
-                  onChange={v.setAmDrivers}
-                  maxTagCount="responsive"
-                  optionRender={option => {
-                    const isSelected = (v.amSelectedDrivers || []).includes(option.value);
-                    return (
-                      <Flex align="center" gap={10} style={{ width: '100%', padding: '2px 0' }}>
-                        <Checkbox checked={isSelected} style={{ pointerEvents: 'none' }} />
-                        <span>{option.label}</span>
+              {/* One field per seat in the branch's crew (Branch Master); each field holds one person. */}
+              <Typography.Text type="secondary" style={{ display: 'block', margin: '-8px 0 12px', fontSize: 13 }}>{v.amCrewHint}</Typography.Text>
+              {(v.amSeats || []).map(seat => {
+                const missing = v.amShowErr && !seat.value;
+                return (
+                  <Form.Item
+                    key={seat.key}
+                    label={seat.label}
+                    validateStatus={missing ? 'error' : undefined}
+                    help={missing ? (seat.absent ? `Pick a replacement for ${seat.absent.name.replace(/\.$/, '')}.` : `Select a ${seat.helper ? 'helper' : 'driver'}.`) : undefined}
+                  >
+                    {seat.absent ? (
+                      <Flex align="center" justify="space-between" gap={8} style={{ marginBottom: 8, padding: '8px 12px', background: 'var(--kr-red-100)', borderRadius: 8 }}>
+                        <Flex align="center" gap={8} style={{ minWidth: 0 }}>
+                          <Typography.Text strong delete style={{ color: 'var(--kr-red-800)' }}>{seat.absent.name}</Typography.Text>
+                          <Tag color="error" style={{ marginInlineEnd: 0 }}>Absent</Tag>
+                        </Flex>
+                        <Button type="link" size="small" onClick={() => v.undoSeatAbsent(seat)}>Undo</Button>
                       </Flex>
-                    );
-                  }}
-                />
-              </Form.Item>
-              {v.crewHelpers ? (
-                <Form.Item label={`Helper name · up to ${v.amHelperMax}`} extra={v.amHelperHint}>
-                  <Select
-                    mode="multiple"
-                    size="large"
-                    placeholder={(v.amHelperOptions || []).length ? 'Select helper' : 'No helpers in the Driver Master'}
-                    disabled={!(v.amHelperOptions || []).length || !v.amHelperMax}
-                    maxCount={v.amHelperMax || undefined}
-                    options={v.amHelperOptions}
-                    value={v.amSelectedHelpers || []}
-                    onChange={v.setAmHelpers}
-                    maxTagCount="responsive"
-                    optionRender={option => (
-                      <Flex align="center" gap={10} style={{ width: '100%', padding: '2px 0' }}>
-                        <Checkbox checked={(v.amSelectedHelpers || []).includes(option.value)} style={{ pointerEvents: 'none' }} />
-                        <span>{option.label}</span>
-                      </Flex>
-                    )}
-                  />
-                </Form.Item>
-              ) : null}
+                    ) : null}
+                    {seat.absent ? (
+                      <Typography.Text type="secondary" strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Replacement {seat.helper ? 'helper' : 'driver'}</Typography.Text>
+                    ) : null}
+                    <Flex gap={8} align="center">
+                      <Select
+                        size="large"
+                        showSearch
+                        optionFilterProp="label"
+                        style={{ flex: 1, minWidth: 0 }}
+                        placeholder={seat.placeholder}
+                        disabled={v.amSeatsDisabled}
+                        options={seat.options}
+                        value={seat.value || undefined}
+                        onChange={val => v.setSeat(seat, val)}
+                        notFoundContent={<Typography.Text type="secondary">No free {seat.helper ? 'helper' : 'driver'} today</Typography.Text>}
+                        popupRender={menu => (
+                          <>
+                            {menu}
+                            <Divider style={{ margin: '4px 0' }} />
+                            <Button type="text" block onMouseDown={e => e.preventDefault()} onClick={() => v.requestSeat(seat)} style={{ justifyContent: 'flex-start', fontWeight: 700, color: 'var(--color-brand)' }}>
+                              + Request new {seat.helper ? 'helper' : 'driver'}
+                            </Button>
+                          </>
+                        )}
+                      />
+                      {seat.canAbsent ? (
+                        <Button danger size="large" onClick={() => v.markSeatAbsent(seat)} style={{ flex: 'none' }}>Mark absent</Button>
+                      ) : null}
+                    </Flex>
+                  </Form.Item>
+                );
+              })}
               <Form.Item label="Vehicle status" extra={v.amStatusHint} style={{ marginBottom: 0 }}>
                 <Select
                   size="large"
@@ -101,6 +110,9 @@ export const MarkAttendance = ({ v }) => (
               </Form.Item>
               {v.canAssignAm ? (
                 <div style={{ marginTop: 12 }}>
+                  {(v.amErrors || []).length ? (
+                    <Alert type="error" showIcon style={{ marginBottom: 10 }} title="Complete the crew" description={v.amErrors.join(' ')} />
+                  ) : null}
                   <Button type="primary" ghost block onClick={v.assignAmDrivers}>
                     {v.assignAmLabel}
                   </Button>
@@ -128,11 +140,22 @@ export const MarkAttendance = ({ v }) => (
                 scroll={{ x: 'max-content' }}
                 dataSource={v.amRows || []}
                 onRow={r => ({ style: { background: r.bg } })}
-                locale={{ emptyText: 'No crew marked yet. Pick a vehicle, driver(s), helper(s) and vehicle status above.' }}
+                locale={{ emptyText: 'No crew marked yet. Pick a vehicle, fill each crew field and the vehicle status above.' }}
                 columns={[
                   { title: 'S.No', dataIndex: 'sno', key: 'sno', render: sno => <Typography.Text type="secondary" strong>{sno}</Typography.Text> },
                   { title: 'Vehicle number', dataIndex: 'vehicle', key: 'vehicle', render: vehicle => <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, whiteSpace: 'nowrap' }}>{vehicle}</span> },
-                  { title: 'Name', dataIndex: 'name', key: 'name', render: name => <Typography.Text strong>{name}</Typography.Text> },
+                  {
+                    title: 'Name',
+                    dataIndex: 'name',
+                    key: 'name',
+                    render: (name, r) => (
+                      <span>
+                        <Typography.Text strong delete={r.badge === 'Absent'}>{name}</Typography.Text>
+                        {r.badge === 'Absent' ? <Tag color="error" style={{ marginInlineStart: 6, marginInlineEnd: 0 }}>Absent</Tag> : null}
+                        {r.note ? <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>{r.note}</Typography.Text> : null}
+                      </span>
+                    ),
+                  },
                   { title: 'Role', dataIndex: 'role', key: 'role', render: role => <Tag color={role === 'Helper' ? 'cyan' : 'blue'} style={{ marginInlineEnd: 0 }}>{role}</Tag> },
                   {
                     title: 'Vehicle status',

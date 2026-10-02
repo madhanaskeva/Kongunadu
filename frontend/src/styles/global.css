@@ -559,7 +559,7 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
 }
 .tms-search .ant-input-prefix {
   margin-inline-end: 8px;
-  color: var(--kr-grey-500);
+  color: var(--text-muted);
   transition: color 0.15s ease;
 }
 .tms-search.ant-input-affix-wrapper:focus-within .ant-input-prefix {
@@ -677,11 +677,11 @@ body .ant-select-dropdown .ant-select-item-option-selected:not(:has(.ant-select-
   color: var(--color-brand);
 }
 
-/* Placeholders: readable (about 5:1 on white) instead of antd's faint 25% grey. */
+/* Placeholders: readable (about 6:1 on white) instead of antd's faint 25% grey. */
 .ant-input::placeholder,
 .ant-input-number-input::placeholder,
 .ant-picker-input > input::placeholder {
-  color: #6f716b;
+  color: #5f615b;
   opacity: 1;
 }
 

@@ -28,14 +28,14 @@ export const RequestDriver = ({ v }) => (
               title={
                 <Flex align="center" gap={10}>
                   <Avatar aria-hidden="true" size={26} style={{ background: 'var(--color-brand)', fontWeight: 800, fontSize: 13 }}>1</Avatar>
-                  <Typography.Title level={5} style={{ margin: 0, fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Driver details</Typography.Title>
+                  <Typography.Title level={5} style={{ margin: 0, fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{v.reqRole} details</Typography.Title>
                 </Flex>
               }
             >
-              <Form.Item label="Driver name" validateStatus={v.rerr.name ? 'error' : undefined} help={v.rerr.name || undefined}>
+              <Form.Item label={`${v.reqRole} name`} validateStatus={v.rerr.name ? 'error' : undefined} help={v.rerr.name || undefined}>
                 <Input size="large" placeholder="Full name as on licence" value={v.rf.name ?? ''} onChange={v.setRf.name} />
               </Form.Item>
-              <Form.Item label="Licence number" validateStatus={v.rerr.licence ? 'error' : undefined} help={v.rerr.licence || undefined}>
+              <Form.Item label={v.reqHelper ? "Licence number (optional)" : "Licence number"} validateStatus={v.rerr.licence ? 'error' : undefined} help={v.rerr.licence || undefined}>
                 <Input size="large" placeholder="TN28 2019 0004521" value={v.rf.licence ?? ''} onChange={v.setRfLicence} />
               </Form.Item>
               <Form.Item label="Mobile number" validateStatus={v.rerr.phone ? 'error' : undefined} help={v.rerr.phone || undefined} style={{ marginBottom: 0 }}>

@@ -533,7 +533,7 @@
 }
 
 .td-stat-value--empty.ant-typography {
-  color: var(--kr-grey-500);
+  color: var(--text-muted);
 }
 
 .td-verdict-alert-title {
