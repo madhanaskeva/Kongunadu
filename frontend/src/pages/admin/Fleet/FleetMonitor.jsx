@@ -347,7 +347,7 @@ export const FleetMonitor = () => {
   const inTab = (v, tab) =>
     tab === 'all' ||
     (tab === 'running' && (v.status === 'Running' || v.status === 'Enroute')) ||
-    (tab === 'idle' && (v.status === 'Idle' || v.status === 'Idle-loading' || v.status === 'Idle-unloading') && v.status !== 'Idle-without driver' && v.idleCat !== 'without-driver' &&
+    (tab === 'idle' && (v.status === 'Idle' || v.status === 'Idle-loading' || v.status === 'Idle-unloading' || v.status === 'Maintenance' || !!v.idleCat) && v.status !== 'Idle-without driver' && v.idleCat !== 'without-driver' &&
       (idleDurationFilter === 'all' || v.idleMin > Number(idleDurationFilter) * 60)) ||
     (tab === 'idle-without-driver' && (v.status === 'Idle-without driver' || v.idleCat === 'without-driver' || (!v.driver && (v.status === 'Idle' || v.status?.startsWith?.('Idle'))))) ||
     (tab === 'maint' && v.status === 'Maintenance') ||
@@ -386,7 +386,7 @@ export const FleetMonitor = () => {
   // Where an idle vehicle stands, by name: the tracker's / trip's stop, else the road or its yard.
   const idlePlaceName = (v) => {
     const r = v.gpsIdle;
-    if (v.idleCat === 'maintenance') return v.route;
+    if (v.idleCat === 'maintenance') return (r && r.place) || v.route || 'Service bay';
     if (v.idleCat === 'without-driver') return v.route || 'Parked at yard';
     if (r) return ((tms.F || {})[r.place] || (tms.L || {})[r.place] || {}).name || r.place;
     if (v.openTrip) return `On the way · ${v.route}`;
@@ -407,8 +407,9 @@ export const FleetMonitor = () => {
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
 
   // List view: one row per vehicle, the same facts as its card.
-  // Phones: the pinned Vehicle column would cover most of the screen, so the whole table scrolls.
+  // Phones: the pinned columns would cover most of the screen, so the whole table scrolls on mobile.
   const pinVehicle = screens.md ? 'left' : false;
+  const pinActions = screens.md ? 'right' : false;
   const fleetListColumns = [
     {
       title: 'Vehicle',
@@ -425,7 +426,7 @@ export const FleetMonitor = () => {
     {
       title: 'Status',
       key: 'status',
-      width: 130,
+      width: 210,
       render: (_, v) => (
         <Flex vertical gap={4} align="flex-start">
           <Tag color={STATUS_TAG[v.status] || 'default'} className="fl-card-status">{v.status}</Tag>
@@ -499,7 +500,7 @@ export const FleetMonitor = () => {
     {
       title: 'Actions',
       key: 'actions',
-      fixed: 'right',
+      fixed: pinActions,
       width: ff === 'idle' ? 130 : 100,
       render: (_, v) => {
         const isWithoutDriver = v.status === 'Idle-without driver' || v.idleCat === 'without-driver';

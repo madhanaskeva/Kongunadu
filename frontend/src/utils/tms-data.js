@@ -247,11 +247,18 @@ const supervisorNotices=[
 // halt there, `lat`/`lng` the confirmed fix. Add rows here (or replace the list
 // with the live feed) and the Fleet cards pick them up.
 const gpsIdleReports=[
- {vehicle:'V01',kind:'bunk',place:'F01',minutes:85,limitMin:20,lat:'12.9571',lng:'79.9718',ignition:false,note:'Driver Murugan S. reported a queue at the diesel dispenser.'},
- {vehicle:'V02',kind:'bunk',place:'F02',minutes:15,limitMin:20,lat:'13.1012',lng:'80.1625',ignition:false,note:'Refuelling before the evening Sriperumbudur run.'},
+ {vehicle:'V10',kind:'bunk',place:'F06',minutes:55,limitMin:20,lat:'10.3780',lng:'77.9512',ignition:false,note:'Halted at the bunk beyond the fuel limit; no diesel slip uploaded yet.'},
  {vehicle:'V08',kind:'bunk',place:'F03',minutes:40,limitMin:20,lat:'13.0446',lng:'80.1031',ignition:false,note:'Bunk card declined; driver Saravanan K. waiting for cash approval.'},
- {vehicle:'V03',kind:'bunk',place:'F04',minutes:10,limitMin:20,lat:'11.2251',lng:'78.1525',ignition:false,note:'Top-up on the Namakkal → Bengaluru leg.'},
- {vehicle:'V10',kind:'bunk',place:'F06',minutes:55,limitMin:20,lat:'10.3780',lng:'77.9512',ignition:false,note:'Halted at the bunk beyond the fuel limit; no diesel slip uploaded yet.'}
+ {vehicle:'V02',kind:'bunk',place:'F02',minutes:15,limitMin:20,lat:'13.1012',lng:'80.1625',ignition:false,note:'Refuelling before the evening Sriperumbudur run.'},
+ {vehicle:'V11',kind:'loading',place:'Sriperumbudur Hub – Bay 2',minutes:45,limitMin:30,lat:'12.9605',lng:'79.9412',ignition:false,note:'Waiting at loading dock for liquid nitrogen filling.'},
+ {vehicle:'V01',kind:'loading',place:'Linde Cryo Terminal',minutes:25,limitMin:30,lat:'12.9571',lng:'79.9718',ignition:false,note:'Driver Murugan S. waiting for batch clearance.'},
+ {vehicle:'V12',kind:'unloading',place:'Apollo Hospitals, Chennai',minutes:35,limitMin:30,lat:'13.0604',lng:'80.2496',ignition:false,note:'Oxygen manifold discharging into central bank.'},
+ {vehicle:'V14',kind:'unloading',place:'Yashoda Hospitals, Hyderabad',minutes:20,limitMin:30,lat:'17.3753',lng:'78.4744',ignition:false,note:'Connecting cryo hose to hospital LOX storage.'},
+ {vehicle:'V07',kind:'onroad',place:'NH 48 – Vellore Toll Plaza',minutes:50,limitMin:15,lat:'12.9165',lng:'79.1325',ignition:false,note:'Driver meal break at highway rest stop.'},
+ {vehicle:'V13',kind:'onroad',place:'Nellore Highway Rest Bay',minutes:30,limitMin:15,lat:'14.4426',lng:'79.9865',ignition:false,note:'Halted on shoulder awaiting road clearance.'},
+ {vehicle:'V15',kind:'yard',place:'Ambattur central yard',minutes:110,limitMin:60,lat:'13.1143',lng:'80.1548',ignition:false,note:'Parked awaiting next trip assignment.'},
+ {vehicle:'V03',kind:'yard',place:'Namakkal main depot',minutes:65,limitMin:60,lat:'11.2189',lng:'78.1674',ignition:false,note:'Parked after empty container return.'},
+ {vehicle:'V06',kind:'maintenance',place:'Service bay, Namakkal',minutes:180,limitMin:120,lat:'11.2189',lng:'78.1674',ignition:false,note:'Scheduled brake overhaul and oil service.'}
 ];
 // Monthly kilometre targets and actuals per vehicle, for Analytics › Vehicle.
 // Compact source rows: `start` is the first month ('YYYY-MM'); `target` is one

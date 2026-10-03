@@ -59,7 +59,7 @@ export const idleCategoryOf = (v, trip) => {
     return 'without-driver';
   }
   const r = v.gpsIdle;
-  if (r && (r.kind === 'bunk' || r.kind === 'loading' || r.kind === 'unloading')) return r.kind;
+  if (r && (r.kind === 'bunk' || r.kind === 'loading' || r.kind === 'unloading' || r.kind === 'onroad' || r.kind === 'yard' || r.kind === 'maintenance')) return r.kind;
   if (!r && v.status !== 'Idle' && !v.status?.startsWith?.('Idle')) return null;
   return trip ? 'onroad' : 'yard';
 };

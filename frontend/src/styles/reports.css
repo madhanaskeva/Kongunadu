@@ -111,6 +111,7 @@ h5.ant-typography.reports-col-title {
 }
 
 .reports-result-cell {
+  font-size: 16px;
   white-space: nowrap;
   max-width: 280px;
   overflow: hidden;
@@ -123,6 +124,7 @@ h5.ant-typography.reports-col-title {
 
 /* Total row under the result table, same as the last row of the downloaded sheet */
 .reports-result-total > td {
+  font-size: 16px;
   white-space: nowrap;
   background: var(--surface-muted, #f8fafc);
   border-top: 2px solid var(--border-strong, #cbd5e1);

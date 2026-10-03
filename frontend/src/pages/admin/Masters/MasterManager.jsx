@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BadgeCheck, Check, Clock, Eye, EyeOff, Fuel, Pencil, Plus, Search, Trash2, UserCheck, X } from 'lucide-react';
+import { ArrowLeftRight, BadgeCheck, Check, Clock, Eye, EyeOff, Fuel, Pencil, Plus, Search, Trash2, UserCheck, X } from 'lucide-react';
 import { Alert, Button, Card, Empty, Flex, Input, Popover, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { useModuleAccess } from '../../../hooks/useModuleAccess';
@@ -140,6 +140,8 @@ export const MasterManager = ({ type }) => {
     fmtImei,
     bunkReqs,
     decideBunkRequest,
+    driverChangeReqs,
+    decideDriverChangeRequest,
     vehTanks,
     setVehTank,
     saveMaster,
@@ -891,7 +893,7 @@ export const MasterManager = ({ type }) => {
     (type !== 'locations' || !locClient || (r.clientId || r.client) === locClient) &&
     !deleted.includes(r.id) &&
     matchesSearch(debouncedMasterQ, Object.values(r), (tms.B[r.branch] || {}).name) &&
-    (type !== 'drivers' || !driverApprovalFilter || (approvals[r.id] || r.approval || 'Approved') === driverApprovalFilter)
+    (type !== 'drivers' || !driverApprovalFilter || driverApprovalFilter === 'Change driver approval' || (approvals[r.id] || r.approval || 'Approved') === driverApprovalFilter)
   );
   // Table paging: jump back to page 1 whenever the master or a filter changes.
   const [page, setPage] = useState(1);
@@ -1328,6 +1330,115 @@ export const MasterManager = ({ type }) => {
     },
   ];
 
+  const showDriverChangeRequests = type === 'drivers' && driverApprovalFilter === 'Change driver approval';
+  const pendingDriverChangeReqs = (driverChangeReqs || []).filter(r => r.status === 'Pending');
+  const driverChangeRows = (driverChangeReqs || [])
+    .filter(r => matchesSearch(debouncedMasterQ, r.vehicleNumber, r.currentDriverName, r.requestedDriverName, r.branchName, r.supervisorName, r.status))
+    .sort((x, y) => (x.status === 'Pending' ? 0 : 1) - (y.status === 'Pending' ? 0 : 1));
+
+  const driverChangeColumns = [
+    {
+      title: 'Vehicle',
+      dataIndex: 'vehicleNumber',
+      render: (v, r) => (
+        <Flex vertical gap={2}>
+          <Typography.Text strong style={nowrap}>{v}</Typography.Text>
+          {r.vehicleType && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.vehicleType}</Typography.Text>}
+        </Flex>
+      ),
+    },
+    {
+      title: 'Current Driver',
+      dataIndex: 'currentDriverName',
+      render: (v, r) => (
+        <Flex vertical gap={2}>
+          <Typography.Text strong style={nowrap}>{v}</Typography.Text>
+          {r.currentDriverPhone && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {r.currentDriverType || 'Regular'} · +91 {fmtPhone(r.currentDriverPhone)}
+            </Typography.Text>
+          )}
+        </Flex>
+      ),
+    },
+    {
+      title: 'Change To',
+      dataIndex: 'requestedDriverName',
+      render: (v, r) => (
+        <Flex vertical gap={2}>
+          <Flex align="center" gap={6}>
+            <ArrowLeftRight size={14} color="var(--color-brand)" />
+            <Typography.Text strong style={{ ...nowrap, color: 'var(--color-brand)' }}>{v}</Typography.Text>
+          </Flex>
+          {r.requestedDriverPhone && (
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {r.requestedDriverType || 'Regular'} · +91 {fmtPhone(r.requestedDriverPhone)}
+            </Typography.Text>
+          )}
+        </Flex>
+      ),
+    },
+    {
+      title: 'Branch / Supervisor',
+      dataIndex: 'branchName',
+      render: (v, r) => (
+        <Flex vertical gap={2}>
+          <span style={nowrap}>{v || '—'}</span>
+          {r.supervisorName && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.supervisorName}</Typography.Text>}
+        </Flex>
+      ),
+    },
+    {
+      title: 'Requested',
+      dataIndex: 'requestedAt',
+      render: (v) => <span style={nowrap}>{v}</span>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      render: (v, r) => (
+        <Flex vertical gap={2}>
+          <Tag color={v === 'Approved' ? 'success' : v === 'Rejected' ? 'error' : 'warning'} style={{ width: 'fit-content' }}>
+            {v === 'Pending' ? 'Pending approval' : v}
+          </Tag>
+          {r.decidedAt && <Typography.Text type="secondary" style={{ fontSize: 12 }}>{r.decidedAt}</Typography.Text>}
+        </Flex>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'act',
+      align: 'right',
+      fixed: 'right',
+      render: (_, r) => (r.status === 'Pending' ? (
+        <Space size={8} wrap={false}>
+          <Button
+            type="primary"
+            size="small"
+            icon={<Check size={15} strokeWidth={2.4} />}
+            onClick={() => decideDriverChangeRequest(r.id, 'Approved')}
+          >
+            Approve
+          </Button>
+          <Button
+            danger
+            size="small"
+            icon={<X size={15} strokeWidth={2.4} />}
+            onClick={() => decideDriverChangeRequest(r.id, 'Rejected')}
+          >
+            Reject
+          </Button>
+        </Space>
+      ) : (
+        <Tag color={r.status === 'Approved' ? 'success' : 'error'} style={{ fontWeight: 600, margin: 0, whiteSpace: 'nowrap' }}>
+          {r.requestedDriverName
+            ? `${r.requestedDriverName} is ${r.status === 'Approved' ? 'approved' : 'rejected'}`
+            : (r.status === 'Approved' ? 'Driver is approved' : 'Driver is rejected')}
+        </Tag>
+      )),
+    },
+  ];
+
   return (
     <Flex vertical gap={20}>
       {/* Driver Approval Queue banner */}
@@ -1376,10 +1487,12 @@ export const MasterManager = ({ type }) => {
           className="tms-toolbar"
           style={{ padding: '12px 18px', borderBottom: '1px solid var(--border-default)' }}
         >
-          <Flex gap={12} align="center" wrap className="tms-toolbar-main">
+          <Flex gap={10} align="center" wrap className="tms-toolbar-main" style={{ flex: '1 1 auto', minWidth: 0 }}>
             <Typography.Text type="secondary" style={nowrap}>
               {showRequests
                 ? <><Typography.Text strong>{pendingBunkReqs.length}</Typography.Text> pending {pendingBunkReqs.length === 1 ? 'request' : 'requests'}</>
+                : showDriverChangeRequests
+                ? <><Typography.Text strong>{driverChangeRows.length}</Typography.Text> {driverChangeRows.length === 1 ? 'request' : 'requests'}</>
                 : <><Typography.Text strong>{rows.length}</Typography.Text> {m.plural}</>}
             </Typography.Text>
             <Input
@@ -1389,7 +1502,7 @@ export const MasterManager = ({ type }) => {
               placeholder={m.searchPh}
               value={masterQ}
               onChange={(e) => setMasterQ(e.target.value)}
-              style={{ width: 'clamp(200px, 22vw, 280px)', maxWidth: '100%' }}
+              style={{ width: 'clamp(140px, 14vw, 200px)', maxWidth: '100%' }}
             />
 
             {/* Loading Location Master: choose the client before adding anything */}
@@ -1435,7 +1548,7 @@ export const MasterManager = ({ type }) => {
 
             {/* Driver Approval Filter Pills (click the active one again to clear it) */}
             {type === 'drivers' && (
-              <Space size={8} wrap>
+              <Space size={6} wrap={false} style={{ flexShrink: 0 }}>
                 <Button
                   className="tms-filter-pill"
                   style={{ '--pill': 'var(--color-brand)' }}
@@ -1454,6 +1567,18 @@ export const MasterManager = ({ type }) => {
                 >
                   Request approval
                 </Button>
+                <Button
+                  className="tms-filter-pill"
+                  style={{ '--pill': '#c26a00' }}
+                  aria-pressed={driverApprovalFilter === 'Change driver approval'}
+                  icon={<ArrowLeftRight size={16} strokeWidth={2} />}
+                  onClick={() => setDriverApprovalFilter(driverApprovalFilter === 'Change driver approval' ? '' : 'Change driver approval')}
+                >
+                  Change driver approval
+                  {pendingDriverChangeReqs.length > 0 && (
+                    <span className="tms-pill-count">{pendingDriverChangeReqs.length}</span>
+                  )}
+                </Button>
               </Space>
             )}
           </Flex>
@@ -1461,7 +1586,7 @@ export const MasterManager = ({ type }) => {
           {/* Hidden native file picker, opened by the Import button (keeps handleImportFile's change-event contract).
               Kept outside the Space so it does not take an empty slot in the button row. */}
           {canAdd && <input ref={importRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.xls,.xml,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={handleImportFile} style={{ display: 'none' }} />}
-          <Space wrap className="tms-toolbar-actions" style={showRequests ? { display: 'none' } : undefined}>
+          <Space wrap={false} className="tms-toolbar-actions" style={{ flexShrink: 0, ...(showRequests ? { display: 'none' } : {}) }}>
             {canAdd && (
               <Button
                 onClick={() => FILE_TRANSFER_ENABLED && importRef.current && importRef.current.click()}
@@ -1495,8 +1620,20 @@ export const MasterManager = ({ type }) => {
           />
         )}
 
+        {showDriverChangeRequests && (
+          <Table
+            columns={driverChangeColumns}
+            dataSource={driverChangeRows}
+            rowKey="id"
+            tableLayout="auto"
+            scroll={{ x: 1100 }}
+            pagination={{ pageSize: 10, hideOnSinglePage: true, showTotal: (total, [from, to]) => `Showing ${from} to ${to} of ${total} change requests` }}
+            locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={debouncedMasterQ ? <>No requests match &ldquo;{debouncedMasterQ}&rdquo;.</> : 'No driver change requests from supervisors.'} /> }}
+          />
+        )}
+
         {/* Records Table */}
-        {!showRequests && <Table
+        {!showRequests && !showDriverChangeRequests && <Table
           columns={recordColumns}
           dataSource={rows}
           rowKey="id"

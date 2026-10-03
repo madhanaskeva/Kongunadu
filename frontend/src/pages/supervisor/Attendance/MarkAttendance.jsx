@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Button, Collapse, Divider, Empty, Flex, Form, Select, Table, Tabs, Tag, Typography } from 'antd';
+import { Alert, Button, Collapse, Divider, Empty, Flex, Form, Radio, Select, Table, Tabs, Tag, Typography } from 'antd';
 import { Minus, Users } from 'lucide-react';
 
 // The screen handlers read e.target.value (a string, as the old select gave);
@@ -51,14 +51,26 @@ export const MarkAttendance = ({ v }) => (
                 validateStatus={v.amShowErr && !v.am.driverAvailability ? 'error' : undefined}
                 help={v.amShowErr && !v.am.driverAvailability ? 'Select driver availability.' : undefined}
               >
-                <Select
+                <Radio.Group
                   size="large"
-                  placeholder="Select availability"
                   disabled={!v.am.vehicle}
-                  options={v.amDriverAvailabilityOptions}
-                  value={pick(v.amDriverAvailabilityOptions, v.am.driverAvailability)}
-                  onChange={val => v.setAmDriverAvailability(asEvent(val))}
-                />
+                  value={v.am.driverAvailability || undefined}
+                  onChange={e => v.setAmDriverAvailability(asEvent(e?.target?.value || e))}
+                  className="sv-avail-radio-group"
+                >
+                  <Radio
+                    value="Available"
+                    className={`sv-avail-radio ${v.am.driverAvailability === 'Available' ? 'is-available-selected' : ''}`}
+                  >
+                    Available
+                  </Radio>
+                  <Radio
+                    value="Not available"
+                    className={`sv-avail-radio ${v.am.driverAvailability === 'Not available' ? 'is-not-available-selected' : ''}`}
+                  >
+                    Not available
+                  </Radio>
+                </Radio.Group>
               </Form.Item>
               {v.am.driverAvailability === 'Available' ? (
                 <>

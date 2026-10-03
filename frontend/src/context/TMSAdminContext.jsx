@@ -35,6 +35,8 @@ export const TMSAdminProvider = ({ children }) => {
   const ST_KEY = 'kr-tms-settings';
   const ADMIN_NOTIF_KEY = 'kr-tms-admin-notifications';
   const ADMIN_NOTIF_READ_KEY = 'kr-tms-admin-notifications-read';
+  const DRIVER_CHANGE_REQ_KEY = 'kr-tms-driver-change-requests';
+  const REJECTED_DRIVERS_KEY = 'kr-tms-rejected-drivers';
 
   const SEED_ADMIN_NOTIFICATIONS = MOCK_ADMIN_NOTIFICATIONS;
 
@@ -156,6 +158,30 @@ export const TMSAdminProvider = ({ children }) => {
       status: 'Pending',
       requestedAt: 'Today 09:30',
     },
+  ]);
+  const [driverChangeReqs, setDriverChangeReqs] = usePersisted(DRIVER_CHANGE_REQ_KEY, [
+    {
+      id: 'DCR-seed-1',
+      vehicleId: 'V02',
+      vehicleNumber: 'TN 28 BC 1180',
+      vehicleType: 'Container 24ft',
+      currentDriverId: 'D03',
+      currentDriverName: 'Senthil K.',
+      currentDriverPhone: '90031 33445',
+      currentDriverType: 'Regular',
+      requestedDriverId: 'D05',
+      requestedDriverName: 'Praveen M.',
+      requestedDriverPhone: '90031 55667',
+      requestedDriverType: 'Acting',
+      branch: 'B01',
+      branchName: 'Chennai HO',
+      supervisorId: 'S01',
+      supervisorName: 'R. Senthil Kumar',
+      requestedAt: 'Today 14:20',
+      status: 'Pending',
+      decidedAt: null,
+      reason: ''
+    }
   ]);
   const [adminNotifOpen, setAdminNotifOpen] = useState(false);
   const [sendNoticeOpen, setSendNoticeOpen] = useState(false);
@@ -581,6 +607,75 @@ export const TMSAdminProvider = ({ children }) => {
     }
   };
 
+  const decideDriverChangeRequest = (id, decision, reason = '') => {
+    const ok = decision === 'Approved';
+    let list = [];
+    try {
+      list = JSON.parse(localStorage.getItem(DRIVER_CHANGE_REQ_KEY) || 'null') || driverChangeReqs || [];
+    } catch (e) {
+      list = driverChangeReqs || [];
+    }
+    const req = (list || []).find(r => r.id === id);
+    if (!req) return;
+
+    const nextReqs = (list || []).map(r =>
+      r.id === id ? { ...r, status: ok ? 'Approved' : 'Rejected', decidedAt: stampNow(), reason } : r
+    );
+    setDriverChangeReqs(nextReqs);
+    try {
+      localStorage.setItem(DRIVER_CHANGE_REQ_KEY, JSON.stringify(nextReqs));
+    } catch (e) {}
+
+    if (ok) {
+      if (req.vehicleId && req.requestedDriverId) {
+        saveMaster('vehicles', { id: req.vehicleId, driver: req.requestedDriverId }, false);
+      }
+      pushNotice({
+        kind: 'action',
+        branch: req.branch || 'B01',
+        title: `Driver change approved · ${req.vehicleNumber}`,
+        body: `Head Office approved driver change to ${req.requestedDriverName} for vehicle ${req.vehicleNumber}.`,
+        rows: [
+          ['Vehicle', req.vehicleNumber],
+          ['Previous driver', req.currentDriverName],
+          ['New driver', req.requestedDriverName],
+          ['Supervisor', req.supervisorName || 'Supervisor'],
+          ['Status', 'Approved']
+        ]
+      });
+      showToast('success', 'Driver change approved', `${req.requestedDriverName} approved for ${req.vehicleNumber}.`);
+    } else {
+      try {
+        const rejObj = JSON.parse(localStorage.getItem(REJECTED_DRIVERS_KEY) || '{}') || {};
+        const rejList = rejObj[req.vehicleId] || [];
+        if (!rejList.includes(req.requestedDriverId)) {
+          rejObj[req.vehicleId] = [...rejList, req.requestedDriverId];
+          localStorage.setItem(REJECTED_DRIVERS_KEY, JSON.stringify(rejObj));
+        }
+      } catch (e) {}
+
+      pushNotice({
+        kind: 'alert',
+        branch: req.branch || 'B01',
+        title: `Driver change rejected · ${req.vehicleNumber}`,
+        body: `Head Office rejected driver change to ${req.requestedDriverName} for vehicle ${req.vehicleNumber}.${reason ? ' Reason: ' + reason + '.' : ''} ${req.currentDriverName} remains assigned.`,
+        rows: [
+          ['Vehicle', req.vehicleNumber],
+          ['Current driver', req.currentDriverName],
+          ['Rejected driver', req.requestedDriverName],
+          ['Supervisor', req.supervisorName || 'Supervisor'],
+          ['Status', 'Rejected'],
+          ...(reason ? [['Reason', reason]] : [])
+        ]
+      });
+      showToast('warning', 'Driver change rejected', `Driver change request to ${req.requestedDriverName} was rejected.`);
+    }
+
+    try {
+      window.dispatchEvent(new Event('kr-tms-driver-change-updated'));
+    } catch (e) {}
+  };
+
   // Save one or many records of a collection. items: [{ rec, isNew }]
   const saveMasterMany = (route, items) => {
     // A loading location belongs to exactly one client, so a name taken off the
@@ -1004,8 +1099,17 @@ export const TMSAdminProvider = ({ children }) => {
       if (e.key === DRV_KEY) setDrvReqs(read([]));
       if (e.key === MASTER_KEY) setMasterEdits(read({}));
       if (e.key === ADMIN_NOTIF_KEY) setAdminNotifications(read(SEED_ADMIN_NOTIFICATIONS));
+      if (e.key === DRIVER_CHANGE_REQ_KEY) setDriverChangeReqs(read([]));
     };
     window.addEventListener('storage', handleStorage);
+
+    const handleDriverChangeUpdate = () => {
+      try {
+        const list = JSON.parse(localStorage.getItem(DRIVER_CHANGE_REQ_KEY) || 'null');
+        if (list && Array.isArray(list)) setDriverChangeReqs(list);
+      } catch (err) {}
+    };
+    window.addEventListener('kr-tms-driver-change-updated', handleDriverChangeUpdate);
 
     // Only push a new list when the stored JSON actually changed; a fresh array on
     // every poll re-renders the whole admin tree (and resets open date pickers).
@@ -1154,7 +1258,9 @@ export const TMSAdminProvider = ({ children }) => {
         dashFormErr, setDashFormErr,
         rb, setRb,
         fmtPhone, fmtImei, stampNow,
-        pushNotice, decideDriver, requestNewBunk, decideBunkRequest, bunkReqs, setBunkReqs, saveMaster, saveMasterMany, setVehTank, normalizeRecord,
+        pushNotice, decideDriver, requestNewBunk, decideBunkRequest, bunkReqs, setBunkReqs,
+        driverChangeReqs, setDriverChangeReqs, decideDriverChangeRequest, DRIVER_CHANGE_REQ_KEY, REJECTED_DRIVERS_KEY,
+        saveMaster, saveMasterMany, setVehTank, normalizeRecord,
         shrinkImage, readReqs, writeReqs, navTo,
       }}
     >

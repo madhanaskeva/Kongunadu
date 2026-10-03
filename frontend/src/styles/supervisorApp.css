@@ -430,3 +430,68 @@
   color: var(--text-heading);
   min-width: 0;
 }
+
+/* Driver availability radio group */
+.sv-avail-radio-group {
+  display: flex !important;
+  gap: 12px;
+  width: 100%;
+}
+
+.sv-avail-radio {
+  flex: 1;
+  display: flex !important;
+  align-items: center;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1.5px solid var(--border-default, #e2e8f0);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  margin-inline-end: 0 !important;
+}
+
+.sv-avail-radio:hover:not(.ant-radio-wrapper-disabled) {
+  border-color: var(--color-brand, #275e74);
+  background: var(--color-brand-soft, #f0f7fa);
+}
+
+.sv-avail-radio.is-available-selected {
+  border-color: var(--color-brand, #275e74);
+  background: var(--color-brand-soft, #f0f7fa);
+  box-shadow: 0 1px 4px rgba(39, 94, 116, 0.12);
+}
+
+.sv-avail-radio.is-available-selected .ant-radio-inner {
+  border-color: var(--color-brand, #275e74) !important;
+  background-color: var(--color-brand, #275e74) !important;
+}
+
+.sv-avail-radio.is-available-selected > span:last-child {
+  font-weight: 600;
+  color: var(--color-brand, #275e74);
+}
+
+.sv-avail-radio.is-not-available-selected {
+  border-color: var(--kr-saffron-600, #d97706);
+  background: var(--color-hazard-soft, #fffbeb);
+  box-shadow: 0 1px 4px rgba(217, 119, 6, 0.12);
+}
+
+.sv-avail-radio.is-not-available-selected .ant-radio-inner {
+  border-color: var(--kr-saffron-600, #d97706) !important;
+  background-color: var(--kr-saffron-600, #d97706) !important;
+}
+
+.sv-avail-radio.is-not-available-selected > span:last-child {
+  font-weight: 600;
+  color: #b45309;
+}
+
+.sv-avail-radio.ant-radio-wrapper-disabled {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  cursor: not-allowed !important;
+  opacity: 0.65;
+}
+

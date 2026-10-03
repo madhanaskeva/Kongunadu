@@ -49,7 +49,9 @@ export class SupervisorApp extends React.Component {
     att: {}, attVeh: {}, attVehStatus: {}, attRepl: {}, attVehData: {}, amTried: false, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
     am: this.blankAm(),
     idle: this.seedIdle(), idleFilter: 'all', showIdleErrors: false,
-    profileMenuOpen: false
+    profileMenuOpen: false,
+    driverChangeReqs: [],
+    rejectedDriversByVeh: {}
   };
   // The signed-in supervisor and their branch, set at login from the Supervisor Master.
   get SUP() { return (this.state && this.state.supId) || 'S01'; }
@@ -69,6 +71,8 @@ export class SupervisorApp extends React.Component {
   REQ_KEY = 'kr-tms-device-approvals'; IMEI_KEY = 'kr-tms-device-imei'; NOTICE_KEY = 'kr-tms-supervisor-notices';
   // New-driver requests go to the Admin Portal the same way; its approve/reject decisions come back on the same keys.
   DRV_KEY = 'kr-tms-driver-requests'; DRV_APPROVAL_KEY = 'kr-tms-driver-approvals';
+  DRIVER_CHANGE_REQ_KEY = 'kr-tms-driver-change-requests';
+  REJECTED_DRIVERS_KEY = 'kr-tms-rejected-drivers';
   // Tank sizes Head Office sets in the Vehicle Master override the seed data.
   TANK_KEY = 'kr-tms-vehicle-tanks';
   // Saved daily attendance, shared with the Admin Portal: { [branch]: { [YYYY-MM-DD]: { label, savedAt, entries } } }.
@@ -156,6 +160,47 @@ export class SupervisorApp extends React.Component {
     this.setState(st => ({ drvReqs: mine, seedApprovals: seed, ...(gone ? { form: { ...st.form, driver: '', driverOk: false } } : {}) }));
     if (gone) this.toast('warning', `Driver rejected · ${gone.name}`, 'Head Office rejected this driver. Choose another driver for the trip.');
   }
+  readDriverChangeReqs() { try { return JSON.parse(localStorage.getItem(this.DRIVER_CHANGE_REQ_KEY) || '[]') || []; } catch (e) { return this.state.driverChangeReqs || []; } }
+  readRejectedDrivers() { try { return JSON.parse(localStorage.getItem(this.REJECTED_DRIVERS_KEY) || '{}') || {}; } catch (e) { return this.state.rejectedDriversByVeh || {}; } }
+  syncDriverChangeReqs() {
+    let list, rejs;
+    try {
+      list = JSON.parse(localStorage.getItem(this.DRIVER_CHANGE_REQ_KEY) || '[]') || [];
+      rejs = JSON.parse(localStorage.getItem(this.REJECTED_DRIVERS_KEY) || '{}') || {};
+    } catch (e) { return; }
+    const json = JSON.stringify([list, rejs]);
+    if (json === this._drvChangeJson) return;
+    const first = this._drvChangeJson === undefined;
+    this._drvChangeJson = json;
+
+    const prevList = this.state.driverChangeReqs || [];
+    if (!first) {
+      list.forEach(req => {
+        const prev = prevList.find(p => p.id === req.id);
+        if (prev && prev.status === 'Pending' && req.status !== 'Pending') {
+          if (req.status === 'Approved') {
+            const f = this.state.form;
+            if (f && f.vehicle === req.vehicleId) {
+              this.setState(st => ({
+                form: {
+                  ...st.form,
+                  driver: req.requestedDriverId,
+                  drivers: [req.requestedDriverId],
+                  confirmedDrivers: [req.requestedDriverId],
+                  driverOk: true
+                }
+              }));
+            }
+            this.toast('success', 'Driver change approved', `${req.requestedDriverName} is approved for ${req.vehicleNumber}.`);
+          } else if (req.status === 'Rejected') {
+            this.toast('warning', 'Driver change rejected', `Head Office rejected driver change to ${req.requestedDriverName}.${req.reason ? ' ' + req.reason : ''}`);
+          }
+        }
+      });
+    }
+
+    this.setState({ driverChangeReqs: list, rejectedDriversByVeh: rejs });
+  }
   // Branch driver master with Head Office decisions applied, plus drivers requested from this app.
   branchDrivers() {
     const s = this.state, T = this.T();
@@ -185,14 +230,29 @@ export class SupervisorApp extends React.Component {
   // Re-render when Head Office deletes a record (T() reads the deleted list itself).
   syncDeleted() { let j = '[]'; try { j = localStorage.getItem('kr-tms-deleted') || '[]'; } catch (e) { return; } if (j === this._delJson) return; const first = this._delJson === undefined; this._delJson = j; if (!first) this.forceUpdate(); }
   componentDidMount() {
-    this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.syncSettings(); this.loadAttSaved();
-    this._poll = setInterval(() => { this.syncApproval(); this.syncNotices(); this.syncDriverReqs(); this.syncTanks(); this.syncMaster(); this.syncSettings(); this.syncDeleted(); }, 1000);
-    this._onStorage = e => { if (e.key === this.REQ_KEY) this.syncApproval(); if (e.key === this.NOTICE_KEY) this.syncNotices(); if (e.key === this.DRV_KEY || e.key === this.DRV_APPROVAL_KEY) this.syncDriverReqs(); if (e.key === this.TANK_KEY) this.syncTanks(); if (e.key === this.MASTER_KEY) this.syncMaster(); if (e.key === this.ST_KEY) this.syncSettings(); };
+    this.syncNotices(); this.syncDriverReqs(); this.syncDriverChangeReqs(); this.syncTanks(); this.syncMaster(); this.syncSettings(); this.loadAttSaved();
+    this._poll = setInterval(() => { this.syncApproval(); this.syncNotices(); this.syncDriverReqs(); this.syncDriverChangeReqs(); this.syncTanks(); this.syncMaster(); this.syncSettings(); this.syncDeleted(); }, 1000);
+    this._onStorage = e => {
+      if (e.key === this.REQ_KEY) this.syncApproval();
+      if (e.key === this.NOTICE_KEY) this.syncNotices();
+      if (e.key === this.DRV_KEY || e.key === this.DRV_APPROVAL_KEY) this.syncDriverReqs();
+      if (e.key === this.DRIVER_CHANGE_REQ_KEY || e.key === this.REJECTED_DRIVERS_KEY) this.syncDriverChangeReqs();
+      if (e.key === this.TANK_KEY) this.syncTanks();
+      if (e.key === this.MASTER_KEY) this.syncMaster();
+      if (e.key === this.ST_KEY) this.syncSettings();
+    };
     window.addEventListener('storage', this._onStorage);
+    this._onDriverChangeUpdated = () => this.syncDriverChangeReqs();
+    window.addEventListener('kr-tms-driver-change-updated', this._onDriverChangeUpdated);
     const mine = this.readReqs().find(r => r.imei === this.deviceImei() && r.status === 'Pending');
     if (mine && this.state.screen === 'approval') this.setState({ obStatus: 'waiting', obReqId: mine.id, ob: { ...this.state.ob, name: mine.name || '', phone: mine.phone, requestedAt: mine.requestedAt } });
   }
-  componentWillUnmount() { clearInterval(this._poll); clearTimeout(this._tt); window.removeEventListener('storage', this._onStorage); }
+  componentWillUnmount() {
+    clearInterval(this._poll);
+    clearTimeout(this._tt);
+    window.removeEventListener('storage', this._onStorage);
+    if (this._onDriverChangeUpdated) window.removeEventListener('kr-tms-driver-change-updated', this._onDriverChangeUpdated);
+  }
   readReqs() { try { return JSON.parse(localStorage.getItem(this.REQ_KEY) || '[]') || []; } catch (e) { return []; } }
   writeReqs(list) { try { localStorage.setItem(this.REQ_KEY, JSON.stringify(list)); } catch (e) { /* storage blocked: the request stays local */ } }
   // Keep the Supervisor Master row (created when Head Office approved this phone) in step with registration
@@ -354,8 +414,14 @@ export class SupervisorApp extends React.Component {
     const routeKm = pickedCust.reduce((a, u) => a + ((T.R[u.route] || {}).km || 0), 0);
     const routeHours = pickedCust.reduce((a, u) => a + ((T.R[u.route] || {}).hours || 0), 0);
     const routeSummary = pickedCust.length === 1 ? `${(T.R[pickedCust[0].route] || {}).name || pickedCust[0].city} · ${routeKm.toLocaleString('en-IN')} km fixed · about ${routeHours} h.` : `${pickedCust.map(u => u.city).join(' → ')} · ${routeKm.toLocaleString('en-IN')} km fixed across ${pickedCust.length} drops · about ${routeHours} h.`;
-    const freeDrv = branchDrv.filter(d => !isHelper(d) && (d.status === 'Active' || s.att[d.id] === 'P') && d.approval === 'Approved' && !activeDrv.has(d.id) && s.att[d.id] !== 'A');
-    const drvList = [...freeDrv, ...allBranchDrv.filter(d => d.requested && d.approval === 'Pending approval' && !activeDrv.has(d.id))];
+    const rejectedByStore = (s.rejectedDriversByVeh && veh && s.rejectedDriversByVeh[veh.id]) || [];
+    const rejectedByReqs = (s.driverChangeReqs || [])
+      .filter(r => r.vehicleId === (veh && veh.id) && r.status === 'Rejected')
+      .map(r => r.requestedDriverId);
+    const allRejectedForThisVeh = [...new Set([...rejectedByStore, ...rejectedByReqs])];
+
+    const freeDrv = branchDrv.filter(d => !isHelper(d) && (d.status === 'Active' || s.att[d.id] === 'P') && d.approval === 'Approved' && !activeDrv.has(d.id) && s.att[d.id] !== 'A' && !allRejectedForThisVeh.includes(d.id));
+    const drvList = [...freeDrv, ...allBranchDrv.filter(d => d.requested && d.approval === 'Pending approval' && !activeDrv.has(d.id) && !allRejectedForThisVeh.includes(d.id))];
     const mappedDrv = veh ? this.mappedDriver(veh) : null;
     // Drivers marked present on this vehicle in today's attendance (live session or saved attendance)
     const liveAttDrvIds = veh ? Object.keys(s.attVeh).filter(dId => s.attVeh[dId] === veh.id && s.att[dId] === 'P') : [];
@@ -392,16 +458,22 @@ export class SupervisorApp extends React.Component {
     const err = s.showErrors ? openBad : {};
     const dcState = !veh ? 'none' : activeDriverIds.length === 0 ? 'empty' : drvOk ? 'ok' : 'ask';
 
+    const pendingChangeReq = (s.driverChangeReqs || []).find(r => r.vehicleId === (veh && veh.id) && r.status === 'Pending');
+
     const driverCards = activeDriverIds.map(dId => {
       const d = this.drv(dId) || (T.D && T.D[dId]) || { id: dId, name: dId, type: 'Regular', phone: '', approval: 'Approved' };
       const isConfirmed = drvOk || (Array.isArray(f.confirmedDrivers) && f.confirmedDrivers.includes(dId));
       const isPending = d.approval !== 'Approved';
       const isAtt = combinedAttDrvIds.includes(dId);
       const isMapped = mappedDrv && mappedDrv.id === dId;
-      const status = !isConfirmed
+      const status = pendingChangeReq
+        ? `Change to ${pendingChangeReq.requestedDriverName} pending approval`
+        : !isConfirmed
         ? (isAtt ? `Present on ${veh.number} today` : isMapped ? `Mapped to ${veh.number}` : `Selected for ${veh.number}`)
         : (isPending ? 'Confirmed · pending approval' : 'Confirmed');
-      const statusFg = !isConfirmed ? 'var(--text-muted)' : isPending ? '#7A4300' : 'var(--kr-green-800)';
+      const statusFg = pendingChangeReq
+        ? '#c26a00'
+        : !isConfirmed ? 'var(--text-muted)' : isPending ? '#7A4300' : 'var(--kr-green-800)';
       const border = err.driver ? 'var(--status-danger)' : isConfirmed ? 'var(--color-brand)' : 'var(--border-strong)';
       const bg = isConfirmed ? 'var(--color-brand-tint)' : '#fff';
       const avatarBg = isConfirmed ? 'var(--color-brand)' : 'var(--surface-muted)';
@@ -427,7 +499,7 @@ export class SupervisorApp extends React.Component {
     const anyPending = driverCards.some(c => c.isPending);
     const dc = {
       none: dcState === 'none', ask: dcState === 'ask', ok: dcState === 'ok', empty: dcState === 'empty', has: dcState === 'ask' || dcState === 'ok',
-      tag: { none: 'Mapped per vehicle', ask: 'Confirm driver', ok: anyPending ? 'Pending approval' : 'Confirmed', empty: 'Not set' }[dcState],
+      tag: pendingChangeReq ? 'Change pending approval' : { none: 'Mapped per vehicle', ask: 'Confirm driver', ok: anyPending ? 'Pending approval' : 'Confirmed', empty: 'Not set' }[dcState],
       name: firstCard ? firstCard.name : '', initials: firstCard ? firstCard.initials : '', sub: firstCard ? firstCard.sub : '',
       status: firstCard ? firstCard.status : '',
       statusFg: firstCard ? firstCard.statusFg : 'var(--text-muted)',
@@ -435,7 +507,9 @@ export class SupervisorApp extends React.Component {
       bg: dcState === 'ok' ? 'var(--color-brand-tint)' : '#fff',
       avatarBg: dcState === 'ok' ? 'var(--color-brand)' : 'var(--surface-muted)', avatarFg: dcState === 'ok' ? '#fff' : 'var(--text-heading)',
       emptyText: !veh ? '' : mappedDrv ? `${mappedDrv.name} is mapped to ${veh.number} but is ${mappedWhy(mappedDrv)}. Choose a free driver for this trip.` : `${veh.number} has no driver mapped. Choose a free driver for this trip.`,
-      hint: dcState === 'none' ? 'From the branch driver master. A new driver needs Head Office approval.'
+      hint: pendingChangeReq
+        ? `Driver change request to ${pendingChangeReq.requestedDriverName} sent to Head Office. Awaiting approval.`
+        : dcState === 'none' ? 'From the branch driver master. A new driver needs Head Office approval.'
         : dcState === 'ask' ? (activeDriverIds.length > 1 ? 'Tap ✓ to confirm driver(s) taking the trip, or ✕ to remove.' : 'Tap ✓ if this driver is taking the trip, or ✕ to choose another.')
         : dcState === 'empty' ? `${drvList.length} ${drvList.length === 1 ? 'driver is' : 'drivers are'} free today.`
         : anyPending ? `${firstCard?.name} is pending Head Office approval. The trip still opens.`
@@ -1203,10 +1277,68 @@ export class SupervisorApp extends React.Component {
       closeDrvPick: () => this.setState({ drvPickOpen: false, pickingForDriverId: null }),
       pickDriver: e => {
         const id = e.currentTarget.dataset.id;
+        const curActive = (Array.isArray(this.state.form.drivers) && this.state.form.drivers.length > 0)
+          ? this.state.form.drivers
+          : (this.state.form.driver ? [this.state.form.driver] : activeDriverIds);
+        const curDrvId = curActive[0] || (mappedDrv ? mappedDrv.id : '');
+
+        // If clicking the current driver again, close modal without change
+        if (curDrvId && id === curDrvId) {
+          this.setState({ drvPickOpen: false, pickingForDriverId: null });
+          return;
+        }
+
+        // Driver change request workflow:
+        if (veh && curDrvId && id !== curDrvId) {
+          const curDrvObj = this.drv(curDrvId) || (T.D && T.D[curDrvId]) || { name: curDrvId, phone: '', type: 'Regular' };
+          const reqDrvObj = this.drv(id) || (T.D && T.D[id]) || { name: id, phone: '', type: 'Regular' };
+
+          const changeReq = {
+            id: 'DCR' + Date.now(),
+            vehicleId: veh.id,
+            vehicleNumber: veh.number,
+            vehicleType: veh.type || '',
+            currentDriverId: curDrvId,
+            currentDriverName: curDrvObj.name || curDrvId,
+            currentDriverPhone: curDrvObj.phone || '',
+            currentDriverType: curDrvObj.type || 'Regular',
+            requestedDriverId: id,
+            requestedDriverName: reqDrvObj.name || id,
+            requestedDriverPhone: reqDrvObj.phone || '',
+            requestedDriverType: reqDrvObj.type || 'Regular',
+            branch: this.BR,
+            branchName: me.branch,
+            supervisorId: this.SUP,
+            supervisorName: me.name,
+            requestedAt: this.stampText(),
+            status: 'Pending',
+            decidedAt: null,
+            reason: ''
+          };
+
+          const list = this.readDriverChangeReqs();
+          const nextList = [changeReq, ...list.filter(r => !(r.vehicleId === veh.id && r.status === 'Pending'))];
+          try {
+            localStorage.setItem(this.DRIVER_CHANGE_REQ_KEY, JSON.stringify(nextList));
+            window.dispatchEvent(new Event('kr-tms-driver-change-updated'));
+          } catch (err) {}
+
+          this.pushAdminNotif({
+            title: 'Driver Change Request',
+            body: `${me.name} requested driver change for ${veh.number}: ${curDrvObj.name} → ${reqDrvObj.name}.`,
+            time: 'Just now'
+          });
+
+          this.setState({
+            drvPickOpen: false,
+            pickingForDriverId: null,
+            driverChangeReqs: nextList
+          });
+          this.toast('success', 'Driver change requested', `Request to change driver to ${reqDrvObj.name} sent to Head Office for approval.`);
+          return;
+        }
+
         this.setState(st => {
-          const curActive = (Array.isArray(st.form.drivers) && st.form.drivers.length > 0)
-            ? st.form.drivers
-            : (st.form.driver ? [st.form.driver] : activeDriverIds);
           let nextDrivers;
           if (st.pickingForDriverId === '__add') {
             nextDrivers = [...new Set([...curActive, id])];
