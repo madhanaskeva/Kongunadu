@@ -430,3 +430,488 @@
   color: var(--text-heading);
   min-width: 0;
 }
+
+/* ---------- Signed-in shell: admin-style sidebar + page column ---------- */
+.sv-app--shell {
+  background: var(--surface-muted, #f3f6f5);
+}
+
+.sv-app--shell .sv-device {
+  max-width: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+.sv-app--shell .sv-screens {
+  background: transparent;
+}
+
+.sv-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Sidebar + page column, under the desktop top bar. */
+.sv-body {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.sv-sider {
+  flex: none;
+  width: 246px;
+}
+
+/* Phone drawer: the logo block sits flush at the top of the sidebar. On desktop the sidebar
+   keeps the admin geometry (sticky under the 72px top bar). */
+.sv-sidebar--brand.tms-sidebar {
+  padding-top: 0;
+}
+
+.sv-sidebar-brand {
+  margin: 0 -12px 14px;
+  padding: 14px 18px;
+  background: #ffffff;
+  box-shadow: inset -3px 0 0 var(--kr-copper-600);
+}
+
+.sv-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page area: full width beside the sidebar, like the Admin Portal content column. */
+.sv-page {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #ffffff;
+}
+
+/* Dashboard: admin page head + KPI cards. Reuses the .tms-shell KPI styles without the shell sizing. */
+.sv-dash.tms-shell {
+  flex: 1;
+  min-height: 0;
+  padding: 20px 16px 32px;
+  background: transparent;
+}
+
+.sv-dash-kicker.ant-typography {
+  display: block;
+  margin-bottom: 12px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sv-dash .sv-home-tile.ant-card .ant-card-body {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 992px) {
+  .sv-appbar {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .sv-page {
+    width: auto;
+    margin: 20px 28px 28px;
+    border: 1px solid var(--border-default);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 48, 33, 0.05);
+    overflow: clip;
+  }
+
+  /* The dashboard sits straight on the page background, as the admin dashboard does. */
+  .sv-page:has(> .sv-dash) {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .sv-dash.tms-shell {
+    padding: 0;
+  }
+}
+
+/* ---------- Desktop shell: admin-portal density (≥992px only; phones keep the large touch layout) ---------- */
+@media (min-width: 992px) {
+  /* Page title in the top bar reads like the admin page heading. */
+  .sv-app--shell .sv-appbar-title h5.ant-typography {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--kr-grey-900);
+  }
+
+  .sv-app--shell .sv-page {
+    padding: 8px 12px 0;
+  }
+
+  /* Admin-sized controls instead of the 56px touch targets. */
+  .sv-app--shell .sv-page .ant-btn-lg {
+    height: 40px !important;
+    padding-inline: 18px;
+    font-size: 14px !important;
+    border-radius: 8px;
+  }
+
+  .sv-app--shell .sv-page .ant-btn-lg.ant-btn-icon-only {
+    width: 40px;
+    padding-inline: 0;
+  }
+
+  .sv-app--shell .sv-page .ant-select-lg,
+  .sv-app--shell .sv-page .ant-picker-lg,
+  .sv-app--shell .sv-page .ant-input-number-lg {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  .sv-app--shell .sv-page .ant-input-lg,
+  .sv-app--shell .sv-page .ant-input-affix-wrapper-lg,
+  .sv-app--shell .sv-page .ant-input-number-lg input {
+    font-size: 14px;
+  }
+
+  .sv-app--shell .sv-page .ant-input-lg:not(textarea),
+  .sv-app--shell .sv-page .ant-input-affix-wrapper-lg {
+    height: 40px;
+    padding-block: 0;
+  }
+
+  .sv-app--shell .sv-page .ant-input-affix-wrapper-lg .ant-input-lg {
+    height: auto;
+  }
+
+  /* Forms flow into columns like the admin filter/forms; wide pieces span the full row. */
+  .sv-app--shell .sv-page .ant-form-vertical {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    align-items: start;
+  }
+
+  .sv-app--shell .sv-page .ant-form-vertical > :not(.ant-form-item),
+  .sv-app--shell .sv-page .ant-form-vertical > .ant-form-item:has(textarea) {
+    grid-column: 1 / -1;
+  }
+
+  .sv-app--shell .sv-page .ant-form-vertical .ant-form-item-label > label {
+    font-weight: 600;
+    color: var(--text-heading);
+  }
+
+  /* Sticky action bar: buttons sit on the right at normal width, as on admin pages. */
+  .sv-app--shell .sv-page [style*="position: sticky"][style*="bottom"],
+  .sv-app--shell .sv-page .sv-actionbar {
+    display: flex !important;
+    flex-direction: row-reverse !important;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px !important;
+    padding: 12px 20px 16px !important;
+  }
+
+  .sv-app--shell .sv-page [style*="position: sticky"][style*="bottom"] .ant-btn-block,
+  .sv-app--shell .sv-page .sv-actionbar .ant-btn-block {
+    width: auto;
+    min-width: 160px;
+  }
+
+  /* Dashboard quick-action tiles: admin card scale. */
+  .sv-dash .sv-home-tile.ant-card .ant-card-body {
+    min-height: 88px;
+    padding: 18px 20px;
+  }
+
+  .sv-dash .sv-home-tile-title--sm {
+    font-size: 18px;
+  }
+
+  .sv-dash .sv-home-tile-count {
+    font-size: 26px;
+  }
+
+  .sv-dash .sv-home-tile.ant-card {
+    border-width: 1px;
+    border-left-width: 4px;
+  }
+}
+
+/* ---------- Form sub-grids (Close Trip editors, expenses). Phones: same stacking as before. ---------- */
+.sv-fgrid--fill,
+.sv-exp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 10px;
+}
+
+.sv-exp-grid {
+  column-gap: 12px;
+}
+
+.sv-fgrid--fill > .sv-fgrid-bunk,
+.sv-fgrid--fill > .sv-fgrid-full {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 992px) {
+  /* Odometer reading: From | To | Odometer End KM | Photo (two per row on smaller laptops). */
+  .sv-fgrid--4 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+
+  /* Compact photo picker: same height as the fields beside it. */
+  .sv-fgrid--4 .ant-upload-wrapper .ant-upload-drag .ant-upload-btn {
+    padding: 4px 0;
+  }
+
+  .sv-fgrid--4 .ant-upload-drag .ant-avatar {
+    width: 30px !important;
+    height: 30px !important;
+    line-height: 30px !important;
+  }
+
+  .sv-fgrid--4 .ant-upload-drag .ant-typography {
+    font-size: 12.5px;
+    line-height: 1.3;
+  }
+
+  /* Diesel: Bunk | Quantity | Rate on one row; the new-bunk request sits under it. */
+  .sv-fgrid--fill {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 16px;
+  }
+
+  .sv-fgrid--fill > .sv-fgrid-bunk {
+    grid-column: auto;
+  }
+
+  .sv-fgrid--fill > .sv-fgrid-after {
+    order: 1;
+  }
+
+  .sv-exp-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 16px;
+  }
+
+  .sv-app--shell .sv-page .sv-qty-grid {
+    column-gap: 24px !important;
+  }
+
+  /* "+ Add reading / bunk / advance": compact dashed button, not a full-width bar. */
+  .sv-app--shell .sv-page .ant-btn.sv-add-btn {
+    align-self: flex-start;
+    width: auto;
+    min-width: 160px;
+    border-style: dashed;
+    border-color: var(--color-brand);
+    color: var(--color-brand);
+    font-weight: 700;
+    background: var(--color-brand-tint);
+  }
+
+  .sv-app--shell .sv-page .ant-btn.sv-add-btn:hover {
+    background: #ffffff;
+  }
+
+  /* Section cards inside forms: admin card look with a clear header. */
+  .sv-app--shell .sv-page .ant-form-vertical > .ant-card {
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0, 48, 33, 0.04);
+  }
+
+  .sv-app--shell .sv-page .ant-form-vertical > .ant-card > .ant-card-head {
+    background: var(--surface-muted);
+    border-radius: 12px 12px 0 0;
+  }
+
+  .sv-app--shell .sv-page .ant-form-vertical > .ant-card > .ant-card-body {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 1400px) {
+  .sv-app--shell .sv-page .ant-form-vertical {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sv-exp-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .sv-fgrid--4 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.3fr);
+  }
+}
+
+/* ---------- Per-page desktop layouts (layout only; phones unchanged) ---------- */
+@media (min-width: 992px) {
+  /* Sidebar colour runs the full height of long pages. */
+  .sv-sider {
+    background: #173d4d;
+  }
+
+  /* Close Trip: Invoice | LR | Loading qty | Unloading qty on the first row, sections below,
+     Total expense beside the advance balance, Remarks last. */
+  .sv-app--shell .sv-page .ant-form-vertical.sv-form-close {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sv-form-close > .ant-form-item,
+  .sv-form-close > .sv-qty-grid > .ant-form-item {
+    order: -1;
+  }
+
+  .sv-form-close > .ant-form-item:has(textarea) {
+    order: 1;
+  }
+
+  .sv-form-close > .sv-qty-grid {
+    display: contents !important;
+  }
+
+  .sv-app--shell .sv-page .sv-form-close > .ant-card:not(.ant-card-bordered),
+  .sv-app--shell .sv-page .sv-form-close > .ant-card:not(.ant-card-bordered) ~ .ant-card {
+    grid-column: span 2;
+    align-self: stretch;
+  }
+
+  .sv-form-close > .ant-card:not(.ant-card-bordered) > .ant-card-body {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  /* Other expenses rows: a sensible width instead of stretching across the page. */
+  .sv-exp-other .ant-form-item-control {
+    max-width: 760px;
+  }
+
+  /* Attendance: Vehicle number and Vehicle status share the first row, crew seats below. */
+  .sv-form-att > .ant-form-item:first-child,
+  .sv-form-att > .ant-form-item:last-child {
+    order: -1;
+  }
+
+  /* Trip history: Vehicle and Client filters side by side. */
+  .sv-hist-filters {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+    align-items: end;
+  }
+
+  .sv-hist-filters > :nth-child(n + 3) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Phones: the menu button sits in the app bar too, so free room for the page title. */
+@media (max-width: 480px) {
+  .sv-app--shell .sv-appbar { gap: 4px !important; padding-left: 8px; padding-right: 10px; }
+  .sv-app--shell .sv-gps-label { display: none; }
+  .sv-app--shell .sv-profile-pill.ant-btn > svg { display: none; }
+  .sv-app--shell .sv-profile-pill.ant-btn { padding: 3px; }
+}
+
+/* ---------- Desktop top bar + page heading (admin layout) ---------- */
+.sv-topbar .tms-topbar-actions .sv-gps-label {
+  font-size: 11px;
+}
+
+.sv-pagehead.tms-pagehead {
+  padding: 20px 28px 0;
+}
+
+.sv-pagehead-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px !important;
+  font-weight: 600;
+  color: var(--text-heading) !important;
+}
+
+.sv-pagehead-back.ant-btn {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+@media (min-width: 992px) {
+  .sv-app--shell .sv-page {
+    margin-top: 16px;
+  }
+
+  /* The dashboard brings its own heading, so it keeps the full top spacing. */
+  .sv-app--shell .sv-page:has(> .sv-dash) {
+    margin-top: 20px;
+  }
+}
+
+/* ---------- Desktop spacing: tighter rows between fields, like the admin forms ---------- */
+@media (min-width: 992px) {
+  .sv-app--shell .sv-page .ant-form-item {
+    margin-bottom: 16px;
+  }
+
+  .sv-app--shell .sv-page .ant-form-vertical .ant-form-item-label {
+    padding-bottom: 6px;
+  }
+
+  .sv-app--shell .sv-page .ant-form-item-extra,
+  .sv-app--shell .sv-page .ant-form-item-explain {
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+
+  /* Card sections inside forms: less padding around their rows. */
+  .sv-app--shell .sv-page .ant-card-small > .ant-card-body {
+    padding: 12px 14px;
+  }
+
+  .sv-exp-grid .ant-form-item {
+    margin-bottom: 12px;
+  }
+}
+
+/* Total expense keeps its natural height next to the taller Advance balance card. */
+@media (min-width: 992px) {
+  .sv-app--shell .sv-page .sv-form-close > .ant-card:not(.ant-card-bordered) {
+    align-self: start;
+  }
+}
+
+/* Wide screens (3-column forms): Remarks fills the two free columns beside the last field
+   instead of starting its own full-width row, so no empty gap is left behind. */
+@media (min-width: 1400px) {
+  .sv-app--shell .sv-page .ant-form-vertical > .ant-form-item:has(textarea) {
+    grid-column: span 2;
+  }
+
+  .sv-app--shell .sv-page .ant-form-vertical.sv-form-close > .ant-form-item:has(textarea) {
+    grid-column: 1 / -1;
+  }
+}

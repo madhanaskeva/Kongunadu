@@ -60,7 +60,7 @@ export const CloseTrip = ({ v }) => (
             <Alert type="error" title="The trip cannot close until the required fields are filled." />
           </>
         ) : null}
-        <Form layout="vertical" requiredMark={false} component="div">
+        <Form layout="vertical" requiredMark={false} component="div" className="sv-form-close">
           <Form.Item label="Loading invoice number" validateStatus={v.cerr.invoice ? 'error' : undefined} help={v.cerr.invoice || undefined}>
             <Input size="large" placeholder="e.g. SP/INV/22890" value={v.cf.invoice ?? ''} onChange={v.setCf.invoice} />
           </Form.Item>
@@ -116,6 +116,7 @@ export const CloseTrip = ({ v }) => (
                     <Typography.Text strong style={{ display: 'block', marginBottom: 10, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--kr-green-900)' }}>
                       {v.legEditorTitle}
                     </Typography.Text>
+                    <div className="sv-fgrid sv-fgrid--4">
                     <Form.Item label="From" style={{ marginBottom: 10 }}>
                       <Select
                         size="large"
@@ -177,6 +178,7 @@ export const CloseTrip = ({ v }) => (
                         </>
                       ) : null}
                     </Form.Item>
+                    </div>
                     <Flex wrap gap={8}>
                       <Button type="primary" size="large" onClick={v.saveLeg}>{v.legSaveLabel}</Button>
                       {v.legCanCancel ? (
@@ -190,7 +192,7 @@ export const CloseTrip = ({ v }) => (
               ) : null}
               {v.legAddShown ? (
                 <>
-                  <Button size="large" block onClick={v.openLegEditor}>+ Add reading</Button>
+                  <Button size="large" block className="sv-add-btn" onClick={v.openLegEditor}>+ Add reading</Button>
                 </>
               ) : null}
               {v.cerr.legs ? (
@@ -233,9 +235,10 @@ export const CloseTrip = ({ v }) => (
                     <Typography.Text strong style={{ display: 'block', marginBottom: 10, fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--kr-green-900)' }}>
                       {v.fillEditorTitle}
                     </Typography.Text>
+                    <div className="sv-fgrid sv-fgrid--fill">
                     {v.authorizedBunkOptions ? (
                       <>
-                        <Form.Item label="Authorized Fuel Bunk" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || v.fillBunkHint} style={{ marginBottom: 10 }}>
+                        <Form.Item className="sv-fgrid-bunk" label="Authorized Fuel Bunk" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || v.fillBunkHint} style={{ marginBottom: 10 }}>
                           <Select
                             size="large"
                             placeholder={v.authorizedBunkOptions.length ? 'Select authorized bunk for route' : 'None available'}
@@ -246,7 +249,7 @@ export const CloseTrip = ({ v }) => (
                           />
                         </Form.Item>
                         {(v.selectedBunkChoice === 'NEW_BUNK' || (!v.authorizedBunkOptions.some(o => o.value === v.selectedBunkChoice) && v.selectedBunkChoice)) && (
-                          <Flex vertical gap={8} style={{ marginBottom: 10 }}>
+                          <Flex vertical gap={8} className="sv-fgrid-full sv-fgrid-after" style={{ marginBottom: 10 }}>
                             <Form.Item label="New fuel bunk name" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || undefined} style={{ marginBottom: 0 }}>
                               <Input
                                 size="large"
@@ -267,11 +270,10 @@ export const CloseTrip = ({ v }) => (
                         )}
                       </>
                     ) : (
-                      <Form.Item label="Bunk name" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || v.fillBunkHint} style={{ marginBottom: 10 }}>
+                      <Form.Item className="sv-fgrid-bunk" label="Bunk name" validateStatus={v.fillErr.bunk ? 'error' : undefined} help={v.fillErr.bunk || v.fillBunkHint} style={{ marginBottom: 10 }}>
                         <Input size="large" placeholder="e.g. IOC – Sriperumbudur Highway" value={v.cf.fillDraft.bunk ?? ''} onChange={v.setFillBunk} />
                       </Form.Item>
                     )}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 10 }}>
                       <Form.Item label="Quantity" validateStatus={v.fillErr.litres ? 'error' : undefined} help={v.fillErr.litres || v.qtyHint} style={{ marginBottom: 10 }}>
                         <Input size="large" suffix="L" value={v.cf.fillDraft.litres ?? ''} onChange={v.setFillLitres} inputMode="decimal" />
                       </Form.Item>
@@ -296,7 +298,7 @@ export const CloseTrip = ({ v }) => (
               ) : null}
               {v.fillAddShown ? (
                 <>
-                  <Button size="large" block onClick={v.openFillEditor}>+ Add bunk</Button>
+                  <Button size="large" block className="sv-add-btn" onClick={v.openFillEditor}>+ Add bunk</Button>
                 </>
               ) : null}
               <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }}>
@@ -312,7 +314,7 @@ export const CloseTrip = ({ v }) => (
               ) : null}
             </Flex>
           </Card>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 12 }}>
+          <div className="sv-qty-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 12 }}>
             <Form.Item label="Loading qty" validateStatus={v.cerr.qtyLoad ? 'error' : undefined} help={v.cerr.qtyLoad || undefined}>
               <Input size="large" value={v.cf.qtyLoad ?? ''} onChange={v.setCf.qtyLoad} />
             </Form.Item>
@@ -324,7 +326,7 @@ export const CloseTrip = ({ v }) => (
           <AdvanceEntries a={v.closeAdv} />
           {/* Expense breakdown — every box feeds the total, so nothing is typed twice */}
           <Card size="small" title="Trip expenses" style={{ marginBottom: 18 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', columnGap: 12 }}>
+            <div className="sv-exp-grid">
               <Form.Item label="1. FASTag">
                 <Input size="large" prefix="₹" placeholder="0" inputMode="numeric" value={v.expBreakdown.fastag ?? ''} onChange={e => v.setExpBreakdown('fastag', e.target.value)} />
               </Form.Item>
@@ -353,7 +355,7 @@ export const CloseTrip = ({ v }) => (
               </Form.Item>
             </div>
 
-            <Form.Item label={`${((v.closeDrivers && v.closeDrivers.length) || 1) + 6}. Other expenses`} style={{ marginBottom: 0 }}>
+            <Form.Item className="sv-exp-other" label={`${((v.closeDrivers && v.closeDrivers.length) || 1) + 6}. Other expenses`} style={{ marginBottom: 0 }}>
               <Flex vertical gap={8}>
                 {v.otherExpenses.map((row, i) => {
                   const opts = (v.otherExpenseOptions || []).some(o => o.value === row.name)

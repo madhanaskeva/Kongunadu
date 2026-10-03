@@ -25,7 +25,7 @@ export const TripHistory = ({ v }) => {
     <>
       <Flex vertical gap={12} style={{ flex: 1, padding: 16 }}>
         <Form layout="vertical" component={false}>
-          <Flex vertical gap={10} style={{ position: "relative" }}>
+          <Flex vertical gap={10} className="sv-hist-filters" style={{ position: "relative" }}>
             {/* Top Row: Vehicle Number & Date Range Filter */}
             <Flex align="flex-end" gap={8}>
               {/* Vehicle Number Filter Dropdown */}

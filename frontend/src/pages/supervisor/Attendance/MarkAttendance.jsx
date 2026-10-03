@@ -35,7 +35,7 @@ export const MarkAttendance = ({ v }) => (
             {(v.crewIssues || []).length ? (
               <Alert type="error" showIcon title="Fix the crew before saving" description={v.crewIssues.join(' ')} />
             ) : null}
-            <Form layout="vertical" requiredMark={false} component="div">
+            <Form layout="vertical" requiredMark={false} component="div" className="sv-form-att">
               <Form.Item label="Vehicle number" extra={v.amVehicleHint}>
                 <Select
                   size="large"

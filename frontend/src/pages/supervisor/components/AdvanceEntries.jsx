@@ -73,7 +73,7 @@ export const AdvanceEntries = ({ a }) => (
           </Flex>
         </Card>
       ) : (
-        <Button size="large" block onClick={a.openEditor}>+ Add advance</Button>
+        <Button size="large" block className="sv-add-btn" onClick={a.openEditor}>+ Add advance</Button>
       )}
       <Card size="small" variant="borderless" style={{ background: 'var(--surface-muted)' }}>
         <Flex justify="space-between" align="center">

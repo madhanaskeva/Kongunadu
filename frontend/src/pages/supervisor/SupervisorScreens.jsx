@@ -1,6 +1,8 @@
 import React from 'react';
-import { Alert, Avatar, Badge, Button, Dropdown, Flex, Modal, Radio, Tag, Typography } from 'antd';
-import { AlertTriangle, Bell, ChevronDown, ChevronLeft, LogOut, MapPin, User } from 'lucide-react';
+import { Alert, Avatar, Badge, Button, Drawer, Dropdown, Flex, Grid, Modal, Radio, Tag, Typography } from 'antd';
+import { AlertTriangle, Bell, CalendarDays, ChevronDown, ChevronLeft, LogOut, MapPin, Menu, User } from 'lucide-react';
+import BrandLogo from '../../components/common/BrandLogo';
+import SupervisorSidebar from './components/SupervisorSidebar';
 import DeviceApproval from '../auth/SupervisorDeviceApproval';
 import VerifyOtp from '../auth/SupervisorVerifyOtp';
 import Register from '../auth/SupervisorRegister';
@@ -34,7 +36,40 @@ const { Title, Text, Paragraph } = Typography;
 // ds Toast tones → antd Alert types.
 const TOAST_TYPE = { success: 'success', danger: 'error', warning: 'warning', info: 'info' };
 
-export const SupervisorScreens = ({ v }) => (
+export const SupervisorScreens = ({ v }) => {
+  // Wide screens keep the sidebar open beside the page; phones and tablets slide it in from the menu button.
+  const wide = !!Grid.useBreakpoint().lg;
+  const [navOpen, setNavOpen] = React.useState(false);
+  const sidebar = <SupervisorSidebar v={v} showBrand={!wide} onNavigate={() => setNavOpen(false)} />;
+  // Profile dropdown (Supervisor Profile / Sign out), shared by the desktop top bar and the phone app bar.
+  const profileMenu = (trigger, desktop) => (
+    <Dropdown
+      trigger={['click']}
+      placement="bottomRight"
+      open={v.profileMenuOpen}
+      onOpenChange={(open, info) => { if (info && info.source === 'menu') return; /* goProfile / onSignOut close it themselves */ if (open !== v.profileMenuOpen) v.toggleProfileMenu(); }}
+      popupRender={(menu) => (
+        <div className={desktop ? 'tms-topbar-dropdown' : 'sv-profile-menu'}>
+          <div className={desktop ? 'tms-topbar-dropdown-head' : 'sv-profile-menu-head'}>
+            <Text strong>{v.supFullName || v.supName || "Supervisor"}</Text>
+            {desktop ? null : <br />}
+            <Text type="secondary" style={{ fontSize: desktop ? 12 : 11 }}>{v.supRoleText}</Text>
+          </div>
+          {menu}
+        </div>
+      )}
+      menu={{
+        items: [
+          { key: 'profile', label: 'Supervisor Profile', icon: <User size={16} strokeWidth={2.2} />, onClick: v.goProfile },
+          { type: 'divider' },
+          { key: 'signout', label: 'Sign out', danger: true, icon: <LogOut size={16} strokeWidth={2.2} />, onClick: v.onSignOut },
+        ],
+      }}
+    >
+      {trigger}
+    </Dropdown>
+  );
+  return (
     <div className="sv-screens">
       {/* ============ DEVICE APPROVAL ============ */}
       {v.is.approval && <DeviceApproval v={v} />}
@@ -54,8 +89,85 @@ export const SupervisorScreens = ({ v }) => (
       {v.isLogin && <Login v={v} />}
       {/* ============ APP SHELL ============ */}
       {v.isApp ? (
-        <>
+        <div className={wide ? 'sv-shell sv-shell--wide' : 'sv-shell'}>
+          {/* Desktop: full-width top bar like the Admin Portal (brand + tagline, GPS, bell, account). */}
+          {wide ? (
+            <header className="tms-topbar sv-topbar">
+              <span role="button" tabIndex={0} onClick={v.goHome} onKeyDown={e => { if (e.key === 'Enter') v.goHome(); }} className="tms-topbar-brand" style={{ cursor: 'pointer' }} aria-label="Dashboard">
+                <BrandLogo />
+              </span>
+              <div className="tms-topbar-tagline">
+                Safe moves
+                <br />
+                Stronger tomorrows
+              </div>
+              <div className="tms-topbar-scene" aria-hidden="true" />
+              <Flex align="center" gap={12} className="tms-topbar-actions">
+                <span title="GPS status">
+                  <Badge status="processing" color={v.gpsColor} text={<Text strong className="sv-gps-label" style={{ color: v.gpsColor }}>{v.gpsLabel}</Text>} />
+                </span>
+                <Badge count={v.notifHasUnread ? v.notifUnread : 0} overflowCount={99} size="small" offset={[-6, 6]}>
+                  <Button type="text" onClick={v.goNotifications} className="tms-topbar-icon" aria-label={v.bellLabel} icon={<Bell size={20} />} style={{ background: v.bellBg }} />
+                </Badge>
+                {profileMenu(
+                  <button type="button" aria-label="My profile menu" aria-expanded={v.profileMenuOpen} className={`tms-topbar-account${v.profileMenuOpen || v.is.profile ? ' is-active' : ''}`}>
+                    <Avatar size={42} className="tms-topbar-avatar">{v.supInitials || 'SV'}</Avatar>
+                    <Flex vertical style={{ textAlign: 'left', lineHeight: 1.25 }}>
+                      <Text strong style={{ fontSize: 15 }}>{v.supName}</Text>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{v.branchName}</Text>
+                    </Flex>
+                    <ChevronDown size={18} color="var(--text-muted)" style={{ transition: 'transform 0.15s ease', transform: v.profileMenuOpen ? 'rotate(180deg)' : 'none' }} />
+                  </button>,
+                  true,
+                )}
+              </Flex>
+            </header>
+          ) : null}
+          <div className="sv-body">
+          {wide ? (
+            <aside className="sv-sider">{sidebar}</aside>
+          ) : (
+            <Drawer
+              placement="left"
+              open={navOpen}
+              onClose={() => setNavOpen(false)}
+              closable={false}
+              size={246}
+              rootClassName="tms-sidebar-drawer"
+              styles={{ body: { padding: 0 }, mask: { background: 'rgba(20,32,43,.45)' } }}
+            >
+              {sidebar}
+            </Drawer>
+          )}
+          <div className="sv-main">
+          {wide ? (
+            /* Desktop page heading, as on admin pages. The dashboard renders its own welcome heading. */
+            !v.is.home ? (
+              <div className="tms-pagehead sv-pagehead">
+                <Flex align="center" gap={12} style={{ minWidth: 0 }}>
+                  {v.showBack ? (
+                    <Button onClick={v.back} aria-label="Back" icon={<ChevronLeft size={20} strokeWidth={2.5} />} className="sv-pagehead-back" />
+                  ) : null}
+                  <div style={{ minWidth: 0 }}>
+                    <h1>{v.title}</h1>
+                    <p className="sv-pagehead-meta">
+                      <span className="sv-branch-pill"><MapPin size={11} strokeWidth={2.5} aria-hidden />{v.branchName}</span>
+                      <span>{v.supName}</span>
+                    </p>
+                  </div>
+                </Flex>
+                <div className="tms-pagehead-date">
+                  <CalendarDays size={20} color="var(--kr-grey-700)" />
+                  <span>
+                    <strong>Today</strong>
+                    <small>{v.todayLong}</small>
+                  </span>
+                </div>
+              </div>
+            ) : null
+          ) : (
           <Flex component="header" align="center" gap={10} className="sv-appbar">
+            <Button type="text" size="large" onClick={() => setNavOpen(true)} aria-label="Open menu" icon={<Menu size={22} strokeWidth={2.2} />} />
             {v.showBack ? (
               <>
                 <Button type="text" size="large" onClick={v.back} aria-label="Back" icon={<ChevronLeft size={22} strokeWidth={2.5} />} />
@@ -78,35 +190,16 @@ export const SupervisorScreens = ({ v }) => (
               <Button type="text" size="large" onClick={v.goNotifications} aria-label={v.bellLabel} icon={<Bell size={22} strokeWidth={2.2} />} style={{ background: v.bellBg }} />
             </Badge>
             {/* Profile Avatar Pill & Dropdown */}
-            <Dropdown
-              trigger={['click']}
-              placement="bottomRight"
-              open={v.profileMenuOpen}
-              onOpenChange={(open, info) => { if (info && info.source === 'menu') return; /* goProfile / onSignOut close it themselves */ if (open !== v.profileMenuOpen) v.toggleProfileMenu(); }}
-              popupRender={(menu) => (
-                <div className="sv-profile-menu">
-                  <div className="sv-profile-menu-head">
-                    <Text strong>{v.supFullName || v.supName || "Supervisor"}</Text>
-                    <br />
-                    <Text type="secondary" style={{ fontSize: 11 }}>{v.supRoleText}</Text>
-                  </div>
-                  {menu}
-                </div>
-              )}
-              menu={{
-                items: [
-                  { key: 'profile', label: 'Supervisor Profile', icon: <User size={16} strokeWidth={2.2} />, onClick: v.goProfile },
-                  { type: 'divider' },
-                  { key: 'signout', label: 'Sign out', danger: true, icon: <LogOut size={16} strokeWidth={2.2} />, onClick: v.onSignOut },
-                ],
-              }}
-            >
+            {profileMenu(
               <Button shape="round" aria-label="Profile menu" aria-expanded={v.profileMenuOpen} className="sv-profile-pill">
                 <Avatar size={30} className="sv-avatar">{v.supInitials || "SV"}</Avatar>
                 <ChevronDown size={14} strokeWidth={2.5} style={{ transform: v.profileMenuOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />
-              </Button>
-            </Dropdown>
+              </Button>,
+              false,
+            )}
           </Flex>
+          )}
+          <div className="sv-page">
           {/* HOME */}
           {v.is.home && <Home v={v} />}
           {/* PROFILE */}
@@ -152,6 +245,7 @@ export const SupervisorScreens = ({ v }) => (
           {v.is.gpsPerm && <GpsPermission v={v} />}
           {/* OFFLINE / ERROR */}
           {v.is.offline && <Offline v={v} />}
+          </div>
           {/* UNCLOSED TRIP ALERT · must be acknowledged, so no mask/escape close */}
           <Modal
             open={!!v.unclosedAlertOpen}
@@ -273,9 +367,12 @@ export const SupervisorScreens = ({ v }) => (
               </div>
             </>
           ) : null}
-        </>
+          </div>
+          </div>
+        </div>
       ) : null}
     </div>
-);
+  );
+};
 
 export default SupervisorScreens;

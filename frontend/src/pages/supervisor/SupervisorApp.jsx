@@ -288,7 +288,7 @@ export class SupervisorApp extends React.Component {
     const obStepIdx = { approval: 0, otp: 1, register: 2 }[s.screen] || 0;
     const otpBad = !!s.obOtpErr;
     const regBad = { name: !s.reg.name.trim() ? 'Enter your full name.' : undefined, password: s.reg.password.length < 6 ? 'Use at least 6 characters.' : undefined };
-    const titles = { home: 'Kongunadu Road Lines', profile: 'Supervisor profile', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance',  reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
+    const titles = { home: 'Dashboard', profile: 'Supervisor profile', open: 'Open Trip', openReview: 'Review trip', openDone: 'Trip opened', closeList: 'Close Trip', close: 'Close Trip', closeReview: 'Review close', closeDone: 'Trip closed', unclosed: 'Unclosed Trips', history: 'Trip history', histTrip: 'Closed trip', trip: 'Trip detail', notifications: 'Notifications', notifDetail: 'Notification', attMark: 'Attendance', attendance: 'Daily attendance',  reqDriver: 'Request new driver', reqDone: 'Request sent', idle: 'Vehicle idle status', gpsPerm: 'Location access', offline: 'Connection lost' };
     // Open trip options
     const activeVeh = new Set(this.active().map(t => t.vehicle));
     // activeDrv must include ALL drivers from multi-driver trips, not just t.driver (the first).
@@ -1396,7 +1396,7 @@ export class SupervisorApp extends React.Component {
       verify,
       // trip history
       histList: histShown, histCount: histShown.length, histWord: histShown.length === 1 ? 'trip' : 'trips', histEmpty: !histShown.length, hist,
-      histHomeHint: `${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}. Filter by vehicle or date.`,
+      histCount: histList.length, histHomeHint: `${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}. Filter by vehicle or date.`,
       histCountLine: hfAnyFilter && !s.forceEmptyHist ? `${histShown.length} of ${histList.length} closed ${histList.length === 1 ? 'trip' : 'trips'}` : `${histShown.length} closed ${histShown.length === 1 ? 'trip' : 'trips'} · ${me.branch}`,
       histEmptyTitle: hfAnyFilter && !s.forceEmptyHist ? 'No trips match these filters' : 'No closed trips yet',
       histEmptyText: hfAnyFilter && !s.forceEmptyHist ? `Nothing closed${hf.vehicle ? ' for ' + (T.V[hf.vehicle] || {}).number : ''}${hfHasRange ? ' in ' + hfRangeLabel : ''}. Try another vehicle or date range.` : 'Trips you close appear here with the full closing details, newest first.',
@@ -1769,10 +1769,12 @@ export class SupervisorApp extends React.Component {
   }
 
   render() {
+    const v = this.renderVals();
+    // Signed in: full-width admin-style shell with a sidebar. Sign-in screens keep the phone-width frame.
     return (
-      <div className="sv-app">
+      <div className={v.isApp ? 'sv-app sv-app--shell' : 'sv-app'}>
         <div className="sv-device">
-          <SupervisorScreens v={this.renderVals()} />
+          <SupervisorScreens v={v} />
         </div>
       </div>
     );
