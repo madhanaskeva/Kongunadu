@@ -12,8 +12,9 @@
 import { isPendingClose, isTripOpen } from './tripStatus';
 
 export const IDLE_CATEGORIES = [
-  { key: 'loading', label: 'Loading location', hint: 'Open trip · waiting at the loading point' },
-  { key: 'unloading', label: 'Unloading location', hint: 'Reached the customer · unloading' },
+  { key: 'loading', label: 'Idle-loading', hint: 'Open trip · waiting at the loading point' },
+  { key: 'unloading', label: 'Idle-unloading', hint: 'Reached the customer · unloading' },
+  { key: 'without-driver', label: 'Idle without driver', hint: 'No driver assigned or available' },
   { key: 'onroad', label: 'On road', hint: 'Open trip · stopped on the way' },
   { key: 'bunk', label: 'Fuel bunk', hint: 'Standing at a diesel / petrol bunk' },
   { key: 'yard', label: 'Yard · no trip', hint: 'Parked with no open trip' },
@@ -50,6 +51,9 @@ export const tripStopFor = (v, trip, tms) => {
 // Which idle group a vehicle belongs to, or null when it is not standing now.
 export const idleCategoryOf = (v, trip) => {
   if (v.status === 'Maintenance') return 'maintenance';
+  if (v.status === 'Idle-without driver' || v.status === 'Idle without driver') return 'without-driver';
+  if (v.status === 'Idle-loading') return 'loading';
+  if (v.status === 'Idle-unloading') return 'unloading';
   const r = v.gpsIdle;
   if (r && (r.kind === 'bunk' || r.kind === 'loading' || r.kind === 'unloading')) return r.kind;
   if (!r && v.status !== 'Idle') return null;
