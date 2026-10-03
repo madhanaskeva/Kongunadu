@@ -46,58 +46,76 @@ export const MarkAttendance = ({ v }) => (
                   onChange={val => v.setAmVehicle(asEvent(val))}
                 />
               </Form.Item>
-              {/* One field per seat in the branch's crew (Branch Master); each field holds one person. */}
-              <Typography.Text type="secondary" style={{ display: 'block', margin: '-8px 0 12px', fontSize: 13 }}>{v.amCrewHint}</Typography.Text>
-              {(v.amSeats || []).map(seat => {
-                const missing = v.amShowErr && !seat.value;
-                return (
-                  <Form.Item
-                    key={seat.key}
-                    label={seat.label}
-                    validateStatus={missing ? 'error' : undefined}
-                    help={missing ? (seat.absent ? `Pick a replacement for ${seat.absent.name.replace(/\.$/, '')}.` : `Select a ${seat.helper ? 'helper' : 'driver'}.`) : undefined}
-                  >
-                    {seat.absent ? (
-                      <Flex align="center" justify="space-between" gap={8} style={{ marginBottom: 8, padding: '8px 12px', background: 'var(--kr-red-100)', borderRadius: 8 }}>
-                        <Flex align="center" gap={8} style={{ minWidth: 0 }}>
-                          <Typography.Text strong delete style={{ color: 'var(--kr-red-800)' }}>{seat.absent.name}</Typography.Text>
-                          <Tag color="error" style={{ marginInlineEnd: 0 }}>Absent</Tag>
+              <Form.Item
+                label="Driver availability"
+                validateStatus={v.amShowErr && !v.am.driverAvailability ? 'error' : undefined}
+                help={v.amShowErr && !v.am.driverAvailability ? 'Select driver availability.' : undefined}
+              >
+                <Select
+                  size="large"
+                  placeholder="Select availability"
+                  disabled={!v.am.vehicle}
+                  options={v.amDriverAvailabilityOptions}
+                  value={pick(v.amDriverAvailabilityOptions, v.am.driverAvailability)}
+                  onChange={val => v.setAmDriverAvailability(asEvent(val))}
+                />
+              </Form.Item>
+              {v.am.driverAvailability === 'Available' ? (
+                <>
+                  {/* One field per seat in the branch's crew (Branch Master); each field holds one person. */}
+                  <Typography.Text type="secondary" style={{ display: 'block', margin: '-8px 0 12px', fontSize: 13 }}>{v.amCrewHint}</Typography.Text>
+                  {(v.amSeats || []).map(seat => {
+                    const missing = v.amShowErr && !seat.value;
+                    return (
+                      <Form.Item
+                        key={seat.key}
+                        label={seat.label}
+                        validateStatus={missing ? 'error' : undefined}
+                        help={missing ? (seat.absent ? `Pick a replacement for ${seat.absent.name.replace(/\.$/, '')}.` : `Select a ${seat.helper ? 'helper' : 'driver'}.`) : undefined}
+                      >
+                        {seat.absent ? (
+                          <Flex align="center" justify="space-between" gap={8} style={{ marginBottom: 8, padding: '8px 12px', background: 'var(--kr-red-100)', borderRadius: 8 }}>
+                            <Flex align="center" gap={8} style={{ minWidth: 0 }}>
+                              <Typography.Text strong delete style={{ color: 'var(--kr-red-800)' }}>{seat.absent.name}</Typography.Text>
+                              <Tag color="error" style={{ marginInlineEnd: 0 }}>Absent</Tag>
+                            </Flex>
+                            <Button type="link" size="small" onClick={() => v.undoSeatAbsent(seat)}>Undo</Button>
+                          </Flex>
+                        ) : null}
+                        {seat.absent ? (
+                          <Typography.Text type="secondary" strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Replacement {seat.helper ? 'helper' : 'driver'}</Typography.Text>
+                        ) : null}
+                        <Flex gap={8} align="center">
+                          <Select
+                            size="large"
+                            showSearch
+                            optionFilterProp="label"
+                            style={{ flex: 1, minWidth: 0 }}
+                            placeholder={seat.placeholder}
+                            disabled={v.amSeatsDisabled}
+                            options={seat.options}
+                            value={seat.value || undefined}
+                            onChange={val => v.setSeat(seat, val)}
+                            notFoundContent={<Typography.Text type="secondary">No free {seat.helper ? 'helper' : 'driver'} today</Typography.Text>}
+                            popupRender={menu => (
+                              <>
+                                {menu}
+                                <Divider style={{ margin: '4px 0' }} />
+                                <Button type="text" block onMouseDown={e => e.preventDefault()} onClick={() => v.requestSeat(seat)} style={{ justifyContent: 'flex-start', fontWeight: 700, color: 'var(--color-brand)' }}>
+                                  + Request new {seat.helper ? 'helper' : 'driver'}
+                                </Button>
+                              </>
+                            )}
+                          />
+                          {seat.canAbsent ? (
+                            <Button danger size="large" onClick={() => v.markSeatAbsent(seat)} style={{ flex: 'none' }}>Mark absent</Button>
+                          ) : null}
                         </Flex>
-                        <Button type="link" size="small" onClick={() => v.undoSeatAbsent(seat)}>Undo</Button>
-                      </Flex>
-                    ) : null}
-                    {seat.absent ? (
-                      <Typography.Text type="secondary" strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Replacement {seat.helper ? 'helper' : 'driver'}</Typography.Text>
-                    ) : null}
-                    <Flex gap={8} align="center">
-                      <Select
-                        size="large"
-                        showSearch
-                        optionFilterProp="label"
-                        style={{ flex: 1, minWidth: 0 }}
-                        placeholder={seat.placeholder}
-                        disabled={v.amSeatsDisabled}
-                        options={seat.options}
-                        value={seat.value || undefined}
-                        onChange={val => v.setSeat(seat, val)}
-                        notFoundContent={<Typography.Text type="secondary">No free {seat.helper ? 'helper' : 'driver'} today</Typography.Text>}
-                        popupRender={menu => (
-                          <>
-                            {menu}
-                            <Divider style={{ margin: '4px 0' }} />
-                            <Button type="text" block onMouseDown={e => e.preventDefault()} onClick={() => v.requestSeat(seat)} style={{ justifyContent: 'flex-start', fontWeight: 700, color: 'var(--color-brand)' }}>
-                              + Request new {seat.helper ? 'helper' : 'driver'}
-                            </Button>
-                          </>
-                        )}
-                      />
-                      {seat.canAbsent ? (
-                        <Button danger size="large" onClick={() => v.markSeatAbsent(seat)} style={{ flex: 'none' }}>Mark absent</Button>
-                      ) : null}
-                    </Flex>
-                  </Form.Item>
-                );
-              })}
+                      </Form.Item>
+                    );
+                  })}
+                </>
+              ) : null}
               <Form.Item label="Vehicle status" extra={v.amStatusHint} style={{ marginBottom: 0 }}>
                 <Select
                   size="large"

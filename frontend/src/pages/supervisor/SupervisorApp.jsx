@@ -46,7 +46,7 @@ export class SupervisorApp extends React.Component {
     hf: { vehicle: '', from: '', to: '' }, hfSelectedVehicles: [], hfVehOpen: false, hfDraft: { from: '', to: '' }, hfCalOpen: false, hfErr: '',
     localTrips: [], closedIds: [],
     // Nobody starts the day pre-marked: the supervisor marks every driver himself.
-    att: {}, attVeh: {}, attVehStatus: {}, attRepl: {}, amTried: false, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
+    att: {}, attVeh: {}, attVehStatus: {}, attRepl: {}, attVehData: {}, amTried: false, attTab: 'mark', attSaved: this.seedAttSaved(), attOpenDay: '',
     am: this.blankAm(),
     idle: this.seedIdle(), idleFilter: 'all', showIdleErrors: false,
     profileMenuOpen: false
@@ -261,7 +261,7 @@ export class SupervisorApp extends React.Component {
   active() { return this.allTrips().filter(t => t.branch === this.BR && t.status === 'Enroute' && !this.state.closedIds.includes(t.id)); }
   // Badge colours per status label → [background, text, edge], from the --st-* palette in <helmet>.
   statusTone(label) {
-    const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent', 'Nearly reached': 'nearly' }[label] || 'neutral';
+    const k = { [ENROUTE_LABEL]: 'enroute', 'Enroute': 'enroute', 'Loading': 'loading', 'Unloading': 'unloading', 'Delayed': 'delayed', 'On trip': 'enroute', 'Running': 'enroute', 'Verified': 'enroute', 'Long open': 'long', 'Idle': 'long', 'Pending': 'long', 'GPS issue': 'gps', 'Rejected': 'gps', 'Closed': 'closed', 'Present': 'closed', 'Approved': 'closed', 'Closed · flagged': 'flagged', 'Absent': 'absent', 'Nearly reached': 'nearly', 'Maintenance': 'delayed', 'Idle-loading': 'loading', 'Idle-unloading': 'unloading', 'Idle-without driver': 'long' }[label] || 'neutral';
     // 4th entry: the antd Tag preset colour for the same status.
     // On road green · Nearly reached yellow · Unloading red · Long open orange.
     const tag = { enroute: 'success', loading: 'processing', unloading: 'red', delayed: 'volcano', long: 'orange', nearly: 'gold', gps: 'error', closed: 'success', flagged: 'purple', absent: 'error', neutral: 'default' }[k];
@@ -729,25 +729,31 @@ export class SupervisorApp extends React.Component {
     const amAbsent = am.absent || {};
     const absentOf = (role, i) => amAbsent[`${role}:${i}`];
     // Anyone already in a seat (or marked absent from one) is not offered for another seat.
-    const amTaken = new Set([...amDrivers, ...amHelpers, ...Object.values(amAbsent)].filter(Boolean));
+    const amTaken = new Set([...amDrivers, ...amHelpers.filter(x => x !== 'No helper'), ...Object.values(amAbsent)].filter(Boolean));
     const personLabel = d => `${d.name}${isHelper(d) ? '' : ' · ' + d.type}${d.approval !== 'Approved' ? ' · pending approval' : ''}${d.status === 'Inactive' ? ' · inactive' : ''}`;
     // Free people of the seat's kind: not marked today and not in another seat. "+ Request new …" sits pinned under the list.
-    const seatOptions = (helper, own) => amDriverList
-      .filter(d => isHelper(d) === helper && (d.id === own || (!s.att[d.id] && !amTaken.has(d.id))))
-      .map(d => ({ value: d.id, label: personLabel(d) }));
-    const nameOf = id => (this.drv(id) || {}).name || id;
+    const seatOptions = (helper, own) => {
+      const people = amDriverList
+        .filter(d => isHelper(d) === helper && (d.id === own || (!s.att[d.id] && !amTaken.has(d.id))))
+        .map(d => ({ value: d.id, label: personLabel(d) }));
+      return helper ? [{ value: 'No helper', label: 'No helper' }, ...people] : people;
+    };
+    const nameOf = id => (id === 'No helper' ? 'No helper' : (this.drv(id) || {}).name || id);
     // Drivers and helpers work the same way: one person per seat, Mark absent, then a replacement of the same kind.
     const seatOf = (role, id, i) => {
       const helper = role === 'helpers', what = helper ? 'helper' : 'driver', gone = absentOf(role, i);
       return { key: role + i, role, i, helper, label: `${helper ? 'Helper' : 'Driver'} ${(helper ? amOnVeh.helpers : amOnVeh.drivers) + i + 1}`, value: id, options: seatOptions(helper, id),
-        absent: gone ? { id: gone, name: nameOf(gone) } : null, canAbsent: !!id && !gone,
+        absent: gone ? { id: gone, name: nameOf(gone) } : null, canAbsent: !!id && !gone && id !== 'No helper',
         placeholder: gone ? `Select replacement ${what}` : `Select ${what}` };
     };
-    const amSeats = [...amDrivers.map((id, i) => seatOf('drivers', id, i)), ...amHelpers.map((id, i) => seatOf('helpers', id, i))];
-    const amStarted = amSeats.some(x => x.value || x.absent);
+    const isDriverAvailable = am.driverAvailability === 'Available';
+    const isDriverNotAvailable = am.driverAvailability === 'Not available';
+    const amSeats = isDriverNotAvailable ? [] : [...amDrivers.map((id, i) => seatOf('drivers', id, i)), ...amHelpers.map((id, i) => seatOf('helpers', id, i))];
+    const amStarted = amSeats.some(x => x.value || x.absent) || (isDriverNotAvailable && !!am.status);
     // Every seat must hold a present person; an absent driver's seat needs its replacement.
     const amMissing = [
-      ...amSeats.filter(x => !x.value).map(x => x.absent ? `${x.label}: pick a replacement for ${x.absent.name.replace(/\.$/, '')}.` : `${x.label}: select a ${x.helper ? 'helper' : 'driver'}.`),
+      ...(!am.driverAvailability ? ['Driver availability: select availability.'] : []),
+      ...(isDriverAvailable ? amSeats.filter(x => !x.value).map(x => x.absent ? `${x.label}: pick a replacement for ${x.absent.name.replace(/\.$/, '')}.` : `${x.label}: select a ${x.helper ? 'helper' : 'driver'}.`) : []),
       ...(!am.status ? ['Vehicle status: select the status.'] : []),
     ];
     const amErrors = s.amTried && am.vehicle ? amMissing : [];
@@ -758,11 +764,12 @@ export class SupervisorApp extends React.Component {
       if (!c.drivers) return `${n} has a helper but no driver.`;
       return '';
     }).filter(Boolean);
-    const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : branchVeh.length > amFreeVeh.length ? `${amFreeVeh.length} of ${branchVeh.length} ${me.branch} vehicles still need crew. ${branchVeh.length - amFreeVeh.length} with a full crew are hidden.` : `${branchVeh.length} ${me.branch} vehicles from the admin vehicle master.`;
-    // Same vehicle statuses as the Admin Portal Vehicle Master.
-    const amStatusOptions = ['Idle', 'Running', 'Maintenance', 'Inactive'].map(x => ({ value: x, label: x }));
-    const amStatusHint = 'Idle, running, under maintenance or inactive.';
-    const vehStatusOf = id => s.attVehStatus[id] || ((T.V[s.attVeh[id]] || {}).status === 'Running' ? 'On trip' : 'Not set');
+    const amVehicleHint = amVeh ? `${amVeh.type} · ${amVeh.status === 'Running' || amVeh.status === 'Enroute' ? 'on trip' : String(amVeh.status || '').toLowerCase()}${amVeh.route ? ' · ' + amVeh.route : ''}.` : branchVeh.length > amFreeVeh.length ? `${amFreeVeh.length} of ${branchVeh.length} ${me.branch} vehicles still need crew. ${branchVeh.length - amFreeVeh.length} with a full crew are hidden.` : `${branchVeh.length} ${me.branch} vehicles from the admin vehicle master.`;
+    // Only the requested 5 Attendance vehicle statuses
+    const amStatusOptions = ['Enroute', 'Maintenance', 'Idle-loading', 'Idle-unloading', 'Idle-without driver'].map(x => ({ value: x, label: x }));
+    const amStatusHint = 'Enroute, maintenance, idle-loading, idle-unloading or idle-without driver.';
+    const amDriverAvailabilityOptions = [{ value: 'Available', label: 'Available' }, { value: 'Not available', label: 'Not available' }];
+    const vehStatusOf = id => s.attVehStatus[id] || ((T.V[s.attVeh[id]] || {}).status === 'Running' || (T.V[s.attVeh[id]] || {}).status === 'Enroute' ? 'Enroute' : 'Not set');
     const amMappedDrv = amVeh ? this.mappedDriver(amVeh) : null;
     const amCrewHint = !amVeh ? `Select a vehicle first. ${me.branch} takes ${crewLimitText(crew)} per vehicle.`
       : !amSeats.length ? `${amVeh.number} already has its full crew today.`
@@ -1469,7 +1476,7 @@ export class SupervisorApp extends React.Component {
       crewText: `Set by Head Office for ${me.branch}: ${crewLimitText(crew)} on each vehicle. One person per field.`,
       crewIssues,
       amVehNumber: amVeh ? amVeh.number : '',
-      canAssignAm: !!am.vehicle && amSeats.length > 0,
+      canAssignAm: !!am.vehicle && amSeats.length > 0 && isDriverAvailable,
       assignAmLabel: `Assign crew to ${amVeh ? amVeh.number : 'vehicle'}`,
       assignAmDrivers: () => { if (amMissing.length) { this.setState({ amTried: true }); this.toast('warning', 'Crew incomplete', amMissing[0]); return; } this.assignCrew(am, amSeats); },
       setSeat: (seat, val) => this.setSeat(seat, val),
@@ -1484,9 +1491,127 @@ export class SupervisorApp extends React.Component {
       attUnsavedText: savedToday ? "Today's attendance has changed since you saved it." : `Today's attendance is not saved yet · ${Object.keys(todayEntries).length} marked.`,
       toggleAttDay: e => { const day = e.currentTarget.dataset.day; this.setState({ attOpenDay: openDay === day ? 'none' : day }); },
       setAmVehicle: e => this.pickAm({ vehicle: e.target.value }),
+      amDriverAvailabilityOptions,
+      setAmDriverAvailability: e => this.setAmDriverAvailability(e),
       amStatusOptions, amStatusHint, setAmStatus: e => this.pickAm({ status: e.target.value }),
-      removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; delete attVeh[id]; delete attVehStatus[id]; const attRepl = { ...(st.attRepl || {}) }; if (attRepl[id]) { delete attRepl[attRepl[id]]; delete attRepl[id]; } return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus, attRepl }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
-      saveAmEntry: () => { if (am.vehicle && amStarted) { this.setState({ amTried: true }); this.toast('warning', 'Crew not assigned yet', `Tap "Assign crew to ${amVeh ? amVeh.number : 'vehicle'}" to add the crew you picked, or clear the vehicle.`); return; } if (crewIssues.length) { this.toast('error', 'Crew does not match the branch combination', crewIssues.join(' ')); return; } if (!Object.keys(todayEntries).length) { this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver to mark someone present first.'); return; } const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, savedAtIso: new Date().toISOString(), entries: todayEntries, crews: this.crewSummary(todayEntries, crew) }; this.writeAttDay(rec); this.setState(st => ({ attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)], attTab: 'marked', attOpenDay: TODAY_DAY, railVariant: '' })); this.toast(attendanceMarked < attendanceTotal ? 'warning' : 'success', attendanceMarked < attendanceTotal ? 'Saved · incomplete' : 'Attendance saved', `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.`); this.logActivity({ title: `Attendance saved · ${todayLabel}`, body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`, rows: attDrivers.map(d => [d.name, s.att[d.id] === 'P' ? 'Present' + (s.attVeh[d.id] ? ' · ' + (T.V[s.attVeh[d.id]] || {}).number : '') : s.att[d.id] === 'A' ? 'Absent' : 'Not marked']), link: { screen: 'attMark' }, linkLabel: 'Open attendance' }); this.pushAdminNotif({ title: 'Attendance Update', body: `Daily attendance saved for ${attendanceMarked} drivers by ${me.name} (${me.branch}).`, time: 'Just now' }); },
+      removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; const vehId = attVeh[id]; delete attVeh[id]; delete attVehStatus[id]; const attRepl = { ...(st.attRepl || {}) }; if (attRepl[id]) { delete attRepl[attRepl[id]]; delete attRepl[id]; } const attVehData = { ...(st.attVehData || {}) }; if (vehId && attVehData[vehId]) { const vd = { ...attVehData[vehId] }; vd.drivers = (vd.drivers || []).filter(x => x !== id); vd.helpers = (vd.helpers || []).filter(x => x !== id); attVehData[vehId] = vd; } return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus, attRepl, attVehData }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
+      saveAmEntry: () => {
+        let att = { ...s.att }, attVeh = { ...s.attVeh }, attVehStatus = { ...s.attVehStatus };
+        let attRepl = { ...(s.attRepl || {}) }, attVehData = { ...(s.attVehData || {}) };
+        let currentVehAssigned = false;
+
+        if (am.vehicle) {
+          if (!am.driverAvailability) {
+            this.setState({ amTried: true });
+            this.toast('warning', 'Driver availability missing', 'Select driver availability before saving.');
+            return;
+          }
+          if (am.driverAvailability === 'Available') {
+            if (amMissing.length) {
+              this.setState({ amTried: true });
+              this.toast('warning', 'Crew incomplete', amMissing[0]);
+              return;
+            }
+            const drivers = amSeats.filter(x => !x.helper).map(x => x.value).filter(Boolean);
+            const helpers = amSeats.filter(x => x.helper).map(x => x.value).filter(Boolean);
+            const realHelpers = helpers.filter(x => x !== 'No helper');
+            const on = this.crewOn(am.vehicle);
+            if (on.drivers + drivers.length > crew.drivers || on.helpers + realHelpers.length > crew.helpers) {
+              this.toast('error', 'Crew limit', `${amVeh ? amVeh.number : 'This vehicle'} can have ${crewLimitText(crew)} (${crew.label}).`);
+              return;
+            }
+            if (new Set([...drivers, ...realHelpers]).size !== drivers.length + realHelpers.length) {
+              this.toast('error', 'Same person twice', 'Each person can fill only one seat.');
+              return;
+            }
+            const absences = amSeats.filter(x => x.absent && x.value && x.value !== 'No helper').map(x => ({ absent: x.absent.id, replacement: x.value }));
+            [...drivers, ...realHelpers].forEach(dId => { att[dId] = 'P'; attVeh[dId] = am.vehicle; attVehStatus[dId] = am.status; });
+            absences.forEach(({ absent, replacement }) => { att[absent] = 'A'; attVeh[absent] = am.vehicle; delete attVehStatus[absent]; attRepl[absent] = replacement; attRepl[replacement] = absent; });
+            attVehData[am.vehicle] = { driverAvailability: 'Available', status: am.status, drivers, helpers };
+            attVehStatus[am.vehicle] = am.status;
+            currentVehAssigned = true;
+          } else if (am.driverAvailability === 'Not available') {
+            if (!am.status) {
+              this.setState({ amTried: true });
+              this.toast('warning', 'Vehicle status missing', 'Select the vehicle status before saving.');
+              return;
+            }
+            attVehData[am.vehicle] = { driverAvailability: 'Not available', status: am.status, drivers: [], helpers: [] };
+            attVehStatus[am.vehicle] = am.status;
+            currentVehAssigned = true;
+          }
+        }
+
+        if (crewIssues.length) {
+          this.toast('error', 'Crew does not match the branch combination', crewIssues.join(' '));
+          return;
+        }
+
+        const entriesToSave = Object.fromEntries(
+          amDriverList.filter(d => att[d.id]).map(d => [
+            d.id,
+            [
+              att[d.id],
+              attVeh[d.id] || '',
+              att[d.id] === 'P' ? (attVehStatus[d.id] || '') : '',
+              ...(attRepl[d.id] ? [attRepl[d.id]] : [])
+            ]
+          ])
+        );
+
+        const hasVehicleData = Object.keys(attVehData).length > 0;
+        if (!Object.keys(entriesToSave).length && !hasVehicleData && !currentVehAssigned) {
+          this.toast('warning', 'Nothing to save', 'Pick a vehicle and driver or vehicle status to mark someone present first.');
+          return;
+        }
+
+        const rec = {
+          day: TODAY_DAY,
+          label: todayLabel,
+          savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`,
+          savedAtIso: new Date().toISOString(),
+          entries: entriesToSave,
+          crews: this.crewSummary(entriesToSave, crew, attVehData),
+          vehicles: attVehData
+        };
+
+        this.writeAttDay(rec);
+        this.setState(st => ({
+          att, attVeh, attVehStatus, attRepl, attVehData,
+          attSaved: [rec, ...st.attSaved.filter(r => r.day !== TODAY_DAY)],
+          attTab: 'marked',
+          attOpenDay: TODAY_DAY,
+          am: this.blankAm(),
+          amTried: false,
+          railVariant: ''
+        }));
+
+        const markedDriversCount = Object.keys(entriesToSave).length;
+        this.toast(
+          markedDriversCount && attendanceMarked < attendanceTotal ? 'warning' : 'success',
+          attendanceMarked < attendanceTotal && markedDriversCount ? 'Saved · incomplete' : 'Attendance saved',
+          markedDriversCount ? `${attendanceMarked} of ${attendanceTotal} drivers marked for ${todayLabel}.` : `Vehicle status marked for ${todayLabel}.`
+        );
+        this.logActivity({
+          title: `Attendance saved · ${todayLabel}`,
+          body: `${attendanceMarked} of ${attendanceTotal} drivers marked${attendanceMarked < attendanceTotal ? ', some still unmarked' : ''}.`,
+          rows: attDrivers.map(d => [
+            d.name,
+            att[d.id] === 'P'
+              ? 'Present' + (attVeh[d.id] ? ' · ' + (T.V[attVeh[d.id]] || {}).number : '')
+              : att[d.id] === 'A'
+              ? 'Absent'
+              : 'Not marked'
+          ]),
+          link: { screen: 'attMark' },
+          linkLabel: 'Open attendance'
+        });
+        this.pushAdminNotif({
+          title: 'Attendance Update',
+          body: `Daily attendance saved by ${me.name} (${me.branch}).`,
+          time: 'Just now'
+        });
+      },
       markDriver: e => this.set(['att', e.currentTarget.dataset.id], e.currentTarget.dataset.v),
       saveAttendance: () => {
         const rec = { day: TODAY_DAY, label: todayLabel, savedAt: `${p2(now.getHours())}:${p2(now.getMinutes())}`, entries: todayEntries };
@@ -1557,12 +1682,23 @@ export class SupervisorApp extends React.Component {
       supId: this.SUP,
     };
   }
-  blankAm() { return { vehicle: '', status: '', drivers: [], helpers: [], absent: {} }; }
+  blankAm() { return { vehicle: '', driverAvailability: '', status: '', drivers: [], helpers: [], absent: {} }; }
   patchAm(fn) { this.setState(st => ({ am: { ...st.am, ...fn(st.am) } })); }
   pickAm(patch) {
     // A new vehicle has its own open seats, so the picks start over.
     if (patch.vehicle !== undefined && patch.vehicle !== this.state.am.vehicle) { this.setState({ am: { ...this.blankAm(), vehicle: patch.vehicle }, amTried: false }); return; }
     this.patchAm(() => patch);
+  }
+  setAmDriverAvailability(e) {
+    const val = e.target.value;
+    this.setState(st => ({
+      am: {
+        ...st.am,
+        driverAvailability: val,
+        ...(val === 'Not available' ? { drivers: [], helpers: [], absent: {} } : {})
+      },
+      amTried: false
+    }));
   }
   // One person per seat. The request entries open the existing Request new driver form for that seat.
   setSeat(seat, val) {
@@ -1583,23 +1719,30 @@ export class SupervisorApp extends React.Component {
   // vehicle, linked to the replacement who took the seat.
   assignCrew(am, seats) {
     const T = this.T(), v = T.V[am.vehicle], crew = crewOf(T.B[this.BR]);
-    const drivers = seats.filter(x => !x.helper).map(x => x.value).filter(Boolean), helpers = seats.filter(x => x.helper).map(x => x.value).filter(Boolean);
+    const drivers = seats.filter(x => !x.helper).map(x => x.value).filter(Boolean);
+    const helpers = seats.filter(x => x.helper).map(x => x.value).filter(Boolean);
+    const realHelpers = helpers.filter(x => x !== 'No helper');
     const on = this.crewOn(am.vehicle);
-    if (on.drivers + drivers.length > crew.drivers || on.helpers + helpers.length > crew.helpers) { this.toast('error', 'Crew limit', `${v ? v.number : 'This vehicle'} can have ${crewLimitText(crew)} (${crew.label}).`); return; }
-    if (new Set([...drivers, ...helpers]).size !== drivers.length + helpers.length) { this.toast('error', 'Same person twice', 'Each person can fill only one seat.'); return; }
-    const absences = seats.filter(x => x.absent && x.value).map(x => ({ absent: x.absent.id, replacement: x.value }));
+    if (on.drivers + drivers.length > crew.drivers || on.helpers + realHelpers.length > crew.helpers) { this.toast('error', 'Crew limit', `${v ? v.number : 'This vehicle'} can have ${crewLimitText(crew)} (${crew.label}).`); return; }
+    if (new Set([...drivers, ...realHelpers]).size !== drivers.length + realHelpers.length) { this.toast('error', 'Same person twice', 'Each person can fill only one seat.'); return; }
+    const absences = seats.filter(x => x.absent && x.value && x.value !== 'No helper').map(x => ({ absent: x.absent.id, replacement: x.value }));
     this.setState(st => {
       const att = { ...st.att }, attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }, attRepl = { ...(st.attRepl || {}) };
-      [...drivers, ...helpers].forEach(dId => { att[dId] = 'P'; attVeh[dId] = am.vehicle; attVehStatus[dId] = am.status; });
+      const attVehData = { ...(st.attVehData || {}), [am.vehicle]: { driverAvailability: am.driverAvailability || 'Available', status: am.status, drivers, helpers } };
+      [...drivers, ...realHelpers].forEach(dId => { att[dId] = 'P'; attVeh[dId] = am.vehicle; attVehStatus[dId] = am.status; });
       absences.forEach(({ absent, replacement }) => { att[absent] = 'A'; attVeh[absent] = am.vehicle; delete attVehStatus[absent]; attRepl[absent] = replacement; attRepl[replacement] = absent; });
-      return { att, attVeh, attVehStatus, attRepl, am: this.blankAm(), amTried: false };
+      return { att, attVeh, attVehStatus, attRepl, attVehData, am: this.blankAm(), amTried: false };
     });
     const nm = id => (this.drv(id) || {}).name || id;
     const day = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long' });
-    this.toast('success', 'Crew marked', `${[...drivers, ...helpers].map(nm).join(', ')} · ${v ? v.number : 'Vehicle'} · ${am.status} · ${day}.${absences.length ? ` Absent: ${absences.map(x => `${nm(x.absent)} (replaced by ${nm(x.replacement)})`).join(', ')}.` : ''}`);
+    const assignedNames = [...drivers, ...realHelpers].map(nm);
+    if (!assignedNames.length && helpers.includes('No helper')) {
+      assignedNames.push('No helper');
+    }
+    this.toast('success', 'Crew marked', `${assignedNames.join(', ')} · ${v ? v.number : 'Vehicle'} · ${am.status} · ${day}.${absences.length ? ` Absent: ${absences.map(x => `${nm(x.absent)} (replaced by ${nm(x.replacement)})`).join(', ')}.` : ''}`);
   }
   // Per vehicle, what the saved day holds: the required crew, who was assigned, who was absent and who replaced them.
-  crewSummary(entries, crew) {
+  crewSummary(entries, crew, attVehData = {}) {
     const T = this.T(), out = {};
     Object.entries(entries).forEach(([id, [mark, veh, vs, link]]) => {
       if (!veh) return;
@@ -1608,6 +1751,15 @@ export class SupervisorApp extends React.Component {
       if (mark === 'P') { c[isHelper(d) ? 'helpers' : 'drivers'].push(id); if (vs) c.status = vs; }
       // `driver` keeps its name from the first version of this record; `role` says driver or helper.
       if (mark === 'A') c.absent.push({ driver: id, role: isHelper(d) ? 'Helper' : 'Driver', replacedBy: link || '' });
+    });
+    Object.entries(attVehData).forEach(([veh, data]) => {
+      if (!out[veh]) {
+        out[veh] = { crew: crew.value, requiredDrivers: crew.drivers, requiredHelpers: crew.helpers, status: data.status || '', drivers: data.drivers || [], helpers: data.helpers || [], absent: [], driverAvailability: data.driverAvailability };
+      } else {
+        out[veh].driverAvailability = data.driverAvailability;
+        if (data.status) out[veh].status = data.status;
+        if (data.helpers) out[veh].helperSelections = data.helpers;
+      }
     });
     return out;
   }
