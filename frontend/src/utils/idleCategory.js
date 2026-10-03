@@ -14,7 +14,6 @@ import { isPendingClose, isTripOpen } from './tripStatus.js';
 export const IDLE_CATEGORIES = [
   { key: 'loading', label: 'Idle-loading', hint: 'Open trip · waiting at the loading point' },
   { key: 'unloading', label: 'Idle-unloading', hint: 'Reached the customer · unloading' },
-  { key: 'without-driver', label: 'Idle-without driver', hint: 'Vehicle standing · no driver assigned' },
   { key: 'onroad', label: 'On road', hint: 'Open trip · stopped on the way' },
   { key: 'bunk', label: 'Fuel bunk', hint: 'Standing at a diesel / petrol bunk' },
   { key: 'yard', label: 'Yard · no trip', hint: 'Parked with no open trip' },
@@ -28,13 +27,16 @@ const stageMinutes = (trip) => {
   return 20 + (h % 90);
 };
 
-export const openTripOf = (v, trips) => (trips || []).find(t => t.vehicle === v.id && isTripOpen(t)) || null;
+export const openTripOf = (v, trips) => {
+  if (v.status === 'Idle-without driver' || v.driverAvailability === 'Not available') return null;
+  return (trips || []).find(t => t.vehicle === v.id && isTripOpen(t)) || null;
+};
 
 // The stop the supervisor's trip puts the vehicle in, shaped like a GPS idle report:
 // at the unloading point once the trip has reached the customer, at the loading
 // point while it is still loading. Null while the trip is on the road.
 export const tripStopFor = (v, trip, tms) => {
-  if (!trip) return null;
+  if (!trip || v.status === 'Idle-without driver' || v.driverAvailability === 'Not available') return null;
   const route = String(v.route || '');
   const atUnload = isPendingClose(trip) || /^(unloading|arrived) at/i.test(route);
   const atLoad = !atUnload && (trip.stage === 'Loading' || /^loading at/i.test(route));

@@ -118,9 +118,19 @@ export const FleetMonitor = () => {
   const [idleDurationFilter, setIdleDurationFilter] = useState('all');
   // Idle view: null shows the category cards; a key shows that category's vehicles.
   const [idleCat, setIdleCat] = useState(null);
-  // In the Idle view a card opens its idle details; elsewhere it opens the map.
   const [idleId, setIdleId] = useState(null);
-  const openCard = (id) => (ff === 'idle' || ff === 'idle-without-driver' ? setIdleId(id) : setTrackId(id));
+  const openCard = (id) => {
+    const v = fleetAll.find(x => x.id === id);
+    if (v && (v.status === 'Idle-without driver' || v.idleCat === 'without-driver' || ff === 'idle-without-driver')) {
+      setTrackId(id);
+      return;
+    }
+    if (ff === 'idle') {
+      setIdleId(id);
+      return;
+    }
+    setTrackId(id);
+  };
   // Card or list layout for the vehicles, remembered on this browser.
   const VIEW_KEY = 'kr_fleet_view';
   const [fleetView, setFleetViewState] = useState(() => {
@@ -291,10 +301,13 @@ export const FleetMonitor = () => {
     else if (v.id === 'V10') { idleHours = 4.5; idleText = '4 h 30 min ago'; }
     else if (effectiveStatus === 'Idle' || effectiveStatus.startsWith('Idle')) { idleHours = 1.2; idleText = '1 h 12 min ago'; }
 
+    const isWithoutDriver = effectiveStatus === 'Idle-without driver' || attRec?.driverAvailability === 'Not available';
+
     // Where it is standing: the GPS tracker's report of the stop, else the stop
     // its open trip's supervisor stage puts it in (loading / unloading point).
-    const openTrip = openTripOf(v, trips);
-    const gpsIdle = (tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || tripStopFor(v, openTrip, tms);
+    // An idle without driver vehicle has no open trip, no radius alert, and no trip-stage stops.
+    const openTrip = isWithoutDriver ? null : openTripOf(v, trips);
+    const gpsIdle = isWithoutDriver ? null : ((tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || tripStopFor(v, openTrip, tms));
     const idleCat = idleCategoryOf({ ...v, status: effectiveStatus, driver: effectiveDriver, driverAvailability: attRec?.driverAvailability, gpsIdle }, openTrip);
     // With no stop report, how long it has stood comes from today's GPS: the current idle span.
     let idleMin = gpsIdle ? gpsIdle.minutes : Math.round(idleHours * 60);
@@ -322,11 +335,11 @@ export const FleetMonitor = () => {
       gpsBg: v.gps === 'OK' ? 'var(--color-brand-soft)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
       // Each card is edged and chipped in its own status colour.
       tone: FLEET_TONES[effectiveStatus] || FLEET_TONES.default,
-      radiusAlert: v.id === 'V04'
+      radiusAlert: !isWithoutDriver && (v.id === 'V08'
         ? 'Left Ambattur Cold Store 100 m radius at 02:14 without an open trip.'
         : v.id === 'V05'
         ? 'No GPS fix for 2 h 14 min. Distance falling back to odometer.'
-        : false,
+        : false),
     };
   });
 
@@ -334,7 +347,7 @@ export const FleetMonitor = () => {
   const inTab = (v, tab) =>
     tab === 'all' ||
     (tab === 'running' && (v.status === 'Running' || v.status === 'Enroute')) ||
-    (tab === 'idle' && (v.status === 'Idle' || v.status === 'Idle-loading' || v.status === 'Idle-unloading' || v.status === 'Idle-without driver' || !!v.idleCat) &&
+    (tab === 'idle' && (v.status === 'Idle' || v.status === 'Idle-loading' || v.status === 'Idle-unloading') && v.status !== 'Idle-without driver' && v.idleCat !== 'without-driver' &&
       (idleDurationFilter === 'all' || v.idleMin > Number(idleDurationFilter) * 60)) ||
     (tab === 'idle-without-driver' && (v.status === 'Idle-without driver' || v.idleCat === 'without-driver' || (!v.driver && (v.status === 'Idle' || v.status?.startsWith?.('Idle'))))) ||
     (tab === 'maint' && v.status === 'Maintenance') ||
@@ -438,6 +451,9 @@ export const FleetMonitor = () => {
       key: 'idle',
       width: 260,
       render: (_, v) => {
+        if (v.status === 'Idle-without driver' || v.idleCat === 'without-driver') {
+          return <Typography.Text type="secondary">—</Typography.Text>;
+        }
         const { idleNow } = v._day;
         if (!idleNow) return <Typography.Text type="secondary">—</Typography.Text>;
         const Icon = PLACE_ICON[idleNow.place.kind] || MapPin;
@@ -463,6 +479,9 @@ export const FleetMonitor = () => {
       key: 'day',
       width: 190,
       render: (_, v) => {
+        if (v.status === 'Idle-without driver' || v.idleCat === 'without-driver') {
+          return <Typography.Text type="secondary" style={{ fontSize: 12 }}>—</Typography.Text>;
+        }
         const { act, noGps } = v._day;
         if (noGps) return <Typography.Text type="secondary" style={{ fontSize: 12 }}>No GPS data</Typography.Text>;
         return (
@@ -481,22 +500,27 @@ export const FleetMonitor = () => {
       title: 'Actions',
       key: 'actions',
       fixed: 'right',
-      width: (ff === 'idle' || ff === 'idle-without-driver') ? 130 : 100,
-      render: (_, v) => (
-        <Flex gap={4}>
-          {(ff === 'idle' || ff === 'idle-without-driver') && (
-            <Tooltip title="Idle details">
-              <Button size="small" type="text" icon={<Info size={15} />} aria-label={`Idle details for ${v.number}`} onClick={stop(() => setIdleId(v.id))} />
+      width: ff === 'idle' ? 130 : 100,
+      render: (_, v) => {
+        const isWithoutDriver = v.status === 'Idle-without driver' || v.idleCat === 'without-driver';
+        return (
+          <Flex gap={4}>
+            {ff === 'idle' && !isWithoutDriver && (
+              <Tooltip title="Idle details">
+                <Button size="small" type="text" icon={<Info size={15} />} aria-label={`Idle details for ${v.number}`} onClick={stop(() => setIdleId(v.id))} />
+              </Tooltip>
+            )}
+            <Tooltip title="Track on map">
+              <Button size="small" type="text" icon={<MapPin size={15} />} aria-label={`Track ${v.number} on the map`} onClick={stop(() => setTrackId(v.id))} />
             </Tooltip>
-          )}
-          <Tooltip title="Track on map">
-            <Button size="small" type="text" icon={<MapPin size={15} />} aria-label={`Track ${v.number} on the map`} onClick={stop(() => setTrackId(v.id))} />
-          </Tooltip>
-          <Tooltip title="Activity timeline">
-            <Button size="small" type="text" icon={<Clock size={15} />} aria-label={`Activity timeline for ${v.number}`} onClick={stop(() => setActivityId(v.id))} />
-          </Tooltip>
-        </Flex>
-      ),
+            {!isWithoutDriver && (
+              <Tooltip title="Activity timeline">
+                <Button size="small" type="text" icon={<Clock size={15} />} aria-label={`Activity timeline for ${v.number}`} onClick={stop(() => setActivityId(v.id))} />
+              </Tooltip>
+            )}
+          </Flex>
+        );
+      },
     },
   ];
 
@@ -1213,21 +1237,22 @@ export const FleetMonitor = () => {
           <>
           <Row gutter={[16, 16]}>
             {fleetPg.rows.map(v => {
-              const act = vehicleActivity(v, activityRange.from.valueOf(), activityRange.to.valueOf());
+              const isWithoutDriver = v.status === 'Idle-without driver' || v.idleCat === 'without-driver' || ff === 'idle-without-driver';
+              const act = isWithoutDriver ? null : vehicleActivity(v, activityRange.from.valueOf(), activityRange.to.valueOf());
               // If GPS shows the vehicle standing right now, one message says where, since when and why.
-              const lastSpan = withIdlePlaces(act.segments.slice(-1), v, tms)[0];
-              const idleNow = isToday && lastSpan && lastSpan.state === ACTIVITY.IDLE ? lastSpan : null;
-              const noGps = act.segments.every(s => s.state === ACTIVITY.NO_GPS);
+              const lastSpan = act ? withIdlePlaces(act.segments.slice(-1), v, tms)[0] : null;
+              const idleNow = !isWithoutDriver && isToday && lastSpan && lastSpan.state === ACTIVITY.IDLE ? lastSpan : null;
+              const noGps = act ? act.segments.every(s => s.state === ACTIVITY.NO_GPS) : false;
               // Only the latest few spans on the card; the full day is in Activity timeline.
-              const recent = act.segments.slice(-3);
-              const earlier = act.segments.length - recent.length;
+              const recent = act ? act.segments.slice(-3) : [];
+              const earlier = act ? act.segments.length - recent.length : 0;
               return (
               <Col key={v.id} xs={24} sm={12} xl={8} xxl={6}>
                 <Card
                   hoverable
                   role="button"
                   tabIndex={0}
-                  aria-label={ff === 'idle' ? `Idle details for ${v.number}` : `Track ${v.number} on the map`}
+                  aria-label={isWithoutDriver ? `Track ${v.number} on the map` : ff === 'idle' ? `Idle details for ${v.number}` : `Track ${v.number} on the map`}
                   onClick={() => openCard(v.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(v.id); } }}
                   className="fl-card"
@@ -1267,63 +1292,65 @@ export const FleetMonitor = () => {
                     </Flex>
                   </Flex>
 
-                  {/* 3 · Anything that needs attention */}
-                  {v.radiusAlert && (
+                  {/* 3 · Anything that needs attention (omitted for idle-without-driver) */}
+                  {!isWithoutDriver && v.radiusAlert && (
                     <Flex align="flex-start" gap={8} className="fl-card-alert">
                       <TriangleAlert size={14} style={{ flex: 'none', marginTop: 2 }} aria-hidden />
                       <span>{v.radiusAlert}</span>
                     </Flex>
                   )}
-                  {idleNow && <IdleNowPanel span={idleNow} />}
+                  {!isWithoutDriver && idleNow && <IdleNowPanel span={idleNow} />}
 
-                  {/* 4 · The day from GPS, pinned to the bottom so cards line up */}
-                  <div className="fl-card-day">
-                    {noGps ? (
-                      <Flex justify="space-between" gap={8}>
-                        <Typography.Text strong style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>No GPS data for this day</Typography.Text>
-                      </Flex>
-                    ) : (
-                      <Flex vertical gap={8}>
-                        <Flex justify="space-between" align="baseline" gap={8}>
+                  {/* 4 · The day from GPS, pinned to the bottom so cards line up (omitted for idle-without-driver) */}
+                  {!isWithoutDriver && (
+                    <div className="fl-card-day">
+                      {noGps ? (
+                        <Flex justify="space-between" gap={8}>
                           <Typography.Text strong style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
-                          <Flex gap={12}>
-                            <span className="fl-card-stat" style={{ color: 'var(--good-700)' }}>
-                              <span className="fl-card-stat-dot" style={{ background: 'var(--good-600)' }} />Run {fmtDuration(act.summary.running)}
-                            </span>
-                            <span className="fl-card-stat" style={{ color: '#7A4300' }}>
-                              <span className="fl-card-stat-dot" style={{ background: 'var(--kr-saffron-500)' }} />Idle {fmtDuration(act.summary.idle)}
-                            </span>
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>No GPS data for this day</Typography.Text>
+                        </Flex>
+                      ) : (
+                        <Flex vertical gap={8}>
+                          <Flex justify="space-between" align="baseline" gap={8}>
+                            <Typography.Text strong style={{ fontSize: 12 }}>{dayLabel}</Typography.Text>
+                            <Flex gap={12}>
+                              <span className="fl-card-stat" style={{ color: 'var(--good-700)' }}>
+                                <span className="fl-card-stat-dot" style={{ background: 'var(--good-600)' }} />Run {fmtDuration(act.summary.running)}
+                              </span>
+                              <span className="fl-card-stat" style={{ color: '#7A4300' }}>
+                                <span className="fl-card-stat-dot" style={{ background: 'var(--kr-saffron-500)' }} />Idle {fmtDuration(act.summary.idle)}
+                              </span>
+                            </Flex>
+                          </Flex>
+                          <ActivityBar segments={act.segments} height={8} />
+                          <Flex vertical gap={2}>
+                            {recent.map((s, i) => (
+                              <Flex key={i} align="center" gap={8} className="fl-card-span">
+                                <span style={{ width: 8, height: 8, borderRadius: 2, flex: 'none', background: ACTIVITY_TONE[s.state].color }} />
+                                <Typography.Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                                  {dayjs(s.start).format('HH:mm')} – {dayjs(s.end).format('HH:mm')}
+                                </Typography.Text>
+                                <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--good-700)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
+                                  {s.state}
+                                </Typography.Text>
+                                <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+                                  {fmtDuration(s.minutes)}
+                                </Typography.Text>
+                              </Flex>
+                            ))}
+                            {earlier > 0 && (
+                              <Typography.Text type="secondary" style={{ fontSize: 12, paddingLeft: 16 }}>
+                                + {earlier} earlier {earlier === 1 ? 'span' : 'spans'} in Activity timeline
+                              </Typography.Text>
+                            )}
                           </Flex>
                         </Flex>
-                        <ActivityBar segments={act.segments} height={8} />
-                        <Flex vertical gap={2}>
-                          {recent.map((s, i) => (
-                            <Flex key={i} align="center" gap={8} className="fl-card-span">
-                              <span style={{ width: 8, height: 8, borderRadius: 2, flex: 'none', background: ACTIVITY_TONE[s.state].color }} />
-                              <Typography.Text style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
-                                {dayjs(s.start).format('HH:mm')} – {dayjs(s.end).format('HH:mm')}
-                              </Typography.Text>
-                              <Typography.Text strong style={{ fontSize: 12, color: s.state === ACTIVITY.RUNNING ? 'var(--good-700)' : s.state === ACTIVITY.IDLE ? '#7A4300' : 'var(--text-muted)' }}>
-                                {s.state}
-                              </Typography.Text>
-                              <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-                                {fmtDuration(s.minutes)}
-                              </Typography.Text>
-                            </Flex>
-                          ))}
-                          {earlier > 0 && (
-                            <Typography.Text type="secondary" style={{ fontSize: 12, paddingLeft: 16 }}>
-                              + {earlier} earlier {earlier === 1 ? 'span' : 'spans'} in Activity timeline
-                            </Typography.Text>
-                          )}
-                        </Flex>
-                      </Flex>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* 5 · Actions */}
-                  <Flex gap={8}>
+                  <Flex gap={8} style={{ marginTop: isWithoutDriver ? 'auto' : undefined }}>
                     <Button
                       block
                       size="small"
@@ -1334,16 +1361,18 @@ export const FleetMonitor = () => {
                     >
                       Track on map
                     </Button>
-                    <Button
-                      block
-                      size="small"
-                      icon={<Clock size={14} />}
-                      onClick={e => { e.stopPropagation(); setActivityId(v.id); }}
-                      onKeyDown={e => e.stopPropagation()}
-                      className="fl-card-btn"
-                    >
-                      Activity timeline
-                    </Button>
+                    {!isWithoutDriver && (
+                      <Button
+                        block
+                        size="small"
+                        icon={<Clock size={14} />}
+                        onClick={e => { e.stopPropagation(); setActivityId(v.id); }}
+                        onKeyDown={e => e.stopPropagation()}
+                        className="fl-card-btn"
+                      >
+                        Activity timeline
+                      </Button>
+                    )}
                   </Flex>
                 </Card>
               </Col>
