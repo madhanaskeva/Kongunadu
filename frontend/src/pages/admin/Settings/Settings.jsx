@@ -322,7 +322,7 @@ export const Settings = () => {
                         <Flex vertical gap={6}>
                           {/* Brand accent bar */}
                           <span style={{ display: 'block', height: 4, width: 36, borderRadius: 2, background: 'var(--color-brand)' }} />
-                          <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                          <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                             {itemLabel}
                           </Typography.Text>
                           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
@@ -330,7 +330,7 @@ export const Settings = () => {
                           </Typography.Text>
                           {dt === 'charts' && (
                             <Flex vertical gap={4} style={{ marginTop: 8 }}>
-                              <Typography.Text type="secondary" strong style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                              <Typography.Text type="secondary" strong style={{ fontSize: 11.5, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
                                 Chart View
                               </Typography.Text>
                               <Segmented

@@ -48,7 +48,7 @@ export const BarChart = ({ categories, series, format, height = 190, showLegend 
           {/* Y axis */}
           <Flex vertical justify="space-between" style={{ width: 40, height, flex: 'none', paddingRight: 6 }}>
             {ticks.map(t => (
-              <Typography.Text key={t} type="secondary" style={{ fontSize: 10.5, lineHeight: '10px', textAlign: 'right' }}>
+              <Typography.Text key={t} type="secondary" style={{ fontSize: 12, lineHeight: '10px', textAlign: 'right' }}>
                 {compact(t)}
               </Typography.Text>
             ))}
@@ -103,7 +103,7 @@ export const BarChart = ({ categories, series, format, height = 190, showLegend 
                 <Typography.Text
                   key={c.key}
                   type="secondary"
-                  style={{ flex: 1, minWidth: 0, fontSize: 11, textAlign: 'center', whiteSpace: 'nowrap', visibility: i % labelEvery ? 'hidden' : 'visible' }}
+                  style={{ flex: 1, minWidth: 0, fontSize: 12, textAlign: 'center', whiteSpace: 'nowrap', visibility: i % labelEvery ? 'hidden' : 'visible' }}
                 >
                   {c.label}
                 </Typography.Text>

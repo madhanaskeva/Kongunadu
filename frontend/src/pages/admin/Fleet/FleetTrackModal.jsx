@@ -65,7 +65,7 @@ const Stat = ({ label, value }) => (
       title={label}
       value={value}
       styles={{
-        title: { fontSize: 11, fontWeight: 600, marginBottom: 2 },
+        title: { fontSize: 12, fontWeight: 600, marginBottom: 2 },
         content: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: 'var(--text-heading)' },
       }}
     />

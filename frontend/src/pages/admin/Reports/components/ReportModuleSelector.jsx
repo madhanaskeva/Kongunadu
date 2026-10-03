@@ -100,7 +100,7 @@ export const ReportModuleSelector = ({ activeModuleId, onSelectModule }) => {
                       <Tag
                         bordered={false}
                         color={isSelected ? '#275e74' : undefined}
-                        style={{ marginInlineEnd: 0, fontSize: 9, fontWeight: 700, textTransform: 'uppercase' }}
+                        style={{ marginInlineEnd: 0, fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase' }}
                       >
                         {m.category}
                       </Tag>
@@ -113,7 +113,7 @@ export const ReportModuleSelector = ({ activeModuleId, onSelectModule }) => {
                       <Typography.Paragraph
                         type="secondary"
                         ellipsis={{ rows: 2 }}
-                        style={{ fontSize: 11, lineHeight: 1.25, margin: '2px 0 0' }}
+                        style={{ fontSize: 12, lineHeight: 1.25, margin: '2px 0 0' }}
                       >
                         {m.description}
                       </Typography.Paragraph>

@@ -44,7 +44,7 @@ export const AdminNotificationsModal = ({ isOpen, onClose }) => {
         <div>
           <Typography.Text
             type="secondary"
-            style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
+            style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}
           >
             NOTIFICATIONS
           </Typography.Text>

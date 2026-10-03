@@ -139,6 +139,7 @@ export const DynamicChart = ({ chart = {} }) => {
         {chart.rows.map((b, bi) => (
           <div
             key={bi}
+            className="tms-hbar-row"
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(90px, 150px) 1fr minmax(56px, auto)',
@@ -210,7 +211,7 @@ export const DynamicChart = ({ chart = {} }) => {
                 minWidth: 0,
               }}
             >
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', textAlign: 'center' }}>
+              <span className="tms-col-val" style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-heading)', textAlign: 'center' }}>
                 {b.val}
               </span>
               <div style={{ height: b.h, background: barFill(b.color, 'column'), borderRadius: '6px 6px 0 0' }} />
@@ -227,12 +228,14 @@ export const DynamicChart = ({ chart = {} }) => {
 
   // If native stat layout exists
   if (chart.isStat && chart.stats) {
+    // Light amber reads poorly as text: the figures use the dark amber, the bar keeps the fill.
+    const textTone = c => ({ 'var(--kr-saffron-500)': 'var(--kr-saffron-800)', 'var(--kr-saffron-600)': 'var(--kr-saffron-800)' }[c] || c);
     return (
       <>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
           {chart.stats.map((x, xi) => (
             <div key={xi}>
-              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '30px', lineHeight: 1, color: x.color }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '30px', lineHeight: 1, color: textTone(x.color) }}>
                 {x.value}
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{x.label}</div>

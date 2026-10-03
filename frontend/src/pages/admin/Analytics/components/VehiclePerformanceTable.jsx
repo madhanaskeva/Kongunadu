@@ -49,7 +49,7 @@ export const VehiclePerformanceTable = ({ stats, months }) => {
             {r.s.vehicleNumber}
           </Typography.Text>
           {r.s.total.status && (
-            <Tag color={r.s.total.status.tag} style={{ marginTop: 6, marginInlineEnd: 0, fontSize: 11 }}>
+            <Tag color={r.s.total.status.tag} style={{ marginTop: 6, marginInlineEnd: 0, fontSize: 12 }}>
               {r.s.total.status.label}
             </Tag>
           )}

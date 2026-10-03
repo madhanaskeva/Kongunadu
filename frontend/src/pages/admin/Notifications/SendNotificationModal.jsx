@@ -5,7 +5,7 @@ import { SupervisorSelector } from './SupervisorSelector';
 
 export const ModalTitle = ({ kicker, title }) => (
   <div>
-    <Typography.Text type="secondary" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+    <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
       {kicker}
     </Typography.Text>
     <div>{title}</div>

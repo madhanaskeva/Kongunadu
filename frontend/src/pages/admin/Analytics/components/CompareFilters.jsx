@@ -25,7 +25,7 @@ const PickMany = ({ value, options, onChange, placeholder, prefix, noun }) => {
       // The field can be narrower than this header, so the panel gets its own width.
       popupMatchSelectWidth={false}
       popupRender={menu => (
-        <div style={{ minWidth: 280, maxWidth: 'calc(100vw - 32px)' }}>
+        <div className="tms-pick-panel">
           <Flex justify="space-between" align="center" gap={8} wrap style={{ padding: '4px 8px' }}>
             <Typography.Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
               {value.length} of {all.length} {noun} selected

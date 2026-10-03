@@ -418,10 +418,10 @@ export const Attendance = () => {
               <Typography.Text strong style={{ display: 'block', fontSize: 13 }}>
                 Today, {todayFormatted}
               </Typography.Text>
-              <Space size={6} style={{ fontSize: 11 }}>
-                <Typography.Text type="secondary" style={{ fontSize: 11 }}>{todayDayName}</Typography.Text>
-                <Typography.Text type="secondary" style={{ fontSize: 11 }}>•</Typography.Text>
-                <Typography.Text strong type={isPast11AM ? 'danger' : undefined} style={{ fontSize: 11, color: isPast11AM ? undefined : 'var(--color-brand)' }}>
+              <Space size={6} style={{ fontSize: 12 }}>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>{todayDayName}</Typography.Text>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>•</Typography.Text>
+                <Typography.Text strong type={isPast11AM ? 'danger' : undefined} style={{ fontSize: 12, color: isPast11AM ? undefined : 'var(--color-brand)' }}>
                   Deadline: 11:00 AM {isPast11AM ? '(Passed)' : ''}
                 </Typography.Text>
               </Space>

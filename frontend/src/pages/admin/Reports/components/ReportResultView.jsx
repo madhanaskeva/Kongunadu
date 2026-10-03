@@ -329,7 +329,7 @@ export const ReportResultView = ({
           <div>
             <Flex align="center" gap={8}>
               <Typography.Text className="reports-result-kicker">Report View</Typography.Text>
-              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                 · {generatedAt ? generatedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
               </Typography.Text>
             </Flex>

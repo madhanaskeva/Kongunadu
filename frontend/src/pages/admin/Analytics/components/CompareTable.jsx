@@ -8,7 +8,7 @@ const dash = <Typography.Text type="secondary">—</Typography.Text>;
 const cellOf = (m, v) => {
   if (v == null || Number.isNaN(v)) return dash;
   // A zero is faded so the periods with activity stand out.
-  if (v === 0) return <Typography.Text style={{ color: 'var(--kr-grey-300)' }}>0</Typography.Text>;
+  if (v === 0) return <Typography.Text type="secondary">0</Typography.Text>;
   return <Typography.Text style={{ color: 'var(--text-heading)' }}>{fmtCell(m.kind, v)}</Typography.Text>;
 };
 const unitLabel = (m) => (unitOf(m.kind) && m.kind !== 'pct' ? ` (${unitOf(m.kind)})` : '');

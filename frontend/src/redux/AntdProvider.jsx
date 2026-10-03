@@ -159,6 +159,8 @@ const TMS_THEME = {
       cellPaddingInline: 16,
       headerCellSplitColor: '#dcdcd6',
       fontSize: 14,
+      // Body text a step darker than the page's body grey so table rows read clearly.
+      colorText: '#262824',
     },
     Modal: {
       borderRadius: 12,

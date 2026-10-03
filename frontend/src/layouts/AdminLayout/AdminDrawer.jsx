@@ -26,7 +26,7 @@ import { useTMSAdmin } from '../../context/TMSAdminContext';
 import { DRIVER_TYPES, normDriverType } from '../../utils/driverTypes';
 
 /* Small uppercase label used for the drawer kicker and the review panels' block titles. */
-const kickerStyle = { fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' };
+const kickerStyle = { fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase' };
 
 const SEVERITY_COLOR = { High: 'error', Medium: 'warning' };
 const DRIVER_STATUS_COLOR = { Approved: 'success', Rejected: 'error', Pending: 'warning', 'Pending approval': 'warning' };

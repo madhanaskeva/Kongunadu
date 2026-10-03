@@ -43,7 +43,7 @@ export const IdlePlace = ({ place, compact = false }) => {
 // Why it was idle, as the tracker reports it.
 export const IdleReason = ({ reason, compact = false }) => (
   <Flex align="center" gap={6} wrap style={{ marginTop: compact ? 0 : 4, paddingLeft: compact ? 0 : 16 }}>
-    <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '18px', fontWeight: 600 }}>{reason.label}</Tag>
+    <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontSize: 12, lineHeight: '18px', fontWeight: 600 }}>{reason.label}</Tag>
   </Flex>
 );
 
@@ -65,7 +65,7 @@ export const IdleNowPanel = ({ span }) => {
       <Flex justify="space-between" align="center" gap={8}>
         <Flex align="center" gap={6}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone.edge, animation: 'tmsPulse 1.6s ease-in-out infinite' }} aria-hidden />
-          <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tone.fg }}>Idle now</Typography.Text>
+          <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: tone.fg }}>Idle now</Typography.Text>
         </Flex>
         <Typography.Text strong style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: tone.fg, whiteSpace: 'nowrap' }}>
           {fmtDuration(span.minutes)}
@@ -100,10 +100,10 @@ export const IdleNowPanel = ({ span }) => {
       {place.lat && (
         <Flex align="center" gap={6} style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed rgba(0,0,0,0.12)' }}>
           <MapPin size={12} style={{ color: 'var(--color-brand)' }} aria-hidden />
-          <Typography.Text style={{ fontSize: 11.5, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+          <Typography.Text style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
             {place.lat}, {place.lng}
           </Typography.Text>
-          <Tag color="processing" style={{ marginInlineEnd: 0, marginLeft: 'auto', fontSize: 10.5, lineHeight: '16px' }}>GPS confirmed</Tag>
+          <Tag color="processing" style={{ marginInlineEnd: 0, marginLeft: 'auto', fontSize: 12, lineHeight: '16px' }}>GPS confirmed</Tag>
         </Flex>
       )}
     </div>
@@ -147,7 +147,7 @@ const Stat = ({ label, value, color }) => (
       title={label}
       value={value}
       styles={{
-        title: { fontSize: 11, fontWeight: 600, marginBottom: 2 },
+        title: { fontSize: 12, fontWeight: 600, marginBottom: 2 },
         content: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, color: color || 'var(--text-heading)' },
       }}
     />
@@ -284,7 +284,7 @@ export const VehicleActivityModal = ({ vehicle: v, tms, initialFrom, initialTo, 
               <ActivityBar segments={segments} height={18} multiDay={multiDay} />
               <Flex justify="space-between">
                 {ticks.map((t, i) => (
-                  <Typography.Text key={i} type="secondary" style={{ fontSize: 11 }}>
+                  <Typography.Text key={i} type="secondary" style={{ fontSize: 12 }}>
                     {multiDay ? t.format('DD MMM HH:mm') : t.format('HH:mm')}
                   </Typography.Text>
                 ))}

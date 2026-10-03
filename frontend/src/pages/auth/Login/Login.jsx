@@ -61,7 +61,10 @@ export const Login = () => {
         .krl-login-logo { width: 240px; max-width: 100%; height: auto; align-self: flex-start; }
         @media (max-width: 900px) {
           .krl-login { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
-          .krl-login-image { width: 100%; height: 380px; max-height: 48vh; background-position: center top; background-size: cover; }
+          /* Small screens: a banner framed on the truck (the card below carries the logo). */
+          .krl-login-image { width: 100%; height: clamp(240px, 46vh, 420px); max-height: none; background-position: center 80%; background-size: cover; }
+          .krl-login-caption { display: none; }
+          .krl-login-shade { background: linear-gradient(180deg, rgba(4,20,38,0) 70%, rgba(4,20,38,0.35) 100%); }
           .krl-login-caption { left: 16px; right: 16px; bottom: 14px; }
           .krl-login-caption > div { font-size: 10px; letter-spacing: 0.16em; }
           .krl-login-caption > p { font-size: 12.5px; line-height: 1.45; margin-top: 4px; }
@@ -69,7 +72,7 @@ export const Login = () => {
           .krl-login-card { padding: 36px 20px 28px; }
         }
         @media (max-width: 480px) {
-          .krl-login-image { height: 280px; max-height: 38vh; background-position: center top; }
+          .krl-login-image { height: clamp(220px, 38vh, 300px); background-position: center 78%; }
           .krl-login-form { padding: 16px 12px 36px; }
           .krl-login-card { padding: 26px 16px 20px; border-radius: 16px; gap: 18px; }
           .krl-login-logo { width: 190px; }

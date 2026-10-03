@@ -233,7 +233,7 @@ export const Dashboard = () => {
     ],
     lists: [
       { id: 'openExceptions', title: 'Open exceptions', desc: 'Newest open exceptions with branch', items: openExc.slice(0, 5).map(x => ({ kind: 'exc', id: x.id, dot: x.severity === 'High' ? 'var(--kr-red-600)' : x.severity === 'Medium' ? 'var(--kr-saffron-500)' : 'var(--kr-grey-500)', title: x.type + ' · ' + ((tms.V[x.vehicle] || {}).number || '—'), detail: x.detail, meta: (tms.B[x.branch] || {}).name })) },
-      { id: 'longOpenTrips', title: 'Long open trips', desc: `${ENROUTE_LABEL} for more than 24 hours`, linkLabel: 'Over 24 h', route: 'trips', items: longOpen.map(t => ({ kind: 'trip', id: t.id, dot: 'var(--kr-saffron-500)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.B[t.branch] || {}).name || ''}`, meta: t.hoursOpen + ' h', metaColor: 'var(--kr-saffron-600)' })) },
+      { id: 'longOpenTrips', title: 'Long open trips', desc: `${ENROUTE_LABEL} for more than 24 hours`, linkLabel: 'Over 24 h', route: 'trips', items: longOpen.map(t => ({ kind: 'trip', id: t.id, dot: 'var(--kr-saffron-500)', title: t.number, mono: true, detail: `${(tms.V[t.vehicle] || {}).number || ''} · ${(tms.D[t.driver] || {}).name || ''} · ${(tms.B[t.branch] || {}).name || ''}`, meta: t.hoursOpen + ' h', metaColor: 'var(--kr-saffron-800)' })) },
       { id: 'distAlerts', title: 'Distance variance alerts', desc: 'Flagged trips waiting for review', linkLabel: 'All trips →', route: 'trips', items: distAlerts.slice(0, 5).map(d => ({ kind: d.trip ? 'trip' : 'route', id: d.trip, route: 'trips', dot: 'var(--kr-red-600)', title: `${(tms.V[d.vehicle] || {}).number || d.number} · ${d.pctText}`, detail: (d.route || 'Corridor'), meta: d.review, metaColor: 'var(--kr-red-800)' })) },
       { id: 'driverQueue', title: 'Driver approvals', desc: 'New and pending drivers to approve', linkLabel: 'Driver master →', route: 'drivers', items: pendingDrivers.slice(0, 5).map(q => ({ kind: 'drv', id: q.id, dot: 'var(--kr-saffron-500)', title: q.name, detail: `${(tms.B[q.branch] || {}).name} · ${q.licence}`, meta: 'Review', metaColor: 'var(--text-brand)' })) },
       { id: 'deviceRequests', title: 'Device approvals', desc: 'Supervisor phones asking to register', linkLabel: 'Device approvals →', route: 'deviceApprovals', items: devPending.slice(0, 5).map(r => ({ kind: 'route', route: 'deviceApprovals', id: r.id, dot: 'var(--kr-saffron-500)', title: '+91 ' + r.phone, detail: `IMEI ${r.imei} · ${r.device || 'Android phone'}`, meta: r.requestedAt || 'Pending' })) },
@@ -418,7 +418,7 @@ export const Dashboard = () => {
                   <Statistic
                     title={
                       <Flex justify="space-between" align="flex-start" gap={8}>
-                        <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--kpi)', lineHeight: 1.35 }}>
+                        <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--kpi)', lineHeight: 1.35 }}>
                           {k.label}
                         </Typography.Text>
                         {Icon && <Avatar size={30} style={{ flex: 'none', background: tint, color: edge }} icon={<Icon size={16} strokeWidth={2.2} />} />}
@@ -436,7 +436,7 @@ export const Dashboard = () => {
                       {k.stats.map((x, xi) => (
                         <div key={xi}>
                           <Divider style={{ margin: '0 0 6px' }} />
-                          <Typography.Text type="secondary" strong style={{ display: 'block', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                          <Typography.Text type="secondary" strong style={{ display: 'block', fontSize: 11.5, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                             {x.h}
                           </Typography.Text>
                           <Typography.Text style={{ fontSize: 12, wordBreak: 'break-word' }}>{x.text}</Typography.Text>

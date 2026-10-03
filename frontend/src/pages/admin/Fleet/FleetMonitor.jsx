@@ -3,7 +3,7 @@ import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as T
 import dayjs from 'dayjs';
 import {
   Alert, Button, Card, Col, DatePicker, Descriptions, Empty, Flex, Form, Input, Pagination, Row,
-  Segmented, Select, Space, Statistic, Table, Tag, Timeline, Tooltip, Typography,
+  Grid, Segmented, Select, Space, Statistic, Table, Tag, Timeline, Tooltip, Typography,
 } from 'antd';
 import { AimOutlined, ClockCircleOutlined, EnvironmentOutlined, WarningOutlined } from '@ant-design/icons';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
@@ -217,7 +217,7 @@ export const FleetMonitor = () => {
       idleCat,
       idleMin,
       driverName: v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver',
-      gpsColor: v.gps === 'OK' ? 'var(--color-brand)' : v.gps === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)',
+      gpsColor: v.gps === 'OK' ? 'var(--color-brand)' : v.gps === 'Weak' ? 'var(--kr-saffron-800)' : 'var(--kr-red-600)',
       gpsBg: v.gps === 'OK' ? 'var(--color-brand-soft)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
       // Each card is edged and chipped in its own status colour.
       tone: FLEET_TONES[v.status] || FLEET_TONES.default,
@@ -287,14 +287,17 @@ export const FleetMonitor = () => {
       noGps: act.segments.every(s => s.state === ACTIVITY.NO_GPS),
     };
   };
+  const screens = Grid.useBreakpoint();
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
 
   // List view: one row per vehicle, the same facts as its card.
+  // Phones: the pinned Vehicle column would cover most of the screen, so the whole table scrolls.
+  const pinVehicle = screens.md ? 'left' : false;
   const fleetListColumns = [
     {
       title: 'Vehicle',
       key: 'vehicle',
-      fixed: 'left',
+      fixed: pinVehicle,
       width: 200,
       render: (_, v) => (
         <div style={{ minWidth: 0 }}>
@@ -346,7 +349,7 @@ export const FleetMonitor = () => {
                 {fmtDuration(idleNow.minutes)}
               </Typography.Text>
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>since {dayjs(idleNow.start).format('HH:mm')}</Typography.Text>
-              <Tag color={idleNow.reason.tone} style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '18px' }}>{idleNow.reason.label}</Tag>
+              <Tag color={idleNow.reason.tone} style={{ marginInlineEnd: 0, fontSize: 12, lineHeight: '18px' }}>{idleNow.reason.label}</Tag>
             </Flex>
           </Flex>
         );
@@ -394,7 +397,7 @@ export const FleetMonitor = () => {
     },
   ];
 
-  const gpsTone = g => g === 'OK' ? 'var(--color-brand)' : g === 'Weak' ? 'var(--kr-saffron-600)' : 'var(--kr-red-600)';
+  const gpsTone = g => g === 'OK' ? 'var(--color-brand)' : g === 'Weak' ? 'var(--kr-saffron-800)' : 'var(--kr-red-600)';
 
   // Diversions
   const divStates = {
@@ -611,7 +614,7 @@ export const FleetMonitor = () => {
     { title: 'Action', dataIndex: 'a', key: 'a', render: (v, r) => <Typography.Text strong style={{ color: r.color }}>{v}</Typography.Text> },
   ];
 
-  const kicker = { fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' };
+  const kicker = { fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' };
   const bigValue = { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 20, color: 'var(--text-heading)', whiteSpace: 'nowrap' };
   const unitStyle = { fontFamily: 'var(--font-body)', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' };
   const dot = (color, size = 7, animation) => (
@@ -637,7 +640,7 @@ export const FleetMonitor = () => {
       {/* Filters Bar — same filters as the Trips page */}
       <Card className="tl-filters" styles={{ body: { padding: '18px 20px' } }}>
         <Form layout="vertical">
-          <div className="tms-filter-grid">
+          <div className="tms-filter-grid tms-filter-grid--inline-end" style={{ "--filter-cols": 8 }}>
             <Form.Item label="Branch" className="tl-filter">
               <Select
                 prefix={<Building2 size={17} />}
@@ -836,7 +839,7 @@ export const FleetMonitor = () => {
       {/* Filters Bar — same filters as the Trips page */}
       <Card className="tl-filters" styles={{ body: { padding: '18px 20px' } }}>
         <Form layout="vertical">
-          <div className="tms-filter-grid">
+          <div className="tms-filter-grid tms-filter-grid--inline-end" style={{ "--filter-cols": 8 }}>
             <Form.Item label="Branch" className="tl-filter">
               <Select
                 prefix={<Building2 size={17} />}
@@ -1026,7 +1029,7 @@ export const FleetMonitor = () => {
                             </Flex>
                           ))}
                           {g.list.length > 3 && (
-                            <Typography.Text style={{ fontSize: 11.5, color: 'var(--text-heading, #1c1c1a)', fontWeight: 600 }}>+ {g.list.length - 3} more</Typography.Text>
+                            <Typography.Text style={{ fontSize: 12, color: 'var(--text-heading, #1c1c1a)', fontWeight: 600 }}>+ {g.list.length - 3} more</Typography.Text>
                           )}
                         </>
                       )}
@@ -1202,7 +1205,7 @@ export const FleetMonitor = () => {
                             </Flex>
                           ))}
                           {earlier > 0 && (
-                            <Typography.Text type="secondary" style={{ fontSize: 11.5, paddingLeft: 16 }}>
+                            <Typography.Text type="secondary" style={{ fontSize: 12, paddingLeft: 16 }}>
                               + {earlier} earlier {earlier === 1 ? 'span' : 'spans'} in Activity timeline
                             </Typography.Text>
                           )}

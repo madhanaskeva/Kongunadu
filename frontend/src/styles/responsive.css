@@ -52,6 +52,33 @@
   justify-self: end;
 }
 
+/* Every control in a filter bar is the same 42px tall (antd's single and multiple
+   selects, the date pickers and the trailing action otherwise differ by 1-2px). */
+.tms-filter-grid .ant-select,
+.tms-filter-grid .ant-picker,
+.tms-filter-grid > .tms-filter-end.ant-btn {
+  height: 42px;
+}
+
+/* Trips / Fleet filter bars: "All vehicles" and "Any period" are antd placeholders, but they
+   mean the same as "All branches" / "All clients" beside them, so they read in the same colour.
+   (Prompts such as Analytics' "Select metrics…" keep the placeholder grey.) */
+.tl-filters .tms-filter-grid .ant-select-placeholder {
+  color: var(--text-heading);
+}
+
+/* Fields plus the trailing action (Clear) on one row once there is room for all of them,
+   instead of the action wrapping onto a row of its own. --filter-cols = number of fields. */
+@media (min-width: 1600px) {
+  .tms-filter-grid--inline-end {
+    grid-template-columns: repeat(var(--filter-cols, 8), minmax(0, 1fr)) auto;
+  }
+
+  .tms-filter-grid--inline-end > .tms-filter-end {
+    grid-column: auto;
+  }
+}
+
 @media (min-width: 681px) and (max-width: 1024px) {
   .tms-filter-grid {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
@@ -376,5 +403,105 @@
 
   .tms-pagehead-date {
     padding: 6px 10px !important;
+  }
+}
+
+/* ---------- Readable status text ---------------------------------------------
+   antd's warning colour (#f29a1f) is a fill colour; as text on white it is ~2:1.
+   Warning text uses the dark amber instead (~6:1); tags and icons keep the fill. */
+.ant-typography.ant-typography-warning {
+  color: var(--kr-saffron-800);
+}
+
+/* ---------- Multi-select panels (Reports, Analytics) -------------------------
+   Wide enough for long names on desktop; on phones they match the field so they
+   never run off the screen edge. */
+.tms-pick-panel {
+  min-width: 280px;
+  max-width: calc(100vw - 32px);
+}
+
+/* Touch screens: tooltips have no hover to close them, so they stick over the
+   dialog the button opened. The buttons carry visible labels / aria-labels. */
+@media (hover: none) {
+  .ant-tooltip {
+    display: none !important;
+  }
+}
+
+/* ======================= Phones (≤ 600px), round 2 ========================== */
+@media (max-width: 600px) {
+  .tms-pick-panel {
+    min-width: 0;
+  }
+
+  .ant-select-dropdown {
+    max-width: calc(100vw - 16px);
+  }
+
+  /* Date pickers: centre the calendar on the screen instead of hanging it off
+     the field's edge (the panel is 288px wide; the screen may be 320px). */
+  .ant-picker-dropdown:not(.ant-picker-dropdown-range) {
+    left: max(8px, calc(50vw - 146px)) !important;
+  }
+
+  /* Dialog footers: buttons share the row in equal parts and wrap as full-width
+     rows when they do not fit, so the main action is never stranded. */
+  .ant-modal .ant-modal-footer,
+  .ant-modal .ant-modal-footer > .ant-flex {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ant-modal .ant-modal-footer > .ant-btn,
+  .ant-modal .ant-modal-footer > .ant-flex > .ant-btn,
+  .ant-modal .ant-modal-footer > .ant-space > .ant-space-item {
+    flex: 1 1 auto;
+    margin-inline-start: 0 !important;
+  }
+
+  .ant-modal .ant-modal-footer > .ant-flex {
+    width: 100%;
+  }
+
+  /* Card header actions (Mark all as read · Share, Restore defaults · View
+     dashboard …): one row across the card, equal parts. */
+  .tms-shell .ant-card-head .ant-card-extra {
+    width: 100%;
+  }
+
+  .tms-shell .ant-card-extra > .ant-space {
+    display: flex;
+    width: 100%;
+  }
+
+  .tms-shell .ant-card-extra > .ant-space > .ant-space-item {
+    flex: 1 1 auto;
+  }
+
+  .tms-shell .ant-card-extra > .ant-space > .ant-space-item > .ant-btn {
+    width: 100%;
+  }
+
+  /* Dashboard "Trips by branch": name and figures on one line, the bar full
+     width underneath (it was squeezed to a dot). */
+  .tms-hbar-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    row-gap: 6px !important;
+  }
+
+  .tms-hbar-row > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  /* Dashboard columns: values stand upright so neighbours never run together. */
+  .tms-col-val {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    align-self: center;
+    margin-bottom: 4px;
+    font-size: 11.5px !important;
   }
 }

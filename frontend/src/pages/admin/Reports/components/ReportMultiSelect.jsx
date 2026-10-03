@@ -84,7 +84,7 @@ export const ReportMultiSelect = ({
       // The field can be narrower than the option labels (phones), so the panel sizes itself.
       popupMatchSelectWidth={false}
       popupRender={(menu) => (
-        <div style={{ minWidth: 280, maxWidth: 'calc(100vw - 32px)' }}>
+        <div className="tms-pick-panel">
           <Flex justify="space-between" align="center" style={{ padding: '0 4px' }}>
             <Flex align="center">
               <Button type="link" size="small" onClick={handleSelectAll}>

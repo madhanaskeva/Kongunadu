@@ -105,7 +105,7 @@ export const ModuleAccess = ({ users, selectedId, onSelect, showToast }) => {
       onCell: r => (r.isGroup ? { colSpan: colCount } : { style: { whiteSpace: 'nowrap' } }),
       render: (_, r) =>
         r.isGroup ? (
-          <Typography.Text strong type="success" style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+          <Typography.Text strong type="success" style={{ fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
             {r.group}
           </Typography.Text>
         ) : (

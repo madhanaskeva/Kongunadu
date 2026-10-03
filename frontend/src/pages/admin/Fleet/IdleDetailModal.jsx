@@ -90,7 +90,7 @@ export const IdleDetailModal = ({ vehicle: v, tms, categoryLabel, onClose, onTra
               <Col xs={24} sm={9}>
                 <Flex align="center" gap={6}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: tone.edge, animation: 'tmsPulse 1.6s ease-in-out infinite' }} aria-hidden />
-                  <Typography.Text strong style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: tone.fg }}>Idle now</Typography.Text>
+                  <Typography.Text strong style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: tone.fg }}>Idle now</Typography.Text>
                 </Flex>
                 <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 800, lineHeight: 1.15, color: tone.fg }}>
                   {fmtDuration(idleNow.minutes)}
@@ -290,7 +290,7 @@ export const IdleDetailModal = ({ vehicle: v, tms, categoryLabel, onClose, onTra
                     <Icon size={14} style={{ color: '#7A4300', flex: 'none' }} aria-hidden />
                     <Typography.Text ellipsis={{ tooltip: s.place.name }} style={{ fontSize: 12.5 }}>{s.place.name}</Typography.Text>
                   </Flex>
-                  <Tag color={s.reason.tone} style={{ marginInlineEnd: 0, fontSize: 11 }}>{s.reason.label}</Tag>
+                  <Tag color={s.reason.tone} style={{ marginInlineEnd: 0, fontSize: 12 }}>{s.reason.label}</Tag>
                   <Typography.Text strong style={{ fontSize: 12.5, whiteSpace: 'nowrap', minWidth: 64, textAlign: 'right', color: current ? tone.fg : 'var(--text-heading)' }}>
                     {fmtDuration(s.minutes)}
                   </Typography.Text>
