@@ -56,7 +56,7 @@ export const Login = () => {
         }
         .krl-login-card::before {
           content: ''; position: absolute; top: 0; left: 0; right: 0; height: 6px;
-          background: linear-gradient(90deg, var(--color-brand) 0 65%, var(--kr-red-600) 65% 100%);
+          background: linear-gradient(90deg, var(--color-brand) 0 65%, var(--kr-copper-600) 65% 100%);
         }
         .krl-login-logo { width: 240px; max-width: 100%; height: auto; align-self: flex-start; }
         @media (max-width: 900px) {
