@@ -95,12 +95,18 @@ export class SupervisorApp extends React.Component {
     const mine = this.readAttStore()[this.BR] || {}; const days = Object.keys(mine); if (!days.length) return;
     // Today's saved marks become the live marks, so the Open Trip form can suggest the driver present on a vehicle
     // and re-saving today keeps them. Anything already marked in this session wins.
-    const d = new Date(), p = n => String(n).padStart(2, '0'), today = (mine[`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`] || {}).entries || {};
+    const d = new Date(), p = n => String(n).padStart(2, '0'), todayRec = mine[`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`] || {}, today = todayRec.entries || {};
     this.setState(st => {
       const att = { ...st.att }, attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus };
       const attRepl = { ...(st.attRepl || {}) };
+      const attVehData = { ...(todayRec.vehicles || {}), ...(st.attVehData || {}) };
       Object.entries(today).forEach(([id, [mark, veh, vs, link] = []]) => { if (att[id] || !mark) return; att[id] = mark; if (veh) attVeh[id] = veh; if (mark === 'P' && vs) attVehStatus[id] = vs; if (link) attRepl[id] = link; });
-      return { att, attVeh, attVehStatus, attRepl, attSaved: [...days.map(day => ({ day, ...mine[day] })), ...st.attSaved.filter(r => !mine[r.day])] };
+      if (todayRec.vehicles) {
+        Object.entries(todayRec.vehicles).forEach(([vid, vd]) => {
+          if (vd && vd.status && !attVehStatus[vid]) attVehStatus[vid] = vd.status;
+        });
+      }
+      return { att, attVeh, attVehStatus, attRepl, attVehData, attSaved: [...days.map(day => ({ day, ...mine[day] })), ...st.attSaved.filter(r => !mine[r.day])] };
     });
   }
   writeAttDay(rec) {
@@ -787,14 +793,51 @@ export class SupervisorApp extends React.Component {
     const openDay = s.attOpenDay === undefined || s.attOpenDay === '' ? (savedSorted[0] || {}).day : s.attOpenDay;
     const savedDays = savedSorted.map(r => {
       const rows = amDriverList.map(d => { const [st = '', veh = ''] = r.entries[d.id] || []; return { name: d.name, vehicle: veh ? (T.V[veh] || {}).number : st === 'P' ? 'No vehicle' : '—', badge: st === 'P' ? 'Present' : st === 'A' ? 'Absent' : 'Not marked', badgeBg: this.statusTone(st === 'P' ? 'Present' : st === 'A' ? 'Absent' : 'Not marked')[0], badgeFg: this.statusTone(st === 'P' ? 'Present' : st === 'A' ? 'Absent' : 'Not marked')[1] }; });
+      const vehSavedRows = Object.entries(r.vehicles || {})
+        .filter(([vid, data]) => data && data.driverAvailability === 'Not available' && data.status)
+        .map(([vid, data]) => {
+          const vn = (T.V[vid] || {}).number || vid;
+          return {
+            name: 'No driver',
+            vehicle: vn,
+            badge: data.status,
+            badgeBg: this.statusTone(data.status)[0],
+            badgeFg: this.statusTone(data.status)[1]
+          };
+        });
+      const allRows = [...rows, ...vehSavedRows];
       const present = rows.filter(x => x.badge === 'Present').length, absent = rows.filter(x => x.badge === 'Absent').length, unmarked = rows.length - present - absent;
       const open = openDay === r.day, isToday = r.day === TODAY_DAY;
-      return { day: r.day, label: r.label, isToday, savedLine: `Saved at ${r.savedAt} by ${me.name}`, present, absent, unmarked: unmarked || false, rows, open, expanded: open ? 'true' : 'false', rot: open ? '180deg' : '0deg', edge: unmarked ? 'var(--color-hazard)' : 'var(--color-brand)' };
+      return { day: r.day, label: r.label, isToday, savedLine: `Saved at ${r.savedAt} by ${me.name}`, present, absent, unmarked: unmarked || false, rows: allRows, open, expanded: open ? 'true' : 'false', rot: open ? '180deg' : '0deg', edge: unmarked ? 'var(--color-hazard)' : 'var(--color-brand)' };
     });
-    const amRows = amDriverList.filter(d => s.att[d.id]).map((d, i) => { const v = s.att[d.id], vn = (T.V[s.attVeh[d.id]] || {}).number;
+    const amDriverRows = amDriverList.filter(d => s.att[d.id]).map((d, i) => { const v = s.att[d.id], vn = (T.V[s.attVeh[d.id]] || {}).number;
       const vs = v === 'A' ? '—' : vehStatusOf(d.id), [vsBg, vsFg] = this.statusTone(vs);
       const link = (s.attRepl || {})[d.id];
       return { id: d.id, sno: i + 1, name: d.name, note: link ? (v === 'A' ? `Replaced by ${nameOf(link)}` : `Replacing ${nameOf(link)}`) : '', role: isHelper(d) ? 'Helper' : 'Driver', vehicle: vn || (v === 'A' ? '—' : 'No vehicle'), vehStatus: vs, vsBg, vsFg, badge: v === 'P' ? 'Present' : 'Absent', badgeBg: this.statusTone(v === 'P' ? 'Present' : 'Absent')[0], badgeFg: this.statusTone(v === 'P' ? 'Present' : 'Absent')[1], bg: v === 'P' ? 'var(--color-brand-tint)' : '#fff', removeLabel: `Remove ${d.name}` }; });
+    const amVehRows = Object.entries(s.attVehData || {})
+      .filter(([vid, data]) => data && data.driverAvailability === 'Not available' && data.status)
+      .map(([vid, data], idx) => {
+        const vn = (T.V[vid] || {}).number || vid;
+        const vs = data.status;
+        const [vsBg, vsFg] = this.statusTone(vs);
+        return {
+          id: `veh-${vid}`,
+          sno: amDriverRows.length + idx + 1,
+          name: 'No driver assigned',
+          note: 'Driver not available',
+          role: '—',
+          vehicle: vn,
+          vehStatus: vs,
+          vsBg,
+          vsFg,
+          badge: 'Present',
+          badgeBg: 'var(--kr-grey-100)',
+          badgeFg: 'var(--kr-grey-700)',
+          bg: 'var(--kr-saffron-100)',
+          removeLabel: `Remove ${vn}`
+        };
+      });
+    const amRows = [...amDriverRows, ...amVehRows];
     // Vehicle idle status
     const activeByVeh = Object.fromEntries(this.active().map(t => [t.vehicle, t]));
     const idleRows = branchVeh.map(v => {
@@ -1494,7 +1537,23 @@ export class SupervisorApp extends React.Component {
       amDriverAvailabilityOptions,
       setAmDriverAvailability: e => this.setAmDriverAvailability(e),
       amStatusOptions, amStatusHint, setAmStatus: e => this.pickAm({ status: e.target.value }),
-      removeAm: e => { const id = e.currentTarget.dataset.id, d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; const vehId = attVeh[id]; delete attVeh[id]; delete attVehStatus[id]; const attRepl = { ...(st.attRepl || {}) }; if (attRepl[id]) { delete attRepl[attRepl[id]]; delete attRepl[id]; } const attVehData = { ...(st.attVehData || {}) }; if (vehId && attVehData[vehId]) { const vd = { ...attVehData[vehId] }; vd.drivers = (vd.drivers || []).filter(x => x !== id); vd.helpers = (vd.helpers || []).filter(x => x !== id); attVehData[vehId] = vd; } return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus, attRepl, attVehData }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`); },
+      removeAm: e => {
+        const id = e.currentTarget.dataset.id;
+        if (id && id.startsWith('veh-')) {
+          const vid = id.replace('veh-', '');
+          const vn = (T.V[vid] || {}).number || vid;
+          this.setState(st => {
+            const attVehData = { ...(st.attVehData || {}) };
+            delete attVehData[vid];
+            const attVehStatus = { ...(st.attVehStatus || {}) };
+            delete attVehStatus[vid];
+            return { attVehData, attVehStatus };
+          });
+          this.toast('warning', 'Removed', `${vn} status removed from today's attendance.`);
+          return;
+        }
+        const d = this.drv(id), vn = (T.V[s.attVeh[id]] || {}).number; this.setState(st => { const attVeh = { ...st.attVeh }, attVehStatus = { ...st.attVehStatus }; const vehId = attVeh[id]; delete attVeh[id]; delete attVehStatus[id]; const attRepl = { ...(st.attRepl || {}) }; if (attRepl[id]) { delete attRepl[attRepl[id]]; delete attRepl[id]; } const attVehData = { ...(st.attVehData || {}) }; if (vehId && attVehData[vehId]) { const vd = { ...attVehData[vehId] }; vd.drivers = (vd.drivers || []).filter(x => x !== id); vd.helpers = (vd.helpers || []).filter(x => x !== id); attVehData[vehId] = vd; } return { att: { ...st.att, [id]: '' }, attVeh, attVehStatus, attRepl, attVehData }; }); this.toast('warning', 'Removed', `${d ? d.name : 'Driver'}${vn ? ' · ' + vn : ''} removed from today’s attendance.`);
+      },
       saveAmEntry: () => {
         let att = { ...s.att }, attVeh = { ...s.attVeh }, attVehStatus = { ...s.attVehStatus };
         let attRepl = { ...(s.attRepl || {}) }, attVehData = { ...(s.attVehData || {}) };

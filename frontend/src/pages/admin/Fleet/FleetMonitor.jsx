@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MapPin, Clock, TriangleAlert, Search, Building2, Users, Truck, Tag as TagIcon, Flag, User, ArrowLeft, ChevronRight, Navigation, LayoutGrid, List as ListIcon, Info } from 'lucide-react';
 import dayjs from 'dayjs';
 import {
@@ -52,11 +52,10 @@ const usePagedCards = (items, resetKeys, noun) => {
 const STATUS_TAG = {
   Running: 'processing',
   Enroute: 'processing',
-  'Idle-loading': 'processing',
-  'Idle-unloading': 'purple',
-  'Idle-without driver': 'warning',
-  'Idle without driver': 'warning',
   Idle: 'warning',
+  'Idle-loading': 'processing',
+  'Idle-unloading': 'volcano',
+  'Idle-without driver': 'warning',
   Maintenance: 'cyan',
 };
 const GPS_TAG = { OK: 'processing', Weak: 'warning' };
@@ -66,11 +65,10 @@ const DIVERSION_TAG = { 'Off route now': 'error', Rejoined: 'warning', Reviewed:
 const FLEET_TONES = {
   Running: { edge: 'var(--color-brand)', bg: 'var(--color-brand-soft)', fg: 'var(--kr-green-900)' },
   Enroute: { edge: 'var(--color-brand)', bg: 'var(--color-brand-soft)', fg: 'var(--kr-green-900)' },
+  Idle: { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
   'Idle-loading': { edge: 'var(--color-brand)', bg: 'var(--color-brand-soft)', fg: 'var(--color-brand)' },
   'Idle-unloading': { edge: 'var(--good-600)', bg: '#E7F6EC', fg: 'var(--good-700)' },
   'Idle-without driver': { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
-  'Idle without driver': { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
-  Idle: { edge: 'var(--kr-saffron-500)', bg: 'var(--kr-saffron-100)', fg: '#7A4300' },
   Maintenance: { edge: 'var(--st-enroute-edge)', bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-fg)' },
   default: { edge: 'var(--kr-grey-300)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
 };
@@ -85,14 +83,12 @@ const IDLE_CAT_TONES = {
   yard: { edge: 'var(--kr-grey-500)', bg: 'var(--kr-grey-100)', fg: 'var(--kr-grey-700)' },
   maintenance: { edge: 'var(--st-enroute-edge)', bg: 'var(--st-enroute-bg)', fg: 'var(--st-enroute-fg)' },
 };
-const IDLE_CAT_ICON = { ...PLACE_ICON, onroad: Navigation, maintenance: PLACE_ICON.service, 'without-driver': Users };
+const IDLE_CAT_ICON = { ...PLACE_ICON, onroad: Navigation, 'without-driver': Users, maintenance: PLACE_ICON.service };
 
-// Live attendance storage sync
 const ATT_KEY = 'kr-tms-attendance';
 const readAttStore = () => {
   try { return JSON.parse(localStorage.getItem(ATT_KEY) || '{}') || {}; } catch (e) { return {}; }
 };
-
 const useAttStore = () => {
   const [store, setStore] = useState(readAttStore);
   useEffect(() => {
@@ -124,8 +120,7 @@ export const FleetMonitor = () => {
   const [idleCat, setIdleCat] = useState(null);
   // In the Idle view a card opens its idle details; elsewhere it opens the map.
   const [idleId, setIdleId] = useState(null);
-  const isIdleTab = fleetFilter === 'idle' || fleetFilter === 'idle-loading' || fleetFilter === 'idle-unloading' || fleetFilter === 'idle-without-driver';
-  const openCard = (id) => (isIdleTab ? setIdleId(id) : setTrackId(id));
+  const openCard = (id) => (ff === 'idle' || ff === 'idle-without-driver' ? setIdleId(id) : setTrackId(id));
   // Card or list layout for the vehicles, remembered on this browser.
   const VIEW_KEY = 'kr_fleet_view';
   const [fleetView, setFleetViewState] = useState(() => {
@@ -226,82 +221,67 @@ export const FleetMonitor = () => {
       (!flt.client || (s.clientIds || []).includes(flt.client));
   };
 
-  // Look up latest attendance info for each vehicle from the shared attendance store
-  const latestAttByVeh = React.useMemo(() => {
+  const todayStr = dayjs().format(DATE_FMT);
+  const todayAttMap = useMemo(() => {
     const map = {};
-    Object.values(attStore || {}).forEach(branchData => {
-      if (!branchData || typeof branchData !== 'object') return;
-      const dates = Object.keys(branchData).sort();
-      dates.forEach(date => {
-        const dayRec = branchData[date];
-        if (!dayRec || typeof dayRec !== 'object') return;
-
-        // Vehicles object ({ [vehId]: { status, driverAvailability, drivers, helpers } })
-        if (dayRec.vehicles && typeof dayRec.vehicles === 'object') {
-          Object.entries(dayRec.vehicles).forEach(([vehKey, vData]) => {
-            if (vData && vData.status) {
-              const info = {
-                status: vData.status,
-                driverAvailability: vData.driverAvailability,
-                drivers: Array.isArray(vData.drivers) ? vData.drivers : [],
-                helpers: Array.isArray(vData.helpers) ? vData.helpers : [],
-                date,
+    Object.values(attStore || {}).forEach(branchStore => {
+      if (!branchStore || typeof branchStore !== 'object') return;
+      const dayRec = branchStore[todayStr];
+      if (!dayRec) return;
+      if (dayRec.vehicles && typeof dayRec.vehicles === 'object') {
+        Object.entries(dayRec.vehicles).forEach(([vid, data]) => {
+          if (data && data.status) map[vid] = { ...data };
+        });
+      }
+      if (dayRec.crews && typeof dayRec.crews === 'object') {
+        Object.entries(dayRec.crews).forEach(([vid, data]) => {
+          if (data && data.status && !map[vid]) map[vid] = { ...data };
+        });
+      }
+      if (dayRec.entries && typeof dayRec.entries === 'object') {
+        Object.entries(dayRec.entries).forEach(([drvId, entry]) => {
+          if (Array.isArray(entry)) {
+            const [mark, veh, vs] = entry;
+            if (veh && vs && !map[veh]) {
+              map[veh] = {
+                status: vs,
+                driverAvailability: mark === 'P' ? 'Available' : 'Not available',
+                drivers: mark === 'P' ? [drvId] : [],
+                helpers: []
               };
-              map[vehKey] = info;
-              if (tms.V && tms.V[vehKey]?.number) map[tms.V[vehKey].number] = info;
             }
-          });
-        }
-
-        // Crews object ({ [vehId]: { status, driverAvailability, drivers, helpers, ... } })
-        if (dayRec.crews && typeof dayRec.crews === 'object') {
-          Object.entries(dayRec.crews).forEach(([vehKey, cData]) => {
-            if (cData && (cData.status || cData.driverAvailability)) {
-              const info = {
-                status: cData.status || map[vehKey]?.status || '',
-                driverAvailability: cData.driverAvailability || map[vehKey]?.driverAvailability || '',
-                drivers: Array.isArray(cData.drivers) && cData.drivers.length ? cData.drivers : (map[vehKey]?.drivers || []),
-                helpers: Array.isArray(cData.helpers) && cData.helpers.length ? cData.helpers : (map[vehKey]?.helpers || []),
-                date,
-              };
-              map[vehKey] = info;
-              if (tms.V && tms.V[vehKey]?.number) map[tms.V[vehKey].number] = info;
-            }
-          });
-        }
-
-        // Entries object ({ [driverId]: [mark, vehId, vehicleStatus, link] })
-        if (dayRec.entries && typeof dayRec.entries === 'object') {
-          Object.entries(dayRec.entries).forEach(([drvId, entryVal]) => {
-            let vehKey = '';
-            let vStatus = '';
-            if (Array.isArray(entryVal)) {
-              vehKey = entryVal[1];
-              vStatus = entryVal[2];
-            } else if (entryVal && typeof entryVal === 'object') {
-              vehKey = entryVal.vehicleId || entryVal.vehicle;
-              vStatus = entryVal.vehicleStatus || entryVal.status;
-            }
-            if (vehKey && vStatus && !map[vehKey]) {
-              const info = {
-                status: vStatus,
-                driverAvailability: 'Available',
-                drivers: [drvId],
-                helpers: [],
-                date,
-              };
-              map[vehKey] = info;
-              if (tms.V && tms.V[vehKey]?.number) map[tms.V[vehKey].number] = info;
-            }
-          });
-        }
-      });
+          }
+        });
+      }
     });
     return map;
-  }, [attStore, tms.V]);
+  }, [attStore, todayStr]);
 
   // Fleet Vehicles
   const fleetAll = (tms.vehicles || []).map(v => {
+    const attRec = todayAttMap[v.id];
+    let effectiveStatus = v.status;
+    let effectiveDriver = v.driver;
+    let effectiveDriverName = v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver';
+    let effectiveRoute = v.route;
+
+    if (attRec && attRec.status) {
+      effectiveStatus = attRec.status;
+      if (attRec.status === 'Idle-without driver' || attRec.driverAvailability === 'Not available') {
+        effectiveDriver = null;
+        effectiveDriverName = 'No driver';
+        if (!effectiveRoute || effectiveRoute.includes('→')) {
+          effectiveRoute = `Parked at ${((tms.B || {})[v.branch] || {}).name || 'Branch'} yard`;
+        }
+      } else if (attRec.drivers && attRec.drivers.length > 0) {
+        effectiveDriver = attRec.drivers[0];
+        effectiveDriverName = (tms.D[attRec.drivers[0]] || {}).name || effectiveDriverName;
+      }
+    } else if (v.status === 'Idle-without driver') {
+      effectiveDriver = null;
+      effectiveDriverName = 'No driver';
+    }
+
     let idleHours = 0;
     let idleText = v.lastSeen;
 
@@ -309,43 +289,17 @@ export const FleetMonitor = () => {
     else if (v.id === 'V04') { idleHours = 2.5; idleText = '2 h 30 min ago'; }
     else if (v.id === 'V08') { idleHours = 0.5; idleText = '30 min ago'; }
     else if (v.id === 'V10') { idleHours = 4.5; idleText = '4 h 30 min ago'; }
-    else if (v.status === 'Idle') { idleHours = 1.2; idleText = '1 h 12 min ago'; }
-
-    const attInfo = latestAttByVeh[v.id] || latestAttByVeh[v.number] || null;
-
-    // Status: Attendance status wins; otherwise fallback to v.status with 'Running' mapped to 'Enroute'
-    let effectiveStatus = v.status;
-    if (attInfo && attInfo.status) {
-      effectiveStatus = attInfo.status;
-    } else if (effectiveStatus === 'Running') {
-      effectiveStatus = 'Enroute';
-    }
-
-    // Driver name resolution according to attendance driver availability
-    let driverName = 'No driver';
-    if (attInfo) {
-      if (attInfo.driverAvailability === 'Not available' || effectiveStatus === 'Idle-without driver' || effectiveStatus === 'Idle without driver') {
-        driverName = 'No driver';
-      } else if (attInfo.driverAvailability === 'Available' && attInfo.drivers && attInfo.drivers.length > 0) {
-        const dId = attInfo.drivers[0];
-        const drv = tms.D[dId] || (tms.drivers || []).find(d => d.id === dId || d.name === dId);
-        driverName = drv ? drv.name : (dId || 'No driver');
-      } else if (v.driver && tms.D[v.driver]) {
-        driverName = tms.D[v.driver].name;
-      }
-    } else {
-      driverName = v.driver && tms.D[v.driver] ? tms.D[v.driver].name : 'No driver';
-    }
+    else if (effectiveStatus === 'Idle' || effectiveStatus.startsWith('Idle')) { idleHours = 1.2; idleText = '1 h 12 min ago'; }
 
     // Where it is standing: the GPS tracker's report of the stop, else the stop
     // its open trip's supervisor stage puts it in (loading / unloading point).
     const openTrip = openTripOf(v, trips);
     const gpsIdle = (tms.gpsIdleReports || []).find(r => r.vehicle === v.id) || tripStopFor(v, openTrip, tms);
-    const idleCat = idleCategoryOf({ ...v, status: effectiveStatus, gpsIdle }, openTrip);
+    const idleCat = idleCategoryOf({ ...v, status: effectiveStatus, driver: effectiveDriver, driverAvailability: attRec?.driverAvailability, gpsIdle }, openTrip);
     // With no stop report, how long it has stood comes from today's GPS: the current idle span.
     let idleMin = gpsIdle ? gpsIdle.minutes : Math.round(idleHours * 60);
     if (idleCat && !gpsIdle) {
-      const segs = vehicleActivity({ ...v, idleHours }, dayjs().startOf('day').valueOf(), Date.now()).segments;
+      const segs = vehicleActivity({ ...v, status: effectiveStatus, idleHours }, dayjs().startOf('day').valueOf(), Date.now()).segments;
       const last = segs[segs.length - 1];
       if (last && last.state === ACTIVITY.IDLE) idleMin = last.minutes;
     }
@@ -353,6 +307,9 @@ export const FleetMonitor = () => {
     return {
       ...v,
       status: effectiveStatus,
+      driver: effectiveDriver,
+      driverName: effectiveDriverName,
+      route: effectiveRoute,
       idleHours,
       lastSeen: idleText,
       branchName: (tms.B[v.branch] || {}).name,
@@ -361,7 +318,6 @@ export const FleetMonitor = () => {
       openTrip,
       idleCat,
       idleMin,
-      driverName,
       gpsColor: v.gps === 'OK' ? 'var(--color-brand)' : v.gps === 'Weak' ? 'var(--kr-saffron-800)' : 'var(--kr-red-600)',
       gpsBg: v.gps === 'OK' ? 'var(--color-brand-soft)' : v.gps === 'Weak' ? 'var(--kr-saffron-100)' : 'var(--kr-red-100)',
       // Each card is edged and chipped in its own status colour.
@@ -374,18 +330,15 @@ export const FleetMonitor = () => {
     };
   });
 
-  // Which vehicle tab a vehicle belongs to
-  const inTab = (v, tab) => {
-    if (tab === 'all') return true;
-    if (tab === 'enroute' || tab === 'running') return v.status === 'Enroute' || v.status === 'Running';
-    if (tab === 'idle-loading') return v.status === 'Idle-loading';
-    if (tab === 'idle-unloading') return v.status === 'Idle-unloading';
-    if (tab === 'idle-without-driver') return v.status === 'Idle-without driver' || v.status === 'Idle without driver';
-    if (tab === 'maint') return v.status === 'Maintenance';
-    if (tab === 'gps') return v.gps !== 'OK';
-    if (tab === 'idle') return v.status === 'Idle-loading' || v.status === 'Idle-unloading' || v.status === 'Idle-without driver' || v.status === 'Idle';
-    return false;
-  };
+  // Which vehicle tab a vehicle belongs to (a vehicle can sit in more than one).
+  const inTab = (v, tab) =>
+    tab === 'all' ||
+    (tab === 'running' && (v.status === 'Running' || v.status === 'Enroute')) ||
+    (tab === 'idle' && (v.status === 'Idle' || v.status === 'Idle-loading' || v.status === 'Idle-unloading' || v.status === 'Idle-without driver' || !!v.idleCat) &&
+      (idleDurationFilter === 'all' || v.idleMin > Number(idleDurationFilter) * 60)) ||
+    (tab === 'idle-without-driver' && (v.status === 'Idle-without driver' || v.idleCat === 'without-driver' || (!v.driver && (v.status === 'Idle' || v.status?.startsWith?.('Idle'))))) ||
+    (tab === 'maint' && v.status === 'Maintenance') ||
+    (tab === 'gps' && v.gps !== 'OK');
 
   // Vehicles passing the filter bar and the search, before the tab narrows them.
   const fleetBase = fleetAll.filter(v => {
@@ -421,6 +374,7 @@ export const FleetMonitor = () => {
   const idlePlaceName = (v) => {
     const r = v.gpsIdle;
     if (v.idleCat === 'maintenance') return v.route;
+    if (v.idleCat === 'without-driver') return v.route || 'Parked at yard';
     if (r) return ((tms.F || {})[r.place] || (tms.L || {})[r.place] || {}).name || r.place;
     if (v.openTrip) return `On the way · ${v.route}`;
     return String(v.route || '').replace(/^Parked at\s*/i, '');
@@ -527,10 +481,10 @@ export const FleetMonitor = () => {
       title: 'Actions',
       key: 'actions',
       fixed: 'right',
-      width: isIdleTab ? 130 : 100,
+      width: (ff === 'idle' || ff === 'idle-without-driver') ? 130 : 100,
       render: (_, v) => (
         <Flex gap={4}>
-          {isIdleTab && (
+          {(ff === 'idle' || ff === 'idle-without-driver') && (
             <Tooltip title="Idle details">
               <Button size="small" type="text" icon={<Info size={15} />} aria-label={`Idle details for ${v.number}`} onClick={stop(() => setIdleId(v.id))} />
             </Tooltip>
@@ -728,10 +682,9 @@ export const FleetMonitor = () => {
   // Each tab shows how many records it holds under the current filters and search.
   const fleetFilters = [
     { id: 'all', label: 'All' },
-    { id: 'enroute', label: 'Enroute' },
-    { id: 'idle-loading', label: 'Idle-loading' },
-    { id: 'idle-unloading', label: 'Idle-unloading' },
-    { id: 'idle-without-driver', label: 'Idle without driver' },
+    { id: 'running', label: 'Running' },
+    { id: 'idle', label: 'Idle' },
+    { id: 'idle-without-driver', label: 'Idle-without driver' },
     { id: 'maint', label: 'Maintenance' },
     { id: 'gps', label: 'GPS issues' },
     { id: 'diversion', label: 'Route diversion', count: filteredDivCards.length },
@@ -739,19 +692,12 @@ export const FleetMonitor = () => {
     { id: 'radius', label: 'Radius alert', count: filteredRbCards.length },
   ].map(f => ({ ...f, count: f.count ?? fleetBase.filter(v => inTab(v, f.id)).length }));
 
-  const countStatus = (st) => fleetBase.filter(v => {
-    if (st === 'Enroute') return v.status === 'Enroute' || v.status === 'Running';
-    if (st === 'Idle without driver') return v.status === 'Idle-without driver' || v.status === 'Idle without driver';
-    return v.status === st;
-  }).length;
-
   const fleetTiles = [
-    { label: 'Fleet', value: fleetBase.length, edge: 'var(--color-brand)' },
-    { label: 'Enroute', value: countStatus('Enroute'), edge: 'var(--color-brand)' },
-    { label: 'Idle-loading', value: countStatus('Idle-loading'), edge: 'var(--st-enroute-edge)' },
-    { label: 'Idle-unloading', value: countStatus('Idle-unloading'), edge: '#E17055' },
-    { label: 'Idle without driver', value: countStatus('Idle without driver'), edge: 'var(--kr-saffron-500)' },
-    { label: 'Maintenance', value: countStatus('Maintenance'), edge: 'var(--kr-grey-500)' },
+    { label: 'Fleet', value: 722, edge: 'var(--color-brand)' },
+    { label: 'Running', value: 281, edge: 'var(--color-brand)' },
+    { label: 'Idle · no business', value: 296, edge: 'var(--st-enroute-edge)' },
+    { label: 'Idle · no driver', value: 88, edge: 'var(--kr-saffron-500)' },
+    { label: 'Maintenance', value: 57, edge: 'var(--kr-grey-500)' },
   ];
 
   const fallbackRows = [
@@ -910,7 +856,7 @@ export const FleetMonitor = () => {
                 type={ff === f.id ? 'primary' : 'default'}
                 onClick={() => {
                   setFleetFilter(f.id);
-                  if (f.id !== 'idle' && f.id !== 'idle-loading' && f.id !== 'idle-unloading' && f.id !== 'idle-without-driver') setIdleDurationFilter('all');
+                  if (f.id !== 'idle') setIdleDurationFilter('all');
                   setIdleCat(null);
                 }}
                 style={{ fontWeight: 600 }}
@@ -934,6 +880,8 @@ export const FleetMonitor = () => {
                 ? 'Search non-billable trips...'
                 : ff === 'radius'
                 ? 'Search radius alerts...'
+                : ff === 'idle-without-driver'
+                ? 'Search idle without driver vehicles...'
                 : 'Search vehicles, drivers, routes...'
             }
             value={fleetQ}
@@ -960,7 +908,7 @@ export const FleetMonitor = () => {
           )}
 
         {/* Right side duration filter option — ONLY shown in IDLE section */}
-        {isIdleTab && (
+        {ff === 'idle' && (
           <Select
             value={idleDurationFilter}
             onChange={setIdleDurationFilter}
@@ -1219,12 +1167,12 @@ export const FleetMonitor = () => {
                   </>
                 ) : hasFilters ? (
                   'No vehicles match the selected filters.'
+                ) : ff === 'idle-without-driver' ? (
+                  'No vehicles idle without driver right now.'
                 ) : idleCatInfo ? (
                   `No vehicles idle at ${idleCatInfo.label.toLowerCase()} right now.`
-                ) : idleDurationFilter !== 'all' ? (
-                  `No idle vehicles match the selected duration filter (more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'}).`
                 ) : (
-                  `No vehicles in ${fleetFilters.find(f => f.id === ff)?.label || ff} right now.`
+                  `No idle vehicles match the selected duration filter ${idleDurationFilter !== 'all' ? `(more than ${idleDurationFilter} ${idleDurationFilter === '1' ? 'hour' : 'hours'})` : ''}.`
                 )
               }
             >
@@ -1253,7 +1201,7 @@ export const FleetMonitor = () => {
               onRow={v => ({
                 onClick: () => openCard(v.id),
                 style: { cursor: 'pointer' },
-                title: isIdleTab ? 'Open idle details' : 'Track on map',
+                title: ff === 'idle' ? 'Open idle details' : 'Track on map',
               })}
             />
           </Card>
@@ -1279,7 +1227,7 @@ export const FleetMonitor = () => {
                   hoverable
                   role="button"
                   tabIndex={0}
-                  aria-label={isIdleTab ? `Idle details for ${v.number}` : `Track ${v.number} on the map`}
+                  aria-label={ff === 'idle' ? `Idle details for ${v.number}` : `Track ${v.number} on the map`}
                   onClick={() => openCard(v.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(v.id); } }}
                   className="fl-card"

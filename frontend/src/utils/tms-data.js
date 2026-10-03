@@ -18,7 +18,7 @@ const vehicles=[
  {id:'V01',number:'TN 28 AQ 4521',type:'Reefer container 20ft',branch:'B01',clients:['C01','C02'],driver:'D01',tank:300,odometer:125450,status:'Running',gps:'OK',lastSeen:'2 min ago',route:'Sriperumbudur \u2192 Hyderabad'},
  {id:'V02',number:'TN 28 BC 1180',type:'Reefer trailer 32ft',branch:'B01',clients:['C01','C02','C05'],driver:'D02',tank:400,odometer:98210,status:'Idle',gps:'OK',lastSeen:'6 min ago',route:'Parked at Sriperumbudur hub'},
  {id:'V03',number:'TN 34 CV 0921',type:'Reefer container 20ft',branch:'B02',clients:['C03'],driver:'D03',tank:300,odometer:210330,status:'Running',gps:'Weak',lastSeen:'18 min ago',route:'Namakkal \u2192 Bengaluru'},
- {id:'V04',number:'TN 28 AR 7712',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:null,tank:200,odometer:66120,status:'Idle',gps:'OK',lastSeen:'1 min ago',route:'Parked at Ambattur yard'},
+ {id:'V04',number:'TN 28 AR 7712',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:null,tank:200,odometer:66120,status:'Idle-without driver',gps:'OK',lastSeen:'1 min ago',route:'Parked at Ambattur yard'},
  {id:'V05',number:'TS 09 UB 3344',type:'Reefer container 20ft',branch:'B03',clients:['C04'],driver:'D05',tank:300,odometer:154880,status:'Running',gps:'Failed',lastSeen:'2 h 14 min ago',route:'Hyderabad \u2192 Mumbai'},
  {id:'V06',number:'TN 34 CQ 5566',type:'Reefer trailer 32ft',branch:'B02',clients:['C03'],driver:'D04',tank:400,odometer:187002,status:'Maintenance',gps:'OK',lastSeen:'40 min ago',route:'Service bay, Namakkal'},
  {id:'V07',number:'KA 01 AJ 9087',type:'Closed body 24ft',branch:'B04',clients:['C06'],driver:'D06',tank:250,odometer:44510,status:'Running',gps:'OK',lastSeen:'1 min ago',route:'Bengaluru \u2192 Chennai'},
@@ -30,7 +30,7 @@ const vehicles=[
  {id:'V13',number:'TN 28 BZ 1902',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:'D14',tank:200,odometer:59870,status:'Running',gps:'OK',lastSeen:'7 min ago',route:'Ambattur \u2192 Vijayawada'},
  {id:'V14',number:'TN 28 DK 4410',type:'Reefer container 20ft',branch:'B01',clients:['C01','C02'],driver:'D15',tank:300,odometer:100580,status:'Running',gps:'OK',lastSeen:'3 min ago',route:'Arrived at Yashoda Hospitals, Hyderabad'},
  {id:'V15',number:'TN 28 DL 7753',type:'Closed body 19ft',branch:'B01',clients:['C02','C05'],driver:'D16',tank:200,odometer:52340,status:'Running',gps:'OK',lastSeen:'2 min ago',route:'Ambattur yard \u2192 Sriperumbudur hub'},
- {id:'V16',number:'TN 28 DM 0187',type:'Reefer trailer 32ft',branch:'B01',clients:['C01'],driver:null,tank:400,odometer:0,status:'Idle',gps:'Pending',lastSeen:'\u2014',route:'New vehicle \u00b7 GPS device not fitted'}
+ {id:'V16',number:'TN 28 DM 0187',type:'Reefer trailer 32ft',branch:'B01',clients:['C01'],driver:null,tank:400,odometer:0,status:'Idle-without driver',gps:'Pending',lastSeen:'\u2014',route:'New vehicle \u00b7 GPS device not fitted'}
 ];
 const drivers=[
  {id:'D01',name:'Murugan S.',licence:'TN2820190004521',phone:'90031 22110',branch:'B01',type:'Regular',status:'Active',approval:'Approved',present:24,absent:2,util:'88%'},
@@ -133,7 +133,8 @@ const trips=[
  // On road · GPS shows the drop is done but the trip was never closed, open over 24 h
  {id:'T17',number:'TN28DK4410/09/007',branch:'B01',client:'C01',customers:['U01'],vehicle:'V14',driver:'D15',loading:'L01',unloading:'Yashoda Hospitals LOX Bank \u2013 Hyderabad',startKm:100580,closeKm:null,type:'Business',status:'Enroute',opened:'13 Sep 2026 08:10',closed:null,supervisor:'S01',fixedKm:628,gpsKm:612,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:'18 kL liquid oxygen',qtyUnload:null,hoursOpen:27,flags:['Long open']},
  // On road · non-business internal movement opened from the Supervisor app
- {id:'T18',number:'TN28DL7753/09/005',branch:'B01',client:'',customers:[],vehicle:'V15',driver:'D16',loading:'',from:'Ambattur yard',unloading:'Sriperumbudur hub',nbKm:48,startKm:52340,closeKm:null,type:'Non-Business',reason:'Internal Movement',remarks:'',status:'Enroute',opened:'14 Sep 2026 10:15',closed:null,supervisor:'S01',fixedKm:0,gpsKm:21,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:null,qtyUnload:null,hoursOpen:1,flags:[]}
+ {id:'T18',number:'TN28DL7753/09/005',branch:'B01',client:'',customers:[],vehicle:'V15',driver:'D16',loading:'',from:'Ambattur yard',unloading:'Sriperumbudur hub',nbKm:48,startKm:52340,closeKm:null,type:'Non-Business',reason:'Internal Movement',remarks:'',status:'Enroute',opened:'14 Sep 2026 10:15',closed:null,supervisor:'S01',fixedKm:0,gpsKm:21,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:null,qtyUnload:null,hoursOpen:1,flags:[]},
+ {id:'T24',number:'TN28AR7712/09/024',branch:'B01',client:'C02',customers:['U06'],vehicle:'V04',driver:null,loading:'L02',unloading:'Apollo Hospitals LMO Bank – Chennai',startKm:66120,closeKm:null,type:'Business',status:'Enroute',stage:'Loading',opened:'14 Sep 2026 09:30',closed:null,supervisor:'S01',fixedKm:200,gpsKm:0,odoKm:null,invoice:null,lr:null,advance:null,diesel:null,qtyLoad:'10 kL liquid oxygen',qtyUnload:null,hoursOpen:2,flags:['No driver assigned']}
 ];
 const exceptions=[
  {id:'X01',type:'Hidden kilometres',severity:'High',vehicle:'V10',branch:'B01',trip:'T10',detail:'Trip TN28AQ8890/09/018 closed at 75,190 km; trip /09/019 started at 75,245 km. 55 km unaccounted.',raised:'13 Sep 2026 14:02',status:'Open',assignee:'Unassigned'},
