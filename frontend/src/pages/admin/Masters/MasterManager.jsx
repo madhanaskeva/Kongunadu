@@ -220,6 +220,20 @@ export const MasterManager = ({ type }) => {
     return sups.length ? sups.map(s => s.name).join(', ') : '—';
   };
   const getBranchSupervisorCount = (b) => getBranchSupervisorsList(b).length;
+  // Supervisor seats: Branch Master's "Number of supervisors" is the most a branch may have.
+  const branchOf = (val) => allBranches.find(b => isBranchEqual(val, { value: b.id, label: b.name })) || null;
+  const supervisorsInBranch = (val, excludeId) =>
+    supervisorList.filter(s => s.id !== excludeId && isBranchEqual(s.branch, val));
+  const seatError = (branchVal, excludeId, extra = 0) => {
+    const b = branchOf(branchVal);
+    if (!b) return '';
+    const limit = supervisorSeats(b);
+    const used = supervisorsInBranch(branchVal, excludeId).length + extra;
+    if (used < limit) return '';
+    return limit
+      ? `${b.name} allows ${limit} supervisor${limit === 1 ? '' : 's'} and already has ${used}. Raise "Number of supervisors" in Branch Master to add more.`
+      : `${b.name} has no supervisor seats. Set "Number of supervisors" in Branch Master first.`;
+  };
   const getSupervisorOptions = (selectedBranch) => {
     const sups = supervisorList.filter(s => s.status !== 'Inactive' && s.status !== 'Suspended');
     const sorted = [...sups].sort((a, b) => {
@@ -276,12 +290,10 @@ export const MasterManager = ({ type }) => {
       searchPh: 'Search branch or state',
       data: mdata('branches', tms.branches || []).map(b => {
         const supName = getBranchSupervisor(b);
-        const supCount = getBranchSupervisorCount(b);
         return {
           ...b,
           supervisor: supName,
           supervisors: supName,
-          supervisorCount: supCount,
         };
       }),
       cols: ['Code', 'Branch', 'State', 'Vehicles', 'Supervisors', 'No. of supervisors', 'Driver–helper combination', 'Status'],
@@ -291,7 +303,7 @@ export const MasterManager = ({ type }) => {
         txtCell(b.state),
         txtCell(b.vehicles),
         txtCell(b.supervisor || getBranchSupervisor(b)),
-        txtCell(getBranchSupervisorCount(b)),
+        txtCell(supervisorSeats(b)),
         txtCell(crewOf(b).label),
         statusBadge(b.status),
       ],
@@ -299,11 +311,11 @@ export const MasterManager = ({ type }) => {
         ['code', 'Branch code'],
         ['name', 'Branch name'],
         ['state', 'State'],
-        ['supervisorCount', 'Number of supervisors', null, '0', { clean: 'count', disabled: true, hint: 'Automatically updated based on supervisors assigned in Supervisor Master.' }],
+        ['supervisorCount', 'Number of supervisors', null, 'e.g. 2', { clean: 'count', hint: 'The most supervisors this branch can have. Supervisor Master will not allow more than this.' }],
         ['crew', 'Driver–helper combination', CREW_COMBOS.map(c => ({ value: c.value, label: c.label })), 'The crew per vehicle. The branch supervisor can mark attendance for only this many drivers and helpers on each vehicle.'],
         ['status', 'Status', ['Active', 'Inactive']],
       ],
-      required: ['code', 'name', 'state', 'crew', 'status'],
+      required: ['code', 'name', 'state', 'supervisorCount', 'crew', 'status'],
       validate: (f, isNew, self) => {
         const errs = {};
         const selfId = (self && self.id) || (!isNew && f.id);
@@ -325,10 +337,17 @@ export const MasterManager = ({ type }) => {
 
         if (!f.state || !String(f.state).trim()) errs.state = 'Enter the state.';
 
-        const seats = Number(f.supervisorCount);
-        if (f.supervisorCount !== undefined && f.supervisorCount !== null && String(f.supervisorCount).trim() !== '') {
-          if (!Number.isInteger(seats) || seats < 0) {
-            errs.supervisorCount = 'Enter a whole number.';
+        const seatsRaw = String(f.supervisorCount ?? '').trim();
+        const seats = Number(seatsRaw);
+        if (!seatsRaw) {
+          errs.supervisorCount = 'Enter how many supervisors this branch can have.';
+        } else if (!Number.isInteger(seats) || seats < 1) {
+          errs.supervisorCount = 'Enter a whole number, 1 or more.';
+        } else if (selfId) {
+          // Cannot drop below the supervisors already assigned to this branch.
+          const assigned = getBranchSupervisorCount(self || f);
+          if (seats < assigned) {
+            errs.supervisorCount = `${assigned} supervisor${assigned === 1 ? ' is' : 's are'} already assigned. Move or remove ${assigned - seats} in Supervisor Master first.`;
           }
         }
 
@@ -426,6 +445,9 @@ export const MasterManager = ({ type }) => {
 
         if (!f.branch) {
           errs.branch = 'Select a branch.';
+        } else {
+          const full = seatError(f.branch, selfId);
+          if (full) errs.branch = full;
         }
 
         const hasClients = Array.isArray(f.clients) ? f.clients.length > 0 : !!String(f.clients || '').trim();
@@ -908,15 +930,24 @@ export const MasterManager = ({ type }) => {
         : type === 'drivers'
         ? { status: 'Active', type: 'Regular' }
         : type === 'branches'
-        ? { status: 'Active', supervisorCount: 0 }
+        ? { status: 'Active', supervisorCount: 1 }
         : {}
     );
     setFormError('');
   };
 
   // All branches are available to any supervisor.
-  const fieldsFor = () => {
-    const curBranchOpts = mdata('branches', tms.branches || []).map(b => ({ value: b.id, label: b.name }));
+  const fieldsFor = (rec) => {
+    const curBranchOpts = mdata('branches', tms.branches || []).map(b => {
+      if (type !== 'supervisors') return { value: b.id, label: b.name };
+      // Supervisor form: show seats used and lock branches that are full
+      // (the supervisor's own current branch always stays selectable).
+      const limit = supervisorSeats(b);
+      const used = supervisorsInBranch(b.id, rec && rec.id).length;
+      const own = rec && isBranchEqual(rec.branch, { value: b.id, label: b.name });
+      const full = used >= limit && !own;
+      return { value: b.id, label: `${b.name} (${used}/${limit}${full ? ' · full' : ''})`, disabled: full };
+    });
     return m.fields.map(f => (f[0] === 'branch' ? [f[0], f[1], curBranchOpts, ...f.slice(3)] : f));
   };
 
@@ -981,7 +1012,6 @@ export const MasterManager = ({ type }) => {
     setForm({
       ...rec,
       authorizedBunks: initialAuthBunks,
-      ...(type === 'branches' ? { supervisorCount: getBranchSupervisorCount(rec) } : {}),
       ...(type === 'supervisors' ? { clients: initialClients } : {}),
       ...(type === 'clients' ? { supervisors: initialSupervisors, loadingLocations: rec.loadingLocations || [] } : {}),
       ...(type === 'locations' ? { client: rec.clientId || rec.client || '' } : {}),
@@ -1093,10 +1123,13 @@ export const MasterManager = ({ type }) => {
         Object.entries(m.validate(merged, false) || {}).forEach(([k, msg]) => { if (msg) errs.push(msg.replace(/\.$/, '')); });
       }
       if (!errs.length && type === 'supervisors' && merged.branch) {
+        // Rows earlier in the same sheet take seats too (a row that only updates a
+        // supervisor already in this branch does not take a new seat).
         const selfId = existing && existing.id;
-        const clash = (tms.supervisors || []).find(s => isBranchEqual(s.branch, merged.branch) && s.id !== selfId)
-          || [...pending.values()].find(p => p.f !== (prev && prev.f) && isBranchEqual(p.f.branch, merged.branch));
-        if (clash) errs.push(`${bn(merged.branch)} already has an assigned supervisor (${clash.name || 'in list'})`);
+        const queued = [...pending.values()].filter(p => p.f !== (prev && prev.f) && isBranchEqual(p.f.branch, merged.branch)
+          && !(p.existing && supervisorsInBranch(merged.branch).some(s => s.id === p.existing.id))).length;
+        const full = seatError(merged.branch, selfId, queued);
+        if (full) errs.push(full.replace(/\.$/, ''));
       }
       if (errs.length) { problems.push(`Row ${line}: ${errs.join('; ')}`); return; }
       pending.set(key, { f: prev ? { ...prev.f, ...f } : f, existing, line });

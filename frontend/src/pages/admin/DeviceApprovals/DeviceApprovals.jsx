@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import { useTMSAdmin } from '../../../context/TMSAdminContext';
 import { TabButtons } from '../../../components/common/TabButtons';
+import { supervisorSeats } from '../../../utils/crewCombo';
 
 export const DeviceApprovals = () => {
   const {
@@ -107,22 +108,37 @@ export const DeviceApprovals = () => {
   const [approveErr, setApproveErr] = useState('');
   const allBranches = T().branches || [];
   const branchOpts = allBranches.length ? allBranches : [];
-  // Multiple supervisors can be assigned to any branch; offer all branches.
+  // A branch takes only as many supervisors as its "Number of supervisors" in Branch Master.
   const approveBranchOpts = () => (branchOpts.length ? branchOpts : (T().branches || []));
+  const seatsUsed = (b, excludeId) => (T().supervisors || [])
+    .filter(sv => sv.id !== excludeId && (sv.branch === b.id || sv.branch === b.name)).length;
+  // The phone's own supervisor record (if any) keeps its seat in its current branch.
+  const branchFull = (b, r) => {
+    const own = r && findSupervisor(r);
+    if (own && (own.branch === b.id || own.branch === b.name)) return false;
+    return seatsUsed(b, own && own.id) >= supervisorSeats(b);
+  };
 
   const openApprove = (r) => {
     const existing = findSupervisor(r);
     setApproving(r);
     const pre = r.branchId || (existing && existing.branch) || '';
     const curBranches = approveBranchOpts();
-    const matched = curBranches.find(b => b.id === pre || b.name === pre);
-    setApproveBranch(matched ? matched.id : (curBranches[0] ? curBranches[0].id : ''));
+    const matched = curBranches.find(b => (b.id === pre || b.name === pre) && !branchFull(b, r));
+    const firstOpen = curBranches.find(b => !branchFull(b, r));
+    setApproveBranch(matched ? matched.id : (firstOpen ? firstOpen.id : ''));
     setApproveErr('');
   };
 
   const confirmApprove = () => {
     if (!approveBranch) {
       setApproveErr('Choose the branch this supervisor works at.');
+      return;
+    }
+    const b = approveBranchOpts().find(x => x.id === approveBranch);
+    if (b && branchFull(b, approving)) {
+      const limit = supervisorSeats(b);
+      setApproveErr(`${b.name} allows ${limit} supervisor${limit === 1 ? '' : 's'} and is full. Raise "Number of supervisors" in Branch Master or choose another branch.`);
       return;
     }
     approveDevice(approving.id, approveBranch);
@@ -378,7 +394,11 @@ export const DeviceApprovals = () => {
                 <Select
                   value={approveBranch || undefined}
                   onChange={(v) => { setApproveBranch(v); setApproveErr(''); }}
-                  options={approveBranchOpts().map(b => ({ value: b.id, label: b.name }))}
+                  options={approveBranchOpts().map(b => {
+                    const full = branchFull(b, approving);
+                    const own = approving && findSupervisor(approving);
+                    return { value: b.id, label: `${b.name} (${seatsUsed(b, own && own.id)}/${supervisorSeats(b)}${full ? ' · full' : ''})`, disabled: full };
+                  })}
                   placeholder="Select branch"
                   aria-label="Branch"
                 />

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Fuel, MapPin, PackageOpen, ParkingSquare, Power, Warehouse, Wrench } from 'lucide-react';
+import { Fuel, MapPin, PackageOpen, ParkingSquare, Warehouse, Wrench } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Alert, Button, Card, Col, DatePicker, Flex, Form, Modal, Row, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
 import {
@@ -40,16 +40,10 @@ export const IdlePlace = ({ place, compact = false }) => {
   );
 };
 
-// Why it was idle, as the tracker reports it: the reason, then ignition and speed.
+// Why it was idle, as the tracker reports it.
 export const IdleReason = ({ reason, compact = false }) => (
   <Flex align="center" gap={6} wrap style={{ marginTop: compact ? 0 : 4, paddingLeft: compact ? 0 : 16 }}>
     <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontSize: 11, lineHeight: '18px', fontWeight: 600 }}>{reason.label}</Tag>
-    <Flex align="center" gap={4}>
-      <Power size={11} style={{ color: reason.ignition ? 'var(--kr-green-700)' : 'var(--text-muted)' }} aria-hidden />
-      <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-        Ignition {reason.ignition ? 'on' : 'off'} · 0 km/h
-      </Typography.Text>
-    </Flex>
   </Flex>
 );
 
@@ -94,13 +88,9 @@ export const IdleNowPanel = ({ span }) => {
         </div>
       </Flex>
 
-      {/* Why, and the tracker's reading */}
+      {/* Why it is idle */}
       <Flex align="center" gap={8} wrap style={{ marginTop: 8 }}>
         <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontWeight: 700 }}>{reason.label}</Tag>
-        <Flex align="center" gap={4}>
-          <Power size={12} style={{ color: reason.ignition ? 'var(--kr-green-800)' : 'var(--text-muted)' }} aria-hidden />
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>Ignition {reason.ignition ? 'on' : 'off'} · 0 km/h</Typography.Text>
-        </Flex>
       </Flex>
       {place.note && (
         <Typography.Text style={{ display: 'block', fontSize: 12, marginTop: 6, color: 'var(--text-body)' }}>{place.note}</Typography.Text>

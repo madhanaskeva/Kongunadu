@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, ExternalLink, MapPin, Power, Route, Truck, User } from 'lucide-react';
+import { Clock, ExternalLink, MapPin, Route, Truck, User } from 'lucide-react';
 import dayjs from 'dayjs';
 import { Alert, Button, Col, Descriptions, Flex, Modal, Progress, Row, Tag, Typography } from 'antd';
 import { ACTIVITY, IDLE_PLACE_KIND, fmtDuration, vehicleActivity, withIdlePlaces } from '../../../utils/vehicleActivity';
@@ -109,10 +109,6 @@ export const IdleDetailModal = ({ vehicle: v, tms, categoryLabel, onClose, onTra
                     <Typography.Text type="secondary" style={{ fontSize: 12.5 }}>{IDLE_PLACE_KIND[place.kind]}</Typography.Text>
                     <Flex align="center" gap={8} wrap style={{ marginTop: 8 }}>
                       <Tag color={reason.tone} style={{ marginInlineEnd: 0, fontWeight: 700 }}>{reason.label}</Tag>
-                      <Flex align="center" gap={4}>
-                        <Power size={12} style={{ color: reason.ignition ? 'var(--kr-green-800)' : 'var(--text-muted)' }} aria-hidden />
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>Ignition {reason.ignition ? 'on' : 'off'} · 0 km/h</Typography.Text>
-                      </Flex>
                     </Flex>
                   </div>
                 </Flex>

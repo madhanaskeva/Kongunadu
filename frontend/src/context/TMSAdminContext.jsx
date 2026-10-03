@@ -356,7 +356,9 @@ export const TMSAdminProvider = ({ children }) => {
       out.C = { ...base.C, ...by(out.clients) };
     }
 
-    // Automatically keep branch supervisor count and supervisor names in sync with assigned supervisors
+    // Keep each branch's assigned supervisor names in sync with the Supervisor Master.
+    // `supervisorCount` is the branch's limit set in Branch Master, so it is left as entered;
+    // the live number assigned is exposed separately as `assignedSupervisors`.
     if (out.branches && out.supervisors) {
       const isBrMatch = (sBranch, bId, bName) => {
         if (!sBranch) return false;
@@ -371,7 +373,7 @@ export const TMSAdminProvider = ({ children }) => {
         const sups = out.supervisors.filter(s => isBrMatch(s.branch, b.id, b.name));
         return {
           ...b,
-          supervisorCount: sups.length,
+          assignedSupervisors: sups.length,
           supervisors: sups.length ? sups.map(s => s.name).join(', ') : '—',
           supervisor: sups.length ? sups.map(s => s.name).join(', ') : '—',
         };
